@@ -174,8 +174,14 @@ var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Dean
 var AV={LB:"avLB",VS:"avVS",DN:"avDN",EM:"avEM",ED:"avED",CG:"avCG",CC:"avCC",KE:"avKE",DE:"avDE"};
 var DM=[],DS=[],DP=[],CH={};
 
-function f(v){return "R$ "+Math.abs(parseFloat(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});}
+function f(v){
+  var n=Math.abs(parseFloat(v)||0);
+  if(n>=1000000) return "R$ "+( n/1000000).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+"M";
+  if(n>=1000) return "R$ "+(n/1000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+"K";
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});
+}
 function pc(a,b){return b>0?Math.round((a/b)*100):0;}
+function ff(v){var n=Math.abs(parseFloat(v)||0);return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
 function cl(v,a,b){return Math.min(Math.max(v,a),b);}
 function cp(p){if(p>=100)return"#10b981";if(p>=80)return"#3b82f6";if(p>=60)return"#f59e0b";return"#e63329";}
 
@@ -203,10 +209,14 @@ async function go(){
       return {nome:r.nome,s:s,av:AV[s]||"avLB",meta:parseFloat(r.meta)||0,real:parseFloat(r.realizado)||0};
     });
     DS=csv(t2).map(function(r){
-      return {s:(r.sigla||"").toUpperCase(),ms:parseFloat(r.meta_sem)||0,real:parseFloat(r.realizado)||0,du:parseInt(r.dias_uteis)||1,da:parseInt(r.dia_atual)||1,sa:parseFloat(r.saldo_anterior)||0};
+      var raw=r.sigla||r.nome||r.vendedor||r.VENDEDOR||r.Vendedor||"";
+      var s=SG[raw]||SG[raw.charAt(0).toUpperCase()+raw.slice(1).toLowerCase()]||raw.toUpperCase().substring(0,2);
+      return {s:s,ms:parseFloat(r.meta_sem)||0,real:parseFloat(r.realizado)||0,du:parseInt(r.dias_uteis)||1,da:parseInt(r.dia_atual)||1,sa:parseFloat(r.saldo_anterior)||0};
     });
     DP=csv(t3).map(function(r){
-      return {s:(r.sigla||"").toUpperCase(),ca:parseInt(r.carteira)||0,at:parseInt(r.atendidos)||0,po:parseInt(r.posit)||0,nv:parseInt(r.novos)||0,mg:parseInt(r.margem)||0,mk:parseInt(r.markup)||0};
+      var raw=r.sigla||r.nome||r.vendedor||r.VENDEDOR||r.Vendedor||"";
+      var s=SG[raw]||SG[raw.charAt(0).toUpperCase()+raw.slice(1).toLowerCase()]||raw.toUpperCase().substring(0,2);
+      return {s:s,ca:parseInt(r.carteira)||0,at:parseInt(r.atendidos)||0,po:parseInt(r.posit)||0,nv:parseInt(r.novos)||0,mg:parseInt(r.margem)||0,mk:parseInt(r.markup)||0};
     });
     document.getElementById("loading").style.display="none";
     document.getElementById("app").style.display="block";
