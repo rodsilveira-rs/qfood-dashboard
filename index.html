@@ -285,16 +285,18 @@ tbody tr:hover td{background:var(--s2);}
 
 <!-- ======== ABA HISTORICO ======== -->
 <div id="tab-historico" class="page" style="display:none">
-  <div class="sec">Historico de vendas</div>
+  <div class="sec">% atingido por vendedor &mdash; ultimos 12 meses</div>
   <div class="cwrap">
     <div style="position:relative;height:260px"><canvas id="ch1"></canvas></div>
   </div>
-  <div id="hist-table-wrap">
-    <div class="spin-wrap" id="hist-loading"><div class="spin"></div>Carregando historico...</div>
-    <div class="twrap" id="hist-table" style="display:none">
-      <table><thead><tr id="hist-thead"></tr></thead><tbody id="hist-tbody"></tbody></table>
-    </div>
+  <div class="spin-wrap" id="hist-loading"><div class="spin"></div>Carregando historico...</div>
+  <div class="sec" style="margin-top:8px">Velocimetro &mdash; resultado mais recente por vendedor</div>
+  <div id="hist-gauges" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;"></div>
+  <div class="sec">Positivacao % &mdash; ultimos 3 meses</div>
+  <div class="cwrap">
+    <div style="position:relative;height:240px"><canvas id="ch2"></canvas></div>
   </div>
+  <div id="hist-table" style="display:none"></div>
 </div>
 
 <!-- ======== ABA S&OP ======== -->
@@ -302,11 +304,27 @@ tbody tr:hover td{background:var(--s2);}
   <div class="sec">S&amp;OP &mdash; Planejamento de Vendas e Operacoes</div>
   <div id="sop-loading" class="spin-wrap"><div class="spin"></div>Carregando S&amp;OP...</div>
   <div id="sop-content" style="display:none">
-    <div class="cwrap">
-      <div style="position:relative;height:260px"><canvas id="cs1"></canvas></div>
+    <div class="sec">Faturamento 2024 / 2025 / 2026 + Meta</div>
+    <div class="cwrap"><div style="position:relative;height:260px"><canvas id="cs1"></canvas></div></div>
+    <div class="ceo-grid">
+      <div class="cwrap" style="margin-bottom:0">
+        <div class="ctitle">Crescimento 2026 vs 2025</div>
+        <div style="position:relative;height:200px"><canvas id="cs2"></canvas></div>
+      </div>
+      <div class="cwrap" style="margin-bottom:0">
+        <div class="ctitle">Margem % &mdash; 2025 vs 2026</div>
+        <div style="position:relative;height:200px"><canvas id="cs3"></canvas></div>
+      </div>
     </div>
-    <div class="twrap">
-      <table><thead><tr id="sop-thead"></tr></thead><tbody id="sop-tbody"></tbody></table>
+    <div class="ceo-grid" style="margin-top:10px">
+      <div class="cwrap" style="margin-bottom:0">
+        <div class="ctitle">PDV Ativos &mdash; 2025 vs 2026</div>
+        <div style="position:relative;height:200px"><canvas id="cs4"></canvas></div>
+      </div>
+      <div class="cwrap" style="margin-bottom:0">
+        <div class="ctitle">Drop Size medio &mdash; 2025 vs 2026</div>
+        <div style="position:relative;height:200px"><canvas id="cs5"></canvas></div>
+      </div>
     </div>
   </div>
 </div>
@@ -364,7 +382,7 @@ var USP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjP
 // ---- MAPS ----
 var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
 var AV={LB:"avLB",VS:"avVS",DN:"avDN",EM:"avEM",ED:"avED",CG:"avCG",CC:"avCC",KE:"avKE",DE:"avDE"};
-var DM=[],DS=[],DP=[],DH=[],DSOP=[],CH={};
+var DM=[],DS=[],DP=[],DH=[],DSOP=[],CH={ch1:null,ch2:null,cs1:null,cs2:null,cs3:null,cs4:null,cs5:null};
 var histLoaded=false,sopLoaded=false;
 
 // ---- FORMATTERS ----
@@ -743,100 +761,349 @@ function brisk(){
 
 function buildHist(){
   document.getElementById("hist-loading").style.display="none";
-  if(!DH||DH.length===0){
-    document.getElementById("hist-loading").style.display="block";
-    document.getElementById("hist-loading").textContent="Sem dados de historico.";
-    return;
-  }
-  var keys=Object.keys(DH[0]);
-  // Build thead
-  var thead=document.getElementById("hist-thead");
-  thead.innerHTML="";
-  keys.forEach(function(k){var th=document.createElement("th");th.textContent=k;thead.appendChild(th);});
-  // Build tbody
-  var tbody=document.getElementById("hist-tbody");tbody.innerHTML="";
-  DH.forEach(function(row){
-    var tr=document.createElement("tr");
-    keys.forEach(function(k,i){
-      var td=document.createElement("td");
-      var v=row[k]||"";
-      var num=parseFloat(v.replace(",","."));
-      if(!isNaN(num)&&v!=""&&i>0) td.textContent=f(num);
-      else td.textContent=v;
-      if(i>0) td.style.textAlign="right";
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
+  if(!DH||DH.length===0){document.getElementById("hist-loading").style.display="block";document.getElementById("hist-loading").innerHTML="Sem dados.";return;}
+
+  // Parse rows: MES ANO VENDEDORES META VENDA FALTA MES % ATINGIDO MES ATIVOS POSITIVADOS % POSITIVAC
+  var meses=["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  var mOrder={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+
+  // Build structure: {vendedor: [{mes,ano,meta,venda,pct,posit},...]}
+  var byVend={};
+  var allMonths=[];
+  DH.forEach(function(r){
+    var mes=r["MES"]||r["mes"]||"";
+    var ano=r["ANO"]||r["ano"]||"";
+    var vend=r["VENDEDORES"]||r["vendedores"]||r["Vendedor"]||"";
+    var meta=parseFloat((r["META"]||r["meta"]||"0").replace(".","").replace(",","."))||0;
+    var venda=parseFloat((r["VENDA"]||r["venda"]||"0").replace(".","").replace(",","."))||0;
+    var pct=parseInt((r["%_ATINGIDO_MES"]||r["% ATINGIDO MES"]||r["PERC"]||"0").replace("%",""))||0;
+    var posit=parseInt(r["POSITIVADOS"]||r["positivados"]||"0")||0;
+    var ativos=parseInt(r["ATIVOS"]||r["ativos"]||"0")||0;
+    var ppct=parseInt((r["%_POSITIVAC"]||r["% POSITIVAC"]||r["% POSITIVACAO"]||"0").replace("%",""))||0;
+    if(!vend||!mes||!ano) return;
+    var key=mes+"/"+ano;
+    if(allMonths.indexOf(key)<0) allMonths.push(key);
+    if(!byVend[vend]) byVend[vend]=[];
+    byVend[vend].push({mes:mes,ano:parseInt(ano),meta:meta,venda:venda,pct:pct,posit:posit,ativos:ativos,ppct:ppct,key:key});
   });
-  document.getElementById("hist-table").style.display="block";
-  // Chart historico - try to find numeric columns
+
+  // Sort months chronologically
+  allMonths.sort(function(a,b){
+    var pa=a.split("/"),pb=b.split("/");
+    var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
+    if(ya!==yb) return ya-yb;
+    return (mOrder[pa[0]]||0)-(mOrder[pb[0]]||0);
+  });
+
+  var vends=Object.keys(byVend).sort();
+  var colors={"LUCAS":"#60a5fa","VERA":"#06d6a0","DAYANE":"#f59e0b","ELIANE":"#a78bfa","EDER":"#fb923c","CLAUDIA":"#ef4444","CAMILA":"#10b981","KENYO":"#818cf8","DEANE":"#2dd4bf","VAREJO":"#94a3b8"};
+
+  // Build lookup: vend+key -> pct
+  var lookup={};
+  vends.forEach(function(v){
+    byVend[v].forEach(function(d){lookup[v+"||"+d.key]=d.pct;});
+  });
+
+  // Chart 1: % atingido por vendedor ao longo dos meses (line)
   if(CH.ch1)CH.ch1.destroy();
-  var numCols=keys.filter(function(k,i){return i>0&&DH.some(function(r){return !isNaN(parseFloat((r[k]||"").replace(",",".")));});});
-  if(numCols.length>0&&keys.length>0){
-    var colors2=["#e63329","#3b82f6","#10b981","#f59e0b","#8b5cf6","#06d6a0","#fb923c","#818cf8","#2dd4bf"];
-    var bgColors2=["rgba(230,51,41,0.15)","rgba(59,130,246,0.15)","rgba(16,185,129,0.15)","rgba(245,158,11,0.15)","rgba(139,92,246,0.15)","rgba(6,214,160,0.15)","rgba(251,146,60,0.15)","rgba(129,140,248,0.15)","rgba(45,212,191,0.15)"];
-    var datasets2=numCols.slice(0,9).map(function(k,i){
-      return {label:k,data:DH.map(function(r){return parseFloat((r[k]||"0").replace(",","."))||0;}),borderColor:colors2[i],backgroundColor:bgColors2[i],borderWidth:2,tension:0.35,pointRadius:3,fill:false};
-    });
-    CH.ch1=new Chart(document.getElementById("ch1"),{
-      type:"line",
-      data:{labels:DH.map(function(r){return r[keys[0]]||"";}),datasets:datasets2},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}}},
-        scales:{
-          x:{ticks:{color:"#6b7ea8",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
-          y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return f(v);}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}}
-        }
+  // Use last 12 months only to keep readable
+  var last12=allMonths.slice(-12);
+  var ds1=vends.map(function(v){
+    var col=colors[v]||"#94a3b8";
+    return {
+      label:v,
+      data:last12.map(function(k){return lookup[v+"||"+k]||null;}),
+      borderColor:col,backgroundColor:"transparent",
+      borderWidth:2,tension:0.3,pointRadius:3,spanGaps:true
+    };
+  });
+  CH.ch1=new Chart(document.getElementById("ch1"),{
+    type:"line",
+    data:{labels:last12,datasets:ds1},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:function(c){return " "+c.dataset.label+": "+c.parsed.y+"%";}}}},
+      scales:{
+        x:{ticks:{color:"#6b7ea8",font:{size:10},maxRotation:45},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+        y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"},min:0,max:130}
       }
+    }
+  });
+
+  // Chart 2: Velocímetros por vendedor - último mês disponível
+  // Build gauge section
+  var gaugeDiv=document.getElementById("hist-gauges");
+  gaugeDiv.innerHTML="";
+
+  // Get most recent data per vendor
+  var latestByVend={};
+  vends.forEach(function(v){
+    var sorted=byVend[v].slice().sort(function(a,b){
+      if(a.ano!==b.ano) return b.ano-a.ano;
+      return (mOrder[b.mes]||0)-(mOrder[a.mes]||0);
     });
-  }
+    if(sorted.length>0) latestByVend[v]=sorted[0];
+  });
+
+  // Draw SVG gauges
+  vends.forEach(function(v){
+    var d=latestByVend[v];
+    if(!d) return;
+    var pct=Math.min(d.pct,130);
+    var col=pct>=100?"#10b981":pct>=80?"#3b82f6":pct>=60?"#f59e0b":"#e63329";
+    // Gauge arc: 180 degree semicircle
+    var r=54,cx=70,cy=70;
+    var angle=Math.PI*(pct/130); // 0..130% maps to 0..180deg
+    var x=cx+r*Math.cos(Math.PI-angle);
+    var y=cy-r*Math.sin(angle);
+    var largeArc=angle>Math.PI/2?1:0;
+
+    var wrap=document.createElement("div");
+    wrap.style.cssText="display:inline-flex;flex-direction:column;align-items:center;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 10px;width:140px;";
+
+    var label=document.createElement("div");
+    label.style.cssText="font-size:0.72rem;color:var(--mu);margin-bottom:8px;font-weight:500;";
+    label.textContent=v;
+
+    var svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+    svg.setAttribute("width","140");svg.setAttribute("height","80");svg.setAttribute("viewBox","0 0 140 80");
+
+    // Background arc
+    var bgArc=document.createElementNS("http://www.w3.org/2000/svg","path");
+    bgArc.setAttribute("d","M 16 70 A 54 54 0 0 1 124 70");
+    bgArc.setAttribute("stroke","rgba(255,255,255,0.08)");bgArc.setAttribute("stroke-width","10");bgArc.setAttribute("fill","none");bgArc.setAttribute("stroke-linecap","round");
+    svg.appendChild(bgArc);
+
+    // Value arc
+    if(pct>0){
+      var ex=16+108*(pct/130); // linear approximation for display
+      var ax=cx+54*Math.cos(Math.PI-angle);
+      var ay=cy-54*Math.sin(angle);
+      var fArc=document.createElementNS("http://www.w3.org/2000/svg","path");
+      fArc.setAttribute("d","M 16 70 A 54 54 0 "+(angle>=Math.PI/2?"1":"0")+" 1 "+ax.toFixed(1)+" "+ay.toFixed(1));
+      fArc.setAttribute("stroke",col);fArc.setAttribute("stroke-width","10");fArc.setAttribute("fill","none");fArc.setAttribute("stroke-linecap","round");
+      svg.appendChild(fArc);
+    }
+
+    // Center text
+    var txt=document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x","70");txt.setAttribute("y","66");txt.setAttribute("text-anchor","middle");
+    txt.setAttribute("font-size","16");txt.setAttribute("font-weight","700");txt.setAttribute("fill",col);
+    txt.setAttribute("font-family","Syne,sans-serif");
+    txt.textContent=d.pct+"%";
+    svg.appendChild(txt);
+
+    var sub=document.createElement("div");
+    sub.style.cssText="font-size:0.65rem;color:var(--mu);margin-top:4px;text-align:center;";
+    sub.textContent=d.mes+"/"+d.ano+" · "+f(d.venda);
+
+    wrap.appendChild(label);wrap.appendChild(svg);wrap.appendChild(sub);
+    gaugeDiv.appendChild(wrap);
+  });
+
+  // Chart 3: positivação % por vendedor - barras agrupadas últimos 3 meses
+  if(CH.ch2)CH.ch2.destroy();
+  var last3=allMonths.slice(-3);
+  var ds2=vends.map(function(v){
+    var col=colors[v]||"#94a3b8";
+    return {
+      label:v,
+      data:last3.map(function(k){var d2=byVend[v].find(function(x){return x.key===k;});return d2?d2.ppct:null;}),
+      backgroundColor:col,borderRadius:4,borderSkipped:false
+    };
+  });
+  CH.ch2=new Chart(document.getElementById("ch2"),{
+    type:"bar",
+    data:{labels:last3,datasets:ds2},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:function(c){return " "+c.dataset.label+": "+c.parsed.y+"%";}}}},
+      scales:{
+        x:{ticks:{color:"#6b7ea8",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+        y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"},min:0,max:100}
+      }
+    }
+  });
+
+  document.getElementById("hist-table").style.display="none";
 }
 
 function buildSOP(){
   document.getElementById("sop-loading").style.display="none";
-  if(!DSOP||DSOP.length===0){
-    document.getElementById("sop-loading").style.display="block";
-    document.getElementById("sop-loading").textContent="Sem dados de S&OP.";
-    return;
+  if(!DSOP||DSOP.length===0){document.getElementById("sop-loading").innerHTML="Sem dados S&OP.";return;}
+
+  // Data: Ano, Tipo, Janeiro..Dezembro
+  // Types: Realizado, Meta, (margin rows separate below table)
+  var meses=["Janeiro","fevereiro","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  var mLabels=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  var mesKeys=["Janeiro","fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
+  function getVal(row,candidates){
+    for(var i=0;i<candidates.length;i++){var v=row[candidates[i]];if(v!==undefined&&v!=="")return parseFloat(v.toString().replace(".","").replace(",","."))||0;}
+    return 0;
   }
-  var keys=Object.keys(DSOP[0]);
-  var thead=document.getElementById("sop-thead");thead.innerHTML="";
-  keys.forEach(function(k){var th=document.createElement("th");th.textContent=k;thead.appendChild(th);});
-  var tbody=document.getElementById("sop-tbody");tbody.innerHTML="";
-  DSOP.forEach(function(row){
-    var tr=document.createElement("tr");
-    keys.forEach(function(k,i){
-      var td=document.createElement("td");
-      var v=row[k]||"";
-      var num=parseFloat(v.replace(",","."));
-      if(!isNaN(num)&&v!=""&&i>0) td.textContent=f(num);
-      else td.textContent=v;
-      if(i>0) td.style.textAlign="right";
-      tr.appendChild(td);
+
+  // Build faturamento data
+  var fatRows={};
+  var marginRows={};
+  var pdvRows={};
+  var positRows={};
+  var dropRows={};
+
+  DSOP.forEach(function(r){
+    var ano=r["Ano"]||r["ANO"]||"";
+    var tipo=(r["Tipo"]||r["TIPO"]||"").trim();
+    if(!ano) return;
+    var key=ano+"||"+tipo;
+
+    // Try to read monthly values
+    var vals=[];
+    var mKeys=["Janeiro","fevereiro","Março","Março","Marco","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+    // Direct key approach
+    Object.keys(r).forEach(function(k,i){
+      if(i>=2) vals.push(parseFloat((r[k]||"0").toString().replace(/[^0-9,.-]/g,"").replace(",","."))||0);
     });
-    tbody.appendChild(tr);
+    if(vals.length>0) fatRows[key]=vals;
   });
-  document.getElementById("sop-content").style.display="block";
-  // SOP Chart
-  if(CH.cs1)CH.cs1.destroy();
-  var numColsS=keys.filter(function(k,i){return i>0&&DSOP.some(function(r){return !isNaN(parseFloat((r[k]||"").replace(",",".")));});});
-  if(numColsS.length>0){
-    var cs=["#e63329","#3b82f6","#10b981","#f59e0b","#8b5cf6"];
-    var dsS=numColsS.slice(0,5).map(function(k,i){
-      return {label:k,data:DSOP.map(function(r){return parseFloat((r[k]||"0").replace(",","."))||0;}),backgroundColor:cs[i],borderRadius:4,borderSkipped:false};
+
+  // Simpler: just use column order (skip first 2 cols = Ano + Tipo)
+  var allKeys=DSOP.length>0?Object.keys(DSOP[0]):[];
+  var monthCols=allKeys.slice(2); // everything after Ano,Tipo
+
+  function getRowVals(row){
+    return monthCols.map(function(k){
+      var v=(row[k]||"").toString().replace("%","").replace(/[^0-9,.-]/g,"").replace(",",".");
+      return parseFloat(v)||0;
     });
-    CH.cs1=new Chart(document.getElementById("cs1"),{
-      type:"bar",
-      data:{labels:DSOP.map(function(r){return r[keys[0]]||"";}),datasets:dsS},
+  }
+
+  // Separate rows by type
+  var fat2024=[],fat2025=[],fat2026=[],meta2026=[];
+  var mg2025=[],mg2026=[];
+  var pdv25=[],pdv26=[],posit25=[],posit26=[],drop25=[],drop26=[];
+
+  DSOP.forEach(function(r){
+    var ano=(r["Ano"]||r["ANO"]||"").toString().trim();
+    var tipo=(r["Tipo"]||r["TIPO"]||"").toString().trim().toLowerCase();
+    var vals=getRowVals(r);
+    if(ano==="2024"&&tipo.includes("realizado")) fat2024=vals;
+    if(ano==="2025"&&tipo.includes("realizado")) fat2025=vals;
+    if(ano==="2026"&&tipo.includes("realizado")) fat2026=vals;
+    if(ano==="2026"&&tipo.includes("meta")) meta2026=vals;
+    if(ano==="2025"&&tipo.includes("margem")) mg2025=vals;
+    if(ano==="2026"&&tipo.includes("margem")) mg2026=vals;
+    if(tipo.includes("pdv")&&ano==="2025") pdv25=vals;
+    if(tipo.includes("pdv")&&ano==="2026") pdv26=vals;
+    if(tipo.includes("posit")&&tipo.includes("%")&&ano==="2025") posit25=vals;
+    if(tipo.includes("posit")&&tipo.includes("%")&&ano==="2026") posit26=vals;
+    if(tipo.includes("drop")&&ano==="2025") drop25=vals;
+    if(tipo.includes("drop")&&ano==="2026") drop26=vals;
+  });
+
+  // Use available months (where 2026 has data)
+  var nMths=fat2026.filter(function(v){return v>0;}).length||3;
+  var labels=mLabels.slice(0,Math.max(nMths,fat2025.filter(function(v){return v>0;}).length,fat2024.filter(function(v){return v>0;}).length));
+
+  // Chart 1: Faturamento comparativo 2024/2025/2026 + Meta 2026
+  if(CH.cs1)CH.cs1.destroy();
+  var ds1=[];
+  if(fat2024.some(function(v){return v>0;})) ds1.push({label:"2024 Realizado",data:fat2024.slice(0,labels.length),borderColor:"#94a3b8",backgroundColor:"transparent",borderWidth:2,tension:0.3,pointRadius:3,type:"line",fill:false});
+  if(fat2025.some(function(v){return v>0;})) ds1.push({label:"2025 Realizado",data:fat2025.slice(0,labels.length),borderColor:"#3b82f6",backgroundColor:"transparent",borderWidth:2,tension:0.3,pointRadius:3,type:"line",fill:false});
+  if(fat2026.some(function(v){return v>0;})) ds1.push({label:"2026 Realizado",data:fat2026.slice(0,labels.length),borderColor:"#10b981",backgroundColor:"rgba(16,185,129,0.1)",borderWidth:2.5,tension:0.3,pointRadius:4,type:"line",fill:true});
+  if(meta2026.some(function(v){return v>0;})) ds1.push({label:"2026 Meta",data:meta2026.slice(0,labels.length),borderColor:"#e63329",backgroundColor:"transparent",borderWidth:1.5,borderDash:[5,4],tension:0,pointRadius:0,type:"line",fill:false});
+  CH.cs1=new Chart(document.getElementById("cs1"),{
+    type:"line",data:{labels:labels,datasets:ds1},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}},
+        tooltip:{callbacks:{label:function(c){return " "+c.dataset.label+": "+f(c.parsed.y);}}}},
+      scales:{
+        x:{ticks:{color:"#6b7ea8",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+        y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return f(v);}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}}
+      }
+    }
+  });
+
+  // Chart 2: Crescimento % 26x25
+  if(CH.cs2)CH.cs2.destroy();
+  var crescData=fat2026.slice(0,nMths).map(function(v,i){
+    var p=fat2025[i]||0;return p>0?Math.round(((v-p)/p)*100):0;
+  });
+  CH.cs2=new Chart(document.getElementById("cs2"),{
+    type:"bar",data:{labels:mLabels.slice(0,nMths),datasets:[{
+      label:"Cresc. 26 x 25 (%)",
+      data:crescData,
+      backgroundColor:crescData.map(function(v){return v>=0?"rgba(16,185,129,0.8)":"rgba(230,51,41,0.8)";}),
+      borderRadius:6,borderSkipped:false
+    }]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return " "+c.parsed.y+"%";}}}},
+      scales:{
+        x:{ticks:{color:"#6b7ea8",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+        y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}}
+      }
+    }
+  });
+
+  // Chart 3: Margem % 2025 vs 2026
+  if(CH.cs3)CH.cs3.destroy();
+  var mgLabels=mLabels.slice(0,Math.max(mg2025.filter(function(v){return v>0;}).length,mg2026.filter(function(v){return v>0;}).length));
+  if(mgLabels.length>0){
+    CH.cs3=new Chart(document.getElementById("cs3"),{
+      type:"bar",data:{labels:mgLabels,datasets:[
+        {label:"Margem 2025",data:mg2025.slice(0,mgLabels.length).map(function(v){return v*100||v;}),backgroundColor:"rgba(59,130,246,0.6)",borderRadius:4,borderSkipped:false},
+        {label:"Margem 2026",data:mg2026.slice(0,mgLabels.length).map(function(v){return v*100||v;}),backgroundColor:"rgba(16,185,129,0.8)",borderRadius:4,borderSkipped:false}
+      ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}}},
+        plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}},
+          tooltip:{callbacks:{label:function(c){return " "+c.dataset.label+": "+c.parsed.y+"%";}}}},
         scales:{
-          x:{ticks:{color:"#6b7ea8",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
-          y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return f(v);}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}}
+          x:{ticks:{color:"#6b7ea8",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+          y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"},min:0}
         }
       }
     });
   }
+
+  // Chart 4: PDV e Positivação 2025 vs 2026
+  if(CH.cs4)CH.cs4.destroy();
+  var pdvLen=Math.max(pdv25.filter(function(v){return v>0;}).length,pdv26.filter(function(v){return v>0;}).length);
+  if(pdvLen>0){
+    CH.cs4=new Chart(document.getElementById("cs4"),{
+      type:"bar",data:{labels:mLabels.slice(0,pdvLen),datasets:[
+        {label:"PDV 2025",data:pdv25.slice(0,pdvLen),backgroundColor:"rgba(59,130,246,0.5)",borderRadius:4,borderSkipped:false},
+        {label:"PDV 2026",data:pdv26.slice(0,pdvLen),backgroundColor:"rgba(59,130,246,0.9)",borderRadius:4,borderSkipped:false}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}}},
+        scales:{
+          x:{ticks:{color:"#6b7ea8",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+          y:{ticks:{color:"#6b7ea8",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}}
+        }
+      }
+    });
+  }
+
+  // Chart 5: Drop size 2025 vs 2026
+  if(CH.cs5)CH.cs5.destroy();
+  var dropLen=Math.max(drop25.filter(function(v){return v>0;}).length,drop26.filter(function(v){return v>0;}).length);
+  if(dropLen>0){
+    CH.cs5=new Chart(document.getElementById("cs5"),{
+      type:"line",data:{labels:mLabels.slice(0,dropLen),datasets:[
+        {label:"Drop Size 2025",data:drop25.slice(0,dropLen),borderColor:"#f59e0b",backgroundColor:"transparent",borderWidth:2,tension:0.3,pointRadius:3},
+        {label:"Drop Size 2026",data:drop26.slice(0,dropLen),borderColor:"#10b981",backgroundColor:"rgba(16,185,129,0.08)",borderWidth:2.5,tension:0.3,pointRadius:4,fill:true}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{labels:{color:"#6b7ea8",font:{size:10},boxWidth:10}},
+          tooltip:{callbacks:{label:function(c){return " "+c.dataset.label+": R$ "+c.parsed.y.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}}}},
+        scales:{
+          x:{ticks:{color:"#6b7ea8",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}},
+          y:{ticks:{color:"#6b7ea8",font:{size:10},callback:function(v){return "R$"+v.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});}},grid:{color:"rgba(255,255,255,0.04)"},border:{color:"transparent"}}
+        }
+      }
+    });
+  }
+
+  document.getElementById("sop-content").style.display="block";
 }
 
 // ---- MODAL ----
