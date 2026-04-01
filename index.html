@@ -671,6 +671,7 @@ function bceo(){
   if(CH.ce4)CH.ce4.destroy();
   var top5=DM.slice().sort(function(a,b){return b.real-a.real;}).slice(0,5);
   var colors=["#e63329","#3b82f6","#10b981","#f59e0b","#8b5cf6"];
+  var bgColors=["rgba(230,51,41,0.08)","rgba(59,130,246,0.08)","rgba(16,185,129,0.08)","rgba(245,158,11,0.08)","rgba(139,92,246,0.08)"];
   var datasets=top5.map(function(v,i){
     var pi=DP.find(function(p){return p.s===v.s;})||{po:0,mg:0,mk:0,nv:0,at:0};
     var pMes=pc(v.real,v.meta);
@@ -679,7 +680,7 @@ function bceo(){
     return {
       label:v.nome,
       data:[cl(pMes,0,130),pi.po,pi.mg*2,cl(pSem,0,130),pi.nv*10],
-      borderColor:colors[i],backgroundColor:colors[i].replace(")"," / 0.08)").replace("#","rgba(").replace(/rgba\(([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i,function(m,r,g,b){return "rgba("+parseInt(r,16)+","+parseInt(g,16)+","+parseInt(b,16);}),
+      borderColor:colors[i],backgroundColor:bgColors[i],
       borderWidth:2,pointRadius:3
     };
   });
@@ -702,22 +703,40 @@ function brisk(){
   DM.forEach(function(v){
     var p=pc(v.real,v.meta);
     if(p<60) risks.push({level:"critico",msg:v.nome+" esta em "+p+"% da meta mensal ("+f(v.real)+" de "+f(v.meta)+")"});
-    else if(p<80) risks.push({level:"atencao",msg:v.nome+" esta em "+p+"% da meta mensal - requer acompanhamento"});
+    else if(p<80) risks.push({level:"atencao",msg:v.nome+" esta em "+p+"% — requer acompanhamento"});
   });
   DP.forEach(function(v){
-    if(v.po<40){var m=DM.find(function(x){return x.s===v.s;});risks.push({level:"atencao",msg:(m?m.nome:v.s)+" com positivacao critica: "+v.po+"% ("+v.at+" de "+v.ca+" clientes)"});}
-    if(v.nv===0){var m2=DM.find(function(x){return x.s===v.s;});risks.push({level:"info",msg:(m2?m2.nome:v.s)+" sem novos clientes no periodo"});}
+    var m=DM.find(function(x){return x.s===v.s;});
+    var nm=m?m.nome:v.s;
+    if(v.po<40) risks.push({level:"atencao",msg:nm+" com positivacao critica: "+v.po+"% ("+v.at+" de "+v.ca+" clientes)"});
+    if(v.nv===0) risks.push({level:"info",msg:nm+" sem novos clientes no periodo"});
   });
   if(risks.length===0){
-    list.innerHTML='<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;font-size:0.82rem;color:#10b981">Nenhum risco critico identificado no periodo.</div>';
+    list.innerHTML='<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;font-size:0.82rem;color:#10b981">Nenhum risco critico identificado.</div>';
     return;
   }
+  var colMap={critico:"#e63329",atencao:"#f59e0b",info:"#3b82f6"};
+  var bgMap={critico:"rgba(230,51,41,0.08)",atencao:"rgba(245,158,11,0.08)",info:"rgba(59,130,246,0.08)"};
+  var bdMap={critico:"rgba(230,51,41,0.25)",atencao:"rgba(245,158,11,0.25)",info:"rgba(59,130,246,0.25)"};
   risks.forEach(function(r){
-    var col=r.level==="critico"?"#e63329":r.level==="atencao"?"#f59e0b":"#3b82f6";
-    var bg=r.level==="critico"?"rgba(230,51,41,0.08)":r.level==="atencao"?"rgba(245,158,11,0.08)":"rgba(59,130,246,0.08)";
+    var col=colMap[r.level]||"#3b82f6";
+    var bg=bgMap[r.level]||"rgba(59,130,246,0.08)";
+    var bd=bdMap[r.level]||"rgba(59,130,246,0.25)";
     var d=document.createElement("div");
-    d.style.cssText="background:"+bg+";border:1px solid "+col.replace(")",",0.3)").replace("#","rgba(").replace(/rgba\(([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i,function(m,rv,g,b){return "rgba("+parseInt(rv,16)+","+parseInt(g,16)+","+parseInt(b,16);}))+";border-radius:10px;padding:12px 16px;margin-bottom:8px;font-size:0.8rem;display:flex;align-items:center;gap:10px;";
-    d.innerHTML='<span style="width:8px;height:8px;border-radius:50%;background:'+col+';flex-shrink:0;display:inline-block"></span><span>'+r.msg+'</span>';
+    d.style.background=bg;
+    d.style.border="1px solid "+bd;
+    d.style.borderRadius="10px";
+    d.style.padding="12px 16px";
+    d.style.marginBottom="8px";
+    d.style.fontSize="0.8rem";
+    d.style.display="flex";
+    d.style.alignItems="center";
+    d.style.gap="10px";
+    var dot=document.createElement("span");
+    dot.style.cssText="width:8px;height:8px;border-radius:50%;background:"+col+";flex-shrink:0;display:inline-block";
+    var txt=document.createElement("span");
+    txt.textContent=r.msg;
+    d.appendChild(dot);d.appendChild(txt);
     list.appendChild(d);
   });
 }
@@ -755,8 +774,9 @@ function buildHist(){
   var numCols=keys.filter(function(k,i){return i>0&&DH.some(function(r){return !isNaN(parseFloat((r[k]||"").replace(",",".")));});});
   if(numCols.length>0&&keys.length>0){
     var colors2=["#e63329","#3b82f6","#10b981","#f59e0b","#8b5cf6","#06d6a0","#fb923c","#818cf8","#2dd4bf"];
+    var bgColors2=["rgba(230,51,41,0.15)","rgba(59,130,246,0.15)","rgba(16,185,129,0.15)","rgba(245,158,11,0.15)","rgba(139,92,246,0.15)","rgba(6,214,160,0.15)","rgba(251,146,60,0.15)","rgba(129,140,248,0.15)","rgba(45,212,191,0.15)"];
     var datasets2=numCols.slice(0,9).map(function(k,i){
-      return {label:k,data:DH.map(function(r){return parseFloat((r[k]||"0").replace(",","."))||0;}),borderColor:colors2[i],backgroundColor:colors2[i].replace("#","rgba(").replace(/rgba\(([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})/i,function(m,rv,g,b){return "rgba("+parseInt(rv,16)+","+parseInt(g,16)+","+parseInt(b,16);})+"0.15)",borderWidth:2,tension:0.35,pointRadius:3,fill:false};
+      return {label:k,data:DH.map(function(r){return parseFloat((r[k]||"0").replace(",","."))||0;}),borderColor:colors2[i],backgroundColor:bgColors2[i],borderWidth:2,tension:0.35,pointRadius:3,fill:false};
     });
     CH.ch1=new Chart(document.getElementById("ch1"),{
       type:"line",
