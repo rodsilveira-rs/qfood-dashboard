@@ -538,7 +538,21 @@ function ff(v){
 }
 function fv(v){
   var n=Math.abs(parseFloat(v)||0);
-  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function parseBR(v){
+  if(!v||v==="") return 0;
+  var s=String(v).trim();
+  // Handle Brazilian format: 1.234.567,89 -> 1234567.89
+  if(s.indexOf(",")>-1 && s.indexOf(".")>-1){
+    // Has both: dots are thousands separators, comma is decimal
+    s=s.replace(/\./g,"").replace(",",".");
+  } else if(s.indexOf(",")>-1){
+    // Only comma: could be decimal separator
+    s=s.replace(",",".");
+  }
+  // else: only dots or plain number, parseFloat handles it
+  return parseFloat(s)||0;
 }
 function pc(a,b){return b>0?Math.round((a/b)*100):0;}
 function cl(v,a,b){return Math.min(Math.max(v,a),b);}
@@ -551,9 +565,20 @@ function sgFor(raw){
 // ---- CSV PARSER ----
 function csv(txt){
   var rows=txt.trim().split("\n");
-  var hdr=rows[0].split(",").map(function(h){return h.trim().replace(/^"|"$/g,"");});
+  function parseRow(row){
+    var result=[],cur="",inQ=false;
+    for(var i=0;i<row.length;i++){
+      var c=row[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===","&&!inQ){result.push(cur.trim());cur="";}
+      else{cur+=c;}
+    }
+    result.push(cur.trim());
+    return result;
+  }
+  var hdr=parseRow(rows[0]).map(function(h){return h.replace(/^"|"$/g,"").trim();});
   return rows.slice(1).map(function(row){
-    var vals=row.split(",").map(function(v){return v.trim().replace(/^"|"$/g,"");});
+    var vals=parseRow(row).map(function(v){return v.replace(/^"|"$/g,"").trim();});
     var o={};hdr.forEach(function(h,i){o[h]=vals[i]||"";});return o;
   }).filter(function(r){return Object.values(r).some(function(v){return v!="";});});
 }
@@ -610,17 +635,26 @@ async function go(){
     if(t3.trim().startsWith("<")) throw new Error("PERF_INDIVIDUAL nao esta publicada como CSV.");
     DM=csv(t1).map(function(r){
       var s=SG[r.nome]||(r.nome||"").substring(0,2).toUpperCase();
-      return {nome:r.nome,s:s,av:AV[s]||"avLB",meta:parseFloat(r.meta)||0,real:parseFloat(r.realizado)||0,
+      return {nome:r.nome,s:s,av:AV[s]||"avLB",meta:parseBR(r.meta),real:parseBR(r.realizado),
         du:parseInt(r.dias_uteis||r.DIAS_UTEIS||"0")||0,
         da:parseInt(r.dia_atual||r.DIA_ATUAL||"0")||0};
     });
     DS=csv(t2).map(function(r){
       var s=sgFor(r.sigla||r.nome||r.vendedor||"");
-      return {s:s,ms:parseFloat(r.meta_sem)||0,real:parseFloat(r.realizado)||0,du:parseInt(r.dias_uteis)||1,da:parseInt(r.dia_atual)||1,sa:parseFloat(r.saldo_anterior)||0};
+      return {s:s,ms:parseBR(r.meta_sem),real:parseBR(r.realizado),
+        du:parseInt(r.dias_uteis||r.DIAS_UTEIS||"0")||1,
+        da:parseInt(r.dia_atual||r.DIA_ATUAL||"0")||1,
+        sa:parseBR(r.saldo_anterior)};
     });
     DP=csv(t3).map(function(r){
       var s=sgFor(r.sigla||r.nome||r.vendedor||"");
-      return {s:s,ca:parseInt(r.carteira)||0,at:parseInt(r.atendidos)||0,po:parseInt(r.posit)||0,nv:parseInt(r.novos)||0,mg:parseInt(r.margem)||0,mk:parseInt(r.markup)||0};
+      return {s:s,
+        ca:parseInt((r.carteira||"0").replace(/\./g,""))||0,
+        at:parseInt((r.atendidos||"0").replace(/\./g,""))||0,
+        po:parseInt((r.posit||"0").replace(/[^0-9]/g,""))||0,
+        nv:parseInt((r.novos||"0").replace(/[^0-9]/g,""))||0,
+        mg:parseInt((r.margem||"0").replace(/[^0-9]/g,""))||0,
+        mk:parseInt((r.markup||"0").replace(/[^0-9]/g,""))||0};
     });
     document.getElementById("loading").style.display="none";
     document.getElementById("tab-comercial").style.display="block";
@@ -739,8 +773,8 @@ function btab(){
     tr.onclick=function(){om(v.s);};
     tr.innerHTML='<td><div class="vc"><div class="mav '+v.av+'">'+v.s+'</div>'
       +'<div><div>'+v.nome+'</div><div class="ch">&#8599; detalhes</div></div></div></td>'
-      +'<td>'+f(v.meta)+'</td><td>'+f(v.real)+'</td>'
-      +'<td style="color:'+(ft<=0?"#10b981":"#e63329")+'">'+(ft<=0?"Bateu":f(ft))+'</td>'
+      +'<td>'+fv(v.meta)+'</td><td>'+fv(v.real)+'</td>'
+      +'<td style="color:'+(ft<=0?"#10b981":"#e63329")+'">'+(ft<=0?"Bateu":fv(ft))+'</td>'
       +'<td><span class="tag '+tc+'">'+tt+'</span>'
       +'<div class="bm"><div class="bmf" style="width:'+cl(p,0,100)+'%;background:'+co+'"></div></div></td>'
       +'<td><span class="pv" style="color:'+co+'">'+p+'%</span></td>';
@@ -1230,17 +1264,17 @@ function om(sig){
   document.getElementById("ma").className="mav2 "+m.av;
   document.getElementById("ma").textContent=m.s;
   document.getElementById("mnm").textContent=m.nome;
-  document.getElementById("msu").textContent=pm+"% da meta mensal · "+f(m.real)+" realizados";
+  document.getElementById("msu").textContent=pm+"% da meta mensal · "+fv(m.real)+" realizados";
   if(sv){
     var ps=cl(pc(sv.real,sv.ms),0,100),co=cp(ps);
-    document.getElementById("msp").innerHTML='<div class="sp2t"><span style="font-size:0.78rem;color:var(--mu)">Meta semanal</span><span style="font-family:var(--fh);font-weight:700;color:'+co+'">'+ps+'%</span></div><div class="sp2b"><div class="sp2f" style="width:'+ps+'%;background:'+co+'"></div></div><div class="sp2v"><span>'+f(sv.real)+' realizados</span><span>meta '+f(sv.ms)+'</span></div>';
+    document.getElementById("msp").innerHTML='<div class="sp2t"><span style="font-size:0.78rem;color:var(--mu)">Meta semanal</span><span style="font-family:var(--fh);font-weight:700;color:'+co+'">'+ps+'%</span></div><div class="sp2b"><div class="sp2f" style="width:'+ps+'%;background:'+co+'"></div></div><div class="sp2v"><span>'+fv(sv.real)+' realizados</span><span>meta '+fv(sv.ms)+'</span></div>';
     var exp=(sv.ms/sv.du)*sv.da,df=sv.real-exp;
-    document.getElementById("mex").textContent=f(exp);
-    document.getElementById("mrl").textContent=f(sv.real);
-    var te=document.getElementById("mte");te.textContent=(df>=0?"+":"-")+" "+f(Math.abs(df));te.style.color=df>=0?"#10b981":"#e63329";
-    var sa=document.getElementById("msa");sa.textContent=(sv.sa>=0?"+":"-")+" "+f(Math.abs(sv.sa));sa.style.color=sv.sa>=0?"#10b981":"#e63329";
+    document.getElementById("mex").textContent=fv(exp);
+    document.getElementById("mrl").textContent=fv(sv.real);
+    var te=document.getElementById("mte");te.textContent=(df>=0?"+":"-")+" "+fv(Math.abs(df));te.style.color=df>=0?"#10b981":"#e63329";
+    var sa=document.getElementById("msa");sa.textContent=(sv.sa>=0?"+":"-")+" "+fv(Math.abs(sv.sa));sa.style.color=sv.sa>=0?"#10b981":"#e63329";
     var tk=pi&&pi.at>0?Math.round(sv.real/pi.at):0;
-    document.getElementById("mtk").textContent=tk>0?f(tk):"-";
+    document.getElementById("mtk").textContent=tk>0?fv(tk):"-";
   }
   if(pi){
     var pc2=pi.po>=65?"#10b981":pi.po>=40?"#f59e0b":"#e63329";
@@ -1259,9 +1293,9 @@ function om(sig){
   }
   var ft=m.meta-m.real;
   document.getElementById("mmg").innerHTML=
-    '<div class="mc"><div class="ml">Meta</div><div class="mv">'+f(m.meta)+'</div></div>'
-    +'<div class="mc"><div class="ml">Realizado</div><div class="mv" style="color:'+cp(pm)+'">'+f(m.real)+'</div></div>'
-    +'<div class="mc"><div class="ml">'+(ft<=0?"Superou em":"Falta")+'</div><div class="mv" style="color:'+(ft<=0?"#10b981":"#e63329")+'">'+f(Math.abs(ft))+'</div></div>';
+    '<div class="mc"><div class="ml">Meta</div><div class="mv">'+fv(m.meta)+'</div></div>'
+    +'<div class="mc"><div class="ml">Realizado</div><div class="mv" style="color:'+cp(pm)+'">'+fv(m.real)+'</div></div>'
+    +'<div class="mc"><div class="ml">'+(ft<=0?"Superou em":"Falta")+'</div><div class="mv" style="color:'+(ft<=0?"#10b981":"#e63329")+'">'+fv(Math.abs(ft))+'</div></div>';
   document.getElementById("ov").classList.add("open");
   document.body.style.overflow="hidden";
 }
@@ -1342,8 +1376,11 @@ function buildTend(){
   var tr=DM.reduce(function(s,v){return s+v.real;},0);
   // Get dias from first row that has them, or use defaults
   var du=0, da=0;
-  DM.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
-  if(du===0){du=22;da=22;} // fallback: last day of month
+  // Try META_SEMANAL first (more likely to have dias_uteis/dia_atual)
+  DS.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
+  // Fallback to META_MENSAL
+  if(du===0) DM.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
+  if(du===0){du=22;da=18;} // fallback defaults
   var diasRest=Math.max(du-da,0);
   var metaDia=tm/du;
   var mediaAtual=da>0?tr/da:0;
@@ -1353,14 +1390,14 @@ function buildTend(){
   var colProj=projecao>=tm?"#10b981":"#f59e0b";
   var ritmoText=pMetaDia>=100?"Acima do ritmo":pMetaDia>=85?"No ritmo":"Abaixo do ritmo";
   var colRitmo=pMetaDia>=100?"#10b981":pMetaDia>=85?"#3b82f6":"#f59e0b";
-  document.getElementById("tend-meta-dia").textContent=fv(Math.round(metaDia));
+  document.getElementById("tend-meta-dia").textContent=fv(metaDia);
   document.getElementById("tend-dias-info").textContent=du+" dias uteis no mes";
-  document.getElementById("tend-media-atual").textContent=fv(Math.round(mediaAtual));
+  document.getElementById("tend-media-atual").textContent=fv(mediaAtual);
   document.getElementById("tend-media-atual").style.color=colMedia;
   document.getElementById("tend-dias-rest").textContent=diasRest+" dias restantes (dia "+da+" de "+du+")";
-  document.getElementById("tend-projecao").textContent=fv(Math.round(projecao));
+  document.getElementById("tend-projecao").textContent=fv(projecao);
   document.getElementById("tend-projecao").style.color=colProj;
-  var vsStr=projecao>=tm?("+" +fv(Math.round(projecao-tm))+" acima da meta"):("-"+fv(Math.round(tm-projecao))+" abaixo da meta");
+  var vsStr=projecao>=tm?("+" +fv(projecao-tm)+" acima da meta"):("-"+fv(tm-projecao)+" abaixo da meta");
   document.getElementById("tend-projecao-vs").textContent=vsStr;
   document.getElementById("tend-projecao-vs").style.color=colProj;
   document.getElementById("tend-ritmo").textContent=ritmoText;
