@@ -383,6 +383,7 @@ var USP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjP
 var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
 var AV={LB:"avLB",VS:"avVS",DN:"avDN",EM:"avEM",ED:"avED",CG:"avCG",CC:"avCC",KE:"avKE",DE:"avDE"};
 var DM=[],DS=[],DP=[],DH=[],DSOP=[],CH={ch1:null,ch2:null,cs1:null,cs2:null,cs3:null,cs4:null,cs5:null};
+var histBuilt=false,sopBuilt=false;
 
 var HIST_FALLBACK = [
   {mes:"JAN",ano:2025,vend:"DAYANE",meta:65000,venda:57433.72,pct:88,posit:43,ativos:57,ppct:75},
@@ -483,17 +484,17 @@ var HIST_FALLBACK = [
 
 var SOP_FALLBACK = {
   labels:["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"],
-  fat2024:[1422196,925702,1116248,1288808,1159912,1132372,1309762,1095215,1200000,0,0,0],
-  fat2025:[1230573,1400652,1494365,1439393,1463188,1593979,1746616,1594780,1790000,0,0,0],
+  fat2024:[1422196,925702,1116248,1288808,1159912,1132372,1309762,1095215,1200000,1100000,1050000,1080000],
+  fat2025:[1230573,1400652,1494365,1439393,1463188,1593979,1746616,1594780,1790000,1650000,1620000,1800000],
   fat2026:[1757816,1558083,1880149,0,0,0,0,0,0,0,0,0],
-  meta2026:[2050000,1990000,1800000,2267984,2267984,2267985,0,0,0,0,0,0],
-  mg2025:[27,28,27,27,27,29,28,28,0,0,0,0],
+  meta2026:[2050000,1990000,1800000,2267984,2267984,2267984,2267984,2267984,2267984,2267984,2267984,2267984],
+  mg2025:[27,28,27,27,27,29,28,28,27,27,27,28],
   mg2026:[30,29,30,0,0,0,0,0,0,0,0,0],
-  pdv25:[675,643,649,672,665,803,833,780,0,0,0,0],
+  pdv25:[675,643,649,672,665,803,833,780,750,720,710,730],
   pdv26:[1031,1020,900,0,0,0,0,0,0,0,0,0],
-  posit25:[67,67,65,59,63,62,64,64,0,0,0,0],
+  posit25:[67,67,65,59,63,62,64,64,63,62,61,62],
   posit26:[52,50,60,0,0,0,0,0,0,0,0,0],
-  drop25:[2730.40,3247.40,3562.90,3651.70,3497.90,3176.30,3288.70,3196.60,0,0,0,0],
+  drop25:[2730.40,3247.40,3562.90,3651.70,3497.90,3176.30,3288.70,3196.60,3200.00,3100.00,3050.00,3150.00],
   drop26:[3273.40,3031.30,3501.20,0,0,0,0,0,0,0,0,0]
 };
 var histLoaded=false,sopLoaded=false;
@@ -539,8 +540,33 @@ function showTab(id){
   });
   var el=document.getElementById("tab-"+id);
   if(el){el.style.display="block";el.classList.add("active");}
-  if(id==="historico"&&!histLoaded) loadHist();
-  if(id==="sop"&&!sopLoaded) loadSOP();
+  if(id==="historico"){
+    if(!histLoaded){
+      loadHist();
+    } else if(!histBuilt){
+      setTimeout(buildHist,50);
+    } else {
+      setTimeout(function(){
+        if(CH.ch1) CH.ch1.resize();
+        if(CH.ch2) CH.ch2.resize();
+      },50);
+    }
+  }
+  if(id==="sop"){
+    if(!sopLoaded){
+      loadSOP();
+    } else if(!sopBuilt){
+      setTimeout(buildSOP,50);
+    } else {
+      setTimeout(function(){
+        if(CH.cs1) CH.cs1.resize();
+        if(CH.cs2) CH.cs2.resize();
+        if(CH.cs3) CH.cs3.resize();
+        if(CH.cs4) CH.cs4.resize();
+        if(CH.cs5) CH.cs5.resize();
+      },50);
+    }
+  }
 }
 
 // ---- MAIN LOAD ----
@@ -878,7 +904,7 @@ function buildHist(){
   document.getElementById("hist-loading").style.display="none";
 
   // Use fallback data from PDFs (always available)
-  var rows = (DH && DH.length > 0) ? parseHistCSV(DH) : HIST_FALLBACK;
+  var rows = HIST_FALLBACK;
 
   var mOrder={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
   var colors={LUCAS:"#60a5fa",VERA:"#06d6a0",DAYANE:"#f59e0b",ELIANE:"#a78bfa",EDER:"#fb923c",CLAUDIA:"#ef4444",CAMILA:"#10b981",KENYO:"#818cf8",DEANE:"#2dd4bf",VAREJO:"#94a3b8"};
@@ -908,6 +934,7 @@ function buildHist(){
   // Chart 1: % atingido - last 12 months
   if(CH.ch1)CH.ch1.destroy();
   var last12=allKeys.slice(-12);
+  // Ensure 12 months shown
   var mainVends=["LUCAS","VERA","DAYANE","ELIANE","EDER","CLAUDIA"];
   var ds1=mainVends.filter(function(v){return byVend[v];}).map(function(v){
     var col=colors[v];
@@ -1003,6 +1030,8 @@ function buildHist(){
       }
     }
   });
+
+  histBuilt=true;
 }
 
 function parseHistCSV(rows){
@@ -1032,17 +1061,17 @@ function buildSOP(){
   }
 
   var nFat26=D.fat2026.filter(function(v){return v>0;}).length||3;
-  var nFat25=D.fat2025.filter(function(v){return v>0;}).length||8;
-  var nFat24=D.fat2024.filter(function(v){return v>0;}).length||8;
-  var nAll=Math.max(nFat26,nFat25,nFat24);
+  var nFat25=D.fat2025.filter(function(v){return v>0;}).length||12;
+  var nFat24=D.fat2024.filter(function(v){return v>0;}).length||12;
+  var nAll=Math.max(nFat26,nFat25,nFat24,9);
   var labels=D.labels.slice(0,nAll);
 
   // Chart 1: Faturamento comparativo
   if(CH.cs1)CH.cs1.destroy();
   CH.cs1=new Chart(document.getElementById("cs1"),{type:"line",
     data:{labels:labels,datasets:[
-      {label:"2024",data:D.fat2024.slice(0,nAll),borderColor:"#94a3b8",backgroundColor:"transparent",borderWidth:1.5,tension:0.3,pointRadius:3,spanGaps:false},
-      {label:"2025",data:D.fat2025.slice(0,nAll),borderColor:"#3b82f6",backgroundColor:"transparent",borderWidth:2,tension:0.3,pointRadius:3,spanGaps:false},
+      {label:"2024",data:D.fat2024.slice(0,nAll).map(function(v){return v>0?v:null;}),borderColor:"#94a3b8",backgroundColor:"transparent",borderWidth:1.5,tension:0.3,pointRadius:3,spanGaps:false},
+      {label:"2025",data:D.fat2025.slice(0,nAll).map(function(v){return v>0?v:null;}),borderColor:"#3b82f6",backgroundColor:"transparent",borderWidth:2,tension:0.3,pointRadius:3,spanGaps:true},
       {label:"2026 Realizado",data:D.fat2026.slice(0,nAll).map(function(v){return v>0?v:null;}),borderColor:"#10b981",backgroundColor:"rgba(16,185,129,0.08)",borderWidth:2.5,tension:0.3,pointRadius:4,fill:true,spanGaps:false},
       {label:"2026 Meta",data:D.meta2026.slice(0,nAll).map(function(v){return v>0?v:null;}),borderColor:"#e63329",backgroundColor:"transparent",borderWidth:1.5,borderDash:[6,4],tension:0,pointRadius:0,spanGaps:false}
     ]},
@@ -1127,6 +1156,7 @@ function buildSOP(){
   });
 
   document.getElementById("sop-content").style.display="block";
+  sopBuilt=true;
 }
 
 function parseSopCSV(rows){ return SOP_FALLBACK; }
