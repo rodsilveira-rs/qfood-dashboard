@@ -960,10 +960,19 @@ function buildHist(){
   // Gauges - most recent entry per vendor
   var gaugeDiv=document.getElementById("hist-gauges");
   gaugeDiv.innerHTML="";
-  gaugeDiv.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:28px;";
-
+  gaugeDiv.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:28px;";
   var mOrder2={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
-  var MAX_PCT=130; // gauge goes 0-130%
+
+  // Gauge uses stroke-dasharray technique on a circle
+  // Circle: cx=80,cy=80,r=54 => circumference=2*pi*54=339.3
+  // We show a 240-degree arc (2/3 of circle), rotated so it starts bottom-left
+  // 240deg arc = 339.3 * (240/360) = 226.2 of circumference
+  // Rotation: start at -210deg from top (-210deg = start bottom-left, end bottom-right)
+  var R=54, CX=80, CY=82;
+  var CIRC=2*Math.PI*R; // 339.3
+  var ARC_DEG=240;
+  var ARC_LEN=CIRC*(ARC_DEG/360); // 226.2 - the visible arc
+  var MAX_PCT=130;
 
   vends.forEach(function(v){
     var sorted=byVend[v].slice().sort(function(a,b){
@@ -971,136 +980,66 @@ function buildHist(){
       return (mOrder2[b.mes]||0)-(mOrder2[a.mes]||0);
     });
     var d=sorted[0]; if(!d) return;
-    var p=Math.min(d.pct, MAX_PCT);
-    var col=d.pct>=100?"#10b981":d.pct>=80?"#3b82f6":d.pct>=60?"#f59e0b":"#e63329";
-    var textCol=col;
+    var pct=d.pct;
+    var col=pct>=100?"#10b981":pct>=80?"#3b82f6":pct>=60?"#f59e0b":"#e63329";
+    var clamped=Math.min(pct,MAX_PCT);
+    // How much of the arc to fill
+    var fillLen=ARC_LEN*(clamped/MAX_PCT);
+    // stroke-dasharray: fillLen dash, then rest is gap
+    var dash=fillLen+" "+(CIRC-fillLen);
+    var dashBg=ARC_LEN+" "+(CIRC-ARC_LEN);
+    // Rotation: circle starts at 3-oclock by default. We want arc to start at ~150deg (bottom-left)
+    // So rotate by: 90+150 = 240deg (to move start from 3oclock to bottom-left)
+    var rot="rotate(150,"+CX+","+CY+")";
+    // 100% marker: at ARC_LEN*(100/MAX_PCT) along the arc from start
+    // angle from start of arc: 240*(100/130) = 184.6deg
+    var mark100deg=ARC_DEG*(100/MAX_PCT); // 184.6
+    var markAngle=(150+mark100deg)*(Math.PI/180);
+    var markX1=(CX+(R-8)*Math.cos(markAngle)).toFixed(1);
+    var markY1=(CY+(R-8)*Math.sin(markAngle)).toFixed(1);
+    var markX2=(CX+(R+8)*Math.cos(markAngle)).toFixed(1);
+    var markY2=(CY+(R+8)*Math.sin(markAngle)).toFixed(1);
 
-    // SVG gauge: 220-degree arc (110deg each side from bottom center)
-    // Start: bottom-left (220deg from top = 200deg from right in SVG coords)
-    // Gauge spans 220 degrees total, 0% = left end, 100% = at 220*(100/130) mark, 130% = right end
-    var W=170, H=110, cx=W/2, cy=H-10, R=60;
-    var startDeg=220+90; // 310 deg from positive x-axis (bottom-left)
-    var endDeg=360-220+90; // 50 deg from positive x-axis  (bottom-right)  
-    // Easier: start angle = -200deg from top, span = 220deg
-    // In radians: start = pi*0.5 + pi*(220/360)*pi ... let's use simpler approach
-    // Arc from -200deg to +40deg (measured from positive x-axis, counterclockwise)
-    // Actually: gauge from 130deg to -50deg (clockwise), span = 220deg = 0-130% range
-    
-    var toRad=function(deg){return deg*Math.PI/180;};
-    var startAngle=toRad(140); // start of arc (left side, pointing down-left)
-    var endAngle=toRad(40);    // end of arc (right side, pointing down-right)  
-    var totalSpan=toRad(360-140+40); // =260deg span
-    // Simpler fixed approach:
-    // Start: 220deg (from 3 o'clock, counterclockwise) = 8 o'clock position
-    // End: 320deg = 4 o'clock position  
-    // Span: 260deg clockwise
-
-    var sa=toRad(220); // start angle from positive-x, counterclockwise = 8 o'clock
-    var totalArcDeg=260; // total degrees of the gauge
-    var pctAngleDeg=totalArcDeg*(p/MAX_PCT);
-    
-    function polarToXY(angleDeg,radius){
-      var a=toRad(angleDeg);
-      return {x:cx+radius*Math.cos(a), y:cy-radius*Math.sin(a)};
-    }
-    
-    // Background arc: from 220deg to (220-260)=-40deg=320deg, going clockwise (decreasing angle)
-    var bgStart=polarToXY(220,R);
-    var bgEnd=polarToXY(220-totalArcDeg,R); // -40 deg = 320 deg
-    
-    // Value arc: from 220deg, sweep pctAngleDeg clockwise
-    var valEnd=polarToXY(220-pctAngleDeg,R);
-    var valLargeArc=pctAngleDeg>180?1:0;
-    
-    // 100% marker position
-    var pct100deg=220-(totalArcDeg*(100/MAX_PCT));
-    var mark100=polarToXY(pct100deg,R);
-    var mark100in=polarToXY(pct100deg,R-12);
-    var mark100out=polarToXY(pct100deg,R+6);
-
-    var svgNS="http://www.w3.org/2000/svg";
-    var svg=document.createElementNS(svgNS,"svg");
-    svg.setAttribute("viewBox","0 0 "+W+" "+H);
-    svg.setAttribute("width",W);svg.setAttribute("height",H);
-
-    // Ticks at 0%, 50%, 100%, 130%
-    [[0,"0%"],[50,"50%"],[100,"100%"],[130,"130%"]].forEach(function(t){
-      var tickDeg=220-(totalArcDeg*(t[0]/MAX_PCT));
-      var tp=polarToXY(tickDeg,R+14);
-      var txtEl=document.createElementNS(svgNS,"text");
-      txtEl.setAttribute("x",tp.x.toFixed(1));
-      txtEl.setAttribute("y",tp.y.toFixed(1));
-      txtEl.setAttribute("text-anchor","middle");
-      txtEl.setAttribute("dominant-baseline","middle");
-      txtEl.setAttribute("font-size","7");
-      txtEl.setAttribute("fill","rgba(255,255,255,0.25)");
-      txtEl.setAttribute("font-family","DM Sans,sans-serif");
-      txtEl.textContent=t[1];
-      svg.appendChild(txtEl);
-    });
-
-    // Background arc
-    var bgPath=document.createElementNS(svgNS,"path");
-    bgPath.setAttribute("d","M "+bgStart.x.toFixed(1)+" "+bgStart.y.toFixed(1)+" A "+R+" "+R+" 0 1 0 "+bgEnd.x.toFixed(1)+" "+bgEnd.y.toFixed(1));
-    bgPath.setAttribute("stroke","rgba(255,255,255,0.07)");
-    bgPath.setAttribute("stroke-width","10");
-    bgPath.setAttribute("fill","none");
-    bgPath.setAttribute("stroke-linecap","round");
-    svg.appendChild(bgPath);
-
-    // Value arc (only if pct > 0)
-    if(p>1){
-      var valPath=document.createElementNS(svgNS,"path");
-      valPath.setAttribute("d","M "+bgStart.x.toFixed(1)+" "+bgStart.y.toFixed(1)+" A "+R+" "+R+" 0 "+valLargeArc+" 0 "+valEnd.x.toFixed(1)+" "+valEnd.y.toFixed(1));
-      valPath.setAttribute("stroke",col);
-      valPath.setAttribute("stroke-width","10");
-      valPath.setAttribute("fill","none");
-      valPath.setAttribute("stroke-linecap","round");
-      svg.appendChild(valPath);
-    }
-
-    // 100% marker line
-    var markerLine=document.createElementNS(svgNS,"line");
-    markerLine.setAttribute("x1",mark100in.x.toFixed(1));markerLine.setAttribute("y1",mark100in.y.toFixed(1));
-    markerLine.setAttribute("x2",mark100out.x.toFixed(1));markerLine.setAttribute("y2",mark100out.y.toFixed(1));
-    markerLine.setAttribute("stroke","rgba(255,255,255,0.5)");markerLine.setAttribute("stroke-width","2");
-    svg.appendChild(markerLine);
-
-    // Center value text
-    var centerTxt=document.createElementNS(svgNS,"text");
-    centerTxt.setAttribute("x",cx.toFixed(1));centerTxt.setAttribute("y",(cy-14).toFixed(1));
-    centerTxt.setAttribute("text-anchor","middle");centerTxt.setAttribute("dominant-baseline","middle");
-    centerTxt.setAttribute("font-size","20");centerTxt.setAttribute("font-weight","700");
-    centerTxt.setAttribute("fill",col);centerTxt.setAttribute("font-family","Syne,sans-serif");
-    centerTxt.textContent=d.pct+"%";
-    svg.appendChild(centerTxt);
-
-    // Vendor name
-    var nameEl=document.createElement("div");
-    nameEl.style.cssText="font-size:0.7rem;font-weight:700;color:var(--tx);letter-spacing:0.8px;text-align:center;margin-bottom:6px;";
-    nameEl.textContent=v;
-
-    // Sub info
-    var subEl=document.createElement("div");
-    subEl.style.cssText="font-size:0.65rem;color:var(--mu);text-align:center;margin-top:4px;line-height:1.5;";
-    subEl.innerHTML=d.mes+"/"+d.ano+"<br>"+f(d.venda);
-
-    // Badge for over 100%
-    var badgeHTML="";
-    if(d.pct>=100){
-      badgeHTML='<div style="font-size:0.6rem;background:rgba(16,185,129,0.15);color:#10b981;border-radius:10px;padding:1px 7px;display:inline-block;margin-top:3px;">META BATIDA</div>';
-    } else if(d.pct>=80){
-      badgeHTML='<div style="font-size:0.6rem;background:rgba(59,130,246,0.15);color:#3b82f6;border-radius:10px;padding:1px 7px;display:inline-block;margin-top:3px;">NO RITMO</div>';
-    } else {
-      badgeHTML='<div style="font-size:0.6rem;background:rgba(230,51,41,0.15);color:#e63329;border-radius:10px;padding:1px 7px;display:inline-block;margin-top:3px;">ATENCAO</div>';
-    }
+    var badge=pct>=100?'<span style="font-size:0.6rem;background:rgba(16,185,129,0.15);color:#10b981;border-radius:10px;padding:2px 8px;">META BATIDA</span>':
+              pct>=80?'<span style="font-size:0.6rem;background:rgba(59,130,246,0.15);color:#3b82f6;border-radius:10px;padding:2px 8px;">NO RITMO</span>':
+              pct>=60?'<span style="font-size:0.6rem;background:rgba(245,158,11,0.15);color:#f59e0b;border-radius:10px;padding:2px 8px;">ATENCAO</span>':
+              '<span style="font-size:0.6rem;background:rgba(230,51,41,0.15);color:#e63329;border-radius:10px;padding:2px 8px;">CRITICO</span>';
 
     var card=document.createElement("div");
-    card.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px 10px 10px;display:flex;flex-direction:column;align-items:center;";
-    card.appendChild(nameEl);
-    card.appendChild(svg);
-    subEl.innerHTML=subEl.innerHTML+badgeHTML;
-    card.appendChild(subEl);
+    card.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:12px 8px 10px;display:flex;flex-direction:column;align-items:center;";
+    card.innerHTML=
+      '<div style="font-size:0.7rem;font-weight:700;color:var(--tx);letter-spacing:0.8px;margin-bottom:6px;">'+v+'</div>'+
+      '<svg width="160" height="100" viewBox="0 0 160 100">'+
+        // Background arc
+        '<circle cx="'+CX+'" cy="'+CY+'" r="'+R+'"'+
+          ' fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="10"'+
+          ' stroke-dasharray="'+dashBg+'"'+
+          ' stroke-linecap="round"'+
+          ' transform="'+rot+'"/>'+
+        // Value arc
+        (clamped>0?
+        '<circle cx="'+CX+'" cy="'+CY+'" r="'+R+'"'+
+          ' fill="none" stroke="'+col+'" stroke-width="10"'+
+          ' stroke-dasharray="'+dash+'"'+
+          ' stroke-linecap="round"'+
+          ' transform="'+rot+'"/>':'')+
+        // 100% marker tick
+        '<line x1="'+markX1+'" y1="'+markY1+'" x2="'+markX2+'" y2="'+markY2+'"'+
+          ' stroke="rgba(255,255,255,0.45)" stroke-width="2.5" stroke-linecap="round"/>'+
+        // Tick label "100%"
+        '<text x="'+(CX+(R+20)*Math.cos(markAngle)).toFixed(1)+'" y="'+(CY+(R+20)*Math.sin(markAngle)).toFixed(1)+'"'+
+          ' text-anchor="middle" dominant-baseline="middle"'+
+          ' font-size="7" fill="rgba(255,255,255,0.3)" font-family="DM Sans,sans-serif">100%</text>'+
+        // Center pct value
+        '<text x="'+CX+'" y="'+(CY-4)+'"'+
+          ' text-anchor="middle" dominant-baseline="middle"'+
+          ' font-size="22" font-weight="700" fill="'+col+'" font-family="Syne,sans-serif">'+pct+'%</text>'+
+      '</svg>'+
+      '<div style="font-size:0.65rem;color:var(--mu);text-align:center;line-height:1.6;">'+
+        d.mes+'/'+d.ano+'<br>'+f(d.venda)+
+      '</div>'+
+      '<div style="margin-top:5px;">'+badge+'</div>';
+
     gaugeDiv.appendChild(card);
   });
 
