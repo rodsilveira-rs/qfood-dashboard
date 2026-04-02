@@ -510,6 +510,10 @@ function ff(v){
   var n=Math.abs(parseFloat(v)||0);
   return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
+function fv(v){
+  var n=Math.abs(parseFloat(v)||0);
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});
+}
 function pc(a,b){return b>0?Math.round((a/b)*100):0;}
 function cl(v,a,b){return Math.min(Math.max(v,a),b);}
 function cp(p){if(p>=100)return"#10b981";if(p>=80)return"#3b82f6";if(p>=60)return"#f59e0b";return"#e63329";}
@@ -655,21 +659,21 @@ function build(){
   var acima=DM.filter(function(v){return v.real>=v.meta;}).length;
 
   // Comercial KPIs
-  document.getElementById("k1").textContent=f(tm);
-  document.getElementById("k2").textContent=f(tr);
+  document.getElementById("k1").textContent=fv(tm);
+  document.getElementById("k2").textContent=fv(tr);
   document.getElementById("k2s").textContent=pc(tr,tm)+"% da meta";
-  document.getElementById("k3").textContent=ft>0?f(ft):"Meta batida!";
+  document.getElementById("k3").textContent=ft>0?fv(ft):"Meta batida!";
   document.getElementById("k3s").textContent=ft<=0?"Parabens ao time!":"Restante do mes";
   document.getElementById("k4").textContent=pc(ta,tc)+"%";
   document.getElementById("k4s").textContent=ta+" de "+tc+" clientes";
 
   // CEO KPIs
-  document.getElementById("ek1").textContent=f(tr);
-  document.getElementById("ek1s").textContent=pc(tr,tm)+"% da meta de "+f(tm);
-  document.getElementById("ek2").textContent=ft>0?f(ft):"Superado";
+  document.getElementById("ek1").textContent=fv(tr);
+  document.getElementById("ek1s").textContent=pc(tr,tm)+"% da meta de "+fv(tm);
+  document.getElementById("ek2").textContent=ft>0?fv(ft):"Superado";
   document.getElementById("ek2s").textContent=ft>0?"Necessario para fechar meta":"Parabens - meta superada!";
   document.getElementById("ek3").textContent=pc(tr,tm)+"%";
-  document.getElementById("ek4").textContent=f(ticket);
+  document.getElementById("ek4").textContent=fv(ticket);
   document.getElementById("ek5").textContent=ta;
   document.getElementById("ek5s").textContent=pc(ta,tc)+"% de positivacao";
   document.getElementById("ek6").textContent=tnv;
@@ -956,60 +960,148 @@ function buildHist(){
   // Gauges - most recent entry per vendor
   var gaugeDiv=document.getElementById("hist-gauges");
   gaugeDiv.innerHTML="";
+  gaugeDiv.style.cssText="display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin-bottom:28px;";
+
   var mOrder2={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
+  var MAX_PCT=130; // gauge goes 0-130%
 
   vends.forEach(function(v){
     var sorted=byVend[v].slice().sort(function(a,b){
       if(a.ano!==b.ano) return b.ano-a.ano;
       return (mOrder2[b.mes]||0)-(mOrder2[a.mes]||0);
     });
-    var d=sorted[0];if(!d) return;
-    var pct=Math.min(d.pct,130);
-    var col=pct>=100?"#10b981":pct>=80?"#3b82f6":pct>=60?"#f59e0b":"#e63329";
-    var angle=Math.PI*(pct/130);
-    var r=50,cx=70,cy=68;
-    var ax=(cx-r*Math.cos(Math.PI-angle)).toFixed(1);
-    var ay=(cy-r*Math.sin(angle)).toFixed(1);
-    var largeArc=angle>Math.PI/2?1:0;
+    var d=sorted[0]; if(!d) return;
+    var p=Math.min(d.pct, MAX_PCT);
+    var col=d.pct>=100?"#10b981":d.pct>=80?"#3b82f6":d.pct>=60?"#f59e0b":"#e63329";
+    var textCol=col;
 
-    var wrap=document.createElement("div");
-    wrap.style.cssText="display:inline-flex;flex-direction:column;align-items:center;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px 8px;width:136px;";
+    // SVG gauge: 220-degree arc (110deg each side from bottom center)
+    // Start: bottom-left (220deg from top = 200deg from right in SVG coords)
+    // Gauge spans 220 degrees total, 0% = left end, 100% = at 220*(100/130) mark, 130% = right end
+    var W=170, H=110, cx=W/2, cy=H-10, R=60;
+    var startDeg=220+90; // 310 deg from positive x-axis (bottom-left)
+    var endDeg=360-220+90; // 50 deg from positive x-axis  (bottom-right)  
+    // Easier: start angle = -200deg from top, span = 220deg
+    // In radians: start = pi*0.5 + pi*(220/360)*pi ... let's use simpler approach
+    // Arc from -200deg to +40deg (measured from positive x-axis, counterclockwise)
+    // Actually: gauge from 130deg to -50deg (clockwise), span = 220deg = 0-130% range
+    
+    var toRad=function(deg){return deg*Math.PI/180;};
+    var startAngle=toRad(140); // start of arc (left side, pointing down-left)
+    var endAngle=toRad(40);    // end of arc (right side, pointing down-right)  
+    var totalSpan=toRad(360-140+40); // =260deg span
+    // Simpler fixed approach:
+    // Start: 220deg (from 3 o'clock, counterclockwise) = 8 o'clock position
+    // End: 320deg = 4 o'clock position  
+    // Span: 260deg clockwise
 
-    var lbl=document.createElement("div");
-    lbl.style.cssText="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;letter-spacing:0.3px;";
-    lbl.textContent=v;
+    var sa=toRad(220); // start angle from positive-x, counterclockwise = 8 o'clock
+    var totalArcDeg=260; // total degrees of the gauge
+    var pctAngleDeg=totalArcDeg*(p/MAX_PCT);
+    
+    function polarToXY(angleDeg,radius){
+      var a=toRad(angleDeg);
+      return {x:cx+radius*Math.cos(a), y:cy-radius*Math.sin(a)};
+    }
+    
+    // Background arc: from 220deg to (220-260)=-40deg=320deg, going clockwise (decreasing angle)
+    var bgStart=polarToXY(220,R);
+    var bgEnd=polarToXY(220-totalArcDeg,R); // -40 deg = 320 deg
+    
+    // Value arc: from 220deg, sweep pctAngleDeg clockwise
+    var valEnd=polarToXY(220-pctAngleDeg,R);
+    var valLargeArc=pctAngleDeg>180?1:0;
+    
+    // 100% marker position
+    var pct100deg=220-(totalArcDeg*(100/MAX_PCT));
+    var mark100=polarToXY(pct100deg,R);
+    var mark100in=polarToXY(pct100deg,R-12);
+    var mark100out=polarToXY(pct100deg,R+6);
 
     var svgNS="http://www.w3.org/2000/svg";
     var svg=document.createElementNS(svgNS,"svg");
-    svg.setAttribute("width","140");svg.setAttribute("height","78");svg.setAttribute("viewBox","0 0 140 78");
+    svg.setAttribute("viewBox","0 0 "+W+" "+H);
+    svg.setAttribute("width",W);svg.setAttribute("height",H);
 
-    var bg=document.createElementNS(svgNS,"path");
-    bg.setAttribute("d","M 20 68 A 50 50 0 0 1 120 68");
-    bg.setAttribute("stroke","rgba(255,255,255,0.07)");bg.setAttribute("stroke-width","10");bg.setAttribute("fill","none");bg.setAttribute("stroke-linecap","round");
-    svg.appendChild(bg);
+    // Ticks at 0%, 50%, 100%, 130%
+    [[0,"0%"],[50,"50%"],[100,"100%"],[130,"130%"]].forEach(function(t){
+      var tickDeg=220-(totalArcDeg*(t[0]/MAX_PCT));
+      var tp=polarToXY(tickDeg,R+14);
+      var txtEl=document.createElementNS(svgNS,"text");
+      txtEl.setAttribute("x",tp.x.toFixed(1));
+      txtEl.setAttribute("y",tp.y.toFixed(1));
+      txtEl.setAttribute("text-anchor","middle");
+      txtEl.setAttribute("dominant-baseline","middle");
+      txtEl.setAttribute("font-size","7");
+      txtEl.setAttribute("fill","rgba(255,255,255,0.25)");
+      txtEl.setAttribute("font-family","DM Sans,sans-serif");
+      txtEl.textContent=t[1];
+      svg.appendChild(txtEl);
+    });
 
-    if(pct>1){
-      var fg=document.createElementNS(svgNS,"path");
-      fg.setAttribute("d","M 20 68 A 50 50 0 "+largeArc+" 1 "+ax+" "+ay);
-      fg.setAttribute("stroke",col);fg.setAttribute("stroke-width","10");fg.setAttribute("fill","none");fg.setAttribute("stroke-linecap","round");
-      svg.appendChild(fg);
+    // Background arc
+    var bgPath=document.createElementNS(svgNS,"path");
+    bgPath.setAttribute("d","M "+bgStart.x.toFixed(1)+" "+bgStart.y.toFixed(1)+" A "+R+" "+R+" 0 1 0 "+bgEnd.x.toFixed(1)+" "+bgEnd.y.toFixed(1));
+    bgPath.setAttribute("stroke","rgba(255,255,255,0.07)");
+    bgPath.setAttribute("stroke-width","10");
+    bgPath.setAttribute("fill","none");
+    bgPath.setAttribute("stroke-linecap","round");
+    svg.appendChild(bgPath);
+
+    // Value arc (only if pct > 0)
+    if(p>1){
+      var valPath=document.createElementNS(svgNS,"path");
+      valPath.setAttribute("d","M "+bgStart.x.toFixed(1)+" "+bgStart.y.toFixed(1)+" A "+R+" "+R+" 0 "+valLargeArc+" 0 "+valEnd.x.toFixed(1)+" "+valEnd.y.toFixed(1));
+      valPath.setAttribute("stroke",col);
+      valPath.setAttribute("stroke-width","10");
+      valPath.setAttribute("fill","none");
+      valPath.setAttribute("stroke-linecap","round");
+      svg.appendChild(valPath);
     }
-    var txt=document.createElementNS(svgNS,"text");
-    txt.setAttribute("x","70");txt.setAttribute("y","64");txt.setAttribute("text-anchor","middle");
-    txt.setAttribute("font-size","17");txt.setAttribute("font-weight","700");txt.setAttribute("fill",col);
-    txt.setAttribute("font-family","Syne,sans-serif");
-    txt.textContent=d.pct+"%";
-    svg.appendChild(txt);
 
-    var sub=document.createElement("div");
-    sub.style.cssText="font-size:0.62rem;color:var(--mu);margin-top:4px;text-align:center;line-height:1.4;";
-    sub.textContent=d.mes+"/"+d.ano;
-    var sub2=document.createElement("div");
-    sub2.style.cssText="font-size:0.62rem;color:var(--mu);text-align:center;";
-    sub2.textContent=f(d.venda);
+    // 100% marker line
+    var markerLine=document.createElementNS(svgNS,"line");
+    markerLine.setAttribute("x1",mark100in.x.toFixed(1));markerLine.setAttribute("y1",mark100in.y.toFixed(1));
+    markerLine.setAttribute("x2",mark100out.x.toFixed(1));markerLine.setAttribute("y2",mark100out.y.toFixed(1));
+    markerLine.setAttribute("stroke","rgba(255,255,255,0.5)");markerLine.setAttribute("stroke-width","2");
+    svg.appendChild(markerLine);
 
-    wrap.appendChild(lbl);wrap.appendChild(svg);wrap.appendChild(sub);wrap.appendChild(sub2);
-    gaugeDiv.appendChild(wrap);
+    // Center value text
+    var centerTxt=document.createElementNS(svgNS,"text");
+    centerTxt.setAttribute("x",cx.toFixed(1));centerTxt.setAttribute("y",(cy-14).toFixed(1));
+    centerTxt.setAttribute("text-anchor","middle");centerTxt.setAttribute("dominant-baseline","middle");
+    centerTxt.setAttribute("font-size","20");centerTxt.setAttribute("font-weight","700");
+    centerTxt.setAttribute("fill",col);centerTxt.setAttribute("font-family","Syne,sans-serif");
+    centerTxt.textContent=d.pct+"%";
+    svg.appendChild(centerTxt);
+
+    // Vendor name
+    var nameEl=document.createElement("div");
+    nameEl.style.cssText="font-size:0.7rem;font-weight:700;color:var(--tx);letter-spacing:0.8px;text-align:center;margin-bottom:6px;";
+    nameEl.textContent=v;
+
+    // Sub info
+    var subEl=document.createElement("div");
+    subEl.style.cssText="font-size:0.65rem;color:var(--mu);text-align:center;margin-top:4px;line-height:1.5;";
+    subEl.innerHTML=d.mes+"/"+d.ano+"<br>"+f(d.venda);
+
+    // Badge for over 100%
+    var badgeHTML="";
+    if(d.pct>=100){
+      badgeHTML='<div style="font-size:0.6rem;background:rgba(16,185,129,0.15);color:#10b981;border-radius:10px;padding:1px 7px;display:inline-block;margin-top:3px;">META BATIDA</div>';
+    } else if(d.pct>=80){
+      badgeHTML='<div style="font-size:0.6rem;background:rgba(59,130,246,0.15);color:#3b82f6;border-radius:10px;padding:1px 7px;display:inline-block;margin-top:3px;">NO RITMO</div>';
+    } else {
+      badgeHTML='<div style="font-size:0.6rem;background:rgba(230,51,41,0.15);color:#e63329;border-radius:10px;padding:1px 7px;display:inline-block;margin-top:3px;">ATENCAO</div>';
+    }
+
+    var card=document.createElement("div");
+    card.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px 10px 10px;display:flex;flex-direction:column;align-items:center;";
+    card.appendChild(nameEl);
+    card.appendChild(svg);
+    subEl.innerHTML=subEl.innerHTML+badgeHTML;
+    card.appendChild(subEl);
+    gaugeDiv.appendChild(card);
   });
 
   // Chart 2: positivacao % last 3 months
