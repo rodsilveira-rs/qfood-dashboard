@@ -320,6 +320,7 @@ tbody tr:hover td{background:var(--s2);}
   </div>
 
   <div class="sec">Alerta de riscos</div>
+  <div style="font-size:0.75rem;margin-bottom:10px;" id="risk-summary"></div>
   <div id="risk-list"></div>
 </div>
 
@@ -966,17 +967,83 @@ function bceo(){
 function brisk(){
   var list=document.getElementById("risk-list");list.innerHTML="";
   var risks=[];
+
+  // Get dias uteis context from DS
+  var du=0,da=0;
+  DS.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
+  if(du===0){du=22;da=18;}
+  var diasRest=Math.max(du-da,0);
+  var diasPassados=Math.max(da,1);
+  // Expected % at this point in the month
+  var pctEsperado=Math.round((da/du)*100);
+
   DM.forEach(function(v){
     var p=pc(v.real,v.meta);
-    if(p<60) risks.push({level:"critico",msg:v.nome+" esta em "+p+"% da meta mensal ("+f(v.real)+" de "+f(v.meta)+")"});
-    else if(p<80) risks.push({level:"atencao",msg:v.nome+" esta em "+p+"% — requer acompanhamento"});
+    var mediaAtual=v.real/diasPassados;
+    var projecao=v.real+(mediaAtual*diasRest);
+    var pProj=pc(projecao,v.meta);
+    var faltaMeta=v.meta-v.real;
+    var mediaNecessaria=diasRest>0?faltaMeta/diasRest:0;
+
+    // Context string
+    var ctx=" (dia "+da+" de "+du+" uteis — esperado "+pctEsperado+"%)";
+
+    if(p<60){
+      var extra="";
+      if(diasRest>0){
+        extra=" | precisaria de "+fv(mediaNecessaria)+"/dia nos "+diasRest+" dias restantes";
+      } else {
+        extra=" | mes encerrado";
+      }
+      risks.push({level:"critico",
+        msg:v.nome+" esta em "+p+"% da meta"+ctx,
+        detail:fv(v.real)+" de "+fv(v.meta)+extra
+      });
+    } else if(p<pctEsperado-10){
+      // Behind expected pace even if not critical
+      risks.push({level:"atencao",
+        msg:v.nome+" esta em "+p+"% — abaixo do ritmo esperado"+ctx,
+        detail:"Projecao de fechamento: "+fv(Math.round(projecao))+" ("+pProj+"% da meta)"
+      });
+    } else if(p>=pctEsperado && p<100 && diasRest<=3){
+      // On pace but last days - push alert
+      risks.push({level:"info",
+        msg:v.nome+" — "+diasRest+" dia(s) para fechar o mes",
+        detail:"Falta "+fv(faltaMeta)+" para bater a meta ("+fv(mediaNecessaria)+"/dia)"
+      });
+    }
   });
+
   DP.forEach(function(v){
     var m=DM.find(function(x){return x.s===v.s;});
     var nm=m?m.nome:v.s;
-    if(v.po<40) risks.push({level:"atencao",msg:nm+" com positivacao critica: "+v.po+"% ("+v.at+" de "+v.ca+" clientes)"});
-    if(v.nv===0) risks.push({level:"info",msg:nm+" sem novos clientes no periodo"});
+    if(v.po<40){
+      risks.push({level:"atencao",
+        msg:nm+" com positivacao critica: "+v.po+"% ("+v.at+" de "+v.ca+" clientes)",
+        detail:"Faltam "+(Math.ceil(v.ca*0.4)-v.at)+" clientes para atingir 40% minimo"
+      });
+    }
+    if(v.nv===0&&da>=10){
+      risks.push({level:"info",
+        msg:nm+" sem novos clientes no mes (dia "+da+" de "+du+")",
+        detail:"Meta sugerida: pelo menos 8 novos clientes"
+      });
+    }
   });
+
+  // Summary header
+  var nCrit=risks.filter(function(r){return r.level==="critico";}).length;
+  var nAtenc=risks.filter(function(r){return r.level==="atencao";}).length;
+  var summaryEl=document.getElementById("risk-summary");
+  if(summaryEl){
+    if(risks.length===0){
+      summaryEl.textContent="Nenhum alerta — time no ritmo";
+      summaryEl.style.color="#10b981";
+    } else {
+      summaryEl.textContent=nCrit+" critico(s) · "+nAtenc+" atencao · dia "+da+"/"+du+" uteis (esperado "+pctEsperado+"%)";
+      summaryEl.style.color=nCrit>0?"#e63329":"#f59e0b";
+    }
+  }
   if(risks.length===0){
     list.innerHTML='<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;font-size:0.82rem;color:#10b981">Nenhum risco critico identificado.</div>';
     return;
@@ -989,20 +1056,24 @@ function brisk(){
     var bg=bgMap[r.level]||"rgba(59,130,246,0.08)";
     var bd=bdMap[r.level]||"rgba(59,130,246,0.25)";
     var d=document.createElement("div");
-    d.style.background=bg;
-    d.style.border="1px solid "+bd;
-    d.style.borderRadius="10px";
-    d.style.padding="12px 16px";
-    d.style.marginBottom="8px";
-    d.style.fontSize="0.8rem";
-    d.style.display="flex";
-    d.style.alignItems="center";
-    d.style.gap="10px";
+    d.style.cssText="background:"+bg+";border:1px solid "+bd+";border-radius:10px;padding:12px 16px;margin-bottom:8px;";
+    var inner=document.createElement("div");
+    inner.style.cssText="display:flex;align-items:flex-start;gap:10px;";
     var dot=document.createElement("span");
-    dot.style.cssText="width:8px;height:8px;border-radius:50%;background:"+col+";flex-shrink:0;display:inline-block";
-    var txt=document.createElement("span");
-    txt.textContent=r.msg;
-    d.appendChild(dot);d.appendChild(txt);
+    dot.style.cssText="width:8px;height:8px;border-radius:50%;background:"+col+";flex-shrink:0;display:inline-block;margin-top:4px;";
+    var textWrap=document.createElement("div");
+    var mainLine=document.createElement("div");
+    mainLine.style.cssText="font-size:0.8rem;font-weight:500;color:var(--tx);";
+    mainLine.textContent=r.msg;
+    textWrap.appendChild(mainLine);
+    if(r.detail){
+      var detailLine=document.createElement("div");
+      detailLine.style.cssText="font-size:0.72rem;color:var(--mu);margin-top:3px;";
+      detailLine.textContent=r.detail;
+      textWrap.appendChild(detailLine);
+    }
+    inner.appendChild(dot);inner.appendChild(textWrap);
+    d.appendChild(inner);
     list.appendChild(d);
   });
 }
