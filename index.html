@@ -197,6 +197,7 @@ tbody tr:hover td{background:var(--s2);}
       <strong id="dt">-</strong>
       <span id="upd">carregando...</span>
     </div>
+    <span id="nav-user" style="font-size:0.72rem;color:var(--mu);padding:0 4px;"></span>
     <button onclick="showAccessLog()" title="Ver acessos" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.7rem;">Log</button>
     <button onclick="logout()" title="Sair" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.7rem;">Sair</button>
   </div>
@@ -356,6 +357,21 @@ tbody tr:hover td{background:var(--s2);}
 </div>
 
 <!-- FOOTER -->
+
+<!-- ======== ABA REMUNERACAO ======== -->
+<div id="tab-remuneracao" class="page" style="display:none">
+  <div class="sec">Remuneracao variavel</div>
+  <div id="rem-loading" class="spin-wrap"><div class="spin"></div>Carregando...</div>
+  <div id="rem-content" style="display:none">
+    <!-- ADMIN: selector -->
+    <div id="rem-selector" style="display:none;margin-bottom:20px;">
+      <div style="font-size:0.78rem;color:var(--mu);margin-bottom:8px;">Selecionar vendedor:</div>
+      <div id="rem-btns" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+    <!-- Card principal -->
+    <div id="rem-card"></div>
+  </div>
+</div>
 <div class="ftr">Q Food Company &middot; Comercial ES &middot; dados via Google Sheets &middot; <span id="ftr-upd"></span></div>
 
 <!-- ======== MODAL ======== -->
@@ -404,6 +420,7 @@ var US="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPv
 var UP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=6112221&single=true&output=csv";
 var UH="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1201393298&single=true&output=csv";
 var USP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1173958447&single=true&output=csv";
+var UR="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=667453580&single=true&output=csv";
 
 // ---- MAPS ----
 var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
@@ -543,16 +560,24 @@ function fv(v){
 function parseBR(v){
   if(!v||v==="") return 0;
   var s=String(v).trim();
+  var isPercent=s.indexOf("%")>-1;
+  s=s.replace(/%/g,"").trim();
   // Handle Brazilian format: 1.234.567,89 -> 1234567.89
   if(s.indexOf(",")>-1 && s.indexOf(".")>-1){
-    // Has both: dots are thousands separators, comma is decimal
     s=s.replace(/\./g,"").replace(",",".");
   } else if(s.indexOf(",")>-1){
-    // Only comma: could be decimal separator
     s=s.replace(",",".");
   }
-  // else: only dots or plain number, parseFloat handles it
-  return parseFloat(s)||0;
+  var n=parseFloat(s)||0;
+  // If it came as a % string like "30%", return 30
+  // If it came as decimal like 0.30, convert to 30
+  if(!isPercent && n>0 && n<1.5 && s.indexOf(".")<0 && s.indexOf(",")<0){
+    // plain small integer like "0" - keep as is
+  } else if(!isPercent && n>0 && n<=1.5){
+    // decimal representation like 0.30 -> 30
+    n=n*100;
+  }
+  return n;
 }
 function pc(a,b){return b>0?Math.round((a/b)*100):0;}
 function cl(v,a,b){return Math.min(Math.max(v,a),b);}
@@ -585,7 +610,7 @@ function csv(txt){
 
 // ---- TABS ----
 function showTab(id){
-  var ids=["comercial","ceo","historico","sop"];
+  var ids=["comercial","ceo","historico","sop","remuneracao"];
   document.querySelectorAll(".tab").forEach(function(t,i){
     t.classList.toggle("active",ids[i]===id);
   });
@@ -606,6 +631,9 @@ function showTab(id){
         if(CH.ch2) CH.ch2.resize();
       },50);
     }
+  }
+  if(id==="remuneracao"){
+    loadRemuneracao();
   }
   if(id==="sop"){
     if(!sopLoaded){
@@ -1305,34 +1333,39 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape")cm();});
 
 
 // ---- LOGIN ----
+// USERS: email -> {pwd, role, nome, sigla}
+// role: "admin" = acesso total | "vendedor" = ve apenas propria remuneracao
 var USERS = {
-  "rodrigo@qfoodcompany.com.br": "qfood2026",
-  "adilson@qfoodcompany.com.br": "qfood2026",
-  "celio@qfoodcompany.com.br":   "Gestao2026@",
-  "lucas@qfoodcompany.com.br": "vendas2026",
-  "vera@qfoodcompany.com.br": "vendas2026",
-  "dayane@qfoodcompany.com.br": "vendas2026",
-  "eliane@qfoodcompany.com.br": "vendas2026",
-  "eder@qfoodcompany.com.br": "vendas2026",
-  "claudia@qfoodcompany.com.br": "vendas2026",
-  "camila@qfoodcompany.com.br": "vendas2026",
-  "kenyo@qfoodcompany.com.br": "vendas2026",
-  "deane@qfoodcompany.com.br": "vendas2026"
+  "rodrigo@qfoodcompany.com.br": {pwd:"qfood2026",    role:"admin",    nome:"Rodrigo",  sigla:""},
+  "adilson@qfoodcompany.com.br": {pwd:"qfood2026",    role:"admin",    nome:"Adilson",  sigla:""},
+  "celio@qfoodcompany.com.br":   {pwd:"Gestao2026@",  role:"admin",    nome:"Celio",    sigla:""},
+  "lucas@qfoodcompany.com.br":   {pwd:"vendas2026",   role:"vendedor", nome:"Lucas",    sigla:"LB"},
+  "vera@qfoodcompany.com.br":    {pwd:"vendas2026",   role:"vendedor", nome:"Vera",     sigla:"VS"},
+  "dayane@qfoodcompany.com.br":  {pwd:"vendas2026",   role:"vendedor", nome:"Dayane",   sigla:"DN"},
+  "eliane@qfoodcompany.com.br":  {pwd:"vendas2026",   role:"vendedor", nome:"Eliane",   sigla:"EM"},
+  "eder@qfoodcompany.com.br":    {pwd:"vendas2026",   role:"vendedor", nome:"Eder",     sigla:"ED"},
+  "claudia@qfoodcompany.com.br": {pwd:"vendas2026",   role:"vendedor", nome:"Claudia",  sigla:"CG"},
+  "camila@qfoodcompany.com.br":  {pwd:"vendas2026",   role:"vendedor", nome:"Camila",   sigla:"CC"},
+  "kenyo@qfoodcompany.com.br":   {pwd:"vendas2026",   role:"vendedor", nome:"Kenyo",    sigla:"KE"},
+  "deane@qfoodcompany.com.br":   {pwd:"vendas2026",   role:"vendedor", nome:"Deane",    sigla:"DE"}
 };
+var CURRENT_USER = null;
 
 function doLogin(){
   var email = document.getElementById("login-email").value.trim().toLowerCase();
   var pwd = document.getElementById("login-pwd").value;
   var err = document.getElementById("login-err");
   if(!email||!pwd){err.textContent="Preencha e-mail e senha.";return;}
-  if(USERS[email]===undefined){err.textContent="E-mail nao encontrado.";return;}
-  if(USERS[email]!==pwd){err.textContent="Senha incorreta.";return;}
-  // Log access
+  var u=USERS[email];
+  if(!u){err.textContent="E-mail nao encontrado.";return;}
+  if(u.pwd!==pwd){err.textContent="Senha incorreta.";return;}
   var log = JSON.parse(localStorage.getItem("qfood_access_log")||"[]");
-  log.push({email:email, ts:new Date().toISOString(), ua:navigator.userAgent.substring(0,80), ref:document.referrer||"direto"});
+  log.push({email:email,nome:u.nome,role:u.role,ts:new Date().toISOString(),ua:navigator.userAgent.substring(0,80)});
   if(log.length>500) log=log.slice(-500);
   localStorage.setItem("qfood_access_log", JSON.stringify(log));
-  localStorage.setItem("qfood_session", JSON.stringify({email:email, ts:Date.now()}));
+  localStorage.setItem("qfood_session", JSON.stringify({email:email,role:u.role,nome:u.nome,sigla:u.sigla,ts:Date.now()}));
+  CURRENT_USER={email:email,role:u.role,nome:u.nome,sigla:u.sigla};
+  applyUserAccess();
   document.getElementById("login-overlay").style.display="none";
   err.textContent="";
 }
@@ -1340,8 +1373,28 @@ function doLogin(){
 function checkSession(){
   var sess = JSON.parse(localStorage.getItem("qfood_session")||"null");
   if(sess && (Date.now()-sess.ts < 8*60*60*1000)){
+    CURRENT_USER={email:sess.email,role:sess.role,nome:sess.nome,sigla:sess.sigla};
+    applyUserAccess();
     document.getElementById("login-overlay").style.display="none";
   }
+}
+function applyUserAccess(){
+  if(!CURRENT_USER) return;
+  // Show/hide tabs based on role
+  var isAdmin=CURRENT_USER.role==="admin";
+  // All tabs visible for admin; vendedor sees Comercial + Remuneracao only
+  var tabEls=document.querySelectorAll(".tab");
+  var tabIds=["comercial","ceo","historico","sop","remuneracao"];
+  tabEls.forEach(function(t,i){
+    var id=tabIds[i];
+    if(!id) return;
+    if(id==="remuneracao") t.style.display="block"; // always visible
+    else if(!isAdmin && id!=="comercial") t.style.display="none";
+    else t.style.display="block";
+  });
+  // Show user name in header
+  var nu=document.getElementById("nav-user");
+  if(nu) nu.textContent=CURRENT_USER.nome;
 }
 
 function logout(){
@@ -1404,6 +1457,255 @@ function buildTend(){
   document.getElementById("tend-ritmo").textContent=ritmoText;
   document.getElementById("tend-ritmo").style.color=colRitmo;
   document.getElementById("tend-ritmo-sub").textContent=pMetaDia+"% da media necessaria";
+}
+
+// ---- REMUNERACAO VARIAVEL ----
+var DR=[]; // remuneracao data from sheets
+var remLoaded=false;
+
+// URL for remuneracao sheet - set GID after publishing
+// Column structure expected:
+// nome | faturamento | meta_fat | margem | posit_pct | novos | trocas_pct | mes | ano | observacao
+
+var URL_REM = UR; // set from sheet URL above
+
+async function loadRemuneracao(){
+  document.getElementById("rem-loading").style.display="block";
+  document.getElementById("rem-content").style.display="none";
+  try{
+    var r=await fetch(URL_REM);
+    if(r.ok){
+      var txt=await r.text();
+      if(!txt.trim().startsWith("<")) DR=csv(txt);
+    }
+  }catch(e){ console.warn("Remuneracao CSV error:",e.message); }
+  remLoaded=true;
+  buildRemuneracao();
+}
+
+function buildRemuneracao(){
+  document.getElementById("rem-loading").style.display="none";
+  document.getElementById("rem-content").style.display="block";
+
+  var isAdmin = CURRENT_USER && CURRENT_USER.role==="admin";
+  var selDiv = document.getElementById("rem-selector");
+  var btnsDiv = document.getElementById("rem-btns");
+
+  // Get list of vendors with data
+  var vendores=["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
+
+  if(isAdmin){
+    selDiv.style.display="block";
+    btnsDiv.innerHTML="";
+    vendores.forEach(function(v){
+      var btn=document.createElement("button");
+      btn.style.cssText="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.78rem;transition:all 0.2s;";
+      btn.textContent=v;
+      btn.onmouseover=function(){this.style.color="var(--tx)";this.style.borderColor="var(--b2)";};
+      btn.onmouseout=function(){this.style.color="var(--mu)";this.style.borderColor="var(--br)";};
+      btn.onclick=function(){renderRemCard(v);};
+      btnsDiv.appendChild(btn);
+    });
+    // Default: show first vendor
+    renderRemCard(vendores[0]);
+  } else {
+    // Vendedor: show only own card
+    selDiv.style.display="none";
+    var myNome = CURRENT_USER ? CURRENT_USER.nome : "";
+    renderRemCard(myNome);
+  }
+}
+
+function getRemData(nome){
+  // Try to get from CSV first
+  // Columns: Vendedor | Mes/Ano | Faturamento Realizado | Meta Faturamento |
+  //          % Fat vs Meta | Margem % | Positivacao % | Novos Clientes |
+  //          Trocas % | P1 Fat% | P2 Marg% | P3 Posit% | P4 Novos% |
+  //          Total % | Premio R$ | Tipo Regra | Observa
+  if(DR && DR.length>0){
+    var row=DR.find(function(r){
+      var v=r["Vendedor"]||r["vendedor"]||r["VENDEDOR"]||r["nome"]||"";
+      return v.toString().toLowerCase().trim()===nome.toLowerCase().trim();
+    });
+    if(row) return {
+      nome:nome,
+      faturamento:parseBR(row["Faturamento Realizado"]||row["faturamento"]||"0"),
+      meta_fat:parseBR(row["Meta Faturamento"]||row["meta_fat"]||row["meta"]||"0"),
+      margem:parseBR(row["Margem %"]||row["margem"]||"0"),
+      posit_pct:parseBR(row["Positivacao %"]||row["posit_pct"]||row["positivacao"]||"0"),
+      novos:parseInt((row["Novos Clientes"]||row["novos"]||"0").toString().replace(/[^0-9]/g,""))||0,
+      trocas_pct:parseBR(row["Trocas %"]||row["trocas_pct"]||row["trocas"]||"0"),
+      mes:row["Mes/Ano"]||row["mes"]||row["MES"]||"",
+      premio_sheet:parseBR(row["Premio R$"]||row["premio"]||"0"),
+      total_pct_sheet:parseBR(row["Total %"]||row["total_pct"]||"0"),
+      tipo:row["Tipo Regra"]||row["tipo"]||"padrao",
+      observacao:row["Observa"]||row["observacao"]||""
+    };
+  }
+  // Fallback: use current month data from DM/DP
+  var dm=DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var dp=DP.find(function(v){
+    var mn=DM.find(function(x){return x.s===v.s;});
+    return mn&&mn.nome&&mn.nome.toLowerCase()===nome.toLowerCase();
+  });
+  return {
+    nome:nome,
+    faturamento:dm?dm.real:0,
+    meta_fat:dm?dm.meta:0,
+    margem:dp?dp.mg:0,
+    posit_pct:dp?dp.po:0,
+    novos:dp?dp.nv:0,
+    trocas_pct:0,
+    mes:"",
+    observacao:""
+  };
+}
+
+function calcRemuneracao(d){
+  var nome=d.nome.toUpperCase();
+  var fat=d.faturamento;
+  var meta=d.meta_fat;
+  var margem=d.margem;
+  var posit=d.posit_pct;
+  var novos=d.novos;
+  var trocas=d.trocas_pct;
+  var pctFat=meta>0?Math.round((fat/meta)*100):0;
+
+  var pilares=[];
+  var totalPct=0;
+
+  if(nome==="DEANE"){
+    // Apenas Margem
+    var p1=0,p1txt="",p1ok=false;
+    if(margem>=30){p1=3;p1txt="Faixa Boa (30%+) = 3,00%";p1ok=true;}
+    else if(margem>=25){p1=1.35;p1txt="Faixa Basica (25%-29%) = 1,35%";p1ok=true;}
+    else if(margem>=19){p1=0.6;p1txt="Faixa Minima (19%-24%) = 0,60%";p1ok=true;}
+    else{p1=0;p1txt="Abaixo do minimo ("+margem+"%) = 0%";}
+    pilares.push({nome:"Margem",pct:p1,desc:p1txt,ok:p1ok,base:fat});
+    totalPct=p1;
+  } else if(nome==="CLAUDIA"){
+    // Faturamento
+    var p1=0.75,p1txt="Faturamento fixo = 0,75%";
+    pilares.push({nome:"Faturamento",pct:p1,desc:p1txt,ok:true,base:fat});
+    // Margem
+    var p2=0,p2txt="",p2ok=false;
+    if(margem>=45){p2=0.25;p2txt="Margem 45%+ = 0,25%";p2ok=true;}
+    else{p2=0;p2txt="Margem abaixo de 45% ("+margem+"%) = 0%";}
+    pilares.push({nome:"Margem (45%)",pct:p2,desc:p2txt,ok:p2ok,base:fat});
+    // Trocas
+    var p3=0,p3txt="",p3ok=false;
+    if(trocas<=2){p3=0.5;p3txt="Trocas \u22642% ("+trocas+"%) = 0,50%";p3ok=true;}
+    else if(trocas<=5){p3=0.25;p3txt="Trocas 2,1%-5% ("+trocas+"%) = 0,25%";}
+    else{p3=0;p3txt="Trocas >5% ("+trocas+"%) = PERDE todos os pilares";
+      // If trocas > 5%, zero everything
+      return {pilares:[{nome:"ATENCAO",pct:0,desc:"Trocas acima de 5% ("+trocas+"%) — sem remuneracao variavel",ok:false,base:fat}],totalPct:0,premio:0,fat:fat};
+    }
+    pilares.push({nome:"Trocas",pct:p3,desc:p3txt,ok:p3ok,base:fat});
+    // Positivacao
+    var p4=0,p4txt="",p4ok=false;
+    if(posit>=80){p4=0.25;p4txt="Positivacao 80%+ ("+posit+"%) = 0,25%";p4ok=true;}
+    else{p4=0;p4txt="Positivacao abaixo de 80% ("+posit+"%) = 0%";}
+    pilares.push({nome:"Positivacao",pct:p4,desc:p4txt,ok:p4ok,base:fat});
+    totalPct=p1+p2+p3+p4;
+  } else {
+    // PADRAO: 4 pilares
+    // Pilar 1: Faturamento
+    var p1=0,p1txt="",p1ok=false;
+    if(pctFat>=90){p1=0.5;p1txt="Acima de 90% ("+pctFat+"%) = 0,50%";p1ok=true;}
+    else{p1=0.25;p1txt="Ate 90% ("+pctFat+"%) = 0,25%";p1ok=true;}
+    pilares.push({nome:"Faturamento vs Meta",pct:p1,desc:p1txt,ok:p1ok,base:fat});
+    // Pilar 2: Margem
+    var p2=0,p2txt="",p2ok=false;
+    if(margem>=30){p2=1;p2txt="Faixa Boa 30%+ ("+margem+"%) = 1,00%";p2ok=true;}
+    else if(margem>=27){p2=0.75;p2txt="Faixa Basica 27%-29% ("+margem+"%) = 0,75%";p2ok=true;}
+    else if(margem>=24){p2=0.5;p2txt="Faixa Minima 24%-26% ("+margem+"%) = 0,50%";p2ok=true;}
+    else{p2=0;p2txt="Abaixo do minimo ("+margem+"%) = 0%";}
+    pilares.push({nome:"Margem Media",pct:p2,desc:p2txt,ok:p2ok,base:fat});
+    // Pilar 3: Positivacao
+    var p3=0,p3txt="",p3ok=false;
+    if(posit>85){p3=0.5;p3txt="Acima de 86% ("+posit+"%) = 0,50%";p3ok=true;}
+    else if(posit>=70){p3=0.25;p3txt="70% a 85% ("+posit+"%) = 0,25%";p3ok=true;}
+    else{p3=0;p3txt="Abaixo de 70% ("+posit+"%) = 0%";}
+    pilares.push({nome:"Positivacao",pct:p3,desc:p3txt,ok:p3ok,base:fat});
+    // Pilar 4: Novos clientes
+    var p4=0,p4txt="",p4ok=false;
+    if(novos>=15){p4=1;p4txt="Excelente 15+ clientes ("+novos+") = 1,00%";p4ok=true;}
+    else if(novos>=8){p4=0.5;p4txt="Basico 8-14 clientes ("+novos+") = 0,50%";p4ok=true;}
+    else{p4=0;p4txt="Abaixo do minimo ("+novos+" clientes) = 0%";}
+    pilares.push({nome:"Novos Clientes",pct:p4,desc:p4txt,ok:p4ok,base:fat});
+    totalPct=p1+p2+p3+p4;
+  }
+
+  var premio=fat*(totalPct/100);
+  return {pilares:pilares,totalPct:totalPct,premio:premio,fat:fat,pctFat:pctFat};
+}
+
+function renderRemCard(nome){
+  var d=getRemData(nome);
+  var r=calcRemuneracao(d);
+  var card=document.getElementById("rem-card");
+
+  var dm=DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var av=dm?dm.av:"avLB";
+
+  var pilaresHTML=r.pilares.map(function(p){
+    var cor=p.ok?"#10b981":"#e63329";
+    var bg=p.ok?"rgba(16,185,129,0.08)":"rgba(230,51,41,0.08)";
+    var bd=p.ok?"rgba(16,185,129,0.2)":"rgba(230,51,41,0.2)";
+    var icon=p.ok?"\u2714":"\u2715";
+    var premio=p.base*(p.pct/100);
+    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'+
+      '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<span style="font-size:14px;color:'+cor+'">'+icon+'</span>'+
+        '<div>'+
+          '<div style="font-size:0.78rem;font-weight:600;color:var(--tx);">'+p.nome+'</div>'+
+          '<div style="font-size:0.68rem;color:var(--mu);margin-top:2px;">'+p.desc+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;">'+
+        '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">+'+p.pct.toFixed(2).replace(".",",")+'%</div>'+
+        (p.pct>0?'<div style="font-size:0.65rem;color:var(--mu);">= '+fv(premio)+'</div>':'')+ 
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  card.innerHTML=
+    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:14px;padding:24px;">'+
+      // Header
+      '<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--br);">'+
+        '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;">'+
+          (dm?dm.s:nome.substring(0,2).toUpperCase())+
+        '</div>'+
+        '<div>'+
+          '<div style="font-family:var(--fh);font-size:1.2rem;font-weight:700;">'+nome+'</div>'+
+          '<div style="font-size:0.75rem;color:var(--mu);margin-top:2px;">Remuneracao variavel — '+( d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
+        '</div>'+
+        '<div style="margin-left:auto;text-align:right;">'+
+          '<div style="font-size:0.68rem;color:var(--mu);">Faturamento</div>'+
+          '<div style="font-family:var(--fh);font-size:1rem;font-weight:700;">'+fv(d.faturamento)+'</div>'+
+          (d.meta_fat>0?'<div style="font-size:0.68rem;color:var(--mu);">de '+fv(d.meta_fat)+' ('+r.pctFat+'%)</div>':'')+
+        '</div>'+
+      '</div>'+
+      // Pilares
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">'+pilaresHTML+'</div>'+
+      // Total
+      '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">'+
+        '<div>'+
+          '<div style="font-size:0.72rem;color:var(--mu);margin-bottom:4px;">Total da remuneracao variavel</div>'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+fv(r.premio)+'</div>'+
+          (d.observacao?'<div style="font-size:0.68rem;color:var(--mu);margin-top:4px;">Obs: '+d.observacao+'</div>':'')+
+        '</div>'+
+        '<div style="text-align:right;">'+
+          '<div style="font-size:0.72rem;color:var(--mu);">% aplicado</div>'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+r.totalPct.toFixed(2).replace(".",",")+"%</div>"+
+          '<div style="font-size:0.68rem;color:var(--mu);">sobre faturamento</div>'+
+        '</div>'+
+      '</div>'+
+      // Info note
+      '<div style="margin-top:12px;font-size:0.68rem;color:var(--mu2);text-align:center;">'+
+        'Calculo automatico com base nos dados da planilha. Celio confirma os valores finais.'+
+      '</div>'+
+    '</div>';
 }
 
 go();
