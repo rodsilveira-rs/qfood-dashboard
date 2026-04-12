@@ -2691,14 +2691,14 @@ function entKPIs(){
   var k2=document.getElementById("ent-kpis2");
   if(k1) k1.innerHTML=
     kpi("b","Total de Entregas","<b>"+n+"</b>","no período")+
-    kpi("g","Valor Total",entFmtK(totVal),"NFs confirmadas")+
+    kpi("g","Valor Total",entFmt(totVal),"NFs confirmadas")+
     kpi("p","Volumes Totais","<b>"+totVol.toLocaleString("pt-BR")+"</b>","volumes entregues")+
     kpi("r","Com Ocorrência","<b>"+comObs+"</b>","requer atenção");
   if(k2) k2.innerHTML=
-    kpi("w","Ticket Médio",entFmtK(ticket),"por entrega")+
-    kpi("b","Vol. Médio p/ Entrega","<b>"+ticketVol.toFixed(1).replace(".",",")+"</b>","volumes/NF")+
+    kpi("w","Ticket Médio",entFmt(ticket),"por entrega")+
+    kpi("b","Vol. Médio p/ Entrega","<b>"+Math.round(ticketVol)+"</b>","volumes/NF")+
     kpi("g","Top Motorista","<b style='font-size:.95rem'>"+topMotNome.split(" ")[0]+"</b>",topMotQtd+" entregas")+
-    kpi("p","Top Vendedor","<b style='font-size:.95rem'>"+topVendNome.split(" ")[0]+"</b>",entFmtK(topVendVal));
+    kpi("p","Top Vendedor","<b style='font-size:.95rem'>"+topVendNome.split(" ")[0]+"</b>",entFmt(topVendVal));
 }
 function kpi(cls,lbl,val,sub){
   return "<div class='kpi "+cls+"'><div class='lbl'>"+lbl+"</div><div class='val'>"+val+"</div><div class='sub'>"+sub+"</div></div>";
@@ -2761,22 +2761,60 @@ function entRankings(){
   var fQ=function(v){return v.toFixed(0)+" entregas";};
   var fV=function(v){return v.toFixed(0)+" vol.";};
 
+  // formatadores específicos por tipo
+  var fVal  = function(v){return entFmt(v);};                          // R$ com centavos
+  var fValK = function(v){return entFmtK(v);};                         // R$ em k (sub-info)
+  var fQtd  = function(v){return v+" NFs";};                           // quantidade
+  var fVol  = function(v){return Math.round(v)+" vol.";};              // volume inteiro s/ R$
+
   wrap.innerHTML=
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
-      buildRank("&#128666; Entregas por Motorista (R$)",    byMot,  fR, function(d){return d.qtd+" NFs · "+d.vol+" vol";}, "#4d8ef5")+
-      buildRank("&#128666; Entregas por Motorista (Qtd)",   byMot.slice().sort(function(a,b){return b.qtd-a.qtd;}), function(v){return v+" NFs";}, function(d){return entFmtK(d.val)+" · "+d.vol+" vol";}, "#36cfa0")+
+      buildRank("&#128666; Entregas por Motorista (R$)",
+        byMot,
+        fVal,
+        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
+        "#4d8ef5")+
+      buildRank("&#128666; Entregas por Motorista (Qtd)",
+        byMot.slice().sort(function(a,b){return b.qtd-a.qtd;}),
+        fQtd,
+        function(d){return entFmt(d.val)+" &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
+        "#36cfa0")+
     "</div>"+
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
-      buildRank("&#128100; Volume por Vendedor (R$)",       byVend, fR, function(d){return d.qtd+" NFs · "+d.vol+" vol";}, "#a07cf6")+
-      buildRank("&#127970; Volume por Cidade",              byCid,  fR, function(d){return d.qtd+" NFs · "+d.vol+" vol";}, "#ffaa2b")+
+      buildRank("&#128100; Volume por Vendedor (R$)",
+        byVend,
+        fVal,
+        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
+        "#a07cf6")+
+      buildRank("&#127970; Valor por Cidade",
+        byCid,
+        fVal,
+        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
+        "#ffaa2b")+
     "</div>"+
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
-      buildRank("&#128205; Volume por Bairro",              byBai,  fR, function(d){return d.qtd+" NFs";}, "#ff4d4f")+
-      buildRank("&#128666; Volumes por Motorista",          byMot.slice().sort(function(a,b){return b.vol-a.vol;}), function(v){return v.toFixed(0)+" vol.";}, function(d){return d.qtd+" NFs · "+entFmtK(d.val);}, "#00cec9")+
+      buildRank("&#128205; Valor por Bairro",
+        byBai,
+        fVal,
+        function(d){return d.qtd+" NFs";},
+        "#ff4d4f")+
+      buildRank("&#128666; Volumes por Motorista",
+        byMot.slice().sort(function(a,b){return b.vol-a.vol;}),
+        fVol,
+        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+entFmt(d.val);},
+        "#00cec9")+
     "</div>"+
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px'>"+
-      buildRank("&#127881; Ticket Médio por Motorista",     tickMot,  fR, function(d){return d.qtd+" NFs · vol.médio "+(d.qtd>0?(d.vol/d.qtd).toFixed(1):0);}, "#fd79a8")+
-      buildRank("&#127881; Ticket Médio por Vendedor",      tickVend, fR, function(d){return d.qtd+" NFs · "+entFmtK(d.val*d.qtd);}, "#e17055")+
+      buildRank("&#127881; Ticket Médio por Motorista",
+        tickMot,
+        fVal,
+        function(d){return d.qtd+" NFs &nbsp;·&nbsp; vol.médio "+Math.round(d.qtd>0?d.vol/d.qtd:0);},
+        "#fd79a8")+
+      buildRank("&#127881; Ticket Médio por Vendedor",
+        tickVend,
+        fVal,
+        function(d){return d.qtd+" NFs &nbsp;·&nbsp; total "+entFmt(d.val*d.qtd);},
+        "#e17055")+
     "</div>";
 }
 
