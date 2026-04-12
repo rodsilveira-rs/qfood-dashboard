@@ -2722,110 +2722,128 @@ function entRankings(){
   if(!rows.length){wrap.innerHTML="";return;}
 
   function buildRank(titulo,dados,fmtVal,fmtSub,cor,metricFn){
-    // metricFn(d) → numeric value used for bar width + display
-    // defaults to d.val if not provided
     var mFn=metricFn||function(d){return d.val;};
     var top=dados.slice(0,6);
-    var maxM=0;top.forEach(function(d){var v=mFn(d);if(v>maxM)maxM=v;});
+    var maxM=0;
+    top.forEach(function(d){var v=mFn(d);if(v>maxM)maxM=v;});
     if(maxM===0)maxM=1;
-    var rankId="rank_"+Math.random().toString(36).substr(2,6);
-    var html="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>"+
-      "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>"+
-        "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px'>"+titulo+"</div>"+
-        "<button onclick='entShowChart(""+rankId+"",this)' style='padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer'>&#128200; Gráfico</button>"+
-      "</div>"+
-      "<div id='"+rankId+"_chart' style='display:none;margin-bottom:12px'></div>";
-    var chartData=[];
+
+    var wrap=document.createElement("div");
+    wrap.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)";
+
+    // Header row
+    var hdr=document.createElement("div");
+    hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px";
+    var ttl=document.createElement("div");
+    ttl.style.cssText="font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px";
+    ttl.textContent=titulo;
+    var chartBtn=document.createElement("button");
+    chartBtn.style.cssText="padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer";
+    chartBtn.textContent="📈 Gráfico";
+    var chartDiv=document.createElement("div");
+    chartDiv.style.cssText="display:none;margin-bottom:12px";
+    chartBtn.onclick=function(){
+      if(chartDiv.style.display==="block"){
+        chartDiv.style.display="none";
+        chartBtn.textContent="📈 Gráfico";
+      } else {
+        chartDiv.style.display="block";
+        chartBtn.textContent="✕ Fechar";
+        entDrawChart(chartDiv,top.map(function(d){
+          return{n:d.nome,v:mFn(d),p:maxM>0?(mFn(d)/maxM*100):0,cor:cor};
+        }));
+      }
+    };
+    hdr.appendChild(ttl);
+    hdr.appendChild(chartBtn);
+    wrap.appendChild(hdr);
+    wrap.appendChild(chartDiv);
+
+    // Rows
     top.forEach(function(d,i){
       var m=mFn(d);
       var pct=maxM>0?(m/maxM*100):0;
-      var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
-      chartData.push({n:d.nome,v:m,p:pct,cor:cor});
-      html+="<div style='margin-bottom:10px'>"+
-        "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px'>"+
-          "<span>"+medal+" "+d.nome+"</span>"+
-          "<span style='font-weight:700;color:"+cor+"'>"+fmtVal(m)+"</span>"+
-        "</div>"+
-        "<div style='background:var(--br);border-radius:3px;height:6px;overflow:hidden'>"+
-          "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
-        "</div>"+
-        "<div style='font-size:.7rem;color:var(--mu);margin-top:1px'>"+fmtSub(d)+"</div>"+
-      "</div>";
-    });
-    html+="</div>";
-    // store chart data on element after render
-    setTimeout(function(){
-      var el=document.getElementById(rankId+"_chart");
-      if(el) el.dataset.cd=JSON.stringify(chartData);
-    },50);
-    return html;
-  }
+      var medals=["🥇","🥈","🥉"];
+      var medal=i<3?medals[i]:"";
 
-  function entShowChart(id,btn){
-    var el=document.getElementById(id+"_chart");
-    if(!el) return;
-    if(el.style.display==="block"){
-      el.style.display="none";
-      btn.textContent="📈 Gráfico";
-      return;
-    }
-    el.style.display="block";
-    btn.textContent="✕ Fechar";
-    var cd=el.dataset.cd;
-    if(!cd){setTimeout(function(){entShowChart(id,btn);},100);return;}
-    var data=JSON.parse(cd);
-    entDrawChart(el,data);
+      var row=document.createElement("div");
+      row.style.cssText="margin-bottom:10px";
+
+      var top2=document.createElement("div");
+      top2.style.cssText="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px";
+      var nm=document.createElement("span");
+      nm.textContent=medal+" "+d.nome;
+      var vl=document.createElement("span");
+      vl.style.cssText="font-weight:700;color:"+cor;
+      vl.textContent=fmtVal(m);
+      top2.appendChild(nm);top2.appendChild(vl);
+
+      var bg=document.createElement("div");
+      bg.style.cssText="background:var(--br);border-radius:3px;height:6px;overflow:hidden";
+      var fill=document.createElement("div");
+      fill.style.cssText="height:100%;border-radius:3px;background:"+cor+";width:0%;transition:width .7s ease";
+      bg.appendChild(fill);
+      setTimeout(function(f,p){return function(){f.style.width=p.toFixed(1)+"%";};}(fill,pct),50+i*80);
+
+      var sub=document.createElement("div");
+      sub.style.cssText="font-size:.7rem;color:var(--mu);margin-top:1px";
+      sub.innerHTML=fmtSub(d);
+
+      row.appendChild(top2);row.appendChild(bg);row.appendChild(sub);
+      wrap.appendChild(row);
+    });
+
+    return wrap.outerHTML;
   }
 
   function entDrawChart(container,data){
     container.innerHTML="";
-    var cor=data[0]?data[0].cor:"#4d8ef5";
-    var maxV=data[0]?data[0].v:1;
-
-    // SVG bar chart horizontal — animated
-    var W=container.offsetWidth||360,H=Math.max(180,data.length*38+20);
-    var barH=26,gap=12,left=140,right=20,top2=10;
-    var svgH=data.length*(barH+gap)+top2*2;
-
-    var svg='<svg width="100%" height="'+svgH+'" viewBox="0 0 '+W+' '+svgH+'" xmlns="http://www.w3.org/2000/svg">';
+    if(!data||!data.length) return;
+    var cor=data[0].cor||"#4d8ef5";
+    var maxV=data[0].v||1;
+    var W=container.parentElement?container.parentElement.offsetWidth||360:360;
+    var barH=24,gap=10,left=110,right=40,topPad=8;
+    var svgH=data.length*(barH+gap)+topPad*2;
     var availW=W-left-right;
 
+    var defs="<defs>";
     data.forEach(function(d,i){
-      var y=top2+i*(barH+gap);
-      var barW=maxV>0?(d.v/maxV)*availW:0;
-      var pct=Math.round(d.p);
+      defs+='<linearGradient id="rg'+i+'" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="#fff" stop-opacity="0.25"/>'+
+        '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>'+
+        '</linearGradient>';
+    });
+    defs+="</defs>";
+
+    var shapes="";
+    data.forEach(function(d,i){
+      var y=topPad+i*(barH+gap);
+      var bw=maxV>0?(d.v/maxV)*availW:0;
+      var delay=(i*0.1).toFixed(1)+"s";
+      var spline="0.4 0 0.2 1";
       // label
-      svg+='<text x="'+(left-8)+'" y="'+(y+barH/2+5)+'" text-anchor="end" font-size="11" fill="#8fa0c0">'+
+      shapes+='<text x="'+(left-6)+'" y="'+(y+barH/2+4)+'" text-anchor="end" font-size="11" fill="#8fa0c0">'+
         d.n.split(" ")[0]+'</text>';
-      // bg bar
-      svg+='<rect x="'+left+'" y="'+y+'" width="'+availW+'" height="'+barH+'" rx="4" fill="rgba(255,255,255,0.06)"/>';
-      // value bar with animation
-      svg+='<rect x="'+left+'" y="'+y+'" width="0" height="'+barH+'" rx="4" fill="'+cor+'" opacity="0.85">'+
-        '<animate attributeName="width" from="0" to="'+barW.toFixed(1)+'" dur="0.7s" begin="'+(i*0.1)+'s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1"/>'+
-      '</rect>';
-      // glow overlay
-      svg+='<rect x="'+left+'" y="'+y+'" width="'+barW.toFixed(1)+'" height="'+(barH/2)+'" rx="4" fill="url(#g'+i+')" opacity="0.3">'+
-        '<animate attributeName="width" from="0" to="'+barW.toFixed(1)+'" dur="0.7s" begin="'+(i*0.1)+'s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1"/>'+
-      '</rect>';
-      // pct label
-      svg+='<text x="'+(left+barW+6)+'" y="'+(y+barH/2+5)+'" font-size="11" font-weight="700" fill="'+cor+'">'+pct+'%'+
-        '<animate attributeName="x" from="'+left+'" to="'+(left+barW+6)+'" dur="0.7s" begin="'+(i*0.1)+'s" fill="freeze"/>'+
-      '</text>';
+      // bg
+      shapes+='<rect x="'+left+'" y="'+y+'" width="'+availW+'" height="'+barH+'" rx="4" fill="rgba(255,255,255,0.05)"/>';
+      // bar
+      shapes+='<rect x="'+left+'" y="'+y+'" width="0" height="'+barH+'" rx="4" fill="'+cor+'" opacity="0.9">'+
+        '<animate attributeName="width" from="0" to="'+bw.toFixed(1)+'" dur="0.6s" begin="'+delay+'" fill="freeze" calcMode="spline" keySplines="'+spline+'"/>'+
+        '</rect>';
+      // shine
+      shapes+='<rect x="'+left+'" y="'+y+'" width="0" height="'+(barH*0.45)+'" rx="4" fill="url(#rg'+i+')">'+
+        '<animate attributeName="width" from="0" to="'+bw.toFixed(1)+'" dur="0.6s" begin="'+delay+'" fill="freeze" calcMode="spline" keySplines="'+spline+'"/>'+
+        '</rect>';
+      // value label
+      shapes+='<text y="'+(y+barH/2+4)+'" font-size="10.5" font-weight="700" fill="'+cor+'" x="'+left+'">'+
+        '<animate attributeName="x" from="'+left+'" to="'+(left+bw+4).toFixed(1)+'" dur="0.6s" begin="'+delay+'" fill="freeze" calcMode="spline" keySplines="'+spline+'"/>'+
+        Math.round(d.p)+'%'+
+        '</text>';
     });
 
-    // Gradients
-    var defs='<defs>';
-    data.forEach(function(d,i){
-      defs+='<linearGradient id="g'+i+'" x1="0" y1="0" x2="0" y2="1">'+
-        '<stop offset="0%" stop-color="#fff" stop-opacity="0.4"/>'+
-        '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>'+
-      '</linearGradient>';
-    });
-    defs+='</defs>';
-    svg=svg.replace('<svg','<svg>'+defs+'<svg').replace('<svg>','').replace('<svg','<svg');
-    svg=defs+svg+'</svg>';
-    container.innerHTML=svg;
+    container.innerHTML='<svg width="100%" height="'+svgH+'" viewBox="0 0 '+W+' '+svgH+'" xmlns="http://www.w3.org/2000/svg">'+defs+shapes+'</svg>';
   }
+
 
   // Agrupamentos
   function agrupar(campo,nomeFn){
