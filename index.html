@@ -2539,12 +2539,22 @@ function entFmtDateOnly(d){
     String(d.getDate()).padStart(2,"0");
 }
 function entFmt(v){
-  var n=parseFloat(String(v||0).replace(/\./g,"").replace(",","."));
-  if(isNaN(n)) return v||"—";
+  var n=entNum(v);
+  if(isNaN(n)||n===0&&String(v||"").trim()==="") return "—";
   return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function entNum(v){
-  var n=parseFloat(String(v||0).replace(/\./g,"").replace(",","."));
+  var s=String(v||0).replace(/R\$\s*/g,"").trim();
+  if(!s||s==="undefined") return 0;
+  // BR format: 1.234,56  (dot=thousands, comma=decimal)
+  if(s.indexOf(",")>-1 && s.indexOf(".")>-1){
+    s=s.replace(/\./g,"").replace(",",".");
+  } else if(s.indexOf(",")>-1){
+    // only comma: could be decimal comma (1234,56)
+    s=s.replace(",",".");
+  }
+  // else: plain dot-decimal (1234.56) or integer — use as-is
+  var n=parseFloat(s);
   return isNaN(n)?0:n;
 }
 function entFmtK(v){
