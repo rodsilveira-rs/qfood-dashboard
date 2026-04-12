@@ -2721,28 +2721,110 @@ function entRankings(){
   if(!wrap) return;
   if(!rows.length){wrap.innerHTML="";return;}
 
-  function buildRank(titulo,dados,fmtVal,fmtSub,cor){
-    // dados: [{nome, val, sub}] already sorted desc
+  function buildRank(titulo,dados,fmtVal,fmtSub,cor,metricFn){
+    // metricFn(d) → numeric value used for bar width + display
+    // defaults to d.val if not provided
+    var mFn=metricFn||function(d){return d.val;};
     var top=dados.slice(0,6);
-    var maxVal=top[0]?top[0].val:1;
+    var maxM=0;top.forEach(function(d){var v=mFn(d);if(v>maxM)maxM=v;});
+    if(maxM===0)maxM=1;
+    var rankId="rank_"+Math.random().toString(36).substr(2,6);
     var html="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>"+
-      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px'>"+titulo+"</div>";
+      "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>"+
+        "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px'>"+titulo+"</div>"+
+        "<button onclick='entShowChart(""+rankId+"",this)' style='padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer'>&#128200; Gráfico</button>"+
+      "</div>"+
+      "<div id='"+rankId+"_chart' style='display:none;margin-bottom:12px'></div>";
+    var chartData=[];
     top.forEach(function(d,i){
-      var pct=maxVal>0?(d.val/maxVal*100):0;
+      var m=mFn(d);
+      var pct=maxM>0?(m/maxM*100):0;
       var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+      chartData.push({n:d.nome,v:m,p:pct,cor:cor});
       html+="<div style='margin-bottom:10px'>"+
         "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px'>"+
           "<span>"+medal+" "+d.nome+"</span>"+
-          "<span style='font-weight:700;color:"+cor+"'>"+fmtVal(d.val)+"</span>"+
+          "<span style='font-weight:700;color:"+cor+"'>"+fmtVal(m)+"</span>"+
         "</div>"+
-        "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+        "<div style='background:var(--br);border-radius:3px;height:6px;overflow:hidden'>"+
           "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
         "</div>"+
         "<div style='font-size:.7rem;color:var(--mu);margin-top:1px'>"+fmtSub(d)+"</div>"+
       "</div>";
     });
     html+="</div>";
+    // store chart data on element after render
+    setTimeout(function(){
+      var el=document.getElementById(rankId+"_chart");
+      if(el) el.dataset.cd=JSON.stringify(chartData);
+    },50);
     return html;
+  }
+
+  function entShowChart(id,btn){
+    var el=document.getElementById(id+"_chart");
+    if(!el) return;
+    if(el.style.display==="block"){
+      el.style.display="none";
+      btn.textContent="📈 Gráfico";
+      return;
+    }
+    el.style.display="block";
+    btn.textContent="✕ Fechar";
+    var cd=el.dataset.cd;
+    if(!cd){setTimeout(function(){entShowChart(id,btn);},100);return;}
+    var data=JSON.parse(cd);
+    entDrawChart(el,data);
+  }
+
+  function entDrawChart(container,data){
+    container.innerHTML="";
+    var cor=data[0]?data[0].cor:"#4d8ef5";
+    var maxV=data[0]?data[0].v:1;
+
+    // SVG bar chart horizontal — animated
+    var W=container.offsetWidth||360,H=Math.max(180,data.length*38+20);
+    var barH=26,gap=12,left=140,right=20,top2=10;
+    var svgH=data.length*(barH+gap)+top2*2;
+
+    var svg='<svg width="100%" height="'+svgH+'" viewBox="0 0 '+W+' '+svgH+'" xmlns="http://www.w3.org/2000/svg">';
+    var availW=W-left-right;
+
+    data.forEach(function(d,i){
+      var y=top2+i*(barH+gap);
+      var barW=maxV>0?(d.v/maxV)*availW:0;
+      var pct=Math.round(d.p);
+      // label
+      svg+='<text x="'+(left-8)+'" y="'+(y+barH/2+5)+'" text-anchor="end" font-size="11" fill="#8fa0c0">'+
+        d.n.split(" ")[0]+'</text>';
+      // bg bar
+      svg+='<rect x="'+left+'" y="'+y+'" width="'+availW+'" height="'+barH+'" rx="4" fill="rgba(255,255,255,0.06)"/>';
+      // value bar with animation
+      svg+='<rect x="'+left+'" y="'+y+'" width="0" height="'+barH+'" rx="4" fill="'+cor+'" opacity="0.85">'+
+        '<animate attributeName="width" from="0" to="'+barW.toFixed(1)+'" dur="0.7s" begin="'+(i*0.1)+'s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1"/>'+
+      '</rect>';
+      // glow overlay
+      svg+='<rect x="'+left+'" y="'+y+'" width="'+barW.toFixed(1)+'" height="'+(barH/2)+'" rx="4" fill="url(#g'+i+')" opacity="0.3">'+
+        '<animate attributeName="width" from="0" to="'+barW.toFixed(1)+'" dur="0.7s" begin="'+(i*0.1)+'s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1"/>'+
+      '</rect>';
+      // pct label
+      svg+='<text x="'+(left+barW+6)+'" y="'+(y+barH/2+5)+'" font-size="11" font-weight="700" fill="'+cor+'">'+pct+'%'+
+        '<animate attributeName="x" from="'+left+'" to="'+(left+barW+6)+'" dur="0.7s" begin="'+(i*0.1)+'s" fill="freeze"/>'+
+      '</text>';
+    });
+
+    // Gradients
+    var defs='<defs>';
+    data.forEach(function(d,i){
+      defs+='<linearGradient id="g'+i+'" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="#fff" stop-opacity="0.4"/>'+
+        '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>'+
+      '</linearGradient>';
+    });
+    defs+='</defs>';
+    svg=svg.replace('<svg','<svg>'+defs+'<svg').replace('<svg>','').replace('<svg','<svg');
+    svg=defs+svg+'</svg>';
+    container.innerHTML=svg;
   }
 
   // Agrupamentos
@@ -2788,7 +2870,7 @@ function entRankings(){
         byMot.slice().sort(function(a,b){return b.qtd-a.qtd;}),
         fQtd,
         function(d){return entFmt(d.val)+" &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
-        "#36cfa0")+
+        "#36cfa0",function(d){return d.qtd;})+
     "</div>"+
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
       buildRank("&#128100; Volume por Vendedor (R$)",
@@ -2812,7 +2894,7 @@ function entRankings(){
         byMot.slice().sort(function(a,b){return b.vol-a.vol;}),
         fVol,
         function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+entFmt(d.val);},
-        "#00cec9")+
+        "#00cec9",function(d){return d.vol;})+
     "</div>"+
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px'>"+
       buildRank("&#127881; Ticket Médio por Motorista",
