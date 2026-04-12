@@ -2721,127 +2721,145 @@ function entRankings(){
   if(!wrap) return;
   if(!rows.length){wrap.innerHTML="";return;}
 
+  // ── ranking charts ──────────────────────────────────────────────────
+  var _rankCharts={};
+
   function buildRank(titulo,dados,fmtVal,fmtSub,cor,metricFn){
     var mFn=metricFn||function(d){return d.val;};
     var top=dados.slice(0,6);
     var maxM=0;
     top.forEach(function(d){var v=mFn(d);if(v>maxM)maxM=v;});
     if(maxM===0)maxM=1;
+    var uid="rc_"+Math.random().toString(36).substr(2,8);
 
-    var wrap=document.createElement("div");
-    wrap.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)";
+    // Store chart data globally so onclick can find it by ID
+    _rankCharts[uid]=top.map(function(d){
+      return{n:d.nome,v:mFn(d),p:maxM>0?(mFn(d)/maxM*100):0,cor:cor};
+    });
 
-    // Header row
-    var hdr=document.createElement("div");
-    hdr.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px";
-    var ttl=document.createElement("div");
-    ttl.style.cssText="font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px";
-    ttl.textContent=titulo;
-    var chartBtn=document.createElement("button");
-    chartBtn.style.cssText="padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer";
-    chartBtn.textContent="📈 Gráfico";
-    var chartDiv=document.createElement("div");
-    chartDiv.style.cssText="display:none;margin-bottom:12px";
-    chartBtn.onclick=function(){
-      if(chartDiv.style.display==="block"){
-        chartDiv.style.display="none";
-        chartBtn.textContent="📈 Gráfico";
-      } else {
-        chartDiv.style.display="block";
-        chartBtn.textContent="✕ Fechar";
-        entDrawChart(chartDiv,top.map(function(d){
-          return{n:d.nome,v:mFn(d),p:maxM>0?(mFn(d)/maxM*100):0,cor:cor};
-        }));
-      }
-    };
-    hdr.appendChild(ttl);
-    hdr.appendChild(chartBtn);
-    wrap.appendChild(hdr);
-    wrap.appendChild(chartDiv);
-
-    // Rows
+    var rows="";
     top.forEach(function(d,i){
       var m=mFn(d);
       var pct=maxM>0?(m/maxM*100):0;
       var medals=["🥇","🥈","🥉"];
       var medal=i<3?medals[i]:"";
-
-      var row=document.createElement("div");
-      row.style.cssText="margin-bottom:10px";
-
-      var top2=document.createElement("div");
-      top2.style.cssText="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px";
-      var nm=document.createElement("span");
-      nm.textContent=medal+" "+d.nome;
-      var vl=document.createElement("span");
-      vl.style.cssText="font-weight:700;color:"+cor;
-      vl.textContent=fmtVal(m);
-      top2.appendChild(nm);top2.appendChild(vl);
-
-      var bg=document.createElement("div");
-      bg.style.cssText="background:var(--br);border-radius:3px;height:6px;overflow:hidden";
-      var fill=document.createElement("div");
-      fill.style.cssText="height:100%;border-radius:3px;background:"+cor+";width:0%;transition:width .7s ease";
-      bg.appendChild(fill);
-      setTimeout(function(f,p){return function(){f.style.width=p.toFixed(1)+"%";};}(fill,pct),50+i*80);
-
-      var sub=document.createElement("div");
-      sub.style.cssText="font-size:.7rem;color:var(--mu);margin-top:1px";
-      sub.innerHTML=fmtSub(d);
-
-      row.appendChild(top2);row.appendChild(bg);row.appendChild(sub);
-      wrap.appendChild(row);
+      rows+=
+        "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px'>"+
+            "<span>"+medal+" "+d.nome+"</span>"+
+            "<span style='font-weight:700;color:"+cor+"'>"+fmtVal(m)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:6px;overflow:hidden'>"+
+            "<div class='rbar' data-w='"+pct.toFixed(1)+"' style='height:100%;border-radius:3px;background:"+cor+";width:0%;transition:width .7s ease'></div>"+
+          "</div>"+
+          "<div style='font-size:.7rem;color:var(--mu);margin-top:1px'>"+fmtSub(d)+"</div>"+
+        "</div>";
     });
 
-    return wrap.outerHTML;
+    // Build using DOM to avoid any string escaping issues
+    var card=document.createElement("div");
+    card.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)";
+    var hrow=document.createElement("div");
+    hrow.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px";
+    var htit=document.createElement("div");
+    htit.style.cssText="font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px";
+    htit.textContent=titulo;
+    var hbtn=document.createElement("button");
+    hbtn.style.cssText="padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer";
+    hbtn.textContent="📈 Gráfico";
+    hbtn.dataset.uid=uid;
+    hbtn.addEventListener("click",function(){entToggleChart(this.dataset.uid,this);});
+    hrow.appendChild(htit);
+    hrow.appendChild(hbtn);
+    var cdiv=document.createElement("div");
+    cdiv.id=uid;
+    cdiv.style.cssText="display:none;margin-bottom:12px";
+    card.appendChild(hrow);
+    card.appendChild(cdiv);
+    card.innerHTML+=rows;
+    return card.outerHTML;
+  }
+
+  function entToggleChart(uid,btn){
+    var el=document.getElementById(uid);
+    if(!el) return;
+    if(el.style.display==="block"){
+      el.style.display="none";
+      btn.textContent="📈 Gráfico";
+      return;
+    }
+    el.style.display="block";
+    btn.textContent="✕ Fechar";
+    var data=_rankCharts[uid];
+    if(data) entDrawChart(el,data);
+    // Animate bars after render
+    setTimeout(function(){
+      var bars=el.closest? el.closest("div[style*='border-radius:12px']") : null;
+      if(bars){
+        bars.querySelectorAll(".rbar").forEach(function(b){
+          b.style.width=b.dataset.w+"%";
+        });
+      }
+    },50);
+  }
+
+  // Also animate bars on initial render
+  function entAnimateBars(container){
+    if(!container) return;
+    setTimeout(function(){
+      container.querySelectorAll(".rbar").forEach(function(b,i){
+        setTimeout(function(){b.style.width=b.dataset.w+"%";},i*60);
+      });
+    },80);
   }
 
   function entDrawChart(container,data){
     container.innerHTML="";
     if(!data||!data.length) return;
     var cor=data[0].cor||"#4d8ef5";
-    var maxV=data[0].v||1;
-    var W=container.parentElement?container.parentElement.offsetWidth||360:360;
-    var barH=24,gap=10,left=110,right=40,topPad=8;
+    var maxV=0;
+    data.forEach(function(d){if(d.v>maxV)maxV=d.v;});
+    if(maxV===0)maxV=1;
+    var W=360,barH=24,gap=10,left=110,right=44,topPad=8;
     var svgH=data.length*(barH+gap)+topPad*2;
     var availW=W-left-right;
 
     var defs="<defs>";
     data.forEach(function(d,i){
-      defs+='<linearGradient id="rg'+i+'" x1="0" y1="0" x2="0" y2="1">'+
-        '<stop offset="0%" stop-color="#fff" stop-opacity="0.25"/>'+
-        '<stop offset="100%" stop-color="#fff" stop-opacity="0"/>'+
-        '</linearGradient>';
+      defs+="<linearGradient id='sg"+i+"' x1='0' y1='0' x2='0' y2='1'>"+
+        "<stop offset='0%' stop-color='#fff' stop-opacity='0.25'/>"+
+        "<stop offset='100%' stop-color='#fff' stop-opacity='0'/>"+
+        "</linearGradient>";
     });
     defs+="</defs>";
 
     var shapes="";
     data.forEach(function(d,i){
       var y=topPad+i*(barH+gap);
-      var bw=maxV>0?(d.v/maxV)*availW:0;
-      var delay=(i*0.1).toFixed(1)+"s";
-      var spline="0.4 0 0.2 1";
+      var bw=(d.v/maxV)*availW;
+      var dl=(i*0.1).toFixed(1)+"s";
+      var ks="0.4 0 0.2 1";
       // label
-      shapes+='<text x="'+(left-6)+'" y="'+(y+barH/2+4)+'" text-anchor="end" font-size="11" fill="#8fa0c0">'+
-        d.n.split(" ")[0]+'</text>';
-      // bg
-      shapes+='<rect x="'+left+'" y="'+y+'" width="'+availW+'" height="'+barH+'" rx="4" fill="rgba(255,255,255,0.05)"/>';
-      // bar
-      shapes+='<rect x="'+left+'" y="'+y+'" width="0" height="'+barH+'" rx="4" fill="'+cor+'" opacity="0.9">'+
-        '<animate attributeName="width" from="0" to="'+bw.toFixed(1)+'" dur="0.6s" begin="'+delay+'" fill="freeze" calcMode="spline" keySplines="'+spline+'"/>'+
-        '</rect>';
+      shapes+="<text x='"+(left-6)+"' y='"+(y+barH/2+4)+"' text-anchor='end' font-size='11' fill='#8fa0c0'>"+
+        d.n.split(" ")[0]+"</text>";
+      // bg track
+      shapes+="<rect x='"+left+"' y='"+y+"' width='"+availW+"' height='"+barH+"' rx='4' fill='rgba(255,255,255,0.05)'/>";
+      // bar animated
+      shapes+="<rect x='"+left+"' y='"+y+"' width='0' height='"+barH+"' rx='4' fill='"+cor+"' opacity='0.88'>"+
+        "<animate attributeName='width' from='0' to='"+bw.toFixed(1)+"' dur='0.6s' begin='"+dl+"' fill='freeze' calcMode='spline' keySplines='"+ks+"'/>"+
+        "</rect>";
       // shine
-      shapes+='<rect x="'+left+'" y="'+y+'" width="0" height="'+(barH*0.45)+'" rx="4" fill="url(#rg'+i+')">'+
-        '<animate attributeName="width" from="0" to="'+bw.toFixed(1)+'" dur="0.6s" begin="'+delay+'" fill="freeze" calcMode="spline" keySplines="'+spline+'"/>'+
-        '</rect>';
-      // value label
-      shapes+='<text y="'+(y+barH/2+4)+'" font-size="10.5" font-weight="700" fill="'+cor+'" x="'+left+'">'+
-        '<animate attributeName="x" from="'+left+'" to="'+(left+bw+4).toFixed(1)+'" dur="0.6s" begin="'+delay+'" fill="freeze" calcMode="spline" keySplines="'+spline+'"/>'+
-        Math.round(d.p)+'%'+
-        '</text>';
+      shapes+="<rect x='"+left+"' y='"+y+"' width='0' height='"+(barH*0.4)+"' rx='4' fill='url(#sg"+i+")'>"+
+        "<animate attributeName='width' from='0' to='"+bw.toFixed(1)+"' dur='0.6s' begin='"+dl+"' fill='freeze' calcMode='spline' keySplines='"+ks+"'/>"+
+        "</rect>";
+      // pct text
+      shapes+="<text y='"+(y+barH/2+4)+"' font-size='11' font-weight='700' fill='"+cor+"'>"+
+        "<animate attributeName='x' from='"+left+"' to='"+(left+bw+5).toFixed(1)+"' dur='0.6s' begin='"+dl+"' fill='freeze' calcMode='spline' keySplines='"+ks+"'/>"+
+        Math.round(d.p)+"%"+
+        "</text>";
     });
 
-    container.innerHTML='<svg width="100%" height="'+svgH+'" viewBox="0 0 '+W+' '+svgH+'" xmlns="http://www.w3.org/2000/svg">'+defs+shapes+'</svg>';
+    container.innerHTML="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+defs+shapes+"</svg>";
   }
 
 
@@ -2927,6 +2945,8 @@ function entRankings(){
         "#e17055")+
     "</div>";
 }
+  entAnimateBars(wrap);
+
 
 // ── TABELA ────────────────────────────────────────────────────────────
 function entRender(){
