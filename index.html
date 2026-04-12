@@ -529,38 +529,39 @@ tbody tr:hover td{background:var(--s2);}
 
   <!-- FILTROS -->
   <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:20px">
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:flex-end">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
       <div>
-        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Buscar cliente / NF / motorista</div>
-        <input id="ent-search" type="text" placeholder="Digite para buscar em tempo real..." oninput="entFilter()"
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Buscar cliente / NF / motorista / vendedor</div>
+        <input id="ent-search" type="text" placeholder="Digite para buscar em tempo real..."
           style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:0.88rem;outline:none">
       </div>
       <div>
         <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Data de</div>
-        <input id="ent-date-from" type="date" onchange="entFilter()"
+        <input id="ent-date-from" type="date"
           style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:0.85rem;outline:none">
       </div>
       <div>
         <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Data até</div>
-        <input id="ent-date-to" type="date" onchange="entFilter()"
+        <input id="ent-date-to" type="date"
           style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:0.85rem;outline:none">
       </div>
       <div>
         <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Motorista</div>
-        <select id="ent-motorista" onchange="entFilter()"
+        <select id="ent-motorista"
           style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:0.85rem;outline:none">
           <option value="">Todos</option>
         </select>
       </div>
-      <button onclick="entClear()"
-        style="padding:9px 18px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:0.85rem;cursor:pointer;white-space:nowrap">
-        Limpar
-      </button>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="entSearch()" style="padding:9px 28px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer">&#128269; Buscar</button>
+      <button onclick="entClear()"  style="padding:9px 18px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:0.85rem;cursor:pointer">Limpar</button>
     </div>
   </div>
 
   <!-- KPIs -->
   <div class="kpis" id="ent-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+  <div class="kpis" id="ent-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
 
   <!-- LOADING -->
   <div id="ent-loading" class="spin-wrap"><div class="spin"></div>Carregando entregas...</div>
@@ -570,18 +571,18 @@ tbody tr:hover td{background:var(--s2);}
     <table>
       <thead>
         <tr>
-          <th style="text-align:left">Data Registro</th>
+          <th style="text-align:left;cursor:pointer" onclick="entSort('data')">Data &#8597;</th>
           <th style="text-align:left">NF</th>
           <th style="text-align:left">Razão Social</th>
           <th style="text-align:left">Motorista</th>
           <th style="text-align:left">Vendedor</th>
           <th>Cidade</th>
-          <th>Volumes</th>
-          <th>Total NF</th>
+          <th>Vol.</th>
+          <th style="cursor:pointer" onclick="entSort('valor')">Total NF &#8597;</th>
           <th>Pagamento</th>
           <th>Recebido por</th>
           <th>Status</th>
-          <th style="text-align:center">Fotos</th>
+          <th style="text-align:center">Detalhes</th>
         </tr>
       </thead>
       <tbody id="ent-tbody"></tbody>
@@ -592,13 +593,23 @@ tbody tr:hover td{background:var(--s2);}
   </div>
   <div id="ent-count" style="font-size:0.75rem;color:var(--mu);text-align:right;margin-top:8px;padding-right:4px"></div>
 
-  <!-- MODAL FOTOS -->
-  <div id="ent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;align-items:center;justify-content:center;padding:20px">
-    <div style="background:var(--sf);border-radius:16px;max-width:900px;width:100%;padding:24px;position:relative;max-height:92vh;overflow-y:auto">
-      <button onclick="entCloseModal()" style="position:absolute;top:12px;right:12px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">&#10005;</button>
-      <div id="ent-modal-title" style="font-family:var(--fh);font-size:1rem;font-weight:700;margin-bottom:6px"></div>
-      <div id="ent-modal-sub" style="font-size:0.78rem;color:var(--mu);margin-bottom:20px"></div>
-      <div id="ent-modal-obs" style="background:var(--s2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.82rem;display:none;flex-wrap:wrap;gap:6px;line-height:1.8"></div>
+  <!-- MODAL DETALHES + FOTOS -->
+  <div id="ent-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+    <div style="background:var(--sf);border-radius:16px;max-width:920px;width:100%;padding:24px;position:relative;margin:auto">
+      <button onclick="entCloseModal()" style="position:absolute;top:12px;right:12px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center">&#10005;</button>
+
+      <!-- Header do modal -->
+      <div id="ent-modal-title" style="font-family:var(--fh);font-size:1.1rem;font-weight:700;margin-bottom:4px;padding-right:40px"></div>
+      <div id="ent-modal-sub" style="font-size:0.78rem;color:var(--mu);margin-bottom:16px"></div>
+
+      <!-- Grid de info -->
+      <div id="ent-modal-info" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:20px"></div>
+
+      <!-- Ocorrência -->
+      <div id="ent-modal-obs" style="background:rgba(255,170,43,0.12);border:1px solid rgba(255,170,43,0.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:0.85rem;display:none"></div>
+
+      <!-- Fotos -->
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Registro Fotográfico</div>
       <div id="ent-modal-fotos" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px"></div>
     </div>
   </div>
@@ -2480,73 +2491,69 @@ function initLAL(){initLALSelectors();buildLAL();}
 
 
 // ════════════════════════════════════════════════════════════════════
-// MÓDULO ENTREGAS — somente leitura (acompanhamento)
+// MÓDULO ENTREGAS — somente leitura
 // ════════════════════════════════════════════════════════════════════
 var ENT_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739535201&single=true&output=csv";
 var entAllRows=[];
+var entFiltered=[];
 var entLoaded=false;
-
-// Colunas do CSV REGISTRO (ordem exata):
-// 0:TIPO DE ENTREGA  1:ID_FISCAL  2:NF  3:POSSUI_OUTRA_ENTREGA?
-// 4:ID_OUTRA_ENTREGA  5:Romaneio  6:Data Registro  7:Veículo
-// 8:Motorista  9:Emissão  10:Pedido  11:Razão Social
-// 12:Vendedor  13:Tipo de Pedido  14:Bairro  15:Cidade
-// 16:Volume  17:Total Geral  18:ATENDENTE BALCÃO
-// 19:FORMA DE PAGAMENTO  20:Nome de quem recebeu
-// 21:Observações  22:Foto Canhoto  23:Foto 1  24:Foto 2  25:Foto 3  26:Foto 4
+var entSortCol="data";
+var entSortAsc=false;
 
 function entFmt(v){
-  if(!v&&v!==0) return"—";
+  if(v===null||v===undefined||v==="") return "—";
   var n=parseFloat(String(v).replace(/\./g,"").replace(",","."));
-  if(isNaN(n)) return v;
-  return"R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(isNaN(n)) return String(v)||"—";
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function entFmtDate(v){
-  if(!v) return"—";
+  if(!v) return "—";
   var d=new Date(v);
-  if(isNaN(d.getTime())){
-    // try dd/mm/yyyy
-    var p=String(v).split(/[\/\-]/);
-    if(p.length===3) return p[0]+"/"+p[1]+"/"+p[2];
-    return v;
-  }
-  return d.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit",year:"numeric"})+" "+
-         d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  if(isNaN(d.getTime())) return String(v);
+  return d.toLocaleDateString("pt-BR")+
+    " "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
 }
 function entFmtDateOnly(v){
-  if(!v) return"";
+  if(!v) return "";
   var d=new Date(v);
   if(isNaN(d.getTime())) return String(v).substring(0,10);
-  var mm=String(d.getMonth()+1).padStart(2,"0");
-  var dd=String(d.getDate()).padStart(2,"0");
-  return d.getFullYear()+"-"+mm+"-"+dd;
+  return d.getFullYear()+"-"+
+    String(d.getMonth()+1).padStart(2,"0")+"-"+
+    String(d.getDate()).padStart(2,"0");
+}
+function entNum(v){
+  var n=parseFloat(String(v||0).replace(/\./g,"").replace(",","."));
+  return isNaN(n)?0:n;
 }
 
 async function initEntregas(){
   if(entLoaded){entRender();return;}
-  document.getElementById("ent-loading").style.display="block";
-  document.getElementById("ent-table-wrap").style.display="none";
+  var ldg=document.getElementById("ent-loading");
+  if(ldg) ldg.style.display="block";
   try{
-    var r=await fetch(ENT_URL);
+    var r=await fetch(ENT_URL+"&t="+Date.now());
     if(!r.ok) throw new Error("HTTP "+r.status);
     var txt=await r.text();
-    var rows=csv(txt); // reusa o parser csv() já existente no index
-    entAllRows=rows;
+    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV.");
+    entAllRows=csv(txt);
     entLoaded=true;
-    entPopulateMotoristas(rows);
+    entPopulateMotoristas();
     entSetDefaultDates();
-    entRender();
+    entSearch();
   }catch(e){
-    document.getElementById("ent-loading").innerHTML=
-      "<div style='color:var(--red)'>Erro ao carregar entregas: "+e.message+"</div>";
+    if(ldg) ldg.innerHTML="<div style='color:var(--red)'>Erro: "+e.message+"</div>";
   }
 }
 
-function entPopulateMotoristas(rows){
+function entPopulateMotoristas(){
   var sel=document.getElementById("ent-motorista");
   if(!sel) return;
-  var motoristas=[...new Set(rows.map(function(r){return(r["Motorista"]||"").trim();}).filter(Boolean))].sort();
-  motoristas.forEach(function(m){
+  var opts=sel.querySelectorAll("option:not([value=''])");
+  opts.forEach(function(o){o.remove();});
+  var lista=[...new Set(entAllRows.map(function(r){
+    return (r["Motorista"]||"").trim();
+  }).filter(Boolean))].sort();
+  lista.forEach(function(m){
     var o=document.createElement("option");
     o.value=m;o.textContent=m;
     sel.appendChild(o);
@@ -2556,75 +2563,144 @@ function entPopulateMotoristas(rows){
 function entSetDefaultDates(){
   var f=document.getElementById("ent-date-from"),t=document.getElementById("ent-date-to");
   if(!f||!t) return;
-  var today=new Date();
-  var ago=new Date(today);ago.setDate(ago.getDate()-30);
-  f.value=entFmtDateOnly(ago);
-  t.value=entFmtDateOnly(today);
+  // Detecta a data mais recente na base
+  var maxDate=new Date(0);
+  entAllRows.forEach(function(r){
+    var d=new Date(r["Data Registro"]||0);
+    if(d>maxDate) maxDate=d;
+  });
+  var from=new Date(maxDate);
+  from.setDate(from.getDate()-30);
+  f.value=entFmtDateOnly(from);
+  t.value=entFmtDateOnly(maxDate);
 }
 
-function entFilter(){entRender();}
-function entClear(){
-  document.getElementById("ent-search").value="";
-  document.getElementById("ent-motorista").value="";
-  entSetDefaultDates();
-  entRender();
-}
-
-function entRender(){
+function entSearch(){
   var search=(document.getElementById("ent-search").value||"").toLowerCase().trim();
   var motor=(document.getElementById("ent-motorista").value||"").trim();
   var df=document.getElementById("ent-date-from").value;
   var dt=document.getElementById("ent-date-to").value;
 
-  var filtered=entAllRows.filter(function(r){
-    var dateRaw=r["Data Registro"]||"";
+  entFiltered=entAllRows.filter(function(r){
     if(df||dt){
-      var d=new Date(dateRaw);
-      if(df&&d<new Date(df+" 00:00:00")) return false;
-      if(dt&&d>new Date(dt+" 23:59:59")) return false;
+      var d=new Date(r["Data Registro"]||0);
+      if(df&&d<new Date(df+"T00:00:00")) return false;
+      if(dt&&d>new Date(dt+"T23:59:59")) return false;
     }
     if(motor&&(r["Motorista"]||"").trim()!==motor) return false;
     if(search){
-      var hay=[r["Razão Social"],r["NF"],r["Motorista"],r["Vendedor"],
-               r["Cidade"],r["Pedido"],r["Nome de quem recebeu o produto"]
-              ].join(" ").toLowerCase();
+      var hay=[
+        r["Razão Social"],r["NF"],r["Motorista"],r["Vendedor"],
+        r["Cidade"],r["Bairro"],r["Pedido"],
+        r["Nome de quem recebeu o produto"],
+        r["FORMA DE PAGAMENTO"],r["Observações sobre a entrega"]
+      ].join(" ").toLowerCase();
       if(!hay.includes(search)) return false;
     }
     return true;
   });
 
-  // KPIs
-  var totNF=filtered.length;
-  var totVal=filtered.reduce(function(s,r){
-    var v=parseFloat(String(r["Total Geral"]||0).replace(/\./g,"").replace(",","."));
-    return s+(isNaN(v)?0:v);
-  },0);
-  var comFoto=filtered.filter(function(r){return r["Foto Canhoto assinado"]||r["Foto Entrega 1"];}).length;
-  var comObs=filtered.filter(function(r){
+  entSortData();
+  entKPIs();
+  entRender();
+}
+
+function entFilter(){} // alias para search em tempo real — não usar
+
+function entClear(){
+  document.getElementById("ent-search").value="";
+  document.getElementById("ent-motorista").value="";
+  entSetDefaultDates();
+  entSearch();
+}
+
+function entSort(col){
+  if(entSortCol===col) entSortAsc=!entSortAsc;
+  else{entSortCol=col;entSortAsc=false;}
+  entSortData();
+  entRender();
+}
+
+function entSortData(){
+  entFiltered.sort(function(a,b){
+    var va,vb;
+    if(entSortCol==="valor"){
+      va=entNum(a["Total Geral"]);vb=entNum(b["Total Geral"]);
+    }else{
+      va=new Date(a["Data Registro"]||0);vb=new Date(b["Data Registro"]||0);
+    }
+    return entSortAsc?(va>vb?1:-1):(va<vb?1:-1);
+  });
+}
+
+function entKPIs(){
+  var rows=entFiltered;
+  var totNF=rows.length;
+  var totVal=rows.reduce(function(s,r){return s+entNum(r["Total Geral"]);},0);
+  var comFoto=rows.filter(function(r){
+    var u=r["Foto Canhoto assinado"]||r["Foto Entrega 1"]||"";
+    return u.indexOf("http")>-1;
+  }).length;
+  var comObs=rows.filter(function(r){
     var o=(r["Observações sobre a entrega"]||"").trim().toLowerCase();
-    return o&&o!=="ok"&&o!=="";
+    return o&&o!=="ok";
   }).length;
 
-  var kpis=document.getElementById("ent-kpis");
-  if(kpis){
-    kpis.innerHTML=
-      '<div class="kpi b"><div class="lbl">Total de Entregas</div><div class="val">'+totNF+'</div><div class="sub">no período</div></div>'+
-      '<div class="kpi g"><div class="lbl">Valor Total</div><div class="val" style="font-size:1.1rem">'+
-        "R$ "+(totVal/1000).toFixed(1).replace(".",",")+' k</div><div class="sub">NFs entregues</div></div>'+
-      '<div class="kpi p"><div class="lbl">Com Foto</div><div class="val">'+comFoto+'</div><div class="sub">'+
-        (totNF>0?Math.round(comFoto/totNF*100):0)+'% do total</div></div>'+
-      '<div class="kpi w"><div class="lbl">Com Ocorrência</div><div class="val">'+comObs+'</div><div class="sub">requer atenção</div></div>';
-  }
+  // KPIs por motorista
+  var porMotorista={};
+  rows.forEach(function(r){
+    var m=(r["Motorista"]||"S/N").trim();
+    if(!porMotorista[m]) porMotorista[m]={qtd:0,val:0};
+    porMotorista[m].qtd++;
+    porMotorista[m].val+=entNum(r["Total Geral"]);
+  });
+  var topMotorista="—",topQtd=0;
+  Object.keys(porMotorista).forEach(function(m){
+    if(porMotorista[m].qtd>topQtd){topQtd=porMotorista[m].qtd;topMotorista=m;}
+  });
 
-  // Loading off
-  document.getElementById("ent-loading").style.display="none";
+  // KPIs por vendedor
+  var porVendedor={};
+  rows.forEach(function(r){
+    var v=(r["Vendedor"]||"S/N").replace("."," ").trim();
+    if(!porVendedor[v]) porVendedor[v]={qtd:0,val:0};
+    porVendedor[v].qtd++;
+    porVendedor[v].val+=entNum(r["Total Geral"]);
+  });
+  var topVendedor="—",topVVal=0;
+  Object.keys(porVendedor).forEach(function(v){
+    if(porVendedor[v].val>topVVal){topVVal=porVendedor[v].val;topVendedor=v;}
+  });
 
-  var tbody=document.getElementById("ent-tbody");
+  // Ticket médio
+  var ticket=totNF>0?totVal/totNF:0;
+
+  var k1=document.getElementById("ent-kpis");
+  var k2=document.getElementById("ent-kpis2");
+
+  if(k1) k1.innerHTML=
+    '<div class="kpi b"><div class="lbl">Total de Entregas</div><div class="val">'+totNF+'</div><div class="sub">no período</div></div>'+
+    '<div class="kpi g"><div class="lbl">Valor Total Entregue</div><div class="val" style="font-size:1.2rem">R$ '+(totVal/1000).toFixed(1).replace(".",",")+'k</div><div class="sub">NFs confirmadas</div></div>'+
+    '<div class="kpi p"><div class="lbl">Com Comprovante</div><div class="val">'+comFoto+'</div><div class="sub">'+(totNF>0?Math.round(comFoto/totNF*100):0)+'% do total</div></div>'+
+    '<div class="kpi r"><div class="lbl">Com Ocorrência</div><div class="val">'+comObs+'</div><div class="sub">requer atenção</div></div>';
+
+  if(k2) k2.innerHTML=
+    '<div class="kpi w"><div class="lbl">Ticket Médio</div><div class="val" style="font-size:1.2rem">R$ '+(ticket).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})+'</div><div class="sub">por entrega</div></div>'+
+    '<div class="kpi b"><div class="lbl">Motoristas Ativos</div><div class="val">'+Object.keys(porMotorista).length+'</div><div class="sub">no período</div></div>'+
+    '<div class="kpi g"><div class="lbl">Top Motorista</div><div class="val" style="font-size:1rem;line-height:1.2">'+topMotorista.split(" ")[0]+'</div><div class="sub">'+topQtd+' entregas</div></div>'+
+    '<div class="kpi p"><div class="lbl">Top Vendedor</div><div class="val" style="font-size:1rem;line-height:1.2">'+topVendedor.split(" ")[0]+'</div><div class="sub">R$ '+(topVVal/1000).toFixed(1).replace(".",",")+'k</div></div>';
+}
+
+function entRender(){
+  var ldg=document.getElementById("ent-loading");
   var wrap=document.getElementById("ent-table-wrap");
   var empty=document.getElementById("ent-empty");
   var count=document.getElementById("ent-count");
+  var tbody=document.getElementById("ent-tbody");
+  if(!tbody) return;
+  if(ldg) ldg.style.display="none";
 
-  if(!filtered.length){
+  if(!entFiltered.length){
     if(wrap) wrap.style.display="none";
     if(empty) empty.style.display="block";
     if(count) count.textContent="";
@@ -2632,98 +2708,107 @@ function entRender(){
   }
   if(empty) empty.style.display="none";
   if(wrap) wrap.style.display="block";
-  if(count) count.textContent=filtered.length+" entrega(s) encontrada(s)";
+  if(count) count.textContent=entFiltered.length+" entrega(s) encontrada(s)";
 
-  // Sort by date desc
-  filtered.sort(function(a,b){
-    return new Date(b["Data Registro"]||0)-new Date(a["Data Registro"]||0);
-  });
-
-  tbody.innerHTML=filtered.map(function(r,idx){
-    var temFoto=!!(r["Foto Canhoto assinado"]||r["Foto Entrega 1"]);
+  tbody.innerHTML=entFiltered.map(function(r,idx){
+    var temFoto=(r["Foto Canhoto assinado"]||r["Foto Entrega 1"]||"").indexOf("http")>-1;
     var obs=(r["Observações sobre a entrega"]||"").trim();
-    var obsOk=obs.toLowerCase()==="ok"||obs==="";
+    var obsOk=!obs||obs.toLowerCase()==="ok";
     var statusTag=obsOk
       ? "<span class='tag tg'>&#10003; Ok</span>"
-      : "<span class='tag ty'>&#9888; Ocorrência</span>";
-    var fotoBtn=temFoto
-      ? "<button onclick='entOpenModal("+idx+")' style='padding:4px 10px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer'>&#128247; Ver</button>"
-      : "<span style='color:var(--mu);font-size:0.78rem'>—</span>";
-    var nf=r["NF"]||r["ID_FISCAL"]||"—";
-    var total=r["Total Geral"]||"";
-    var totalFmt=total?"R$ "+parseFloat(String(total).replace(/\./g,"").replace(",",".")).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
-    return"<tr>"+
-      "<td style='font-size:.82rem;white-space:nowrap'>"+entFmtDate(r["Data Registro"])+"</td>"+
-      "<td style='font-weight:600'>"+nf+"</td>"+
-      "<td style='font-size:.85rem'>"+(r["Razão Social"]||"—")+"</td>"+
-      "<td style='font-size:.82rem'>"+(r["Motorista"]||"—")+"</td>"+
-      "<td style='font-size:.82rem;color:var(--mu)'>"+(r["Vendedor"]||"—").replace("."," ")+"</td>"+
-      "<td style='font-size:.82rem;text-align:center'>"+(r["Cidade"]||"—")+"</td>"+
+      : "<span class='tag ty'>&#9888; Ocorr.</span>";
+    var nf=r["NF"]||"—";
+    var totFmt=r["Total Geral"]?("R$ "+entNum(r["Total Geral"]).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})):"—";
+    return "<tr style='cursor:pointer' onclick='entOpenModal("+idx+")'>" +
+      "<td style='font-size:.80rem;white-space:nowrap'>"+entFmtDate(r["Data Registro"])+"</td>"+
+      "<td style='font-weight:700'>"+nf+"</td>"+
+      "<td style='font-size:.83rem'>"+(r["Razão Social"]||"—")+"</td>"+
+      "<td style='font-size:.80rem'>"+(r["Motorista"]||"—")+"</td>"+
+      "<td style='font-size:.80rem;color:var(--mu)'>"+(r["Vendedor"]||"—").replace("."," ")+"</td>"+
+      "<td style='font-size:.80rem;text-align:center'>"+(r["Cidade"]||"—")+"</td>"+
       "<td style='text-align:center'>"+(r["Volume"]||"—")+"</td>"+
-      "<td style='font-weight:600;text-align:right'>"+totalFmt+"</td>"+
-      "<td style='font-size:.82rem;text-align:center'>"+(r["FORMA DE PAGAMENTO"]||"—")+"</td>"+
-      "<td style='font-size:.82rem'>"+(r["Nome de quem recebeu o produto"]||"—")+"</td>"+
+      "<td style='font-weight:600;text-align:right;white-space:nowrap'>"+totFmt+"</td>"+
+      "<td style='font-size:.80rem;text-align:center'>"+(r["FORMA DE PAGAMENTO"]||"—")+"</td>"+
+      "<td style='font-size:.80rem'>"+(r["Nome de quem recebeu o produto"]||"—")+"</td>"+
       "<td style='text-align:center'>"+statusTag+"</td>"+
-      "<td style='text-align:center'>"+fotoBtn+"</td>"+
+      "<td style='text-align:center'><button style='padding:4px 10px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:.75rem;cursor:pointer'>&#128065; Ver</button></td>"+
       "</tr>";
   }).join("");
-
-  // Store filtered for modal access
-  window._entFiltered=filtered;
 }
 
 function entOpenModal(idx){
-  var r=window._entFiltered[idx];if(!r) return;
+  var r=entFiltered[idx];if(!r) return;
   var modal=document.getElementById("ent-modal");
-  document.getElementById("ent-modal-title").textContent=(r["Razão Social"]||"")+" — NF "+(r["NF"]||r["ID_FISCAL"]||"");
-  document.getElementById("ent-modal-sub").textContent=
-    "Motorista: "+(r["Motorista"]||"—")+" | "+entFmtDate(r["Data Registro"])+" | "+(r["Cidade"]||"")+" — "+(r["Bairro"]||"");
 
-  // Info extra
-  var infoEl=document.getElementById("ent-modal-obs");
+  // Título
+  document.getElementById("ent-modal-title").textContent=
+    (r["Razão Social"]||"")+" — NF "+(r["NF"]||"");
+  document.getElementById("ent-modal-sub").textContent=
+    "Motorista: "+(r["Motorista"]||"—")+" | "+
+    entFmtDate(r["Data Registro"])+" | "+
+    (r["Bairro"]||"")+(r["Cidade"]?", "+r["Cidade"]:"");
+
+  // Grid de informações
+  var info=document.getElementById("ent-modal-info");
+  var campos=[
+    {l:"Pedido",        v:r["Pedido"]||"—"},
+    {l:"Romaneio",      v:r["Romaneio"]||"—"},
+    {l:"Emissão NF",    v:r["Emissão"]?new Date(r["Emissão"]).toLocaleDateString("pt-BR"):"—"},
+    {l:"Total NF",      v:entFmt(r["Total Geral"])},
+    {l:"Forma Pag.",    v:r["FORMA DE PAGAMENTO"]||"—"},
+    {l:"Vendedor",      v:(r["Vendedor"]||"—").replace("."," ")},
+    {l:"Tipo Pedido",   v:r["Tipo de Pedido"]||"—"},
+    {l:"Recebido por",  v:r["Nome de quem recebeu o produto"]||"—"}
+  ];
+  info.innerHTML=campos.map(function(x){
+    return "<div style='background:var(--s2);border-radius:8px;padding:10px 12px'>"+
+      "<div style='font-size:.65rem;color:var(--mu);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px'>"+x.l+"</div>"+
+      "<div style='font-size:.88rem;font-weight:600;color:var(--tx)'>"+x.v+"</div>"+
+      "</div>";
+  }).join("");
+
+  // Ocorrência
   var obs=(r["Observações sobre a entrega"]||"").trim();
-  var linhas=[];
-  if(r["Pedido"]) linhas.push("Pedido: <b>"+r["Pedido"]+"</b>");
-  if(r["Vendedor"]) linhas.push("Vendedor: <b>"+(r["Vendedor"]||"").replace("."," ")+"</b>");
-  if(r["FORMA DE PAGAMENTO"]) linhas.push("Pagamento: <b>"+r["FORMA DE PAGAMENTO"]+"</b>");
-  if(r["Nome de quem recebeu o produto"]) linhas.push("Recebido por: <b>"+r["Nome de quem recebeu o produto"]+"</b>");
-  if(r["Total Geral"]) linhas.push("Total NF: <b>"+entFmt(r["Total Geral"])+"</b>");
-  if(obs&&obs.toLowerCase()!=="ok") linhas.push("<span style='color:var(--warn)'>&#9888; Ocorrência: <b>"+obs+"</b></span>");
-  infoEl.style.display="block";
-  infoEl.innerHTML=linhas.join(" &nbsp;|&nbsp; ");
+  var obsEl=document.getElementById("ent-modal-obs");
+  if(obs&&obs.toLowerCase()!=="ok"){
+    obsEl.style.display="block";
+    obsEl.innerHTML="<b style='color:var(--warn)'>&#9888; Ocorrência registrada:</b> "+obs;
+  }else{
+    obsEl.style.display="none";
+  }
 
   // Fotos
   var fotoKeys=["Foto Canhoto assinado","Foto Entrega 1","Foto Entrega 2","Foto Entrega 3","Foto Entrega 4"];
-  var fotoLabels=["Canhoto Assinado","Entrega 1","Entrega 2","Entrega 3","Entrega 4"];
+  var fotoLabels=["Canhoto Assinado","Foto Entrega 1","Foto Entrega 2","Foto Entrega 3","Foto Entrega 4"];
   var fotosEl=document.getElementById("ent-modal-fotos");
   fotosEl.innerHTML="";
   var temFoto=false;
+
   fotoKeys.forEach(function(k,i){
     var url=(r[k]||"").trim();
     if(!url||url.indexOf("http")<0) return;
     temFoto=true;
+
     var div=document.createElement("div");
-    div.style.cssText="background:var(--s2);border-radius:10px;overflow:hidden;cursor:pointer";
-    div.title="Clique para ampliar";
+    div.style.cssText="background:var(--s2);border-radius:10px;overflow:hidden";
 
     var lbl=document.createElement("div");
-    lbl.style.cssText="font-size:.7rem;color:var(--mu);padding:8px 10px 4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px";
-    lbl.textContent=fotoLabels[i];
+    lbl.style.cssText="font-size:.7rem;color:var(--mu);padding:8px 12px 4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center";
+    lbl.innerHTML=fotoLabels[i]+
+      "<a href='"+url+"' target='_blank' style='font-size:.7rem;color:var(--blue);text-decoration:none'>&#128279; Ampliar</a>";
 
     var img=document.createElement("img");
     img.src=url;
     img.alt=fotoLabels[i];
-    img.style.cssText="width:100%;display:block;border-radius:0 0 8px 8px;max-height:240px;object-fit:cover";
+    img.style.cssText="width:100%;display:block;max-height:260px;object-fit:cover;cursor:pointer";
+    img.onclick=function(){window.open(url,"_blank");};
     img.onerror=function(){
       this.style.display="none";
-      var err=document.createElement("div");
-      err.style.cssText="padding:20px;text-align:center;font-size:.78rem;color:var(--mu)";
-      err.textContent="Foto não disponível";
-      this.parentElement.appendChild(err);
+      var e=document.createElement("div");
+      e.style.cssText="padding:24px;text-align:center;font-size:.8rem;color:var(--mu)";
+      e.textContent="Foto não disponível";
+      this.parentElement.appendChild(e);
     };
-
-    // Clique para abrir em tamanho real
-    div.onclick=function(){window.open(url,"_blank");};
 
     div.appendChild(lbl);
     div.appendChild(img);
@@ -2731,26 +2816,23 @@ function entOpenModal(idx){
   });
 
   if(!temFoto){
-    var noFoto=document.createElement("div");
-    noFoto.style.cssText="grid-column:1/-1;text-align:center;padding:30px;color:var(--mu);font-size:.85rem";
-    noFoto.textContent="Nenhuma foto registrada para esta entrega.";
-    fotosEl.appendChild(noFoto);
+    var nf2=document.createElement("div");
+    nf2.style.cssText="grid-column:1/-1;text-align:center;padding:30px;color:var(--mu);font-size:.88rem";
+    nf2.textContent="Nenhum comprovante fotográfico registrado.";
+    fotosEl.appendChild(nf2);
   }
 
   modal.style.display="flex";
   document.body.style.overflow="hidden";
 }
 
-
 function entCloseModal(){
   document.getElementById("ent-modal").style.display="none";
   document.body.style.overflow="";
 }
-
-// Fechar modal clicando fora
 document.addEventListener("click",function(e){
-  var modal=document.getElementById("ent-modal");
-  if(modal&&e.target===modal) entCloseModal();
+  var m=document.getElementById("ent-modal");
+  if(m&&e.target===m) entCloseModal();
 });
 // ════════════════════════════════════════════════════════════════════
 
