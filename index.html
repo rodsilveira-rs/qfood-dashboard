@@ -563,6 +563,9 @@ tbody tr:hover td{background:var(--s2);}
   <div class="kpis" id="ent-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
   <div class="kpis" id="ent-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
 
+  <!-- RANKINGS -->
+  <div id="ent-rankings" style="margin-bottom:8px"></div>
+
   <!-- LOADING -->
   <div id="ent-loading" class="spin-wrap"><div class="spin"></div>Carregando entregas...</div>
 
@@ -2500,32 +2503,55 @@ var entLoaded=false;
 var entSortCol="data";
 var entSortAsc=false;
 
-function entFmt(v){
-  if(v===null||v===undefined||v==="") return "—";
-  var n=parseFloat(String(v).replace(/\./g,"").replace(",","."));
-  if(isNaN(n)) return String(v)||"—";
-  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+// ── helpers ──────────────────────────────────────────────────────────
+// CRÍTICO: parse correto de datas BR (dd/mm/yyyy hh:mm:ss)
+// JS nativo lê dd/mm como mm/dd → gera datas erradas (ex: abr→nov)
+function entParseDate(v){
+  if(!v) return new Date(0);
+  var s=String(v).trim();
+  // Formato BR: dd/mm/yyyy hh:mm:ss  ou  dd/mm/yyyy
+  var m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if(m){
+    return new Date(
+      parseInt(m[3]),         // ano
+      parseInt(m[2])-1,       // mês (0-based)
+      parseInt(m[1]),         // dia
+      parseInt(m[4]||0),      // hora
+      parseInt(m[5]||0),      // min
+      parseInt(m[6]||0)       // seg
+    );
+  }
+  // Formato ISO: yyyy-mm-dd
+  return new Date(s);
 }
 function entFmtDate(v){
   if(!v) return "—";
-  var d=new Date(v);
+  var d=entParseDate(v);
   if(isNaN(d.getTime())) return String(v);
   return d.toLocaleDateString("pt-BR")+
     " "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
 }
-function entFmtDateOnly(v){
-  if(!v) return "";
-  var d=new Date(v);
-  if(isNaN(d.getTime())) return String(v).substring(0,10);
+function entFmtDateOnly(d){
+  if(!(d instanceof Date)) d=new Date(d);
+  if(isNaN(d.getTime())) return "";
   return d.getFullYear()+"-"+
     String(d.getMonth()+1).padStart(2,"0")+"-"+
     String(d.getDate()).padStart(2,"0");
+}
+function entFmt(v){
+  var n=parseFloat(String(v||0).replace(/\./g,"").replace(",","."));
+  if(isNaN(n)) return v||"—";
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function entNum(v){
   var n=parseFloat(String(v||0).replace(/\./g,"").replace(",","."));
   return isNaN(n)?0:n;
 }
+function entFmtK(v){
+  return "R$ "+(v/1000).toFixed(1).replace(".",",")+"\u202fk";
+}
 
+// ── init ──────────────────────────────────────────────────────────────
 async function initEntregas(){
   if(entLoaded){entRender();return;}
   var ldg=document.getElementById("ent-loading");
@@ -2548,26 +2574,22 @@ async function initEntregas(){
 function entPopulateMotoristas(){
   var sel=document.getElementById("ent-motorista");
   if(!sel) return;
-  var opts=sel.querySelectorAll("option:not([value=''])");
-  opts.forEach(function(o){o.remove();});
-  var lista=[...new Set(entAllRows.map(function(r){
+  sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+  [...new Set(entAllRows.map(function(r){
     return (r["Motorista"]||"").trim();
-  }).filter(Boolean))].sort();
-  lista.forEach(function(m){
+  }).filter(Boolean))].sort().forEach(function(m){
     var o=document.createElement("option");
-    o.value=m;o.textContent=m;
-    sel.appendChild(o);
+    o.value=m;o.textContent=m;sel.appendChild(o);
   });
 }
 
 function entSetDefaultDates(){
   var f=document.getElementById("ent-date-from"),t=document.getElementById("ent-date-to");
   if(!f||!t) return;
-  // Detecta a data mais recente na base
   var maxDate=new Date(0);
   entAllRows.forEach(function(r){
-    var d=new Date(r["Data Registro"]||0);
-    if(d>maxDate) maxDate=d;
+    var d=entParseDate(r["Data Registro"]);
+    if(!isNaN(d.getTime())&&d>maxDate) maxDate=d;
   });
   var from=new Date(maxDate);
   from.setDate(from.getDate()-30);
@@ -2575,26 +2597,26 @@ function entSetDefaultDates(){
   t.value=entFmtDateOnly(maxDate);
 }
 
+// ── filtros ───────────────────────────────────────────────────────────
 function entSearch(){
   var search=(document.getElementById("ent-search").value||"").toLowerCase().trim();
   var motor=(document.getElementById("ent-motorista").value||"").trim();
-  var df=document.getElementById("ent-date-from").value;
+  var df=document.getElementById("ent-date-from").value;   // yyyy-mm-dd
   var dt=document.getElementById("ent-date-to").value;
+  var dfD=df?new Date(df+"T00:00:00"):null;
+  var dtD=dt?new Date(dt+"T23:59:59"):null;
 
   entFiltered=entAllRows.filter(function(r){
-    if(df||dt){
-      var d=new Date(r["Data Registro"]||0);
-      if(df&&d<new Date(df+"T00:00:00")) return false;
-      if(dt&&d>new Date(dt+"T23:59:59")) return false;
-    }
+    var d=entParseDate(r["Data Registro"]);
+    if(dfD&&d<dfD) return false;
+    if(dtD&&d>dtD) return false;
     if(motor&&(r["Motorista"]||"").trim()!==motor) return false;
     if(search){
-      var hay=[
-        r["Razão Social"],r["NF"],r["Motorista"],r["Vendedor"],
-        r["Cidade"],r["Bairro"],r["Pedido"],
-        r["Nome de quem recebeu o produto"],
-        r["FORMA DE PAGAMENTO"],r["Observações sobre a entrega"]
-      ].join(" ").toLowerCase();
+      var hay=[r["Razão Social"],r["NF"],r["Motorista"],r["Vendedor"],
+               r["Cidade"],r["Bairro"],r["Pedido"],
+               r["Nome de quem recebeu o produto"],
+               r["FORMA DE PAGAMENTO"],r["Observações sobre a entrega"]
+              ].join(" ").toLowerCase();
       if(!hay.includes(search)) return false;
     }
     return true;
@@ -2602,10 +2624,9 @@ function entSearch(){
 
   entSortData();
   entKPIs();
+  entRankings();
   entRender();
 }
-
-function entFilter(){} // alias para search em tempo real — não usar
 
 function entClear(){
   document.getElementById("ent-search").value="";
@@ -2617,80 +2638,149 @@ function entClear(){
 function entSort(col){
   if(entSortCol===col) entSortAsc=!entSortAsc;
   else{entSortCol=col;entSortAsc=false;}
-  entSortData();
-  entRender();
+  entSortData();entRender();
 }
-
 function entSortData(){
   entFiltered.sort(function(a,b){
     var va,vb;
-    if(entSortCol==="valor"){
-      va=entNum(a["Total Geral"]);vb=entNum(b["Total Geral"]);
-    }else{
-      va=new Date(a["Data Registro"]||0);vb=new Date(b["Data Registro"]||0);
-    }
+    if(entSortCol==="valor"){va=entNum(a["Total Geral"]);vb=entNum(b["Total Geral"]);}
+    else{va=entParseDate(a["Data Registro"]);vb=entParseDate(b["Data Registro"]);}
+    if(va instanceof Date) return entSortAsc?(va-vb):(vb-va);
     return entSortAsc?(va>vb?1:-1):(va<vb?1:-1);
   });
 }
 
+// ── KPIs ─────────────────────────────────────────────────────────────
 function entKPIs(){
   var rows=entFiltered;
-  var totNF=rows.length;
+  var n=rows.length;
   var totVal=rows.reduce(function(s,r){return s+entNum(r["Total Geral"]);},0);
+  var totVol=rows.reduce(function(s,r){return s+entNum(r["Volume"]);},0);
   var comFoto=rows.filter(function(r){
-    var u=r["Foto Canhoto assinado"]||r["Foto Entrega 1"]||"";
-    return u.indexOf("http")>-1;
+    return (r["Foto Canhoto assinado"]||r["Foto Entrega 1"]||"").indexOf("http")>-1;
   }).length;
   var comObs=rows.filter(function(r){
     var o=(r["Observações sobre a entrega"]||"").trim().toLowerCase();
     return o&&o!=="ok";
   }).length;
 
-  // KPIs por motorista
-  var porMotorista={};
+  // por motorista
+  var byMot={};
   rows.forEach(function(r){
     var m=(r["Motorista"]||"S/N").trim();
-    if(!porMotorista[m]) porMotorista[m]={qtd:0,val:0};
-    porMotorista[m].qtd++;
-    porMotorista[m].val+=entNum(r["Total Geral"]);
+    if(!byMot[m]) byMot[m]={qtd:0,val:0,vol:0};
+    byMot[m].qtd++;byMot[m].val+=entNum(r["Total Geral"]);byMot[m].vol+=entNum(r["Volume"]);
   });
-  var topMotorista="—",topQtd=0;
-  Object.keys(porMotorista).forEach(function(m){
-    if(porMotorista[m].qtd>topQtd){topQtd=porMotorista[m].qtd;topMotorista=m;}
-  });
+  var topMotNome="—",topMotQtd=0;
+  Object.keys(byMot).forEach(function(m){if(byMot[m].qtd>topMotQtd){topMotQtd=byMot[m].qtd;topMotNome=m;}});
 
-  // KPIs por vendedor
-  var porVendedor={};
+  // por vendedor
+  var byVend={};
   rows.forEach(function(r){
     var v=(r["Vendedor"]||"S/N").replace("."," ").trim();
-    if(!porVendedor[v]) porVendedor[v]={qtd:0,val:0};
-    porVendedor[v].qtd++;
-    porVendedor[v].val+=entNum(r["Total Geral"]);
+    if(!byVend[v]) byVend[v]={qtd:0,val:0};
+    byVend[v].qtd++;byVend[v].val+=entNum(r["Total Geral"]);
   });
-  var topVendedor="—",topVVal=0;
-  Object.keys(porVendedor).forEach(function(v){
-    if(porVendedor[v].val>topVVal){topVVal=porVendedor[v].val;topVendedor=v;}
-  });
+  var topVendNome="—",topVendVal=0;
+  Object.keys(byVend).forEach(function(v){if(byVend[v].val>topVendVal){topVendVal=byVend[v].val;topVendNome=v;}});
 
-  // Ticket médio
-  var ticket=totNF>0?totVal/totNF:0;
+  var ticket=n>0?totVal/n:0;
+  var ticketVol=n>0?totVol/n:0;
 
   var k1=document.getElementById("ent-kpis");
   var k2=document.getElementById("ent-kpis2");
-
   if(k1) k1.innerHTML=
-    '<div class="kpi b"><div class="lbl">Total de Entregas</div><div class="val">'+totNF+'</div><div class="sub">no período</div></div>'+
-    '<div class="kpi g"><div class="lbl">Valor Total Entregue</div><div class="val" style="font-size:1.2rem">R$ '+(totVal/1000).toFixed(1).replace(".",",")+'k</div><div class="sub">NFs confirmadas</div></div>'+
-    '<div class="kpi p"><div class="lbl">Com Comprovante</div><div class="val">'+comFoto+'</div><div class="sub">'+(totNF>0?Math.round(comFoto/totNF*100):0)+'% do total</div></div>'+
-    '<div class="kpi r"><div class="lbl">Com Ocorrência</div><div class="val">'+comObs+'</div><div class="sub">requer atenção</div></div>';
-
+    kpi("b","Total de Entregas","<b>"+n+"</b>","no período")+
+    kpi("g","Valor Total",entFmtK(totVal),"NFs confirmadas")+
+    kpi("p","Volumes Totais","<b>"+totVol.toLocaleString("pt-BR")+"</b>","volumes entregues")+
+    kpi("r","Com Ocorrência","<b>"+comObs+"</b>","requer atenção");
   if(k2) k2.innerHTML=
-    '<div class="kpi w"><div class="lbl">Ticket Médio</div><div class="val" style="font-size:1.2rem">R$ '+(ticket).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})+'</div><div class="sub">por entrega</div></div>'+
-    '<div class="kpi b"><div class="lbl">Motoristas Ativos</div><div class="val">'+Object.keys(porMotorista).length+'</div><div class="sub">no período</div></div>'+
-    '<div class="kpi g"><div class="lbl">Top Motorista</div><div class="val" style="font-size:1rem;line-height:1.2">'+topMotorista.split(" ")[0]+'</div><div class="sub">'+topQtd+' entregas</div></div>'+
-    '<div class="kpi p"><div class="lbl">Top Vendedor</div><div class="val" style="font-size:1rem;line-height:1.2">'+topVendedor.split(" ")[0]+'</div><div class="sub">R$ '+(topVVal/1000).toFixed(1).replace(".",",")+'k</div></div>';
+    kpi("w","Ticket Médio",entFmtK(ticket),"por entrega")+
+    kpi("b","Vol. Médio p/ Entrega","<b>"+ticketVol.toFixed(1).replace(".",",")+"</b>","volumes/NF")+
+    kpi("g","Top Motorista","<b style='font-size:.95rem'>"+topMotNome.split(" ")[0]+"</b>",topMotQtd+" entregas")+
+    kpi("p","Top Vendedor","<b style='font-size:.95rem'>"+topVendNome.split(" ")[0]+"</b>",entFmtK(topVendVal));
+}
+function kpi(cls,lbl,val,sub){
+  return "<div class='kpi "+cls+"'><div class='lbl'>"+lbl+"</div><div class='val'>"+val+"</div><div class='sub'>"+sub+"</div></div>";
 }
 
+// ── RANKINGS ─────────────────────────────────────────────────────────
+function entRankings(){
+  var rows=entFiltered;
+  var wrap=document.getElementById("ent-rankings");
+  if(!wrap) return;
+  if(!rows.length){wrap.innerHTML="";return;}
+
+  function buildRank(titulo,dados,fmtVal,fmtSub,cor){
+    // dados: [{nome, val, sub}] already sorted desc
+    var top=dados.slice(0,6);
+    var maxVal=top[0]?top[0].val:1;
+    var html="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>"+
+      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:12px'>"+titulo+"</div>";
+    top.forEach(function(d,i){
+      var pct=maxVal>0?(d.val/maxVal*100):0;
+      var medal=i===0?"🥇":i===1?"🥈":i===2?"🥉":"";
+      html+="<div style='margin-bottom:10px'>"+
+        "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px'>"+
+          "<span>"+medal+" "+d.nome+"</span>"+
+          "<span style='font-weight:700;color:"+cor+"'>"+fmtVal(d.val)+"</span>"+
+        "</div>"+
+        "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+          "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
+        "</div>"+
+        "<div style='font-size:.7rem;color:var(--mu);margin-top:1px'>"+fmtSub(d)+"</div>"+
+      "</div>";
+    });
+    html+="</div>";
+    return html;
+  }
+
+  // Agrupamentos
+  function agrupar(campo,nomeFn){
+    var map={};
+    rows.forEach(function(r){
+      var k=(nomeFn?nomeFn(r):((r[campo]||"S/N").trim()));
+      if(!map[k]) map[k]={nome:k,val:0,qtd:0,vol:0};
+      map[k].val+=entNum(r["Total Geral"]);
+      map[k].qtd++;
+      map[k].vol+=entNum(r["Volume"]);
+    });
+    return Object.values(map).sort(function(a,b){return b.val-a.val;});
+  }
+
+  var byMot  = agrupar("Motorista");
+  var byVend = agrupar("Vendedor",function(r){return (r["Vendedor"]||"S/N").replace("."," ").trim();});
+  var byCid  = agrupar("Cidade");
+  var byBai  = agrupar("Bairro");
+
+  // Ticket médio por motorista
+  var tickMot=byMot.map(function(d){return{nome:d.nome,val:d.qtd>0?d.val/d.qtd:0,qtd:d.qtd,vol:d.vol};}).sort(function(a,b){return b.val-a.val;});
+  var tickVend=byVend.map(function(d){return{nome:d.nome,val:d.qtd>0?d.val/d.qtd:0,qtd:d.qtd,vol:d.vol};}).sort(function(a,b){return b.val-a.val;});
+
+  var fR=function(v){return entFmtK(v);};
+  var fQ=function(v){return v.toFixed(0)+" entregas";};
+  var fV=function(v){return v.toFixed(0)+" vol.";};
+
+  wrap.innerHTML=
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
+      buildRank("&#128666; Entregas por Motorista (R$)",    byMot,  fR, function(d){return d.qtd+" NFs · "+d.vol+" vol";}, "#4d8ef5")+
+      buildRank("&#128666; Entregas por Motorista (Qtd)",   byMot.slice().sort(function(a,b){return b.qtd-a.qtd;}), function(v){return v+" NFs";}, function(d){return entFmtK(d.val)+" · "+d.vol+" vol";}, "#36cfa0")+
+    "</div>"+
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
+      buildRank("&#128100; Volume por Vendedor (R$)",       byVend, fR, function(d){return d.qtd+" NFs · "+d.vol+" vol";}, "#a07cf6")+
+      buildRank("&#127970; Volume por Cidade",              byCid,  fR, function(d){return d.qtd+" NFs · "+d.vol+" vol";}, "#ffaa2b")+
+    "</div>"+
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
+      buildRank("&#128205; Volume por Bairro",              byBai,  fR, function(d){return d.qtd+" NFs";}, "#ff4d4f")+
+      buildRank("&#128666; Volumes por Motorista",          byMot.slice().sort(function(a,b){return b.vol-a.vol;}), function(v){return v.toFixed(0)+" vol.";}, function(d){return d.qtd+" NFs · "+entFmtK(d.val);}, "#00cec9")+
+    "</div>"+
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px'>"+
+      buildRank("&#127881; Ticket Médio por Motorista",     tickMot,  fR, function(d){return d.qtd+" NFs · vol.médio "+(d.qtd>0?(d.vol/d.qtd).toFixed(1):0);}, "#fd79a8")+
+      buildRank("&#127881; Ticket Médio por Vendedor",      tickVend, fR, function(d){return d.qtd+" NFs · "+entFmtK(d.val*d.qtd);}, "#e17055")+
+    "</div>";
+}
+
+// ── TABELA ────────────────────────────────────────────────────────────
 function entRender(){
   var ldg=document.getElementById("ent-loading");
   var wrap=document.getElementById("ent-table-wrap");
@@ -2699,7 +2789,6 @@ function entRender(){
   var tbody=document.getElementById("ent-tbody");
   if(!tbody) return;
   if(ldg) ldg.style.display="none";
-
   if(!entFiltered.length){
     if(wrap) wrap.style.display="none";
     if(empty) empty.style.display="block";
@@ -2708,39 +2797,35 @@ function entRender(){
   }
   if(empty) empty.style.display="none";
   if(wrap) wrap.style.display="block";
-  if(count) count.textContent=entFiltered.length+" entrega(s) encontrada(s)";
+  if(count) count.textContent=entFiltered.length+" entrega(s) — clique em qualquer linha para ver detalhes e fotos";
 
-  tbody.innerHTML=entFiltered.map(function(r,idx){
+  tbody.innerHTML=entFiltered.map(function(r,i){
     var temFoto=(r["Foto Canhoto assinado"]||r["Foto Entrega 1"]||"").indexOf("http")>-1;
     var obs=(r["Observações sobre a entrega"]||"").trim();
     var obsOk=!obs||obs.toLowerCase()==="ok";
-    var statusTag=obsOk
-      ? "<span class='tag tg'>&#10003; Ok</span>"
-      : "<span class='tag ty'>&#9888; Ocorr.</span>";
-    var nf=r["NF"]||"—";
-    var totFmt=r["Total Geral"]?("R$ "+entNum(r["Total Geral"]).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})):"—";
-    return "<tr style='cursor:pointer' onclick='entOpenModal("+idx+")'>" +
+    var tag=obsOk?"<span class='tag tg'>&#10003; Ok</span>":"<span class='tag ty'>&#9888; Ocorr.</span>";
+    var tot=r["Total Geral"]?"R$ "+entNum(r["Total Geral"]).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+    return "<tr style='cursor:pointer' onclick='entOpenModal("+i+")'>"+
       "<td style='font-size:.80rem;white-space:nowrap'>"+entFmtDate(r["Data Registro"])+"</td>"+
-      "<td style='font-weight:700'>"+nf+"</td>"+
+      "<td style='font-weight:700'>"+(r["NF"]||"—")+"</td>"+
       "<td style='font-size:.83rem'>"+(r["Razão Social"]||"—")+"</td>"+
       "<td style='font-size:.80rem'>"+(r["Motorista"]||"—")+"</td>"+
       "<td style='font-size:.80rem;color:var(--mu)'>"+(r["Vendedor"]||"—").replace("."," ")+"</td>"+
       "<td style='font-size:.80rem;text-align:center'>"+(r["Cidade"]||"—")+"</td>"+
       "<td style='text-align:center'>"+(r["Volume"]||"—")+"</td>"+
-      "<td style='font-weight:600;text-align:right;white-space:nowrap'>"+totFmt+"</td>"+
+      "<td style='font-weight:600;text-align:right;white-space:nowrap'>"+tot+"</td>"+
       "<td style='font-size:.80rem;text-align:center'>"+(r["FORMA DE PAGAMENTO"]||"—")+"</td>"+
       "<td style='font-size:.80rem'>"+(r["Nome de quem recebeu o produto"]||"—")+"</td>"+
-      "<td style='text-align:center'>"+statusTag+"</td>"+
-      "<td style='text-align:center'><button style='padding:4px 10px;background:var(--blue);border:none;border-radius:6px;color:#fff;font-size:.75rem;cursor:pointer'>&#128065; Ver</button></td>"+
+      "<td style='text-align:center'>"+tag+"</td>"+
+      "<td style='text-align:center'><span style='font-size:.78rem;color:"+(temFoto?"var(--blue)":"var(--mu)")+"'>"+(temFoto?"&#128247; fotos":"—")+"</span></td>"+
       "</tr>";
   }).join("");
 }
 
-function entOpenModal(idx){
-  var r=entFiltered[idx];if(!r) return;
+// ── MODAL ─────────────────────────────────────────────────────────────
+function entOpenModal(i){
+  var r=entFiltered[i];if(!r) return;
   var modal=document.getElementById("ent-modal");
-
-  // Título
   document.getElementById("ent-modal-title").textContent=
     (r["Razão Social"]||"")+" — NF "+(r["NF"]||"");
   document.getElementById("ent-modal-sub").textContent=
@@ -2748,84 +2833,65 @@ function entOpenModal(idx){
     entFmtDate(r["Data Registro"])+" | "+
     (r["Bairro"]||"")+(r["Cidade"]?", "+r["Cidade"]:"");
 
-  // Grid de informações
   var info=document.getElementById("ent-modal-info");
   var campos=[
-    {l:"Pedido",        v:r["Pedido"]||"—"},
-    {l:"Romaneio",      v:r["Romaneio"]||"—"},
-    {l:"Emissão NF",    v:r["Emissão"]?new Date(r["Emissão"]).toLocaleDateString("pt-BR"):"—"},
-    {l:"Total NF",      v:entFmt(r["Total Geral"])},
-    {l:"Forma Pag.",    v:r["FORMA DE PAGAMENTO"]||"—"},
-    {l:"Vendedor",      v:(r["Vendedor"]||"—").replace("."," ")},
-    {l:"Tipo Pedido",   v:r["Tipo de Pedido"]||"—"},
-    {l:"Recebido por",  v:r["Nome de quem recebeu o produto"]||"—"}
+    {l:"Pedido",       v:r["Pedido"]||"—"},
+    {l:"Romaneio",     v:r["Romaneio"]||"—"},
+    {l:"Emissão NF",   v:r["Emissão"]?entParseDate(r["Emissão"]).toLocaleDateString("pt-BR"):"—"},
+    {l:"Total NF",     v:entFmt(r["Total Geral"])},
+    {l:"Forma Pag.",   v:r["FORMA DE PAGAMENTO"]||"—"},
+    {l:"Vendedor",     v:(r["Vendedor"]||"—").replace("."," ")},
+    {l:"Volumes",      v:(r["Volume"]||"—")},
+    {l:"Recebido por", v:r["Nome de quem recebeu o produto"]||"—"}
   ];
   info.innerHTML=campos.map(function(x){
     return "<div style='background:var(--s2);border-radius:8px;padding:10px 12px'>"+
       "<div style='font-size:.65rem;color:var(--mu);margin-bottom:3px;text-transform:uppercase;letter-spacing:.5px'>"+x.l+"</div>"+
-      "<div style='font-size:.88rem;font-weight:600;color:var(--tx)'>"+x.v+"</div>"+
-      "</div>";
+      "<div style='font-size:.88rem;font-weight:600;color:var(--tx)'>"+x.v+"</div></div>";
   }).join("");
 
-  // Ocorrência
   var obs=(r["Observações sobre a entrega"]||"").trim();
   var obsEl=document.getElementById("ent-modal-obs");
   if(obs&&obs.toLowerCase()!=="ok"){
     obsEl.style.display="block";
-    obsEl.innerHTML="<b style='color:var(--warn)'>&#9888; Ocorrência registrada:</b> "+obs;
-  }else{
-    obsEl.style.display="none";
-  }
+    obsEl.innerHTML="<b style='color:var(--warn)'>&#9888; Ocorrência:</b> "+obs;
+  }else{obsEl.style.display="none";}
 
-  // Fotos
   var fotoKeys=["Foto Canhoto assinado","Foto Entrega 1","Foto Entrega 2","Foto Entrega 3","Foto Entrega 4"];
-  var fotoLabels=["Canhoto Assinado","Foto Entrega 1","Foto Entrega 2","Foto Entrega 3","Foto Entrega 4"];
+  var fotoLabels=["Canhoto Assinado","Entrega 1","Entrega 2","Entrega 3","Entrega 4"];
   var fotosEl=document.getElementById("ent-modal-fotos");
   fotosEl.innerHTML="";
   var temFoto=false;
-
-  fotoKeys.forEach(function(k,i){
+  fotoKeys.forEach(function(k,fi){
     var url=(r[k]||"").trim();
     if(!url||url.indexOf("http")<0) return;
     temFoto=true;
-
     var div=document.createElement("div");
     div.style.cssText="background:var(--s2);border-radius:10px;overflow:hidden";
-
     var lbl=document.createElement("div");
     lbl.style.cssText="font-size:.7rem;color:var(--mu);padding:8px 12px 4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center";
-    lbl.innerHTML=fotoLabels[i]+
-      "<a href='"+url+"' target='_blank' style='font-size:.7rem;color:var(--blue);text-decoration:none'>&#128279; Ampliar</a>";
-
+    lbl.innerHTML=fotoLabels[fi]+"<a href='"+url+"' target='_blank' style='font-size:.7rem;color:var(--blue);text-decoration:none'>&#128279; Ampliar</a>";
     var img=document.createElement("img");
-    img.src=url;
-    img.alt=fotoLabels[i];
+    img.src=url;img.alt=fotoLabels[fi];
     img.style.cssText="width:100%;display:block;max-height:260px;object-fit:cover;cursor:pointer";
     img.onclick=function(){window.open(url,"_blank");};
     img.onerror=function(){
       this.style.display="none";
       var e=document.createElement("div");
       e.style.cssText="padding:24px;text-align:center;font-size:.8rem;color:var(--mu)";
-      e.textContent="Foto não disponível";
-      this.parentElement.appendChild(e);
+      e.textContent="Foto não disponível";this.parentElement.appendChild(e);
     };
-
-    div.appendChild(lbl);
-    div.appendChild(img);
-    fotosEl.appendChild(div);
+    div.appendChild(lbl);div.appendChild(img);fotosEl.appendChild(div);
   });
-
   if(!temFoto){
     var nf2=document.createElement("div");
     nf2.style.cssText="grid-column:1/-1;text-align:center;padding:30px;color:var(--mu);font-size:.88rem";
     nf2.textContent="Nenhum comprovante fotográfico registrado.";
     fotosEl.appendChild(nf2);
   }
-
   modal.style.display="flex";
   document.body.style.overflow="hidden";
 }
-
 function entCloseModal(){
   document.getElementById("ent-modal").style.display="none";
   document.body.style.overflow="";
