@@ -2715,237 +2715,175 @@ function kpi(cls,lbl,val,sub){
 }
 
 // ── RANKINGS ─────────────────────────────────────────────────────────
-function entRankings(){
-  var rows=entFiltered;
-  var wrap=document.getElementById("ent-rankings");
-  if(!wrap) return;
-  if(!rows.length){wrap.innerHTML="";return;}
+// Globals for chart data (keyed by uid)
+var _rankCharts = {};
 
-  // ── ranking charts ──────────────────────────────────────────────────
-  var _rankCharts={};
+// buildRank: builds HTML string + stores chart data in _rankCharts[uid]
+function buildRank(titulo, dados, fmtVal, fmtSub, cor, metricFn) {
+  var mFn = metricFn || function(d) { return d.val; };
+  var top = dados.slice(0, 6);
+  var maxM = 0;
+  top.forEach(function(d) { var v = mFn(d); if (v > maxM) maxM = v; });
+  if (maxM === 0) maxM = 1;
+  var uid = "rc" + Math.random().toString(36).substr(2, 8);
 
-  function buildRank(titulo,dados,fmtVal,fmtSub,cor,metricFn){
-    var mFn=metricFn||function(d){return d.val;};
-    var top=dados.slice(0,6);
-    var maxM=0;
-    top.forEach(function(d){var v=mFn(d);if(v>maxM)maxM=v;});
-    if(maxM===0)maxM=1;
-    var uid="rc_"+Math.random().toString(36).substr(2,8);
+  _rankCharts[uid] = top.map(function(d) {
+    return { n: d.nome, v: mFn(d), p: maxM > 0 ? (mFn(d) / maxM * 100) : 0, cor: cor };
+  });
 
-    // Store chart data globally so onclick can find it by ID
-    _rankCharts[uid]=top.map(function(d){
-      return{n:d.nome,v:mFn(d),p:maxM>0?(mFn(d)/maxM*100):0,cor:cor};
-    });
+  var rows = "";
+  top.forEach(function(d, i) {
+    var m = mFn(d);
+    var pct = maxM > 0 ? (m / maxM * 100) : 0;
+    var medals = ["🥇","🥈","🥉"];
+    var medal = i < 3 ? medals[i] : "";
+    rows +=
+      "<div style='margin-bottom:10px'>" +
+        "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px'>" +
+          "<span>" + medal + " " + d.nome + "</span>" +
+          "<span style='font-weight:700;color:" + cor + "'>" + fmtVal(m) + "</span>" +
+        "</div>" +
+        "<div style='background:var(--br);border-radius:3px;height:6px;overflow:hidden'>" +
+          "<div class='rbar' data-pct='" + pct.toFixed(1) + "' style='height:100%;border-radius:3px;background:" + cor + ";width:0;transition:width .6s ease'></div>" +
+        "</div>" +
+        "<div style='font-size:.7rem;color:var(--mu);margin-top:1px'>" + fmtSub(d) + "</div>" +
+      "</div>";
+  });
 
-    var rows="";
-    top.forEach(function(d,i){
-      var m=mFn(d);
-      var pct=maxM>0?(m/maxM*100):0;
-      var medals=["🥇","🥈","🥉"];
-      var medal=i<3?medals[i]:"";
-      rows+=
-        "<div style='margin-bottom:10px'>"+
-          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px'>"+
-            "<span>"+medal+" "+d.nome+"</span>"+
-            "<span style='font-weight:700;color:"+cor+"'>"+fmtVal(m)+"</span>"+
-          "</div>"+
-          "<div style='background:var(--br);border-radius:3px;height:6px;overflow:hidden'>"+
-            "<div class='rbar' data-w='"+pct.toFixed(1)+"' style='height:100%;border-radius:3px;background:"+cor+";width:0%;transition:width .7s ease'></div>"+
-          "</div>"+
-          "<div style='font-size:.7rem;color:var(--mu);margin-top:1px'>"+fmtSub(d)+"</div>"+
-        "</div>";
-    });
+  // Button uses data-uid — onclick resolved at runtime via entToggleChart
+  return "<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+    "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>" +
+      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px'>" + titulo + "</div>" +
+      "<button data-uid='" + uid + "' onclick='entToggleChart(this)' style='padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer'>📈 Gráfico</button>" +
+    "</div>" +
+    "<div id='" + uid + "' style='display:none;margin-bottom:12px'></div>" +
+    rows +
+  "</div>";
+}
 
-    // Build using DOM to avoid any string escaping issues
-    var card=document.createElement("div");
-    card.style.cssText="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)";
-    var hrow=document.createElement("div");
-    hrow.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px";
-    var htit=document.createElement("div");
-    htit.style.cssText="font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px";
-    htit.textContent=titulo;
-    var hbtn=document.createElement("button");
-    hbtn.style.cssText="padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer";
-    hbtn.textContent="📈 Gráfico";
-    hbtn.dataset.uid=uid;
-    hbtn.addEventListener("click",function(){entToggleChart(this.dataset.uid,this);});
-    hrow.appendChild(htit);
-    hrow.appendChild(hbtn);
-    var cdiv=document.createElement("div");
-    cdiv.id=uid;
-    cdiv.style.cssText="display:none;margin-bottom:12px";
-    card.appendChild(hrow);
-    card.appendChild(cdiv);
-    card.innerHTML+=rows;
-    return card.outerHTML;
-  }
-
-  function entToggleChart(uid,btn){
-    var el=document.getElementById(uid);
-    if(!el) return;
-    if(el.style.display==="block"){
-      el.style.display="none";
-      btn.textContent="📈 Gráfico";
-      return;
+function entToggleChart(btn) {
+  var uid = btn.dataset.uid;
+  var el = document.getElementById(uid);
+  if (!el) return;
+  if (el.style.display === "block") {
+    el.style.display = "none";
+    btn.textContent = "📈 Gráfico";
+  } else {
+    el.style.display = "block";
+    btn.textContent = "✕ Fechar";
+    if (!el.dataset.drawn) {
+      var data = _rankCharts[uid];
+      if (data) entDrawChart(el, data);
+      el.dataset.drawn = "1";
     }
-    el.style.display="block";
-    btn.textContent="✕ Fechar";
-    var data=_rankCharts[uid];
-    if(data) entDrawChart(el,data);
-    // Animate bars after render
-    setTimeout(function(){
-      var bars=el.closest? el.closest("div[style*='border-radius:12px']") : null;
-      if(bars){
-        bars.querySelectorAll(".rbar").forEach(function(b){
-          b.style.width=b.dataset.w+"%";
-        });
-      }
-    },50);
   }
+}
 
-  // Also animate bars on initial render
-  function entAnimateBars(container){
-    if(!container) return;
-    setTimeout(function(){
-      container.querySelectorAll(".rbar").forEach(function(b,i){
-        setTimeout(function(){b.style.width=b.dataset.w+"%";},i*60);
-      });
-    },80);
-  }
+function entDrawChart(container, data) {
+  container.innerHTML = "";
+  if (!data || !data.length) return;
+  var cor = data[0].cor || "#4d8ef5";
+  var maxV = 0;
+  data.forEach(function(d) { if (d.v > maxV) maxV = d.v; });
+  if (maxV === 0) maxV = 1;
+  var W = 360, barH = 24, gap = 10, left = 120, right = 44, topPad = 8;
+  var svgH = data.length * (barH + gap) + topPad * 2;
+  var availW = W - left - right;
 
-  function entDrawChart(container,data){
-    container.innerHTML="";
-    if(!data||!data.length) return;
-    var cor=data[0].cor||"#4d8ef5";
-    var maxV=0;
-    data.forEach(function(d){if(d.v>maxV)maxV=d.v;});
-    if(maxV===0)maxV=1;
-    var W=360,barH=24,gap=10,left=110,right=44,topPad=8;
-    var svgH=data.length*(barH+gap)+topPad*2;
-    var availW=W-left-right;
+  var defs = "<defs>";
+  data.forEach(function(d, i) {
+    defs += "<linearGradient id='sg" + i + "' x1='0' y1='0' x2='0' y2='1'>" +
+      "<stop offset='0%' stop-color='#fff' stop-opacity='0.2'/>" +
+      "<stop offset='100%' stop-color='#fff' stop-opacity='0'/>" +
+      "</linearGradient>";
+  });
+  defs += "</defs>";
 
-    var defs="<defs>";
-    data.forEach(function(d,i){
-      defs+="<linearGradient id='sg"+i+"' x1='0' y1='0' x2='0' y2='1'>"+
-        "<stop offset='0%' stop-color='#fff' stop-opacity='0.25'/>"+
-        "<stop offset='100%' stop-color='#fff' stop-opacity='0'/>"+
-        "</linearGradient>";
+  var shapes = "";
+  data.forEach(function(d, i) {
+    var y = topPad + i * (barH + gap);
+    var bw = (d.v / maxV) * availW;
+    var dl = (i * 0.1).toFixed(1) + "s";
+    var ks = "0.4 0 0.2 1";
+    var name = d.n.length > 12 ? d.n.substring(0, 11) + "…" : d.n;
+    shapes +=
+      "<text x='" + (left - 6) + "' y='" + (y + barH / 2 + 4) + "' text-anchor='end' font-size='11' fill='#8fa0c0'>" + name + "</text>" +
+      "<rect x='" + left + "' y='" + y + "' width='" + availW + "' height='" + barH + "' rx='4' fill='rgba(255,255,255,0.05)'/>" +
+      "<rect x='" + left + "' y='" + y + "' width='0' height='" + barH + "' rx='4' fill='" + cor + "' opacity='0.88'>" +
+        "<animate attributeName='width' from='0' to='" + bw.toFixed(1) + "' dur='0.6s' begin='" + dl + "' fill='freeze' calcMode='spline' keySplines='" + ks + "'/>" +
+      "</rect>" +
+      "<rect x='" + left + "' y='" + y + "' width='0' height='" + (barH * 0.4) + "' rx='4' fill='url(#sg" + i + ")'>" +
+        "<animate attributeName='width' from='0' to='" + bw.toFixed(1) + "' dur='0.6s' begin='" + dl + "' fill='freeze' calcMode='spline' keySplines='" + ks + "'/>" +
+      "</rect>" +
+      "<text y='" + (y + barH / 2 + 4) + "' font-size='11' font-weight='700' fill='" + cor + "'>" +
+        "<animate attributeName='x' from='" + left + "' to='" + (left + bw + 5).toFixed(1) + "' dur='0.6s' begin='" + dl + "' fill='freeze' calcMode='spline' keySplines='" + ks + "'/>" +
+        Math.round(d.p) + "%" +
+      "</text>";
+  });
+
+  container.innerHTML = "<svg width='100%' height='" + svgH + "' viewBox='0 0 " + W + " " + svgH + "' xmlns='http://www.w3.org/2000/svg'>" + defs + shapes + "</svg>";
+}
+
+function entAnimateBars(container) {
+  if (!container) return;
+  setTimeout(function() {
+    container.querySelectorAll(".rbar").forEach(function(b, i) {
+      setTimeout(function() { b.style.width = b.dataset.pct + "%"; }, i * 60);
     });
-    defs+="</defs>";
+  }, 100);
+}
 
-    var shapes="";
-    data.forEach(function(d,i){
-      var y=topPad+i*(barH+gap);
-      var bw=(d.v/maxV)*availW;
-      var dl=(i*0.1).toFixed(1)+"s";
-      var ks="0.4 0 0.2 1";
-      // label
-      shapes+="<text x='"+(left-6)+"' y='"+(y+barH/2+4)+"' text-anchor='end' font-size='11' fill='#8fa0c0'>"+
-        d.n.split(" ")[0]+"</text>";
-      // bg track
-      shapes+="<rect x='"+left+"' y='"+y+"' width='"+availW+"' height='"+barH+"' rx='4' fill='rgba(255,255,255,0.05)'/>";
-      // bar animated
-      shapes+="<rect x='"+left+"' y='"+y+"' width='0' height='"+barH+"' rx='4' fill='"+cor+"' opacity='0.88'>"+
-        "<animate attributeName='width' from='0' to='"+bw.toFixed(1)+"' dur='0.6s' begin='"+dl+"' fill='freeze' calcMode='spline' keySplines='"+ks+"'/>"+
-        "</rect>";
-      // shine
-      shapes+="<rect x='"+left+"' y='"+y+"' width='0' height='"+(barH*0.4)+"' rx='4' fill='url(#sg"+i+")'>"+
-        "<animate attributeName='width' from='0' to='"+bw.toFixed(1)+"' dur='0.6s' begin='"+dl+"' fill='freeze' calcMode='spline' keySplines='"+ks+"'/>"+
-        "</rect>";
-      // pct text
-      shapes+="<text y='"+(y+barH/2+4)+"' font-size='11' font-weight='700' fill='"+cor+"'>"+
-        "<animate attributeName='x' from='"+left+"' to='"+(left+bw+5).toFixed(1)+"' dur='0.6s' begin='"+dl+"' fill='freeze' calcMode='spline' keySplines='"+ks+"'/>"+
-        Math.round(d.p)+"%"+
-        "</text>";
-    });
+function entRankings() {
+  var wrap = document.getElementById("ent-rankings");
+  if (!wrap) return;
+  var rows = entFiltered;
+  if (!rows.length) { wrap.innerHTML = ""; return; }
 
-    container.innerHTML="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+defs+shapes+"</svg>";
-  }
-
-
-  // Agrupamentos
-  function agrupar(campo,nomeFn){
-    var map={};
-    rows.forEach(function(r){
-      var k=(nomeFn?nomeFn(r):((r[campo]||"S/N").trim()));
-      if(!map[k]) map[k]={nome:k,val:0,qtd:0,vol:0};
-      map[k].val+=entNum(r["Total Geral"]);
+  function agrupar(campo, nomeFn) {
+    var map = {};
+    rows.forEach(function(r) {
+      var k = nomeFn ? nomeFn(r) : (r[campo] || "S/N").trim();
+      if (!map[k]) map[k] = { nome: k, val: 0, qtd: 0, vol: 0 };
+      map[k].val += entNum(r["Total Geral"]);
       map[k].qtd++;
-      map[k].vol+=entNum(r["Volume"]);
+      map[k].vol += entNum(r["Volume"]);
     });
-    return Object.values(map).sort(function(a,b){return b.val-a.val;});
+    return Object.values(map).sort(function(a, b) { return b.val - a.val; });
   }
 
   var byMot  = agrupar("Motorista");
-  var byVend = agrupar("Vendedor",function(r){return (r["Vendedor"]||"S/N").replace("."," ").trim();});
+  var byVend = agrupar("Vendedor", function(r) { return (r["Vendedor"] || "S/N").replace(".", " ").trim(); });
   var byCid  = agrupar("Cidade");
   var byBai  = agrupar("Bairro");
 
-  // Ticket médio por motorista
-  var tickMot=byMot.map(function(d){return{nome:d.nome,val:d.qtd>0?d.val/d.qtd:0,qtd:d.qtd,vol:d.vol};}).sort(function(a,b){return b.val-a.val;});
-  var tickVend=byVend.map(function(d){return{nome:d.nome,val:d.qtd>0?d.val/d.qtd:0,qtd:d.qtd,vol:d.vol};}).sort(function(a,b){return b.val-a.val;});
+  var tickMot  = byMot.map(function(d) { return { nome: d.nome, val: d.qtd > 0 ? d.val / d.qtd : 0, qtd: d.qtd, vol: d.vol }; }).sort(function(a, b) { return b.val - a.val; });
+  var tickVend = byVend.map(function(d) { return { nome: d.nome, val: d.qtd > 0 ? d.val / d.qtd : 0, qtd: d.qtd, vol: d.vol }; }).sort(function(a, b) { return b.val - a.val; });
 
-  var fR=function(v){return entFmtK(v);};
-  var fQ=function(v){return v.toFixed(0)+" entregas";};
-  var fV=function(v){return v.toFixed(0)+" vol.";};
+  var fVal = function(v) { return entFmt(v); };
+  var fQtd = function(v) { return v + " NFs"; };
+  var fVol = function(v) { return Math.round(v) + " vol."; };
 
-  // formatadores específicos por tipo
-  var fVal  = function(v){return entFmt(v);};                          // R$ com centavos
-  var fValK = function(v){return entFmtK(v);};                         // R$ em k (sub-info)
-  var fQtd  = function(v){return v+" NFs";};                           // quantidade
-  var fVol  = function(v){return Math.round(v)+" vol.";};              // volume inteiro s/ R$
-
-  wrap.innerHTML=
-    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
-      buildRank("&#128666; Entregas por Motorista (R$)",
-        byMot,
-        fVal,
-        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
-        "#4d8ef5")+
-      buildRank("&#128666; Entregas por Motorista (Qtd)",
-        byMot.slice().sort(function(a,b){return b.qtd-a.qtd;}),
-        fQtd,
-        function(d){return entFmt(d.val)+" &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
-        "#36cfa0",function(d){return d.qtd;})+
-    "</div>"+
-    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
-      buildRank("&#128100; Volume por Vendedor (R$)",
-        byVend,
-        fVal,
-        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
-        "#a07cf6")+
-      buildRank("&#127970; Valor por Cidade",
-        byCid,
-        fVal,
-        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+Math.round(d.vol)+" vol";},
-        "#ffaa2b")+
-    "</div>"+
-    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>"+
-      buildRank("&#128205; Valor por Bairro",
-        byBai,
-        fVal,
-        function(d){return d.qtd+" NFs";},
-        "#ff4d4f")+
-      buildRank("&#128666; Volumes por Motorista",
-        byMot.slice().sort(function(a,b){return b.vol-a.vol;}),
-        fVol,
-        function(d){return d.qtd+" NFs &nbsp;·&nbsp; "+entFmt(d.val);},
-        "#00cec9",function(d){return d.vol;})+
-    "</div>"+
-    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px'>"+
-      buildRank("&#127881; Ticket Médio por Motorista",
-        tickMot,
-        fVal,
-        function(d){return d.qtd+" NFs &nbsp;·&nbsp; vol.médio "+Math.round(d.qtd>0?d.vol/d.qtd:0);},
-        "#fd79a8")+
-      buildRank("&#127881; Ticket Médio por Vendedor",
-        tickVend,
-        fVal,
-        function(d){return d.qtd+" NFs &nbsp;·&nbsp; total "+entFmt(d.val*d.qtd);},
-        "#e17055")+
+  wrap.innerHTML =
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>" +
+      buildRank("🚚 Entregas por Motorista (R$)",   byMot,  fVal, function(d) { return d.qtd + " NFs &nbsp;·&nbsp; " + Math.round(d.vol) + " vol"; }, "#4d8ef5") +
+      buildRank("🚚 Entregas por Motorista (Qtd)",  byMot.slice().sort(function(a, b) { return b.qtd - a.qtd; }), fQtd, function(d) { return entFmt(d.val) + " &nbsp;·&nbsp; " + Math.round(d.vol) + " vol"; }, "#36cfa0", function(d) { return d.qtd; }) +
+    "</div>" +
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>" +
+      buildRank("👤 Volume por Vendedor (R$)",       byVend, fVal, function(d) { return d.qtd + " NFs &nbsp;·&nbsp; " + Math.round(d.vol) + " vol"; }, "#a07cf6") +
+      buildRank("🏙️ Valor por Cidade",               byCid,  fVal, function(d) { return d.qtd + " NFs &nbsp;·&nbsp; " + Math.round(d.vol) + " vol"; }, "#ffaa2b") +
+    "</div>" +
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px'>" +
+      buildRank("📍 Valor por Bairro",               byBai,  fVal, function(d) { return d.qtd + " NFs"; }, "#ff4d4f") +
+      buildRank("🚚 Volumes por Motorista",           byMot.slice().sort(function(a, b) { return b.vol - a.vol; }), fVol, function(d) { return d.qtd + " NFs &nbsp;·&nbsp; " + entFmt(d.val); }, "#00cec9", function(d) { return d.vol; }) +
+    "</div>" +
+    "<div style='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px'>" +
+      buildRank("🎉 Ticket Médio por Motorista",     tickMot,  fVal, function(d) { return d.qtd + " NFs &nbsp;·&nbsp; vol.médio " + Math.round(d.qtd > 0 ? d.vol / d.qtd : 0); }, "#fd79a8") +
+      buildRank("🎉 Ticket Médio por Vendedor",      tickVend, fVal, function(d) { return d.qtd + " NFs &nbsp;·&nbsp; total " + entFmt(d.val * d.qtd); }, "#e17055") +
     "</div>";
-}
+
   entAnimateBars(wrap);
+}
+
 
 
 // ── TABELA ────────────────────────────────────────────────────────────
