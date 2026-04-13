@@ -238,6 +238,7 @@ tbody tr:hover td{background:var(--s2);}
     <button onclick="showAccessLog()" title="Ver acessos" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.7rem;">Log</button>
     <button onclick="logout()" title="Sair" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:0.7rem;">Sair</button>
   </div>
+  <button onclick="showHome()" style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:0.78rem;cursor:pointer;font-weight:500;white-space:nowrap;margin-left:10px">🏠 Menu</button>
 </div>
 
 <!-- TABS -->
@@ -2430,8 +2431,30 @@ function lalTable(mA,mB){
 }
 
 function lalToggleCat(cat,mA,mB){
+  // Save scroll position before rebuilding table
+  var wrap=document.getElementById("lal-table-wrap");
+  var scrollY=window.scrollY||window.pageYOffset;
+
   lalExpanded[cat]=!lalExpanded[cat];
   lalTable(mA,mB);
+
+  // After rebuild, scroll back to where the user was
+  requestAnimationFrame(function(){
+    window.scrollTo({top:scrollY,behavior:"instant"});
+    // Find and scroll the expanded row into view if it's below viewport
+    var tb=document.getElementById("lal-tbody");
+    if(!tb) return;
+    tb.querySelectorAll("tr").forEach(function(tr){
+      var b=tr.querySelector("b");
+      if(b&&b.textContent.trim()===cat){
+        var rect=tr.getBoundingClientRect();
+        if(rect.top<0||rect.top>window.innerHeight*0.7){
+          tr.scrollIntoView({behavior:"smooth",block:"center"});
+        }
+      }
+    });
+  });
+
   // drill-down chart
   if(lalExpanded[cat]){lalDrill(cat,mA,mB);}
   else{dreEl("lal-drill").style.display="none";}
@@ -3065,17 +3088,39 @@ function showHome(){
 
 function homeGo(area){
   document.getElementById("home-overlay").classList.remove("open");
+  if(area==="admin"){ adminOpen(); return; }
+
   var hdr=document.querySelector(".hdr");
   var tabs=document.querySelector(".tabs");
-  if(area==="admin"){
-    adminOpen();
-    return;
-  }
   if(hdr) hdr.style.display="";
   if(tabs) tabs.style.display="";
-  if(area==="comercial") showTab("comercial");
-  else if(area==="financeiro") showTab("dre");
-  else if(area==="logistica") showTab("entregas");
+
+  // Mapeamento área → tabs visíveis
+  var areaMap={
+    "comercial":  ["comercial","ceo","historico","sop","remuneracao"],
+    "financeiro": ["dre","lal"],
+    "logistica":  ["entregas"]
+  };
+
+  // Respeitando restrições de acesso
+  var email=(CURRENT_USER&&CURRENT_USER.email)||"";
+  var pwd=(CURRENT_USER&&CURRENT_USER.pwd)||"";
+  var isVend=(pwd==="vendas2026");
+  var isMaiko=(email==="maiko@qfoodcompany.com.br");
+
+  var allowed=areaMap[area]||["comercial"];
+  var tabIds=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas"];
+  var tabEls=document.querySelectorAll(".tab");
+  tabEls.forEach(function(el,i){
+    var tid=tabIds[i]||"";
+    var inArea=allowed.indexOf(tid)>-1;
+    var blocked=(isVend&&(tid==="dre"||tid==="lal"))||(isMaiko&&tid==="remuneracao");
+    el.style.display=(inArea&&!blocked)?"block":"none";
+  });
+
+  // Primeira tab da área
+  var first=allowed[0];
+  showTab(first);
 }
 
 function adminOpen(){
@@ -3241,7 +3286,7 @@ go();
       <div class="hb-sub">Usuários<br>Configurações</div>
     </div>
   </div>
-  <div style="margin-top:28px">
+  <div style="margin-top:28px;display:flex;gap:16px;align-items:center">
     <button onclick="logout()" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:0.75rem;text-decoration:underline">Sair</button>
   </div>
 </div>
