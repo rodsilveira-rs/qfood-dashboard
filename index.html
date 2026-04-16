@@ -4299,7 +4299,7 @@ function cmpBuildFornecedores(){
   if(!sel)return;
   sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
   var fns=[...new Set(cmpAllRows.map(function(r){
-    return cmpGuessField(r,["FORNECEDOR","Fornecedor","INDUSTRIA","Industria","FABRICANTE","fabricante","INDUSTRIA","INDUSTRIAS","SUPPLIER","fornecedor"]);
+    return String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim();
   }).filter(Boolean))].sort();
   fns.forEach(function(f){var o=document.createElement("option");o.value=f;o.textContent=f;sel.appendChild(o);});
   document.getElementById("cmp-produtos-wrap").style.display="none";
@@ -4309,14 +4309,17 @@ function cmpSelectFornecedor(){
   var forn=document.getElementById("cmp-fornecedor").value;
   if(!forn){document.getElementById("cmp-produtos-wrap").style.display="none";return;}
   var rows=cmpAllRows.filter(function(r){
-    return cmpGuessField(r,["FORNECEDOR","Fornecedor","INDUSTRIA","Industria","FABRICANTE","fabricante","fornecedor"])===forn;
+    return (String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim())===forn;
   });
   var seen={},prods=[],giros=[];
   rows.forEach(function(r){
-    var cod=cmpGuessField(r,["CODIGO","Codigo","COD","SKU","codigo","cod"])||cmpGuessField(r,["DESCRICAO","Descricao","PRODUTO","Produto","produto","descricao"]);
-    if(seen[cod])return;seen[cod]=true;
-    var g=parseFloat(cmpGuessField(r,["GIRO_12M","GIRO","Giro","GIRO12","VENDAS_12M","QTD_12M","QUANTIDADE_12M","giro","GIRO","vendas12","qtd12"])||"0");
-    prods.push({cod:cod,desc:cmpGuessField(r,["DESCRICAO","Descricao","PRODUTO","Produto","NOME","Nome","descricao","produto","nome"]),giro:g,row:r});
+    var cod =String(r["Código"]||r["Código"]||r["CODIGO"]||r["Codigo"]||r["COD"]||"").trim();
+    var desc=String(r["Descrição"]||r["Descricao"]||r["DESCRICAO"]||r["PRODUTO"]||r["Produto"]||"").trim();
+    if(!cod&&!desc)return;
+    var key=cod||desc;
+    if(seen[key])return;seen[key]=true;
+    var g=parseFloat(String(r["Total"]||r["TOTAL"]||r["Giro"]||r["GIRO"]||"0").replace(",","."))||0;
+    prods.push({cod:cod,desc:desc,giro:g,row:r});
     giros.push(g);
   });
   var sorted=giros.slice().sort(function(a,b){return b-a;});
@@ -4341,8 +4344,17 @@ function cmpRenderProdutos(){
     var mdc=vm>0?"color:#a07cf6;font-weight:700":"color:var(--mu2)";
     var opts="<option value='0'>Informe a validade total</option>";
     for(var m=1;m<=36;m++){opts+="<option value='"+m+"'"+(m===vm?" selected":"")+">"+(m===1?"1 m&#234;s":m+" meses")+"</option>";}
-    return "<tr>"+
-      "<td style='font-size:.82rem'><div style='font-weight:600'>"+(p.desc||p.cod)+"</div><div style='font-size:.7rem;color:var(--mu);margin-top:2px'>"+p.cod+"</div></td>"+
+    var estDisp=String(p.row["E. Disp."]||p.row["Disp."]||p.row["Virtual"]||"").trim();
+    var ativo=String(p.row["Ativo?"]||"").trim();
+    var emLinha=String(p.row["Em Linha?"]||"").trim();
+    var estTag=estDisp&&estDisp!=="0"
+      ?"<span style='font-size:.65rem;color:#36cfa0;margin-left:4px'>Estq: "+estDisp+"</span>"
+      :"<span style='font-size:.65rem;color:var(--mu2);margin-left:4px'>Sem estoque</span>";
+    var atvTag=(ativo==="Não"||emLinha==="Não")
+      ?"<span style='font-size:.62rem;color:#ff4d4f;margin-left:4px'>Inativo</span>":"";
+    return "<tr"+(ativo==="Não"?" style='opacity:.5'":"")+">" +
+      "<td style='font-size:.82rem'><div style='font-weight:600'>"+(p.desc||p.cod)+atvTag+"</div>"+
+        "<div style='font-size:.7rem;color:var(--mu);margin-top:2px'>"+p.cod+estTag+"</div></td>"+
       "<td style='text-align:center;font-weight:600'>"+(p.giro>0?p.giro.toFixed(0):"<span style='color:var(--mu2)'>Novo</span>")+"</td>"+
       "<td style='text-align:center'>"+gt+"</td>"+
       "<td><select class='val-sel' data-idx='"+i+"' onchange='cmpSaveVal(this)'>"+opts+"</select>"+
