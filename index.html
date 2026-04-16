@@ -659,7 +659,7 @@ tbody tr:hover td{background:var(--s2);}
 
   <!-- FILTROS -->
   <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:20px">
-    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:10px;margin-bottom:10px">
       <div>
         <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Buscar cliente / NF / motorista / vendedor</div>
         <input id="ent-search" type="text" placeholder="Digite para buscar em tempo real..."
@@ -682,6 +682,23 @@ tbody tr:hover td{background:var(--s2);}
           <option value="">Todos</option>
         </select>
       </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:10px;margin-bottom:12px">
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Cidade</div>
+        <select id="ent-cidade" onchange="entFilterBairros()"
+          style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:0.85rem;outline:none">
+          <option value="">Todas</option>
+        </select>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Bairro</div>
+        <select id="ent-bairro"
+          style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:0.85rem;outline:none">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <div></div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button onclick="entSearch()" style="padding:9px 28px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer">&#128269; Buscar</button>
@@ -2793,15 +2810,37 @@ async function initEntregas(){
 }
 
 function entPopulateMotoristas(){
-  var sel=document.getElementById("ent-motorista");
-  if(!sel) return;
-  sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
-  [...new Set(entAllRows.map(function(r){
-    return (r["Motorista"]||"").trim();
-  }).filter(Boolean))].sort().forEach(function(m){
-    var o=document.createElement("option");
-    o.value=m;o.textContent=m;sel.appendChild(o);
-  });
+  entPopulateFilters();
+}
+function entPopulateFilters(){
+  function fillSel(id, values){
+    var sel=document.getElementById(id);
+    if(!sel) return;
+    sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+    values.sort().forEach(function(v){
+      var o=document.createElement("option");
+      o.value=v;o.textContent=v;sel.appendChild(o);
+    });
+  }
+  fillSel("ent-motorista",[...new Set(entAllRows.map(function(r){return(r["Motorista"]||"").trim();}).filter(Boolean))]);
+  fillSel("ent-cidade",   [...new Set(entAllRows.map(function(r){return(r["Cidade"]||"").trim();}).filter(Boolean))]);
+  fillSel("ent-bairro",   [...new Set(entAllRows.map(function(r){return(r["Bairro"]||"").trim();}).filter(Boolean))]);
+}
+function entFilterBairros(){
+  var cidade=(document.getElementById("ent-cidade").value||"").trim();
+  var bairroSel=document.getElementById("ent-bairro");
+  if(!bairroSel) return;
+  // Reset bairro selection
+  bairroSel.value="";
+  bairroSel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+  var source=cidade
+    ? entAllRows.filter(function(r){return(r["Cidade"]||"").trim()===cidade;})
+    : entAllRows;
+  [...new Set(source.map(function(r){return(r["Bairro"]||"").trim();}).filter(Boolean))]
+    .sort().forEach(function(b){
+      var o=document.createElement("option");
+      o.value=b;o.textContent=b;bairroSel.appendChild(o);
+    });
 }
 
 function entSetDefaultDates(){
@@ -2822,6 +2861,8 @@ function entSetDefaultDates(){
 function entSearch(){
   var search=(document.getElementById("ent-search").value||"").toLowerCase().trim();
   var motor=(document.getElementById("ent-motorista").value||"").trim();
+  var cidade=(document.getElementById("ent-cidade").value||"").trim();
+  var bairro=(document.getElementById("ent-bairro").value||"").trim();
   var df=document.getElementById("ent-date-from").value;   // yyyy-mm-dd
   var dt=document.getElementById("ent-date-to").value;
   var dfD=df?new Date(df+"T00:00:00"):null;
@@ -2832,6 +2873,8 @@ function entSearch(){
     if(dfD&&d<dfD) return false;
     if(dtD&&d>dtD) return false;
     if(motor&&(r["Motorista"]||"").trim()!==motor) return false;
+    if(cidade&&(r["Cidade"]||"").trim()!==cidade) return false;
+    if(bairro&&(r["Bairro"]||"").trim()!==bairro) return false;
     if(search){
       var hay=[r["Razão Social"],r["NF"],r["Motorista"],r["Vendedor"],
                r["Cidade"],r["Bairro"],r["Pedido"],
@@ -2852,6 +2895,8 @@ function entSearch(){
 function entClear(){
   document.getElementById("ent-search").value="";
   document.getElementById("ent-motorista").value="";
+  document.getElementById("ent-cidade").value="";
+  document.getElementById("ent-bairro").value="";
   entSetDefaultDates();
   entSearch();
 }
