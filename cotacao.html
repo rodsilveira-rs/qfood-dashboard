@@ -152,8 +152,9 @@
               <th style="width:10%;text-align:center">Giro</th>
               <th style="width:10%;text-align:center">Qtd. Pedida</th>
               <th style="width:18%;color:#e63329">Val. Mínima Aceitável</th>
-              <th style="width:15%;color:#a07cf6">Preço Unit. (R$)</th>
-              <th style="width:15%;color:#a07cf6">Validade Disponível</th>
+              <th style="width:12%;color:#a07cf6">Preço Unit.</th>
+              <th style="width:8%;color:#a07cf6">Unidade</th>
+              <th style="width:13%;color:#a07cf6">Validade Disponível</th>
             </tr>
           </thead>
           <tbody id="items-tbody"></tbody>
@@ -296,6 +297,17 @@ function renderForm(){
           '<span>R$</span>' +
           '<input type="number" min="0" step="0.01" id="preco-'+i+'" placeholder="0,00" oninput="updateResumo()">' +
         '</div>' +
+        '<div style="font-size:.68rem;color:#8fa0c0;margin-top:3px" id="total-'+i+'"></div>' +
+      '</td>' +
+      '<td>' +
+        '<select id="un-'+i+'" onchange="updateResumo()" style="width:100%;background:#f4f6fa;border:1.5px solid #dde2ef;border-radius:6px;padding:6px 8px;font-size:.82rem;color:#1a1f2e;outline:none">' +
+          '<option value="UN">UN</option>' +
+          '<option value="CX">CX</option>' +
+          '<option value="KG">KG</option>' +
+          '<option value="PCT">PCT</option>' +
+          '<option value="FD">FD</option>' +
+          '<option value="LT">LT</option>' +
+        '</select>' +
       '</td>' +
       '<td>' +
         '<select id="val-'+i+'" onchange="checkValidade('+i+')">' + mOpts + '</select>' +
@@ -337,35 +349,40 @@ function checkValidade(i){
 function updateResumo(){
   var card = document.getElementById('resumo-card');
   var cont = document.getElementById('resumo-content');
-  var hasAny = false;
-  var lines  = '';
-  var total  = 0;
+  var hasAny = false, lines = '', total = 0, totalQtd = 0;
 
   COT.itens.forEach(function(it, i){
     var preco = parseFloat(document.getElementById('preco-'+i).value) || 0;
+    var un    = (document.getElementById('un-'+i) ? document.getElementById('un-'+i).value : 'UN');
     var val   = parseInt(document.getElementById('val-'+i).value) || 0;
     if(!preco && !val) return;
     hasAny = true;
     var sub = preco * it.qtd;
-    total  += sub;
+    total += sub; totalQtd += it.qtd;
+    // Update inline total
+    var tEl = document.getElementById('total-'+i);
+    if(tEl && preco) tEl.textContent = '= R$ ' + sub.toLocaleString('pt-BR',{minimumFractionDigits:2});
     var valOk = '';
     if(val && it.valMeses){
       var minM = Math.ceil(it.valMeses * (it.classe==='alto'?0.70:0.80));
       valOk = val >= minM ? ' ✅' : ' ❌';
     }
-    lines += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee">' +
-      '<span>' + escH(it.desc||it.cod) + ' × ' + it.qtd + '</span>' +
+    lines += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #eee;font-size:.83rem">' +
+      '<span>' + escH(it.desc||it.cod) + ' × ' + it.qtd + ' ' + un + '</span>' +
       '<span style="font-weight:600">' +
-        (preco ? 'R$ ' + (preco).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '—') +
-        (val ? ' | ' + val + ' meses' + valOk : '') +
+        (preco ? 'R$ ' + preco.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + un : '—') +
+        (sub ? ' = R$ ' + sub.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '') +
+        (val ? ' | ' + val + 'm' + valOk : '') +
       '</span></div>';
   });
 
   if(hasAny){
     card.style.display = 'block';
     cont.innerHTML = lines +
-      '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:.95rem;border-top:2px solid #e63329;margin-top:4px">' +
-        '<span>Total estimado</span>' +
+      '<div style="display:flex;justify-content:space-between;padding:8px 0 2px;font-size:.82rem;color:#6b7ea8">' +
+        '<span>Total de unidades</span><span>' + totalQtd + ' un.</span></div>' +
+      '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;font-size:.95rem;border-top:2px solid #e63329;margin-top:4px">' +
+        '<span>Total geral estimado</span>' +
         '<span style="color:#e63329">R$ ' + total.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span>' +
       '</div>';
   } else {
@@ -373,87 +390,3 @@ function updateResumo(){
   }
 }
 
-function submitCotacao(){
-  var erros = [];
-  if(!document.getElementById('f-nome').value.trim()) erros.push('Informe o nome/empresa');
-  if(!document.getElementById('f-email').value.trim()) erros.push('Informe o e-mail para resposta');
-
-  // Check if at least one item has price
-  var temPreco = false;
-  COT.itens.forEach(function(it,i){
-    if(parseFloat(document.getElementById('preco-'+i).value)>0) temPreco=true;
-  });
-  if(!temPreco) erros.push('Informe o preço de ao menos 1 item');
-
-  var erEl = document.getElementById('form-erros');
-  if(erros.length){
-    erEl.style.display = 'block';
-    erEl.textContent   = '⚠️ ' + erros.join(' · ');
-    return;
-  }
-  erEl.style.display = 'none';
-
-  // Build response text
-  var nome    = document.getElementById('f-nome').value.trim();
-  var email   = document.getElementById('f-email').value.trim();
-  var contato = document.getElementById('f-contato').value.trim();
-  var prazo   = document.getElementById('f-prazo').value;
-  var obsF    = document.getElementById('f-obs').value.trim();
-  var today   = new Date().toLocaleDateString('pt-BR');
-
-  var linhas = COT.itens.map(function(it,i){
-    var preco = parseFloat(document.getElementById('preco-'+i).value)||0;
-    var val   = parseInt(document.getElementById('val-'+i).value)||0;
-    var minM  = it.valMeses ? Math.ceil(it.valMeses*(it.classe==='alto'?0.70:0.80)) : 0;
-    var status = val && minM ? (val>=minM ? '✅ ACEITA' : '❌ ABAIXO DO MÍNIMO') : '';
-
-    return (COT.itens.indexOf(it)+1) + '. ' + (it.desc||it.cod) +
-      '\n   Código: ' + it.cod +
-      '\n   Quantidade: ' + it.qtd +
-      (preco ? '\n   Preço unitário: R$ ' + preco.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
-               '\n   Total item: R$ ' + (preco*it.qtd).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '') +
-      (val ? '\n   Validade disponível: ' + val + ' meses ' + status : '') +
-      (it.minDate ? '\n   Val. mínima Q Food: ' + it.minDate : '');
-  }).join('\n\n');
-
-  var totalGeral = COT.itens.reduce(function(s,it,i){
-    return s + (parseFloat(document.getElementById('preco-'+i).value)||0)*it.qtd;
-  },0);
-
-  var corpo =
-'RESPOSTA DE COTAÇÃO — ' + nome + '\n' +
-'Data: ' + today + '\n' +
-'E-mail fornecedor: ' + email + '\n' +
-(contato ? 'Representante: ' + contato + '\n' : '') +
-(prazo ? 'Prazo de entrega: ' + prazo + '\n' : '') +
-'═══════════════════════════════════════════\n\n' +
-'Fornecedor: ' + COT.fornecedor + '\n' +
-'Solicitação original: ' + (COT.data||'—') + '\n\n' +
-'─── ITENS ─────────────────────────────────\n\n' +
-linhas + '\n\n' +
-'─── TOTAL GERAL ────────────────────────────\n' +
-'R$ ' + totalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n\n' +
-(obsF ? '─── OBSERVAÇÕES DO FORNECEDOR ─────────────\n' + obsF + '\n\n' : '') +
-'═══════════════════════════════════════════\n' +
-'Enviado via Formulário de Cotação Q Food Company';
-
-  var subject = encodeURIComponent('Resposta de Cotação — ' + nome + ' — ' + today);
-  var body    = encodeURIComponent(corpo);
-  var mailto  = 'mailto:compras@qfoodcompany.com.br?cc=' + encodeURIComponent(email) +
-                '&subject=' + subject + '&body=' + body;
-  window.open(mailto, '_blank');
-
-  // Show success
-  document.getElementById('main-form').style.display   = 'none';
-  document.getElementById('success-screen').style.display = 'block';
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-function escH(s){
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-window.onload = init;
-</script>
-</body>
-</html>
