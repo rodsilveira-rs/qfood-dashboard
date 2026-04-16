@@ -4372,66 +4372,61 @@ function cmpUpdateEmailPreview(it,forn){
   var contato=(document.getElementById("cmp-contato").value||"").trim();
   var obs=(document.getElementById("cmp-obs").value||"").trim();
   var today=new Date().toLocaleDateString("pt-BR");
+  var NL="\n";
+  var SEP="─────────────────────────────────────────────";
+
   var linhas=it.map(function(x,i){
-    var l=(i+1)+". "+(x.p.desc||x.p.cod)+"
-   Código: "+x.p.cod+"
-   Quantidade: "+x.qtd;
-    if(x.minDate)l+="
-   *** VALIDADE MÍNIMA ACEITÁVEL: "+cmpFmtDate(x.minDate)+" ***"+
-      "
-   (Prazo total: "+x.valMeses+(x.valMeses===1?" mês":" meses")+" — aceitamos "+
-      (x.p.classe==="alto"?"70%":"80%")+" do prazo restante)";
-    else l+="
-   Validade mínima: A CONFIRMAR (informe a validade total para cálculo)";
-    return l;
-  }).join("
+    var parts=[];
+    parts.push((i+1)+". "+(x.p.desc||x.p.cod));
+    parts.push("   Código: "+x.p.cod);
+    parts.push("   Quantidade: "+x.qtd);
+    if(x.minDate){
+      parts.push("   *** VALIDADE MÍNIMA ACEITÁVEL: "+cmpFmtDate(x.minDate)+" ***");
+      parts.push("   (Prazo total: "+x.valMeses+(x.valMeses===1?" mês":" meses")+
+                 " — aceitamos "+(x.p.classe==="alto"?"70%":"80%")+" do prazo restante)");
+    } else {
+      parts.push("   Validade mínima: A CONFIRMAR (informe a validade total para cálculo)");
+    }
+    return parts.join(NL);
+  }).join(NL+NL);
 
-");
-  var corpo="Assunto: Solicitação de Cotação — Q Food Company — "+today+"
-"+
-    "─────────────────────────────────────────────
+  var corpo=[
+    "Assunto: Solicitação de Cotação — Q Food Company — "+today,
+    SEP,
+    "",
+    contato?"Att. "+contato+","+NL+"":"",
+    "Prezado(a) parceiro(a) "+forn+",",
+    "",
+    "Solicitamos cotação para os itens abaixo.",
+    "",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "ACESSE O FORMULÁRIO ONLINE PARA RESPONDER:",
+    cmpGerarLink(it,forn,obs),
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+    "─── ITENS SOLICITADOS ──────────────────────",
+    "",
+    linhas,
+    "",
+    SEP,
+    "",
+    "POLÍTICA DE VALIDADE:",
+    "Só aceitamos produtos com o prazo mínimo indicado acima.",
+    "Produtos fora dessa especificação serão DEVOLVIDOS.",
+    "",
+    obs?"Observações: "+obs+NL+"":"",
+    "Aguardamos retorno.",
+    "",
+    "Atenciosamente,",
+    "Equipe de Compras — Q Food Company",
+    "compras@qfoodcompany.com.br"
+  ].join(NL);
 
-"+
-    (contato?"Att. "+contato+",
-
-":"")+
-    "Prezado(a) parceiro(a) "+forn+",
-
-"+
-    "Solicitamos cotação para os itens abaixo:
-
-"+
-    "─────────────────────────────────────────────
-"+linhas+"
-"+
-    "─────────────────────────────────────────────
-
-"+
-    "IMPORTANTE — POLÍTICA DE VALIDADE:
-"+
-    "Só podemos receber produtos com o prazo de validade restante acima indicado.
-"+
-    "Produtos fora dessa especificação serão DEVOLVIDOS.
-
-"+
-    "Por favor, confirme:
-1. Disponibilidade dos itens
-2. Preços unitários
-3. Prazo de entrega
-4. Validade dos lotes disponíveis
-
-"+
-    (obs?"Observações: "+obs+"
-
-":"")+
-    "Aguardamos retorno.
-
-Atenciosamente,
-Equipe de Compras — Q Food Company
-compras@qfoodcompany.com.br";
-  var el=document.getElementById("cmp-email-preview");if(el)el.textContent=corpo;
+  var el=document.getElementById("cmp-email-preview");
+  if(el) el.textContent=corpo;
   return corpo;
 }
+
 function cmpCopyEmail(){
   var it      = cmpGetItens();
   var forn    = document.getElementById("cmp-fornecedor").value;
@@ -4487,97 +4482,25 @@ function cmpGerarLink(it, forn, obs){
 }
 
 function cmpOpenMailto(){
-  var email   = (document.getElementById("cmp-email").value||"").trim();
-  var contato = (document.getElementById("cmp-contato").value||"").trim();
-  var obs     = (document.getElementById("cmp-obs").value||"").trim();
-  var it      = cmpGetItens();
-  var forn    = document.getElementById("cmp-fornecedor").value;
-  var today   = new Date().toLocaleDateString("pt-BR");
-
-  // Generate unique form link for supplier
-  var link = cmpGerarLink(it, forn, obs);
-
-  // Build email body with the link prominently
-  var linhas = it.map(function(x,i){
-    var l=(i+1)+". "+(x.p.desc||x.p.cod)+"
-   Código: "+x.p.cod+"
-   Quantidade: "+x.qtd;
-    if(x.minDate)l+="
-   *** VALIDADE MÍNIMA: "+x.minDate.toLocaleDateString("pt-BR")+" ***";
-    else l+="
-   Validade mínima: A CONFIRMAR";
-    return l;
-  }).join("
-
-");
-
-  var corpo=
-"Assunto: Solicitação de Cotação — Q Food Company — "+today+"
-"+
-"─────────────────────────────────────────────
-
-"+
-(contato?"Att. "+contato+",
-
-":"")+
-"Prezado(a) parceiro(a) "+forn+",
-
-"+
-"Solicitamos cotação para os itens abaixo.
-
-"+
-"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"+
-"📋 ACESSE O FORMULÁRIO ONLINE PARA RESPONDER:
-"+
-link+"
-"+
-"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-"+
-"O formulário já contém todos os itens e quantidades.
-"+
-"Basta preencher preços e validade de cada item.
-
-"+
-"─── ITENS SOLICITADOS ──────────────────────
-
-"+
-linhas+"
-
-"+
-"─────────────────────────────────────────────
-
-"+
-"POLÍTICA DE VALIDADE:
-"+
-"Só aceitamos produtos com o prazo mínimo indicado acima.
-"+
-"Produtos fora dessa especificação serão DEVOLVIDOS.
-
-"+
-(obs?"Observações: "+obs+"
-
-":"")+
-"Aguardamos retorno.
-
-Atenciosamente,
-Equipe de Compras — Q Food Company
-compras@qfoodcompany.com.br";
-
-  var subject = encodeURIComponent("Solicitação de Cotação — Q Food Company — "+today);
-  var body    = encodeURIComponent(corpo);
-  var mailto  = "mailto:"+email+"?subject="+subject+"&body="+body;
+  var email  =(document.getElementById("cmp-email").value||"").trim();
+  var contato=(document.getElementById("cmp-contato").value||"").trim();
+  var obs    =(document.getElementById("cmp-obs").value||"").trim();
+  var it     =cmpGetItens();
+  var forn   =document.getElementById("cmp-fornecedor").value;
+  var today  =new Date().toLocaleDateString("pt-BR");
+  var txt    =cmpUpdateEmailPreview(it,forn);
+  var subj   =encodeURIComponent("Solicitação de Cotação — Q Food Company — "+today);
+  var body   =encodeURIComponent(txt);
+  var mailto ="mailto:"+email+"?subject="+subj+"&body="+body;
   window.open(mailto,"_blank");
-
-  // Show feedback
-  var msg = document.getElementById("cmp-send-msg");
+  var msg=document.getElementById("cmp-send-msg");
   if(msg){
-    msg.innerHTML = "✓ E-mail aberto! &nbsp;|&nbsp; "+
-      "<a href='"+link+"' target='_blank' style='color:#a07cf6;text-decoration:underline'>"+
-      "🔗 Testar link do formulário</a>";
+    var link=cmpGerarLink(it,forn,obs);
+    msg.innerHTML="✓ E-mail aberto! &nbsp;|&nbsp; <a href='"+link+
+      "' target='_blank' style='color:#a07cf6;text-decoration:underline'>🔗 Testar formulário</a>";
   }
 }
+
 function cmpPreviewLink(){
   var it   = cmpGetItens();
   var forn = document.getElementById("cmp-fornecedor").value;
