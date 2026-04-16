@@ -4428,57 +4428,21 @@ function cmpUpdateEmailPreview(it,forn){
 }
 
 function cmpCopyEmail(){
-  var it      = cmpGetItens();
-  var forn    = document.getElementById("cmp-fornecedor").value;
-  var obs     = (document.getElementById("cmp-obs").value||"").trim();
-  var link    = cmpGerarLink(it, forn, obs);
-  var txt     = cmpUpdateEmailPreview(it, forn);
-  // Inject the form link at the top
-  var txtWithLink = txt.replace(
-    "Solicitamos cotação para os itens abaixo:",
-    "Solicitamos cotação para os itens abaixo.
-
-"+
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"+
-    "ACESSE O FORMULÁRIO ONLINE PARA RESPONDER:
-"+link+"
-"+
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"
-  );
-  if(navigator.clipboard)navigator.clipboard.writeText(txtWithLink).then(function(){
-    var m=document.getElementById("cmp-send-msg");
-    if(m){
-      m.innerHTML="✓ Copiado com link do formulário! &nbsp;|&nbsp; "+
-        "<a href='"+link+"' target='_blank' style='color:#a07cf6;text-decoration:underline'>"+
-        "🔗 Testar link</a>";
-      setTimeout(function(){if(m)m.innerHTML="";},6000);
+  var it   = cmpGetItens();
+  var forn = document.getElementById("cmp-fornecedor").value;
+  var obs  = (document.getElementById("cmp-obs").value||"").trim();
+  var link = cmpGerarLink(it, forn, obs);
+  var txt  = cmpUpdateEmailPreview(it, forn);
+  // txt already contains the link (inserted by cmpUpdateEmailPreview via cmpGerarLink)
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
+    var msg = document.getElementById("cmp-send-msg");
+    if(msg){
+      msg.innerHTML = "&#10003; Copiado com link do formul&#225;rio! &nbsp;|&nbsp; " +
+        "<a href='" + link + "' target='_blank' style='color:#a07cf6;text-decoration:underline'>" +
+        "&#128279; Testar link</a>";
+      setTimeout(function(){ if(msg) msg.innerHTML = ""; }, 6000);
     }
   });
-}
-function cmpGerarLink(it, forn, obs){
-  // Encode all quotation data in a URL-safe base64 string
-  var payload={
-    fornecedor: forn,
-    data: new Date().toLocaleDateString("pt-BR"),
-    obs: obs||"",
-    itens: it.map(function(x){
-      return{
-        cod:      x.p.cod,
-        desc:     x.p.desc||x.p.cod,
-        qtd:      x.qtd,
-        classe:   x.p.classe,
-        giro:     x.p.giro,
-        valMeses: x.valMeses,
-        minDate:  x.minDate ? x.minDate.toLocaleDateString("pt-BR") : null
-      };
-    })
-  };
-  var json = JSON.stringify(payload);
-  var b64  = btoa(unescape(encodeURIComponent(json)))
-              .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-  return COTACAO_FORM_URL + "#" + b64;
 }
 
 function cmpOpenMailto(){
