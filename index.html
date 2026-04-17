@@ -4520,53 +4520,51 @@ function cmpCopyEmail(){
 }
 
 function cmpCopyLink(){
-  var it  = cmpGetItens();
-  var forn= document.getElementById("cmp-fornecedor").value;
-  var obs = (document.getElementById("cmp-obs").value||"").trim();
-  var link= cmpGerarLink(it, forn, obs);
-  // Mensagem curta e profissional para colar no e-mail/WhatsApp
-  var msg_text =
-    "Olá! Segue o link para preenchimento da nossa solicitação de cotação:\n\n" +
-    "➡ Acesse aqui para responder: " + link + "\n\n" +
-    "Basta clicar no link, preencher os preços e validades e enviar.\n" +
-    "Em caso de dúvidas: compras@qfoodcompany.com.br";
-  if(navigator.clipboard) navigator.clipboard.writeText(msg_text).then(function(){
-    var btn=document.getElementById("btn-copy-link");
-    var msg=document.getElementById("cmp-send-msg");
-    if(btn){
-      btn.textContent="&#10003; Link copiado!";
-      btn.style.background="#36cfa0";
-      btn.style.color="#fff";
-      btn.style.borderColor="#36cfa0";
-      setTimeout(function(){
-        btn.innerHTML="&#128279; Copiar Link do Formulário";
-        btn.style.background="";btn.style.color="";btn.style.borderColor="";
-      },3000);
-    }
-    if(msg){
-      msg.innerHTML="&#10003; Mensagem com link copiada! Cole no e-mail ou WhatsApp do fornecedor.";
-      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
-    }
-  });
-}
+  var it   = cmpGetItens();
+  var forn = document.getElementById("cmp-fornecedor").value;
+  var obs  = (document.getElementById("cmp-obs").value||"").trim();
+  var link = cmpGerarLink(it, forn, obs);
+  var btn  = document.getElementById("btn-copy-link");
+  var msgEl= document.getElementById("cmp-send-msg");
+  if(btn){ btn.innerHTML="&#9203; Encurtando..."; btn.disabled=true; }
 
-function cmpOpenMailto(){
-  var email  =(document.getElementById("cmp-email").value||"").trim();
-  var contato=(document.getElementById("cmp-contato").value||"").trim();
-  var obs    =(document.getElementById("cmp-obs").value||"").trim();
-  var it     =cmpGetItens();
-  var forn   =document.getElementById("cmp-fornecedor").value;
-  var today  =new Date().toLocaleDateString("pt-BR");
-  var txt    =cmpUpdateEmailPreview(it,forn);
-  var subj   =encodeURIComponent("Solicitação de Cotação — Q Food Company — "+today);
-  var body   =encodeURIComponent(txt);
-  var mailto ="mailto:"+email+"?subject="+subj+"&body="+body;
-  window.open(mailto,"_blank");
-  var msg=document.getElementById("cmp-send-msg");
-  if(msg){
-    msg.innerHTML="&#10003; E-mail aberto! Agora clique em <b style='color:#a07cf6'>&#128279; Copiar Link</b> e cole no e-mail ou WhatsApp do fornecedor.";
-    setTimeout(function(){if(msg)msg.innerHTML="";},8000);
+  function finalize(shortLink){
+    var today = new Date().toLocaleDateString("pt-BR");
+    var txt   =
+      "Ola! Segue o link para preenchimento da nossa cotacao (" + today + "):\n\n" +
+      ">> Clique aqui para responder: " + shortLink + "\n\n" +
+      "Basta acessar o link, preencher precos e validades e enviar.\n" +
+      "Duvidas: compras@qfoodcompany.com.br";
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(txt).then(function(){
+        if(btn){
+          btn.innerHTML="&#10003; Copiado!";
+          btn.disabled=false;
+          btn.style.background="#36cfa0";
+          btn.style.color="#fff";
+          btn.style.borderColor="#36cfa0";
+          setTimeout(function(){
+            btn.innerHTML="&#128279; Copiar Link do Formul\u00e1rio";
+            btn.style.background="";
+            btn.style.color="";
+            btn.style.borderColor="";
+          },4000);
+        }
+        if(msgEl){
+          msgEl.innerHTML=
+            (shortLink!==link ? "&#10003; Link encurtado e copiado! " : "&#10003; Link copiado! ")+
+            "<a href='"+shortLink+"' target='_blank' style='color:#a07cf6;font-size:.8rem'>Testar &#128279;</a>";
+          setTimeout(function(){if(msgEl)msgEl.innerHTML="";},7000);
+        }
+      });
+    }
   }
+
+  // TinyURL CORS-free API
+  fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(link))
+    .then(function(r){return r.ok?r.text():Promise.reject();})
+    .then(function(s){finalize(s.trim().startsWith("http")?s.trim():link);})
+    .catch(function(){finalize(link);});
 }
 
 function cmpPreviewLink(){
