@@ -4521,16 +4521,54 @@ function cmpUpdateEmailPreview(it,forn){
 }
 
 function cmpCopyEmail(){
-  var it  = cmpGetItens();
-  var forn= document.getElementById("cmp-fornecedor").value;
-  var txt = cmpUpdateEmailPreview(it, forn);
+  var it   =cmpGetItens();
+  var forn =document.getElementById("cmp-fornecedor").value;
+  var obs  =(document.getElementById("cmp-obs").value||"").trim();
+  var linkEl=document.getElementById("cmp-link-preview");
+  var link="";
+  if(linkEl&&linkEl.style.display!=="none"){var a=linkEl.querySelector("a");if(a)link=a.href;}
+  if(!link) link=cmpGerarLink(it,forn,obs);
+  var txt=cmpUpdateEmailPreview(it,forn)
+    .replace("[ COLE O LINK DO FORMULARIO AQUI ]",
+      ">> ACESSE O FORMULARIO ONLINE PARA RESPONDER:\n"+link);
   if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
     var msg=document.getElementById("cmp-send-msg");
     if(msg){
-      msg.innerHTML="&#10003; Texto do e-mail copiado! Cole no seu cliente de e-mail.";
+      msg.innerHTML="&#10003; E-mail copiado com o link do formulário!";
       setTimeout(function(){if(msg)msg.innerHTML="";},5000);
     }
   });
+}
+
+function cmpOpenMailto(){
+  var email  =(document.getElementById("cmp-email").value||"").trim();
+  var it     =cmpGetItens();
+  var forn   =document.getElementById("cmp-fornecedor").value;
+  var obs    =(document.getElementById("cmp-obs").value||"").trim();
+  var today  =new Date().toLocaleDateString("pt-BR");
+
+  // Use short link if already generated, else generate full link
+  var linkEl=document.getElementById("cmp-link-preview");
+  var link="";
+  if(linkEl&&linkEl.style.display!=="none"){
+    var a=linkEl.querySelector("a");
+    if(a) link=a.href;
+  }
+  if(!link) link=cmpGerarLink(it,forn,obs);
+
+  var txt=cmpUpdateEmailPreview(it,forn)
+    .replace("[ COLE O LINK DO FORMULARIO AQUI ]",
+      ">> ACESSE O FORMULARIO ONLINE PARA RESPONDER:\n"+link);
+
+  var subj=encodeURIComponent("Solicitacao de Cotacao — Q Food Company — "+today);
+  var body=encodeURIComponent(txt);
+  var mailto="mailto:"+email+"?subject="+subj+"&body="+body;
+  window.open(mailto,"_blank");
+  var msg=document.getElementById("cmp-send-msg");
+  if(msg){
+    msg.innerHTML="&#10003; E-mail aberto! Verifique o destinatário e envie.";
+    setTimeout(function(){if(msg)msg.innerHTML="";},5000);
+  }
 }
 
 function cmpCopyLink(){
