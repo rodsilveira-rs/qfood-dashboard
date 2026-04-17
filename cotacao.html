@@ -235,22 +235,55 @@
 // ── Parse URL params ──────────────────────────────────────────────
 var COT = null;
 
+function b64decode(s){
+  // Correct UTF-8 decode: reverse of btoa(unescape(encodeURIComponent(json)))
+  try{
+    var b64 = s.replace(/-/g,'+').replace(/_/g,'/');
+    var pad = 4 - b64.length % 4; if(pad!==4) b64 += '===='.slice(0,pad);
+    return decodeURIComponent(escape(atob(b64)));
+  }catch(e){ return null; }
+}
+
+function normalizePayload(raw){
+  // Support both old format {fornecedor,itens:[{cod,desc,...}]}
+  // and new compact format {f,i:[[cod,desc,qtd,classe,valMeses,minDate],...]}
+  if(raw.fornecedor && raw.itens) return raw; // old format
+  if(!raw.f || !raw.i) return null;
+  return {
+    fornecedor: raw.f,
+    data:       raw.d||"",
+    obs:        raw.o||"",
+    itens:      raw.i.map(function(a){
+      return {
+        cod:      String(a[0]||""),
+        desc:     String(a[1]||a[0]||""),
+        qtd:      parseInt(a[2])||1,
+        classe:   a[3]===1?"alto":"normal",
+        valMeses: parseInt(a[4])||0,
+        minDate:  a[5]||null
+      };
+    })
+  };
+}
+
 function init(){
   try{
     var hash = window.location.hash.slice(1);
     if(!hash){ showError(); return; }
-    var decoded = atob(hash.replace(/-/g,'+').replace(/_/g,'/'));
-    COT = JSON.parse(decoded);
+    var decoded = b64decode(hash);
+    if(!decoded){ showError(); return; }
+    var raw = JSON.parse(decoded);
+    COT = normalizePayload(raw);
     if(!COT || !COT.itens || !COT.itens.length){ showError(); return; }
     renderForm();
   }catch(e){
-    // Try search params as fallback
     var sp = new URLSearchParams(window.location.search);
     var d  = sp.get('d');
     if(!d){ showError(); return; }
     try{
-      COT = JSON.parse(atob(d));
-      renderForm();
+      var raw2 = JSON.parse(b64decode(d)||'{}');
+      COT = normalizePayload(raw2);
+      if(COT) renderForm(); else showError();
     }catch(e2){ showError(); }
   }
 }
