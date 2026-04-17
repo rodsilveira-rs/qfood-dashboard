@@ -514,18 +514,32 @@ tbody tr:hover td{background:var(--s2);}
         <div id="cmp-resumo" style="font-size:.82rem;line-height:1.8;color:var(--tx)"></div>
       </div>
     </div>
-    <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:20px">
+    <!-- LINK DO FORMULÁRIO — em destaque -->
+    <div style="background:rgba(160,124,246,.08);border:2px solid #a07cf6;border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:.7rem;color:#a07cf6;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">&#128279; Link do Formul&#225;rio para o Fornecedor</div>
+      <div style="font-size:.82rem;color:var(--mu);margin-bottom:14px;line-height:1.6">
+        Clique em <b style="color:#a07cf6">&#128279; Encurtar e Copiar</b> para gerar um link curto tipo <code style="color:#a07cf6">tinyurl.com/xxxxx</code>.<br>
+        Cole no e-mail ou WhatsApp do fornecedor. O formul&#225;rio j&#225; abre com todos os produtos e quantidades preenchidos.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button id="btn-copy-link" onclick="cmpCopyLink()" style="padding:11px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.92rem;cursor:pointer">&#128279; Encurtar e Copiar Link</button>
+        <button onclick="cmpPreviewLink()" style="padding:10px 18px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128065; Visualizar Formul&#225;rio</button>
+      </div>
+      <div id="cmp-link-preview" style="font-size:.75rem;color:var(--mu);margin-top:10px;word-break:break-all;display:none"></div>
+    </div>
+
+    <!-- PRÉVIA DO E-MAIL -->
+    <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="sec" style="margin:0;font-size:.85rem">&#128196; Pr&#233;via do E-mail</div>
+        <div class="sec" style="margin:0;font-size:.85rem">&#128196; Pr&#233;via do E-mail <span style="font-size:.72rem;color:var(--mu);font-weight:400">(sem o link — envie separado)</span></div>
         <button onclick="cmpCopyEmail()" style="padding:5px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:.75rem;cursor:pointer">&#128203; Copiar texto</button>
       </div>
-      <div id="cmp-email-preview" style="background:var(--s2);border-radius:8px;padding:14px 16px;font-size:.8rem;line-height:1.9;color:var(--mu);white-space:pre-wrap;max-height:320px;overflow-y:auto;font-family:monospace"></div>
+      <div id="cmp-email-preview" style="background:var(--s2);border-radius:8px;padding:14px 16px;font-size:.8rem;line-height:1.9;color:var(--mu);white-space:pre-wrap;max-height:260px;overflow-y:auto;font-family:monospace"></div>
     </div>
+
     <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
       <button onclick="cmpCopyEmail()" style="padding:10px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128203; Copiar Texto E-mail</button>
-      <button id="btn-copy-link" onclick="cmpCopyLink()" style="padding:10px 22px;background:var(--s2);border:2px solid #a07cf6;border-radius:8px;color:#a07cf6;font-weight:700;font-size:.88rem;cursor:pointer">&#128279; Copiar Link do Formul&#225;rio</button>
-      <button onclick="cmpPreviewLink()" style="padding:10px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128065; Visualizar</button>
-      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">&#9993; Abrir E-mail</button>
+      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">&#9993; Abrir no E-mail</button>
     </div>
     <div id="cmp-send-msg" style="font-size:.8rem;color:var(--ok);text-align:right;margin-top:8px"></div>
   </div>
@@ -4444,7 +4458,7 @@ function cmpGerarLink(it, forn, obs){
     var json = JSON.stringify(payload);
     var b64  = btoa(unescape(encodeURIComponent(json)))
                 .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
-    return COTACAO_FORM_URL + "#" + b64;
+    return COTACAO_FORM_URL + "?d=" + b64;
   }catch(e){
     return COTACAO_FORM_URL;
   }
@@ -4481,7 +4495,7 @@ function cmpUpdateEmailPreview(it,forn){
     "",
     "Solicitamos cotação para os itens abaixo.",
     "",
-    "(O link do formulário será enviado separadamente via botão abaixo)",
+
     "",
     "─── ITENS SOLICITADOS ──────────────────────",
     "",
@@ -4555,6 +4569,11 @@ function cmpCopyLink(){
             (shortLink!==link ? "&#10003; Link encurtado e copiado! " : "&#10003; Link copiado! ")+
             "<a href='"+shortLink+"' target='_blank' style='color:#a07cf6;font-size:.8rem'>Testar &#128279;</a>";
           setTimeout(function(){if(msgEl)msgEl.innerHTML="";},7000);
+        }
+        var prev=document.getElementById("cmp-link-preview");
+        if(prev){
+          prev.style.display="block";
+          prev.innerHTML="Link gerado: <a href='"+shortLink+"' target='_blank' style='color:#a07cf6'>"+shortLink+"</a>";
         }
       });
     }
