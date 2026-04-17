@@ -267,24 +267,24 @@ function normalizePayload(raw){
 }
 
 function init(){
+  // Priority: ?d= query param (TinyURL-safe), fallback to #hash
+  var dataStr = null;
   try{
-    var hash = window.location.hash.slice(1);
-    if(!hash){ showError(); return; }
-    var decoded = b64decode(hash);
+    var sp = new URLSearchParams(window.location.search);
+    dataStr = sp.get('d') || window.location.hash.slice(1) || null;
+  }catch(e){ dataStr = window.location.hash.slice(1) || null; }
+
+  if(!dataStr){ showError(); return; }
+
+  try{
+    var decoded = b64decode(dataStr);
     if(!decoded){ showError(); return; }
     var raw = JSON.parse(decoded);
     COT = normalizePayload(raw);
     if(!COT || !COT.itens || !COT.itens.length){ showError(); return; }
     renderForm();
   }catch(e){
-    var sp = new URLSearchParams(window.location.search);
-    var d  = sp.get('d');
-    if(!d){ showError(); return; }
-    try{
-      var raw2 = JSON.parse(b64decode(d)||'{}');
-      COT = normalizePayload(raw2);
-      if(COT) renderForm(); else showError();
-    }catch(e2){ showError(); }
+    showError();
   }
 }
 
