@@ -522,9 +522,10 @@ tbody tr:hover td{background:var(--s2);}
       <div id="cmp-email-preview" style="background:var(--s2);border-radius:8px;padding:14px 16px;font-size:.8rem;line-height:1.9;color:var(--mu);white-space:pre-wrap;max-height:320px;overflow-y:auto;font-family:monospace"></div>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-      <button onclick="cmpCopyEmail()" style="padding:10px 22px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-weight:600;font-size:.88rem;cursor:pointer">&#128203; Copiar E-mail + Link</button>
-      <button onclick="cmpPreviewLink()" style="padding:10px 20px;background:var(--s2);border:1px solid rgba(160,124,246,.4);border-radius:8px;color:#a07cf6;font-weight:600;font-size:.88rem;cursor:pointer">&#128279; Ver Formul&#225;rio</button>
-      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">&#9993; Abrir no E-mail &#128640;</button>
+      <button onclick="cmpCopyEmail()" style="padding:10px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128203; Copiar Texto E-mail</button>
+      <button id="btn-copy-link" onclick="cmpCopyLink()" style="padding:10px 22px;background:var(--s2);border:2px solid #a07cf6;border-radius:8px;color:#a07cf6;font-weight:700;font-size:.88rem;cursor:pointer">&#128279; Copiar Link do Formul&#225;rio</button>
+      <button onclick="cmpPreviewLink()" style="padding:10px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128065; Visualizar</button>
+      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">&#9993; Abrir E-mail</button>
     </div>
     <div id="cmp-send-msg" style="font-size:.8rem;color:var(--ok);text-align:right;margin-top:8px"></div>
   </div>
@@ -4480,9 +4481,7 @@ function cmpUpdateEmailPreview(it,forn){
     "",
     "Solicitamos cotação para os itens abaixo.",
     "",
-    ">>> FORMULÁRIO ONLINE (clique para abrir): <<<",
-    cmpGerarLink(it,forn,obs),
-    ">>> Preencha preços e validades no link acima <<<",
+    "(O link do formulário será enviado separadamente via botão abaixo)",
     "",
     "─── ITENS SOLICITADOS ──────────────────────",
     "",
@@ -4508,19 +4507,45 @@ function cmpUpdateEmailPreview(it,forn){
 }
 
 function cmpCopyEmail(){
-  var it   = cmpGetItens();
-  var forn = document.getElementById("cmp-fornecedor").value;
-  var obs  = (document.getElementById("cmp-obs").value||"").trim();
-  var link = cmpGerarLink(it, forn, obs);
-  var txt  = cmpUpdateEmailPreview(it, forn);
-  // txt already contains the link (inserted by cmpUpdateEmailPreview via cmpGerarLink)
+  var it  = cmpGetItens();
+  var forn= document.getElementById("cmp-fornecedor").value;
+  var txt = cmpUpdateEmailPreview(it, forn);
   if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
-    var msg = document.getElementById("cmp-send-msg");
+    var msg=document.getElementById("cmp-send-msg");
     if(msg){
-      msg.innerHTML = "&#10003; Copiado com link do formul&#225;rio! &nbsp;|&nbsp; " +
-        "<a href='" + link + "' target='_blank' style='color:#a07cf6;text-decoration:underline'>" +
-        "&#128279; Testar link</a>";
-      setTimeout(function(){ if(msg) msg.innerHTML = ""; }, 6000);
+      msg.innerHTML="&#10003; Texto do e-mail copiado! Cole no seu cliente de e-mail.";
+      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
+    }
+  });
+}
+
+function cmpCopyLink(){
+  var it  = cmpGetItens();
+  var forn= document.getElementById("cmp-fornecedor").value;
+  var obs = (document.getElementById("cmp-obs").value||"").trim();
+  var link= cmpGerarLink(it, forn, obs);
+  // Mensagem curta e profissional para colar no e-mail/WhatsApp
+  var msg_text =
+    "Olá! Segue o link para preenchimento da nossa solicitação de cotação:\n\n" +
+    "➡ Acesse aqui para responder: " + link + "\n\n" +
+    "Basta clicar no link, preencher os preços e validades e enviar.\n" +
+    "Em caso de dúvidas: compras@qfoodcompany.com.br";
+  if(navigator.clipboard) navigator.clipboard.writeText(msg_text).then(function(){
+    var btn=document.getElementById("btn-copy-link");
+    var msg=document.getElementById("cmp-send-msg");
+    if(btn){
+      btn.textContent="&#10003; Link copiado!";
+      btn.style.background="#36cfa0";
+      btn.style.color="#fff";
+      btn.style.borderColor="#36cfa0";
+      setTimeout(function(){
+        btn.innerHTML="&#128279; Copiar Link do Formulário";
+        btn.style.background="";btn.style.color="";btn.style.borderColor="";
+      },3000);
+    }
+    if(msg){
+      msg.innerHTML="&#10003; Mensagem com link copiada! Cole no e-mail ou WhatsApp do fornecedor.";
+      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
     }
   });
 }
@@ -4539,9 +4564,8 @@ function cmpOpenMailto(){
   window.open(mailto,"_blank");
   var msg=document.getElementById("cmp-send-msg");
   if(msg){
-    var link=cmpGerarLink(it,forn,obs);
-    msg.innerHTML="✓ E-mail aberto! &nbsp;|&nbsp; <a href='"+link+
-      "' target='_blank' style='color:#a07cf6;text-decoration:underline'>🔗 Testar formulário</a>";
+    msg.innerHTML="&#10003; E-mail aberto! Agora clique em <b style='color:#a07cf6'>&#128279; Copiar Link</b> e cole no e-mail ou WhatsApp do fornecedor.";
+    setTimeout(function(){if(msg)msg.innerHTML="";},8000);
   }
 }
 
