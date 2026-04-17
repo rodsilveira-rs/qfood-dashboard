@@ -4423,20 +4423,20 @@ function cmpBackStep(){
   document.getElementById("cmp-step1").style.display="block";
 }
 function cmpGerarLink(it, forn, obs){
+  // Payload minimo — sem desc longa e giro para encurtar URL
   var payload={
-    fornecedor: forn,
-    data: new Date().toLocaleDateString("pt-BR"),
-    obs: obs||"",
-    itens: it.map(function(x){
-      return{
-        cod:      x.p.cod,
-        desc:     x.p.desc||x.p.cod,
-        qtd:      x.qtd,
-        classe:   x.p.classe,
-        giro:     x.p.giro,
-        valMeses: x.valMeses,
-        minDate:  x.minDate ? x.minDate.toLocaleDateString("pt-BR") : null
-      };
+    f: forn,
+    d: new Date().toLocaleDateString("pt-BR"),
+    o: obs||"",
+    i: it.map(function(x){
+      return [
+        x.p.cod,                                          // 0: codigo
+        x.p.desc||x.p.cod,                               // 1: descricao
+        x.qtd,                                            // 2: quantidade
+        x.p.classe==="alto"?1:0,                          // 3: classe (1=alto,0=normal)
+        x.valMeses||0,                                    // 4: validade total (meses)
+        x.minDate ? x.minDate.toLocaleDateString("pt-BR") : "" // 5: data minima
+      ];
     })
   };
   try{
@@ -4480,10 +4480,9 @@ function cmpUpdateEmailPreview(it,forn){
     "",
     "Solicitamos cotação para os itens abaixo.",
     "",
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "ACESSE O FORMULÁRIO ONLINE PARA RESPONDER:",
+    ">>> FORMULÁRIO ONLINE (clique para abrir): <<<",
     cmpGerarLink(it,forn,obs),
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    ">>> Preencha preços e validades no link acima <<<",
     "",
     "─── ITENS SOLICITADOS ──────────────────────",
     "",
