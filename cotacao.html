@@ -114,7 +114,8 @@
   <div id="error-screen">
     <div style="font-size:3rem;margin-bottom:16px">⚠️</div>
     <div style="font-size:1.2rem;font-weight:700;color:#c0392b;margin-bottom:8px">Link inválido ou expirado</div>
-    <div style="color:#6b7ea8;font-size:.9rem">Entre em contato com a equipe de compras da Q Food:<br><b>compras@qfoodcompany.com.br</b></div>
+    <div style="color:#6b7ea8;font-size:.9rem;margin-bottom:16px">Este link de cotação não contém dados.<br>Por favor, solicite um novo link à equipe de compras.</div>
+    <div style="color:#6b7ea8;font-size:.9rem">Contato: <b>compras@qfoodcompany.com.br</b></div>
   </div>
 
   <!-- MAIN FORM -->
@@ -284,28 +285,33 @@ function init(){
   // Priority: ?d= query param (TinyURL-safe), fallback to #hash
   var dataStr = null;
   try{
+    // Try ?d= first (survives TinyURL redirect)
     var sp = new URLSearchParams(window.location.search);
-    dataStr = sp.get('d') || window.location.hash.slice(1) || null;
-  }catch(e){ dataStr = window.location.hash.slice(1) || null; }
-
-  console.log('[COTACAO] URL:', window.location.href);
-  console.log('[COTACAO] dataStr length:', dataStr ? dataStr.length : 0);
+    dataStr = sp.get('d') || null;
+    // Fallback: #hash (direct links without TinyURL)
+    if(!dataStr){
+      var h = window.location.hash.slice(1);
+      if(h && h.length > 20) dataStr = h;
+    }
+    // Last resort: entire search string without '?d='
+    if(!dataStr && window.location.search.length > 3){
+      var raw = window.location.search.slice(1);
+      if(raw.indexOf('=') === -1 && raw.length > 20) dataStr = raw;
+    }
+  }catch(e){
+    dataStr = window.location.hash.slice(1) || null;
+  }
 
   if(!dataStr){ showError(); return; }
 
   try{
     var decoded = b64decode(dataStr);
-    console.log('[COTACAO] decoded length:', decoded ? decoded.length : 0);
-    console.log('[COTACAO] decoded preview:', decoded ? decoded.slice(0,80) : 'NULL');
     if(!decoded){ showError(); return; }
     var raw = JSON.parse(decoded);
-    console.log('[COTACAO] raw.f:', raw.f, 'raw.i length:', raw.i ? raw.i.length : 0);
     COT = normalizePayload(raw);
-    console.log('[COTACAO] COT:', COT ? 'OK fornecedor='+COT.fornecedor+' itens='+COT.itens.length : 'NULL');
     if(!COT || !COT.itens || !COT.itens.length){ showError(); return; }
     renderForm();
   }catch(e){
-    console.log('[COTACAO] ERROR:', e.message, e.stack);
     showError();
   }
 }
