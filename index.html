@@ -3791,22 +3791,24 @@ function lalCatChart(cat,mA,mB){
   chartRow.id=chartId;
   var td=document.createElement("td");
   td.colSpan=6;
-  td.style.cssText="padding:6px 14px 14px";
+  td.style.cssText="padding:6px 14px 10px;max-width:100%";
   var wrap=document.createElement("div");
-  wrap.style.cssText="background:var(--s2);border-radius:10px;padding:14px";
+  wrap.style.cssText="background:var(--s2);border-radius:10px;padding:10px 14px;max-height:240px;overflow:hidden";
 
   if(nM<=2){
     // Classic 2-period SVG bars
     var arr=Object.keys(items).map(function(item){
       return{n:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
     }).filter(function(r){return r.vA>0||r.vB>0;})
-      .sort(function(a,b){return b.vA-a.vA;}).slice(0,8);
+      .sort(function(a,b){return b.vA-a.vA;}).slice(0,10);
     if(!arr.length){td.innerHTML="<span style='color:var(--mu);font-size:.8rem'>Sem dados</span>";chartRow.appendChild(td);if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);return;}
     var maxV=Math.max.apply(null,arr.map(function(d){return Math.max(d.vA,d.vB);}));
     if(maxV===0)maxV=1;
-    var W=720,barH=18,gap=6,left=130,right=20,topPad=6;
-    var svgH=arr.length*(barH*2+gap+14)+topPad*2+24;
+    var W=720,barH=16,gap=4,left=130,right=20,topPad=6;
+    var svgH=arr.length*(barH*2+gap+12)+topPad*2+24;
     var aW=W-left-right;
+    // Wrap in scrollable container if tall
+    var maxH=Math.min(svgH,340);
     var sh="";
     arr.forEach(function(d,i){
       var y=topPad+24+i*(barH*2+gap+14);
@@ -3822,11 +3824,12 @@ function lalCatChart(cat,mA,mB){
       sh+="<text x='"+(left+wB+4)+"' y='"+(y+barH*2+4)+"' font-size='10' fill='#36cfa0'>"+dreFmt(d.vB)+"</text>";
     });
     var leg="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
-    wrap.innerHTML="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
+    var svgEl="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
+    wrap.innerHTML="<div style='max-height:320px;overflow-y:auto;overflow-x:hidden'>"+svgEl+"</div>";
   } else {
     // 3+ months: Canvas bar chart showing monthly totals for this category
     var cvs=document.createElement("canvas");
-    cvs.style.cssText="width:100%;height:200px";
+    cvs.style.cssText="width:100%;height:180px;display:block";
     var monthTotals=range.map(function(m){
       return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
     });
@@ -5042,4 +5045,11 @@ go();
     <input class="login-input" type="email" id="login-email" placeholder="seu@email.com.br" autocomplete="email"/>
     <label class="login-label">Senha</label>
     <input class="login-input" type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password"/>
-    <button class="login-btn" onclick="doLogin()"
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-footer">Q Food Company &copy; 2026</div>
+  </div>
+</div>
+
+</body>
+</html>
