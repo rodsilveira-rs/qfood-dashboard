@@ -236,14 +236,28 @@
 var COT = null;
 
 function b64decode(s){
-  // Correct UTF-8 decode: reverse of btoa(unescape(encodeURIComponent(json)))
+  if(!s) return null;
   try{
     var b64 = s.replace(/-/g,'+').replace(/_/g,'/');
-    var pad = 4 - b64.length % 4; if(pad!==4) b64 += '===='.slice(0,pad);
-    return decodeURIComponent(escape(atob(b64)));
-  }catch(e){ return null; }
+    var pad = (4 - b64.length % 4) % 4;
+    if(pad !== 4) b64 += '===='.slice(0, pad);
+    // Primary: works with btoa(unescape(encodeURIComponent()))
+    return decodeURIComponent(atob(b64).split('').map(function(c){
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+  }catch(e1){
+    try{
+      // Fallback: TextDecoder
+      var b64b = s.replace(/-/g,'+').replace(/_/g,'/');
+      var pad2 = (4 - b64b.length % 4) % 4;
+      if(pad2 !== 4) b64b += '===='.slice(0, pad2);
+      var bin = atob(b64b);
+      var arr = new Uint8Array(bin.length);
+      for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(arr);
+    }catch(e2){ return null; }
+  }
 }
-
 function normalizePayload(raw){
   // Support both old format {fornecedor,itens:[{cod,desc,...}]}
   // and new compact format {f,i:[[cod,desc,qtd,classe,valMeses,minDate],...]}
@@ -274,16 +288,24 @@ function init(){
     dataStr = sp.get('d') || window.location.hash.slice(1) || null;
   }catch(e){ dataStr = window.location.hash.slice(1) || null; }
 
+  console.log('[COTACAO] URL:', window.location.href);
+  console.log('[COTACAO] dataStr length:', dataStr ? dataStr.length : 0);
+
   if(!dataStr){ showError(); return; }
 
   try{
     var decoded = b64decode(dataStr);
+    console.log('[COTACAO] decoded length:', decoded ? decoded.length : 0);
+    console.log('[COTACAO] decoded preview:', decoded ? decoded.slice(0,80) : 'NULL');
     if(!decoded){ showError(); return; }
     var raw = JSON.parse(decoded);
+    console.log('[COTACAO] raw.f:', raw.f, 'raw.i length:', raw.i ? raw.i.length : 0);
     COT = normalizePayload(raw);
+    console.log('[COTACAO] COT:', COT ? 'OK fornecedor='+COT.fornecedor+' itens='+COT.itens.length : 'NULL');
     if(!COT || !COT.itens || !COT.itens.length){ showError(); return; }
     renderForm();
   }catch(e){
+    console.log('[COTACAO] ERROR:', e.message, e.stack);
     showError();
   }
 }
