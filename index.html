@@ -626,7 +626,7 @@ tbody tr:hover td{background:var(--s2);}
     <input id="fat-search" type="text" placeholder="Buscar cliente, produto, vendedor..."
       style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none;width:280px">
   </div>
-  <div class="twrap" id="fat-table-wrap" style="display:none">
+  <div class="twrap" id="fat-table-wrap" style="display:none;overflow-x:auto">
     <table>
       <thead><tr id="fat-thead">
         <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(0)">Vendedor <span id="fso0"></span></th>
@@ -719,7 +719,7 @@ tbody tr:hover td{background:var(--s2);}
 
   <!-- FILTROS COMPARAÇÃO -->
   <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:20px">
-    <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:12px;align-items:flex-end">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:flex-end;margin-bottom:10px">
       <div>
         <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período A (Base)</div>
         <select id="lal-a" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:0.88rem;outline:none"></select>
@@ -743,7 +743,9 @@ tbody tr:hover td{background:var(--s2);}
           <button onclick="lalPreset('nextyear')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
         </div>
       </div>
-      <button onclick="buildLAL()" style="padding:10px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer;height:fit-content">Comparar</button>
+      <div style="margin-top:10px;display:flex;justify-content:flex-end">
+        <button onclick="buildLAL()" style="padding:10px 28px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer">Comparar</button>
+      </div>
     </div>
   </div>
 
@@ -2680,12 +2682,20 @@ function buildLAL(){
   lalKPIs(mA,mB);lalChart1(mA,mB);lalTable(mA,mB);dreEl("lal-drill").style.display="none";
 }
 
+function lalGetRange(mA,mB){
+  var iA=dreIdx(mA),iB=dreIdx(mB);
+  var from=Math.min(iA,iB),to=Math.max(iA,iB);
+  return DRE.months.slice(from,to+1);
+}
+
 function lalKPIs(mA,mB){
   var el=dreEl("lal-kpis");if(!el)return;
+  var range=lalGetRange(mA,mB);
+  var nMeses=range.length;
   var totA=DRE.grand_total[mA]||0,totB=DRE.grand_total[mB]||0;
+  var totRange=dreGrandSum(range);
   var dv=totA-totB,dp=totB>0?(dv/totB*100):0;
   var cats=Object.keys(DRE.cat_totals);
-  // Maior variação absoluta
   var bigCat="",bigVal=0;
   cats.forEach(function(cat){
     var va=DRE.cat_totals[cat][mA]||0,vb=DRE.cat_totals[cat][mB]||0;
@@ -2695,8 +2705,10 @@ function lalKPIs(mA,mB){
   el.innerHTML=
     '<div class="kpi b"><div class="lbl">'+mA+' (Período A)</div><div class="val">'+dreCompact(totA)+'</div><div class="sub">'+dreFmt(totA)+'</div></div>'+
     '<div class="kpi p"><div class="lbl">'+mB+' (Período B)</div><div class="val">'+dreCompact(totB)+'</div><div class="sub">'+dreFmt(totB)+'</div></div>'+
-    '<div class="kpi '+vc+'"><div class="lbl">Variação A vs B</div><div class="val">'+(dv>0?"+":"")+dreCompact(Math.abs(dv))+'</div><div class="sub">'+(dp>0?"+":"")+drePct(dp)+' ('+dreFmt(Math.abs(dv))+')</div></div>'+
-    '<div class="kpi w"><div class="lbl">Maior Variação</div><div class="val">'+drePct(totB>0?bigVal/totB*100:0)+'</div><div class="sub">'+bigCat.substring(0,20)+'</div></div>';
+    '<div class="kpi '+vc+'"><div class="lbl">Variação A vs B</div><div class="val">'+(dv>=0?"+":"")+dreCompact(dv)+'</div><div class="sub">'+(dp>=0?"+":"")+drePct(dp)+'</div></div>'+
+    (nMeses>1?
+      '<div class="kpi g"><div class="lbl">Total '+nMeses+' meses</div><div class="val">'+dreCompact(totRange)+'</div><div class="sub">média: '+dreCompact(totRange/nMeses)+'/mês</div></div>':
+      '<div class="kpi w"><div class="lbl">Maior Variação</div><div class="val" style="font-size:.9rem">'+bigCat+'</div><div class="sub">'+(dv>=0?"↑":"↓")+' '+dreCompact(bigVal)+'</div></div>');
 }
 
 function lalChart1(mA,mB){
@@ -3167,8 +3179,9 @@ function entKPIs(){
     kpi("g","Top Motorista","<b style='font-size:.95rem'>"+topMotNome.split(" ")[0]+"</b>",topMotQtd+" entregas")+
     kpi("p","Top Vendedor","<b style='font-size:.95rem'>"+topVendNome.split(" ")[0]+"</b>",entFmt(topVendVal));
 }
-function kpi(cls,lbl,val,sub){
-  return "<div class='kpi "+cls+"'><div class='lbl'>"+lbl+"</div><div class='val'>"+val+"</div><div class='sub'>"+sub+"</div></div>";
+function kpi(cls,lbl,val,sub,oc){
+  var ex=oc?" onclick='"+oc+"' style='cursor:pointer' title='Clique para filtrar'":"";
+  return "<div class='kpi "+cls+"'"+ex+"><div class='lbl'>"+lbl+"</div><div class='val'>"+val+"</div><div class='sub'>"+sub+"</div></div>";
 }
 
 // ── RANKINGS ─────────────────────────────────────────────────────────
@@ -3677,6 +3690,8 @@ function lalAIAlert(cat,mA,mB){
   if(existing){existing.remove();return;}
   var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
   var dv=vA-vB,dp=vB>0?(dv/vB*100):0;
+  var range=lalGetRange(mA,mB),nMeses=range.length;
+  var vRange=dreCatSum(cat,range),vMedia=nMeses>0?vRange/nMeses:0;
   var resp=DRE_RESP[cat]||"Gestor";
   var nivel=dp>15?"🔴 CRÍTICO":dp>5?"🟡 ATENÇÃO":dp<-10?"🟢 QUEDA POSITIVA":"⚪ ESTÁVEL";
   var msg="";
