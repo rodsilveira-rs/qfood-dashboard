@@ -730,21 +730,19 @@ tbody tr:hover td{background:var(--s2);}
       </div>
       <div>
         <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Atalhos</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <span style="font-size:.68rem;color:var(--mu);font-weight:600">◀ Ant.</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px">
+          <span style="font-size:.68rem;color:var(--mu);font-weight:700;white-space:nowrap;flex-shrink:0">◀ Ant.</span>
           <button onclick="lalPreset('prev')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Mês</button>
-          <button onclick="lalPreset('trim')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Trimestre</button>
-          <button onclick="lalPreset('sem')"    style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Semestre</button>
+          <button onclick="lalPreset('trim')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+          <button onclick="lalPreset('sem')"    style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
           <button onclick="lalPreset('year')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
-          <span style="font-size:.68rem;color:#4d8ef5;font-weight:600;margin-left:6px">▶ Próx.</span>
+          <span style="font-size:.68rem;color:#4d8ef5;font-weight:700;white-space:nowrap;flex-shrink:0;margin-left:4px">▶ Próx.</span>
           <button onclick="lalPreset('nextprev')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Mês</button>
-          <button onclick="lalPreset('nexttrim')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Trimestre</button>
-          <button onclick="lalPreset('nextsem')"   style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Semestre</button>
+          <button onclick="lalPreset('nexttrim')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+          <button onclick="lalPreset('nextsem')"   style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
           <button onclick="lalPreset('nextyear')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+          <button onclick="buildLAL()" style="padding:8px 20px;background:var(--red);border:none;border-radius:7px;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;margin-left:8px;flex-shrink:0">Comparar</button>
         </div>
-      </div>
-      <div style="margin-top:10px;display:flex;justify-content:flex-end">
-        <button onclick="buildLAL()" style="padding:10px 28px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer">Comparar</button>
       </div>
     </div>
   </div>
@@ -2743,37 +2741,39 @@ function lalChart1(mA,mB){
     }});
     if(lalLeg) makeLegend(lalLeg,lalC1,[{label:mB,borderColor:"#36cfa0"},{label:mA,borderColor:"#4d8ef5"}]);
   } else {
-    // 3+ months: grouped bar per month, one dataset per TOP category
-    var TOP=Math.min(6,cats.length);
-    var topCats=cats.slice().sort(function(a,b){
-      return dreGrandSum(range.map(function(m){return DRE.cat_totals[b][m]||0;})) -
-             dreGrandSum(range.map(function(m){return DRE.cat_totals[a][m]||0;}));
-    }).slice(0,TOP);
-    // Actually sort by total across range
-    topCats=cats.map(function(k){
+    // 3+ months: X-axis = categories, one dataset per month
+    // This way you see ALL categories side-by-side per month
+    // User wants: for each category, see bars for each month
+    // → X = categories, datasets = months (each month is a color)
+    var topCats=cats.map(function(k){
       return{k:k,v:range.reduce(function(s,m){return s+(DRE.cat_totals[k][m]||0);},0)};
-    }).sort(function(a,b){return b.v-a.v;}).slice(0,TOP).map(function(x){return x.k;});
+    }).sort(function(a,b){return b.v-a.v;}).slice(0,10).map(function(x){return x.k;});
 
-    var datasets=topCats.map(function(cat,ci){
+    var MONTH_COLORS=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4","#f8c291","#6c5ce7"];
+    var datasets=range.map(function(m,mi){
       return{
-        label:cat.length>18?cat.substring(0,16)+"…":cat,
-        data:range.map(function(m){return DRE.cat_totals[cat][m]||0;}),
-        backgroundColor:COLORS[ci%COLORS.length]+"bb",
-        borderColor:COLORS[ci%COLORS.length],
+        label:m,
+        data:topCats.map(function(k){return DRE.cat_totals[k][m]||0;}),
+        backgroundColor:MONTH_COLORS[mi%MONTH_COLORS.length]+"bb",
+        borderColor:MONTH_COLORS[mi%MONTH_COLORS.length],
         borderWidth:1,
         borderRadius:3
       };
     });
-    if(tit) tit.textContent="Evolução por Categoria — "+range[0]+" → "+range[range.length-1]+" ("+nM+" meses)";
-    lalC1=new Chart(ctx,{type:"bar",data:{labels:range,datasets:datasets},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.dataset.label+": "+dreFmt(x.parsed.y);}}}},
-        scales:{
-          x:{stacked:false,ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
-          y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
-        }
-      }});
-    if(lalLeg) makeLegend(lalLeg,lalC1,topCats.map(function(k,i){return{label:k,borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]};}));
+    if(tit) tit.textContent="Categorias × Período — "+range[0]+" → "+range[range.length-1]+" ("+nM+" meses)";
+    lalC1=new Chart(ctx,{type:"bar",data:{
+      labels:topCats.map(function(k){return k.length>20?k.substring(0,18)+"…":k;}),
+      datasets:datasets
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:function(x){return x.dataset.label+": "+dreFmt(x.parsed.y);}
+      }}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:30},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      }
+    }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,range.map(function(m,i){return{label:m,borderColor:MONTH_COLORS[i%MONTH_COLORS.length],backgroundColor:MONTH_COLORS[i%MONTH_COLORS.length]};}));
   }
 }
 
@@ -5042,11 +5042,4 @@ go();
     <input class="login-input" type="email" id="login-email" placeholder="seu@email.com.br" autocomplete="email"/>
     <label class="login-label">Senha</label>
     <input class="login-input" type="password" id="login-pwd" placeholder="••••••••" autocomplete="current-password"/>
-    <button class="login-btn" onclick="doLogin()">Entrar</button>
-    <div class="login-err" id="login-err"></div>
-    <div class="login-footer">Q Food Company &copy; 2026</div>
-  </div>
-</div>
-
-</body>
-</html>
+    <button class="login-btn" onclick="doLogin()"
