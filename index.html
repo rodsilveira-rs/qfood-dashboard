@@ -1210,8 +1210,11 @@ async function go(){
         mk:parseInt((r.markup||"0").replace(/[^0-9]/g,""))||0};
     });
     document.getElementById("loading").style.display="none";
-    document.getElementById("tab-comercial").style.display="block";
-    document.getElementById("tab-comercial").classList.add("active");
+    // Only show comercial tab if no active session (checkSession handles the rest)
+    if(!CURRENT_USER){
+      document.getElementById("tab-comercial").style.display="block";
+      document.getElementById("tab-comercial").classList.add("active");
+    }
     build();
   }catch(e){
     document.getElementById("loading").style.display="none";
@@ -1975,8 +1978,18 @@ function checkSession(){
   if(sess && (Date.now()-sess.ts < 8*60*60*1000)){
     var _su=USERS[sess.email]||{};
     CURRENT_USER={email:sess.email,pwd:_su.pwd||"",role:sess.role,nome:sess.nome,sigla:sess.sigla};
-    applyUserAccess();
+    // Hide tabs and header — go to home menu first
+    var hdr=document.querySelector(".hdr");
+    var tabs=document.querySelector(".tabs");
+    if(hdr) hdr.style.display="none";
+    if(tabs) tabs.style.display="none";
+    // Hide ALL tab pages
+    var allTabs=document.querySelectorAll(".page");
+    allTabs.forEach(function(el){el.style.display="none";el.classList.remove("active");});
+    // Show login hidden, show home overlay
     document.getElementById("login-overlay").style.display="none";
+    applyUserAccess();
+    showHome();
   }
 }
 function applyUserAccess(){
