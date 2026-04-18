@@ -2714,25 +2714,67 @@ function lalKPIs(mA,mB){
 function lalChart1(mA,mB){
   lalC1=dreKill(lalC1);
   var ctx=dreEl("lal-c1");if(!ctx)return;
+  var range=lalGetRange(mA,mB);
+  var nM=range.length;
   var cats=Object.keys(DRE.cat_totals);
-  var valsA=cats.map(function(c){return DRE.cat_totals[c][mA]||0;});
-  var valsB=cats.map(function(c){return DRE.cat_totals[c][mB]||0;});
   var tit=dreEl("lal-chart-title");
-  if(tit)tit.textContent="Comparativo por Categoria — "+mA+" vs "+mB;
-  lalC1=new Chart(ctx,{type:"bar",data:{
-    labels:cats.map(function(c){return c.length>22?c.substring(0,20)+"…":c;}),
-    datasets:[
-      {label:mA,data:valsA,backgroundColor:"rgba(77,142,245,.75)",borderColor:"#4d8ef5",borderWidth:1},
-      {label:mB,data:valsB,backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1}
-    ]
-  },options:{responsive:true,maintainAspectRatio:false,
-    plugins:{legend:{display:false},
-      tooltip:{callbacks:{label:function(x){var ds=x.chart.data.datasets,i=x.dataIndex;var vA=ds[0]?ds[0].data[i]||0:0,vB=ds[1]?ds[1].data[i]||0:0;var ref=x.datasetIndex===0?vB:vA;var pct=ref>0?((x.parsed.y-ref)/ref*100):0;return x.dataset.label+": "+dreFmt(x.parsed.y)+" ("+(pct>=0?"+":"")+pct.toFixed(1).replace(".",",")+"%)";}}}},
-    scales:{x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
-            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
-  }});
   var lalLeg=dreEl("lal-c1-leg");
-  if(lalLeg) makeLegend(lalLeg, lalC1, [{label:mA,borderColor:"#4d8ef5"},{label:mB,borderColor:"#36cfa0"}]);
+  var COLORS=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4","#f8c291","#6c5ce7"];
+
+  if(nM<=2){
+    // 2 months: classic side-by-side bar
+    var valsA=cats.map(function(k){return DRE.cat_totals[k][mA]||0;});
+    var valsB=cats.map(function(k){return DRE.cat_totals[k][mB]||0;});
+    if(tit) tit.textContent="Comparativo por Categoria — "+mB+" vs "+mA;
+    lalC1=new Chart(ctx,{type:"bar",data:{
+      labels:cats.map(function(k){return k.length>22?k.substring(0,20)+"…":k;}),
+      datasets:[
+        {label:mB,data:valsB,backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1},
+        {label:mA,data:valsA,backgroundColor:"rgba(77,142,245,.75)",borderColor:"#4d8ef5",borderWidth:1}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){
+        var ds=x.chart.data.datasets,i=x.dataIndex;
+        var ref=x.datasetIndex===0?(ds[1]?ds[1].data[i]||0:0):(ds[0]?ds[0].data[i]||0:0);
+        var pct=ref>0?((x.parsed.y-ref)/ref*100):0;
+        return x.dataset.label+": "+dreFmt(x.parsed.y)+" ("+(pct>=0?"+":"")+pct.toFixed(1).replace(".",",")+"%)";}}}},
+      scales:{x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+              y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+    }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,[{label:mB,borderColor:"#36cfa0"},{label:mA,borderColor:"#4d8ef5"}]);
+  } else {
+    // 3+ months: grouped bar per month, one dataset per TOP category
+    var TOP=Math.min(6,cats.length);
+    var topCats=cats.slice().sort(function(a,b){
+      return dreGrandSum(range.map(function(m){return DRE.cat_totals[b][m]||0;})) -
+             dreGrandSum(range.map(function(m){return DRE.cat_totals[a][m]||0;}));
+    }).slice(0,TOP);
+    // Actually sort by total across range
+    topCats=cats.map(function(k){
+      return{k:k,v:range.reduce(function(s,m){return s+(DRE.cat_totals[k][m]||0);},0)};
+    }).sort(function(a,b){return b.v-a.v;}).slice(0,TOP).map(function(x){return x.k;});
+
+    var datasets=topCats.map(function(cat,ci){
+      return{
+        label:cat.length>18?cat.substring(0,16)+"…":cat,
+        data:range.map(function(m){return DRE.cat_totals[cat][m]||0;}),
+        backgroundColor:COLORS[ci%COLORS.length]+"bb",
+        borderColor:COLORS[ci%COLORS.length],
+        borderWidth:1,
+        borderRadius:3
+      };
+    });
+    if(tit) tit.textContent="Evolução por Categoria — "+range[0]+" → "+range[range.length-1]+" ("+nM+" meses)";
+    lalC1=new Chart(ctx,{type:"bar",data:{labels:range,datasets:datasets},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.dataset.label+": "+dreFmt(x.parsed.y);}}}},
+        scales:{
+          x:{stacked:false,ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+          y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+        }
+      }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,topCats.map(function(k,i){return{label:k,borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]};}));
+  }
 }
 
 function lalTable(mA,mB){
@@ -3735,18 +3777,15 @@ function lalCatChart(cat,mA,mB){
   var chartId="lal-ch-"+btoa(cat).replace(/[^a-z0-9]/gi,"");
   var existing=document.getElementById(chartId);
   if(existing){existing.remove();return;}
+  var range=lalGetRange(mA,mB);
+  var nM=range.length;
   var items=DRE.categories[cat]||{};
-  var arr=Object.keys(items).map(function(item){
-    return{n:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
-  }).filter(function(r){return r.vA>0||r.vB>0;})
-    .sort(function(a,b){return b.vA-a.vA;}).slice(0,8);
-  if(!arr.length) return;
-  var tb=document.getElementById("lal-tbody");
-  if(!tb) return;
+  var col=DRE_COLORS[Object.keys(DRE.cat_totals).indexOf(cat)%DRE_COLORS.length]||"#4d8ef5";
+  var tb=document.getElementById("lal-tbody");if(!tb)return;
   var targetRow=null;
   tb.querySelectorAll("tr").forEach(function(tr){
     var b=tr.querySelector("b");
-    if(b&&b.textContent.trim()===cat) targetRow=tr;
+    if(b&&b.textContent.trim()===cat)targetRow=tr;
   });
   var chartRow=document.createElement("tr");
   chartRow.id=chartId;
@@ -3755,31 +3794,69 @@ function lalCatChart(cat,mA,mB){
   td.style.cssText="padding:6px 14px 14px";
   var wrap=document.createElement("div");
   wrap.style.cssText="background:var(--s2);border-radius:10px;padding:14px";
-  var col=DRE_COLORS[Object.keys(DRE.cat_totals).indexOf(cat)%DRE_COLORS.length]||"#4d8ef5";
-  var maxV=Math.max.apply(null,arr.map(function(d){return Math.max(d.vA,d.vB);}));
-  if(maxV===0) maxV=1;
-  var W=720,barH=18,gap=6,left=130,right=20,topPad=6;
-  var svgH=arr.length*(barH*2+gap+14)+topPad*2+24;
-  var aW=W-left-right;
-  var sh="";
-  arr.forEach(function(d,i){
-    var y=topPad+24+i*(barH*2+gap+14);
-    var wA=(d.vA/maxV)*aW,wB=(d.vB/maxV)*aW;
-    var nm=d.n.length>17?d.n.substring(0,16)+"…":d.n;
-    var dl=(i*.08).toFixed(2)+"s";
-    sh+="<text x='"+(left-6)+"' y='"+(y+barH/2+4)+"' text-anchor='end' font-size='10' fill='#8fa0c0'>"+nm+"</text>";
-    sh+="<rect x='"+left+"' y='"+y+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
-    sh+="<rect x='"+left+"' y='"+y+"' width='0' height='"+barH+"' rx='3' fill='"+col+"' opacity='0.85'><animate attributeName='width' from='0' to='"+wA.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
-    sh+="<text x='"+(left+wA+4)+"' y='"+(y+barH/2+4)+"' font-size='10' fill='"+col+"'>"+dreFmt(d.vA)+"</text>";
-    sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
-    sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='0' height='"+barH+"' rx='3' fill='#36cfa0' opacity='0.6'><animate attributeName='width' from='0' to='"+wB.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
-    sh+="<text x='"+(left+wB+4)+"' y='"+(y+barH*2+4)+"' font-size='10' fill='#36cfa0'>"+dreFmt(d.vB)+"</text>";
-  });
-  var legend="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
-  wrap.innerHTML="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+legend+sh+"</svg>";
+
+  if(nM<=2){
+    // Classic 2-period SVG bars
+    var arr=Object.keys(items).map(function(item){
+      return{n:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
+    }).filter(function(r){return r.vA>0||r.vB>0;})
+      .sort(function(a,b){return b.vA-a.vA;}).slice(0,8);
+    if(!arr.length){td.innerHTML="<span style='color:var(--mu);font-size:.8rem'>Sem dados</span>";chartRow.appendChild(td);if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);return;}
+    var maxV=Math.max.apply(null,arr.map(function(d){return Math.max(d.vA,d.vB);}));
+    if(maxV===0)maxV=1;
+    var W=720,barH=18,gap=6,left=130,right=20,topPad=6;
+    var svgH=arr.length*(barH*2+gap+14)+topPad*2+24;
+    var aW=W-left-right;
+    var sh="";
+    arr.forEach(function(d,i){
+      var y=topPad+24+i*(barH*2+gap+14);
+      var wA=(d.vA/maxV)*aW,wB=(d.vB/maxV)*aW;
+      var nm=d.n.length>17?d.n.substring(0,16)+"…":d.n;
+      var dl=(i*.08).toFixed(2)+"s";
+      sh+="<text x='"+(left-6)+"' y='"+(y+barH/2+4)+"' text-anchor='end' font-size='10' fill='#8fa0c0'>"+nm+"</text>";
+      sh+="<rect x='"+left+"' y='"+y+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
+      sh+="<rect x='"+left+"' y='"+y+"' width='0' height='"+barH+"' rx='3' fill='"+col+"' opacity='0.85'><animate attributeName='width' from='0' to='"+wA.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
+      sh+="<text x='"+(left+wA+4)+"' y='"+(y+barH/2+4)+"' font-size='10' fill='"+col+"'>"+dreFmt(d.vA)+"</text>";
+      sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
+      sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='0' height='"+barH+"' rx='3' fill='#36cfa0' opacity='0.6'><animate attributeName='width' from='0' to='"+wB.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
+      sh+="<text x='"+(left+wB+4)+"' y='"+(y+barH*2+4)+"' font-size='10' fill='#36cfa0'>"+dreFmt(d.vB)+"</text>";
+    });
+    var leg="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
+    wrap.innerHTML="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
+  } else {
+    // 3+ months: Canvas bar chart showing monthly totals for this category
+    var cvs=document.createElement("canvas");
+    cvs.style.cssText="width:100%;height:200px";
+    var monthTotals=range.map(function(m){
+      return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
+    });
+    wrap.appendChild(cvs);
+    var titleEl=document.createElement("div");
+    titleEl.style.cssText="font-size:.75rem;color:var(--mu);margin-bottom:8px;font-weight:600";
+    titleEl.textContent=cat+" — "+nM+" meses ("+range[0]+" → "+range[range.length-1]+")";
+    wrap.insertBefore(titleEl,cvs);
+    new Chart(cvs,{type:"bar",data:{
+      labels:range,
+      datasets:[{
+        label:cat,
+        data:monthTotals,
+        backgroundColor:col+"bb",
+        borderColor:col,
+        borderWidth:1,
+        borderRadius:4
+      }]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return dreFmt(x.parsed.y);}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      }
+    }});
+  }
+
   td.appendChild(wrap);
   chartRow.appendChild(td);
-  if(targetRow) tb.insertBefore(chartRow,targetRow.nextSibling);
+  if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);
 }
 
 
