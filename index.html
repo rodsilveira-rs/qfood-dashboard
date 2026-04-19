@@ -262,6 +262,7 @@ tbody tr:hover td{background:var(--s2);}
   <div class="tab" onclick="showTab('dre')">&#128200; DRE / Custos</div>
   <div class="tab" onclick="showTab('lal')">&#128269; Linha a Linha</div>
   <div class="tab" onclick="showTab('entregas')">&#128666; Entregas</div>
+  <div class="tab" onclick="showTab('dev')">&#128257; Devolu&#231;&#245;es</div>
   <div class="tab" onclick="showTab('fat')">&#128640; Fat. Dinâmico</div>
   <div class="tab" onclick="showTab('compras')">&#128722; Compras</div>
 </div>
@@ -546,6 +547,96 @@ tbody tr:hover td{background:var(--s2);}
 
 </div>
 
+<div id="tab-dev" class="page" style="display:none">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div class="sec" style="margin:0">&#128257; Devolu&#231;&#245;es — Painel de Controle</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="dev-filt-grp" onchange="devApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Grupos</option>
+      </select>
+      <select id="dev-filt-vend" onchange="devApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Vendedores</option>
+      </select>
+      <select id="dev-filt-mes" onchange="devApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Meses</option>
+      </select>
+      <button onclick="devLoad(true)" style="padding:7px 14px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:.82rem;cursor:pointer">&#128260; Atualizar</button>
+    </div>
+  </div>
+
+  <div id="dev-loading" class="spin-wrap" style="display:none"><div class="spin"></div>Carregando devoluções...</div>
+  <div id="dev-last" style="font-size:.7rem;color:var(--mu);text-align:right;margin-bottom:12px"></div>
+
+  <!-- KPIs ROW 1 -->
+  <div class="kpis" id="dev-kpis1" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+  <!-- KPIs ROW 2 -->
+  <div class="kpis" id="dev-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+  <!-- VELOCÍMETRO + GAUGE ROW -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Índice de Devolução por Grupo</div>
+      <canvas id="dev-gauge1" height="160"></canvas>
+      <div id="dev-gauge1-label" style="text-align:center;font-size:.8rem;color:var(--mu);margin-top:4px"></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Top Produto Devolvido</div>
+      <div id="dev-top-prod" style="padding:10px 0;font-size:.85rem;line-height:2"></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Alerta IA — Devoluções</div>
+      <div id="dev-ai-alert" style="font-size:.82rem;line-height:1.7;color:var(--tx)"></div>
+    </div>
+  </div>
+
+  <!-- GRÁFICOS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Devoluções por Mês (R$)</div>
+      <div style="position:relative;height:200px"><canvas id="dev-c1"></canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Devoluções por Grupo <span style="font-size:.65rem;color:var(--mu);font-weight:400">· clique para filtrar</span></div>
+      <div style="position:relative;height:200px"><canvas id="dev-c2"></canvas></div>
+      <div class="cleg" id="dev-c2-leg"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Top 10 Produtos — Valor Devolvido</div>
+      <div style="position:relative;height:240px"><canvas id="dev-c3"></canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Devoluções por Vendedor <span style="font-size:.65rem;color:var(--mu);font-weight:400">· clique para filtrar</span></div>
+      <div style="position:relative;height:240px"><canvas id="dev-c4"></canvas></div>
+    </div>
+  </div>
+
+  <!-- TABELA -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div class="sec" style="margin:0">Tabela Detalhada</div>
+    <input id="dev-search" type="text" placeholder="Buscar cliente, produto..."
+      style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none;width:260px">
+  </div>
+  <div class="twrap" id="dev-table-wrap" style="display:none">
+    <table>
+      <thead><tr>
+        <th style="text-align:left;cursor:pointer" onclick="devSort(0)">Data <span id="dso0"></span></th>
+        <th style="text-align:left;cursor:pointer" onclick="devSort(1)">Grupo <span id="dso1"></span></th>
+        <th style="text-align:left;cursor:pointer" onclick="devSort(2)">Cliente <span id="dso2"></span></th>
+        <th style="text-align:left;cursor:pointer" onclick="devSort(3)">Vendedor <span id="dso3"></span></th>
+        <th style="text-align:left">Produto</th>
+        <th style="text-align:center;cursor:pointer" onclick="devSort(5)">Qtde <span id="dso5"></span></th>
+        <th style="text-align:right;cursor:pointer" onclick="devSort(6)">Total <span id="dso6"></span></th>
+      </tr></thead>
+      <tbody id="dev-tbody"></tbody>
+    </table>
+  </div>
+  <div id="dev-count" style="font-size:.72rem;color:var(--mu);text-align:right;margin-top:6px"></div>
+</div>
+
+
 <div id="tab-fat" class="page" style="display:none">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
     <div class="sec" style="margin:0">&#128640; Faturamento Dinâmico</div>
@@ -753,7 +844,7 @@ tbody tr:hover td{background:var(--s2);}
   <!-- GRÁFICO BARRAS LADO A LADO -->
   <div class="cwrap">
     <div class="ctitle" id="lal-chart-title">Comparativo por Categoria</div>
-    <div style="position:relative;height:280px"><canvas id="lal-c1"></canvas></div>
+    <div style="position:relative;height:220px"><canvas id="lal-c1"></canvas></div>
   </div>
 
   <!-- TABELA LINHA A LINHA PRINCIPAL -->
@@ -1153,7 +1244,7 @@ function csv(txt){
 
 // ---- TABS ----
 function showTab(id){
-  var ids=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas","fat","compras"];
+  var ids=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas","dev","fat","compras"];
   document.querySelectorAll(".tab").forEach(function(t,i){
     t.classList.toggle("active",ids[i]===id);
   });
@@ -1165,6 +1256,7 @@ function showTab(id){
   if(el){el.style.display="block";el.classList.add("active");}
   if(id==="dre"){initDRE();return;}
   if(id==="entregas"){initEntregas();return;}
+  if(id==="dev"&&!devLoaded){initDev();return;}
   if(id==="fat"){if(!fatLoaded)initFat();return;}
   if(id==="compras"){if(!cmpLoaded)initCompras();return;}
   if(id==="lal"){initLAL();return;}
@@ -2021,7 +2113,7 @@ function applyUserAccess(){
   var pwd=CURRENT_USER.pwd||"";
   var isVendedor=(pwd==="vendas2026");
   var isMaiko=(email==="maiko@qfoodcompany.com.br");
-  var tabIds=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas","fat","compras"];
+  var tabIds=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas","dev","fat","compras"];
   var tabEls=document.querySelectorAll(".tab");
   tabEls.forEach(function(el,i){
     var tid=tabIds[i]||"";
@@ -2354,6 +2446,7 @@ var UDRE="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYj
 // CONFIGURE AQUI com seu usuário e repositório
 var COTACAO_FORM_URL="https://rodsilveira-rs.github.io/qfood-dashboard/cotacao.html";
 
+var UDEV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=543400305&single=true&output=csv";
 var UGIRO="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
 var UFAT="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=493739923&single=true&output=csv";
 var UUSR="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
@@ -3550,7 +3643,7 @@ function homeGo(area){
   var areaMap={
     "comercial":  ["comercial","ceo","historico","sop","remuneracao","fat"],
     "financeiro": ["dre","lal"],
-    "logistica":  ["entregas"],
+    "logistica":  ["entregas","dev"],
     "compras":    ["compras"]
   };
 
@@ -3559,7 +3652,7 @@ function homeGo(area){
   var userAbasArr=userAbas?userAbas.split(",").map(function(s){return s.trim();}):null;
 
   var allowed=areaMap[area]||["comercial"];
-  var tabIds=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas","fat","compras"];
+  var tabIds=["comercial","ceo","historico","sop","remuneracao","dre","lal","entregas","dev","fat","compras"];
   var tabEls=document.querySelectorAll(".tab");
   tabEls.forEach(function(el,i){
     var tid=tabIds[i]||"";
@@ -3595,9 +3688,9 @@ function adminOpen(){
 }
 
 function adminDefaultAbas(role,email){
-  if(email==="rodrigo@qfoodcompany.com.br") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,compras";
+  if(email==="rodrigo@qfoodcompany.com.br") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,dev,compras";
   if(email==="maiko@qfoodcompany.com.br") return "comercial,ceo,historico,sop,dre,lal,entregas";
-  if(role==="admin"||role==="gestor") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,compras";
+  if(role==="admin"||role==="gestor") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,dev,compras";
   return "comercial,ceo,historico,sop,remuneracao,entregas";
 }
 
@@ -3825,11 +3918,11 @@ function lalCatChart(cat,mA,mB){
     });
     var leg="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
     var svgEl="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
-    wrap.innerHTML="<div style='max-height:320px;overflow-y:auto;overflow-x:hidden'>"+svgEl+"</div>";
+    wrap.innerHTML="<div style='max-height:260px;overflow-y:auto;overflow-x:hidden'>"+svgEl+"</div>";
   } else {
     // 3+ months: Canvas bar chart showing monthly totals for this category
     var cvs=document.createElement("canvas");
-    cvs.style.cssText="width:100%;height:200px;display:block";
+    cvs.style.cssText="width:100%;height:160px;display:block";
     var monthTotals=range.map(function(m){
       return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
     });
@@ -4890,6 +4983,461 @@ document.addEventListener("DOMContentLoaded",function(){
   });
 });
 
+
+// ════════════════════════════════════════════════════════════════
+// MÓDULO DEVOLUÇÕES
+// ════════════════════════════════════════════════════════════════
+var devAllRows=[], devLoaded=false;
+var devC1=null,devC2=null,devC3=null,devC4=null;
+var devSortCol=-1,devSortAsc=true,devLastRows=[];
+
+function devNum(v){
+  var s=String(v||0).replace(/R\$\s*/g,"").replace(/\./g,"").replace(",",".").trim();
+  var n=parseFloat(s);return isNaN(n)?0:n;
+}
+function devFmt(v){
+  return "R$ "+devNum(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function devFmtK(v){
+  var n=devNum(v);
+  if(n>=1000000) return "R$ "+(n/1000000).toFixed(1).replace(".",",")+"\u00a0M";
+  if(n>=1000)    return "R$ "+(n/1000).toFixed(1).replace(".",",")+"\u00a0k";
+  return devFmt(n);
+}
+function devParseDate(s){
+  if(!s) return new Date(0);
+  var p=String(s).split("/");
+  if(p.length===3) return new Date(p[2],p[1]-1,p[0]);
+  return new Date(s);
+}
+function devMes(s){
+  var d=devParseDate(s);
+  return (d.getMonth()+1).toString().padStart(2,"0")+"/"+d.getFullYear();
+}
+
+async function initDev(){
+  if(devLoaded){devBuildFilters();devApply();return;}
+  devLoad(false);
+}
+async function devLoad(force){
+  if(force) devLoaded=false;
+  var ldg=document.getElementById("dev-loading");
+  if(ldg) ldg.style.display="flex";
+  try{
+    var r=await fetch(UDEV+"&t="+Date.now());
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt=await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV");
+    devAllRows=csv(txt);
+    devLoaded=true;
+    if(ldg) ldg.style.display="none";
+    var upd=document.getElementById("dev-last");
+    if(upd) upd.textContent="Atualizado em "+new Date().toLocaleString("pt-BR")+" — "+devAllRows.length+" registros";
+    devBuildFilters();
+    devApply();
+  }catch(e){
+    if(ldg) ldg.innerHTML="<span style='color:var(--red)'>Erro: "+e.message+"</span>";
+  }
+}
+
+function devGet(r,keys){
+  for(var i=0;i<keys.length;i++){
+    var v=r[keys[i]];
+    if(v!==undefined&&String(v).trim()!=="") return String(v).trim();
+  }
+  return "";
+}
+
+function devBuildFilters(){
+  function fill(id,vals){
+    var sel=document.getElementById(id);
+    if(!sel) return;
+    var cur=sel.value;
+    sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+    vals.sort().forEach(function(v){
+      var o=document.createElement("option");
+      o.value=v;o.textContent=v;sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+  }
+  fill("dev-filt-grp", [...new Set(devAllRows.map(function(r){return devGet(r,["Grupo","GRUPO"])||"";}).filter(Boolean))]);
+  fill("dev-filt-vend",[...new Set(devAllRows.map(function(r){return devGet(r,["Vendedor","VENDEDOR"])||"";}).filter(Boolean))]);
+  var meses=[...new Set(devAllRows.map(function(r){return devMes(devGet(r,["Data","DATA"]));}).filter(Boolean))].sort();
+  fill("dev-filt-mes", meses);
+}
+
+function devApply(){
+  var grp =(document.getElementById("dev-filt-grp").value||"").trim();
+  var vend=(document.getElementById("dev-filt-vend").value||"").trim();
+  var mes =(document.getElementById("dev-filt-mes").value||"").trim();
+  var srch=(document.getElementById("dev-search").value||"").toLowerCase().trim();
+
+  var rows=devAllRows.filter(function(r){
+    if(grp  && devGet(r,["Grupo","GRUPO"])!==grp)  return false;
+    if(vend && devGet(r,["Vendedor","VENDEDOR"])!==vend) return false;
+    if(mes  && devMes(devGet(r,["Data","DATA"]))!==mes) return false;
+    if(srch){
+      var hay=[devGet(r,["CLIENTE:","Cliente","CLIENTE"]),
+               devGet(r,["Produto:","Produto","PRODUTO"])].join(" ").toLowerCase();
+      if(!hay.includes(srch)) return false;
+    }
+    return true;
+  });
+
+  devKPIs(rows);
+  devCharts(rows);
+  devGauges(rows);
+  devAIAlert(rows);
+  devTable(rows);
+}
+
+function devKPIs(rows){
+  var n=rows.length;
+  var totVal=rows.reduce(function(s,r){return s+devNum(devGet(r,["Total","TOTAL"]));},0);
+  var totQtd=rows.reduce(function(s,r){return s+devNum(devGet(r,["Qtde:","Qtde","QTDE"]));},0);
+  var clientes=new Set(rows.map(function(r){return devGet(r,["CLIENTE:","Cliente"]);})).size;
+  var produtos=new Set(rows.map(function(r){return devGet(r,["Produto:","Produto"]);})).size;
+
+  // By month trend
+  var byMes={};
+  rows.forEach(function(r){
+    var m=devMes(devGet(r,["Data","DATA"]));
+    if(!byMes[m])byMes[m]=0;
+    byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var meses=Object.keys(byMes).sort();
+  var ticketMedio=clientes>0?totVal/clientes:0;
+  var topGrupo="—",topGrupoVal=0;
+  var byGrp={};
+  rows.forEach(function(r){
+    var g=devGet(r,["Grupo","GRUPO"]);
+    if(!byGrp[g])byGrp[g]=0;
+    byGrp[g]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  Object.keys(byGrp).forEach(function(g){if(byGrp[g]>topGrupoVal){topGrupoVal=byGrp[g];topGrupo=g;}});
+
+  var k1=document.getElementById("dev-kpis1");
+  var k2=document.getElementById("dev-kpis2");
+  if(k1) k1.innerHTML=
+    kpi("r","Total Devolvido","<b>"+devFmtK(totVal)+"</b>",n+" registros")+
+    kpi("w","Qtd. Itens Devolvidos","<b>"+totQtd.toFixed(0)+"</b>","unidades")+
+    kpi("b","Clientes c/ Devolução","<b>"+clientes+"</b>","clientes únicos")+
+    kpi("p","Produtos Devolvidos","<b>"+produtos+"</b>","SKUs únicos");
+  if(k2) k2.innerHTML=
+    kpi("r","Ticket Médio/Cliente","<b>"+devFmtK(ticketMedio)+"</b>","valor médio por conta")+
+    kpi("g","Maior Grupo","<b style='font-size:.85rem'>"+topGrupo+"</b>",devFmtK(topGrupoVal))+
+    kpi("w","Meses no Período","<b>"+meses.length+"</b>","meses com devoluções")+
+    kpi("b","Média Mensal","<b>"+devFmtK(meses.length>0?totVal/meses.length:0)+"</b>","R$/mês");
+}
+
+function devCharts(rows){
+  var COLORS=["#ff4d4f","#ffaa2b","#4d8ef5","#36cfa0","#a07cf6","#00cec9","#fd79a8","#e17055","#74b9ff","#f8c291"];
+
+  // C1: por mês
+  var byMes={};
+  rows.forEach(function(r){
+    var m=devMes(devGet(r,["Data","DATA"]));
+    if(!byMes[m])byMes[m]=0;
+    byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var meses=Object.keys(byMes).sort();
+  if(devC1){devC1.destroy();devC1=null;}
+  var ctx1=document.getElementById("dev-c1");
+  if(ctx1) devC1=new Chart(ctx1,{type:"bar",data:{
+    labels:meses,
+    datasets:[{label:"Devoluções",data:meses.map(function(m){return byMes[m];}),
+      backgroundColor:"rgba(255,77,79,.75)",borderColor:"#ff4d4f",borderWidth:1,borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    onClick:function(evt,els){
+      if(!els||!els.length) return;
+      var vend=vends[els[0].index];
+      var sel=document.getElementById("dev-filt-vend");
+      if(!sel) return;
+      // Toggle: if already filtered by this vendor, clear; else filter
+      if(sel.value===vend){
+        sel.value="";
+        devC4.data.datasets[0].borderWidth=vends.map(function(){return 1;});
+      } else {
+        sel.value=vend;
+        // Highlight selected bar, dim others
+        devC4.data.datasets[0].backgroundColor=vends.map(function(v,i){
+          return v===vend?COLORS[i%COLORS.length]:"rgba(255,255,255,0.08)";
+        });
+        devC4.data.datasets[0].borderWidth=vends.map(function(v){return v===vend?2:0;});
+      }
+      devC4.update();
+      devApply();
+      // Scroll to table
+      setTimeout(function(){
+        var tbl=document.getElementById("dev-table-wrap");
+        if(tbl) tbl.scrollIntoView({behavior:"smooth",block:"start"});
+      },300);
+    },
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:function(x){return devFmt(x.parsed.y)+" — clique para filtrar";}}}},
+    scales:{x:{ticks:{color:"#8fa0c0"},grid:{display:false}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.05)"}}}}});
+  // Add cursor pointer
+  if(ctx4) ctx4.style.cursor="pointer";
+
+  // C2: por grupo (doughnut)
+  var byGrp={};
+  rows.forEach(function(r){
+    var g=devGet(r,["Grupo","GRUPO"])||"Outros";
+    if(!byGrp[g])byGrp[g]=0;
+    byGrp[g]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var grps=Object.keys(byGrp).sort(function(a,b){return byGrp[b]-byGrp[a];});
+  if(devC2){devC2.destroy();devC2=null;}
+  var ctx2=document.getElementById("dev-c2");
+  if(ctx2){
+    devC2=new Chart(ctx2,{type:"doughnut",data:{
+      labels:grps,
+      datasets:[{data:grps.map(function(g){return byGrp[g];}),
+        backgroundColor:grps.map(function(g,i){return COLORS[i%COLORS.length]+"cc";}),
+        borderColor:grps.map(function(g,i){return COLORS[i%COLORS.length];}),borderWidth:2}]
+    },options:{responsive:true,maintainAspectRatio:false,cutout:"60%",
+      onClick:function(evt,els){
+        if(!els||!els.length)return;
+        var grp=grps[els[0].index];
+        var sel=document.getElementById("dev-filt-grp");
+        if(!sel)return;
+        if(sel.value===grp)sel.value=""; else sel.value=grp;
+        devApply();
+        setTimeout(function(){var tbl=document.getElementById("dev-table-wrap");if(tbl)tbl.scrollIntoView({behavior:"smooth",block:"start"});},300);
+      },
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){
+        var tot=x.dataset.data.reduce(function(a,b){return a+b;},0);
+        return x.label+": "+devFmt(x.parsed)+" ("+(x.parsed/tot*100).toFixed(1)+"%) — clique para filtrar";}}}}}});
+    var leg2=document.getElementById("dev-c2-leg");
+    if(leg2) makeLegend(leg2,devC2,grps.map(function(g,i){return{label:g,borderColor:COLORS[i%COLORS.length],backgroundColor:COLORS[i%COLORS.length]};}));
+  }
+
+  // C3: top 10 produtos (barras horizontais)
+  var byProd={};
+  rows.forEach(function(r){
+    var p=devGet(r,["Produto:","Produto","PRODUTO"])||"N/A";
+    if(!byProd[p])byProd[p]=0;
+    byProd[p]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var top10=Object.keys(byProd).sort(function(a,b){return byProd[b]-byProd[a];}).slice(0,10);
+  if(devC3){devC3.destroy();devC3=null;}
+  var ctx3=document.getElementById("dev-c3");
+  if(ctx3) devC3=new Chart(ctx3,{type:"bar",data:{
+    labels:top10.map(function(p){return p.length>28?p.substring(0,26)+"…":p;}),
+    datasets:[{data:top10.map(function(p){return byProd[p];}),
+      backgroundColor:"rgba(255,170,43,.75)",borderColor:"#ffaa2b",borderWidth:1,borderRadius:3}]
+  },options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return devFmt(x.parsed.x);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.05)"}},
+            y:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{display:false}}}}});
+
+  // C4: por vendedor
+  var byVend={};
+  rows.forEach(function(r){
+    var v=devGet(r,["Vendedor","VENDEDOR"])||"S/N";
+    if(!byVend[v])byVend[v]=0;
+    byVend[v]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var vends=Object.keys(byVend).sort(function(a,b){return byVend[b]-byVend[a];});
+  if(devC4){devC4.destroy();devC4=null;}
+  var ctx4=document.getElementById("dev-c4");
+  if(ctx4) devC4=new Chart(ctx4,{type:"bar",data:{
+    labels:vends,
+    datasets:[{data:vends.map(function(v){return byVend[v];}),
+      backgroundColor:vends.map(function(v,i){return COLORS[i%COLORS.length]+"bb";}),
+      borderColor:vends.map(function(v,i){return COLORS[i%COLORS.length];}),
+      borderWidth:1,borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return devFmt(x.parsed.y);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0"},grid:{display:false}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.05)"}}}}});
+}
+
+function devGauges(rows){
+  // Gauge: índice de devolução por grupo (% do maior grupo)
+  var byGrp={};
+  rows.forEach(function(r){
+    var g=devGet(r,["Grupo","GRUPO"])||"Outros";
+    if(!byGrp[g])byGrp[g]=0;
+    byGrp[g]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var vals=Object.values(byGrp);
+  var total=vals.reduce(function(a,b){return a+b;},0);
+  var topG="—",topV=0;
+  Object.keys(byGrp).forEach(function(g){if(byGrp[g]>topV){topV=byGrp[g];topG=g;}});
+  var pct=total>0?(topV/total*100):0;
+
+  var ctx=document.getElementById("dev-gauge1");
+  var lbl=document.getElementById("dev-gauge1-label");
+  if(!ctx) return;
+
+  // Draw speedometer style gauge using Chart.js doughnut trick
+  var gaugeVal=Math.min(pct,100);
+  var remaining=100-gaugeVal;
+  var hidden=100; // the bottom half hidden arc
+  var color=pct>60?"#ff4d4f":pct>35?"#ffaa2b":"#36cfa0";
+  if(ctx._chartInstance){ctx._chartInstance.destroy();}
+  var g=new Chart(ctx,{type:"doughnut",data:{
+    labels:["Concentração",""," "],
+    datasets:[{data:[gaugeVal,remaining,hidden],
+      backgroundColor:[color,"rgba(255,255,255,0.05)","rgba(0,0,0,0)"],
+      borderWidth:0,circumference:180,rotation:270}]
+  },options:{responsive:true,maintainAspectRatio:true,cutout:"72%",
+    plugins:{legend:{display:false},tooltip:{filter:function(i){return i.dataIndex===0;},
+      callbacks:{label:function(x){return pct.toFixed(1)+"% — "+topG;}}}}}});
+  ctx._chartInstance=g;
+  if(lbl) lbl.innerHTML="<b style='color:"+color+"'>"+pct.toFixed(1)+"%</b> — "+topG;
+
+  // Top produto card
+  var byProd={};
+  rows.forEach(function(r){
+    var p=devGet(r,["Produto:","Produto","PRODUTO"])||"N/A";
+    if(!byProd[p])byProd[p]=0;
+    byProd[p]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var topProds=Object.keys(byProd).sort(function(a,b){return byProd[b]-byProd[a];}).slice(0,5);
+  var maxPV=byProd[topProds[0]]||1;
+  var el=document.getElementById("dev-top-prod");
+  if(el) el.innerHTML=topProds.map(function(p,i){
+    var pct2=byProd[p]/maxPV*100;
+    var medal=["🥇","🥈","🥉","4.","5."][i];
+    var short=p.length>30?p.substring(0,28)+"…":p;
+    return "<div style='margin-bottom:8px'>"+
+      "<div style='display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:2px'>"+
+        "<span>"+medal+" "+short+"</span>"+
+        "<span style='color:#ffaa2b;font-weight:700'>"+devFmtK(byProd[p])+"</span>"+
+      "</div>"+
+      "<div style='background:var(--br);border-radius:3px;height:4px'>"+
+        "<div style='height:100%;border-radius:3px;background:#ffaa2b;width:"+pct2.toFixed(1)+"%'></div>"+
+      "</div></div>";
+  }).join("");
+}
+
+function devAIAlert(rows){
+  var el=document.getElementById("dev-ai-alert");
+  if(!el) return;
+  var n=rows.length;
+  if(!n){el.innerHTML="<span style='color:var(--mu)'>Sem dados para o período selecionado.</span>";return;}
+
+  var totVal=rows.reduce(function(s,r){return s+devNum(devGet(r,["Total","TOTAL"]));},0);
+  var byMes={};
+  rows.forEach(function(r){
+    var m=devMes(devGet(r,["Data","DATA"]));
+    if(!byMes[m])byMes[m]=0;
+    byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var meses=Object.keys(byMes).sort();
+  var ultMes=meses[meses.length-1]||"—";
+  var penMes=meses[meses.length-2]||"—";
+  var ultVal=byMes[ultMes]||0;
+  var penVal=byMes[penMes]||1;
+  var var_pct=(penVal>0?((ultVal-penVal)/penVal*100):0);
+
+  var byGrp={};
+  rows.forEach(function(r){
+    var g=devGet(r,["Grupo","GRUPO"])||"Outros";
+    if(!byGrp[g])byGrp[g]=0;
+    byGrp[g]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var topG="",topV=0;
+  Object.keys(byGrp).forEach(function(g){if(byGrp[g]>topV){topV=byGrp[g];topG=g;}});
+  var concPct=totVal>0?(topV/totVal*100):0;
+
+  var nivel=var_pct>20?"🔴 ALERTA":var_pct>5?"🟡 ATENÇÃO":var_pct<-10?"🟢 MELHORA":"⚪ ESTÁVEL";
+  var msg="";
+  if(var_pct>20) msg="Devoluções cresceram "+var_pct.toFixed(1)+"% no último mês. Revisar com urgência os processos de entrega e validade.";
+  else if(var_pct>5) msg="Leve aumento de "+var_pct.toFixed(1)+"% nas devoluções. Monitorar os próximos 30 dias.";
+  else if(var_pct<-10) msg="Redução de "+Math.abs(var_pct).toFixed(1)+"% nas devoluções. Ações anteriores estão surtindo efeito!";
+  else msg="Devoluções estáveis. Variação de "+(var_pct>=0?"+":"")+var_pct.toFixed(1)+"% vs mês anterior.";
+
+  el.innerHTML=
+    "<div style='font-size:.9rem;font-weight:700;margin-bottom:8px'>"+nivel+"</div>"+
+    "<div style='margin-bottom:8px;color:var(--mu)'>"+msg+"</div>"+
+    "<div style='font-size:.78rem;color:var(--mu);border-top:1px solid var(--br);padding-top:8px;margin-top:6px'>"+
+    "📦 <b>"+n+"</b> registros no período<br>"+
+    "💰 Total: <b>"+devFmtK(totVal)+"</b><br>"+
+    "📅 Último mês: <b>"+ultMes+"</b> → "+devFmtK(ultVal)+"<br>"+
+    "🏢 Maior grupo: <b>"+topG+"</b> ("+concPct.toFixed(1)+"% do total)"+
+    "</div>";
+}
+
+function devTable(rows){
+  devLastRows=rows;
+  var wrap=document.getElementById("dev-table-wrap");
+  var tbody=document.getElementById("dev-tbody");
+  var count=document.getElementById("dev-count");
+  if(!tbody) return;
+  if(!rows.length){if(wrap)wrap.style.display="none";return;}
+  if(wrap) wrap.style.display="block";
+  var criticos=rows.filter(function(r){return devNum(devGet(r,["Total","TOTAL"]))>=1500;}).length;
+  var altos=rows.filter(function(r){var t=devNum(devGet(r,["Total","TOTAL"]));return t>=500&&t<1500;}).length;
+  if(count) count.innerHTML=rows.length+" registro(s) &nbsp;|&nbsp; "+
+    (criticos?"<span style='color:#ff4d4f;font-weight:600'>&#9888; "+criticos+" CRÍTICO(S) ≥R$1.500</span> &nbsp;|&nbsp; ":"")+
+    (altos?"<span style='color:#ffaa2b;font-weight:600'>"+altos+" ALTO(S) ≥R$500</span>":"");
+  tbody.innerHTML=rows.map(function(r){
+    var data=devGet(r,["Data","DATA"]);
+    var grp=devGet(r,["Grupo","GRUPO"]);
+    var cli=devGet(r,["CLIENTE:","Cliente","CLIENTE"])||"—";
+    var vend=devGet(r,["Vendedor","VENDEDOR"])||"—";
+    var prod=devGet(r,["Produto:","Produto","PRODUTO"])||"—";
+    var qtd=devNum(devGet(r,["Qtde:","Qtde","QTDE"]));
+    var tot=devNum(devGet(r,["Total","TOTAL"]));
+    // Modo foco: highlight por valor
+    var trStyle="";
+    var trTag="";
+    if(tot>=1500){
+      trStyle=" style='background:rgba(255,77,79,.10);border-left:3px solid #ff4d4f'";
+      trTag="<span style='font-size:.6rem;background:#ff4d4f;color:#fff;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle'>CRÍTICO</span>";
+    } else if(tot>=500){
+      trStyle=" style='background:rgba(255,170,43,.08);border-left:3px solid #ffaa2b'";
+      trTag="<span style='font-size:.6rem;background:#ffaa2b;color:#000;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle'>ALTO</span>";
+    }
+    return "<tr"+trStyle+">"+
+      "<td>"+data+"</td>"+
+      "<td><span class='tag tb' style='font-size:.7rem'>"+grp+"</span></td>"+
+      "<td style='font-size:.82rem;font-weight:500'>"+cli.substring(0,30)+"</td>"+
+      "<td style='font-size:.8rem'>"+vend.replace("."," ").split(" ")[0]+"</td>"+
+      "<td style='font-size:.78rem'>"+prod.substring(0,35)+"</td>"+
+      "<td style='text-align:center'>"+qtd.toFixed(0)+"</td>"+
+      "<td style='text-align:right;font-weight:600;color:#ffaa2b'>"+devFmt(tot)+trTag+"</td>"+
+    "</tr>";
+  }).join("");
+}
+
+function devSort(col){
+  if(devSortCol===col)devSortAsc=!devSortAsc;
+  else{devSortCol=col;devSortAsc=true;}
+  for(var i=0;i<7;i++){
+    var el=document.getElementById("dso"+i);
+    if(el)el.textContent=i===devSortCol?(devSortAsc?" ▲":" ▼"):"";
+  }
+  var rows=devLastRows.slice();
+  rows.sort(function(a,b){
+    var getV=function(r,c){
+      switch(c){
+        case 0: return devParseDate(devGet(r,["Data","DATA"]));
+        case 1: return devGet(r,["Grupo","GRUPO"])||"";
+        case 2: return devGet(r,["CLIENTE:","Cliente","CLIENTE"])||"";
+        case 3: return devGet(r,["Vendedor","VENDEDOR"])||"";
+        case 5: return devNum(devGet(r,["Qtde:","Qtde","QTDE"]));
+        case 6: return devNum(devGet(r,["Total","TOTAL"]));
+        default: return "";
+      }
+    };
+    var va=getV(a,col),vb=getV(b,col);
+    if(va instanceof Date)return devSortAsc?va-vb:vb-va;
+    if(typeof va==="number")return devSortAsc?va-vb:vb-va;
+    return devSortAsc?String(va).localeCompare(String(vb),"pt-BR"):String(vb).localeCompare(String(va),"pt-BR");
+  });
+  devTable(rows);
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+  var s=document.getElementById("dev-search");
+  if(s)s.addEventListener("input",function(){if(devLoaded)devApply();});
+});
+
 go();
 </script>
 
@@ -4912,7 +5460,7 @@ go();
     <div class="home-btn hb-log" onclick="homeGo('logistica')">
       <div class="hb-icon">🚚</div>
       <div class="hb-title">Logística</div>
-      <div class="hb-sub">Rastreamento de NFs<br>Motoristas · Fotos<br>Ocorrências</div>
+      <div class="hb-sub">Rastreamento de NFs<br>Motoristas · Fotos<br>Ocorrências · Devoluções</div>
     </div>
     <div class="home-btn hb-cmp" id="home-btn-compras" onclick="homeGo('compras')">
       <div class="hb-icon">&#128722;</div>
