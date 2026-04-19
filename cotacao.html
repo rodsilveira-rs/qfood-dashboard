@@ -47,6 +47,7 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
 .vnovo{background:#ede9ff;color:#6b3fcf}
 .btn{background:#e63329;color:#fff;border:none;border-radius:10px;padding:14px 48px;font-size:1rem;font-weight:700;cursor:pointer;transition:all .15s}
 .btn:hover{background:#c0291f;transform:translateY(-1px)}
+.btn:disabled{background:#aaa;cursor:not-allowed;transform:none}
 .sa{text-align:center;padding-top:8px}
 .ftr{text-align:center;font-size:.7rem;color:#9fafc4;padding:20px}
 @media(max-width:600px){.ig{grid-template-columns:1fr 1fr}.fg2{grid-template-columns:1fr}}
@@ -147,15 +148,16 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
 
     <div class="sa">
       <div id="FERR" style="color:#c0392b;font-size:.82rem;margin-bottom:12px;display:none"></div>
-      <button class="btn" onclick="enviar()">✅ Enviar Proposta de Cotação</button>
+      <button class="btn" id="BTNENV" onclick="enviar()">✅ Enviar Proposta de Cotação</button>
+      <div id="SEND_STATUS" style="margin-top:12px;font-size:.82rem;color:#6b7ea8;display:none"></div>
       <div style="font-size:.7rem;color:#9fafc4;margin-top:10px">
-        Ao enviar, seu cliente de e-mail abrirá com a proposta preenchida para compras@qfoodcompany.com.br
+        A proposta será enviada diretamente para compras@qfoodcompany.com.br
       </div>
     </div>
 
-  </div><!-- /DIV_FORM -->
+  </div>
 
-</div><!-- /wrap -->
+</div>
 <div class="ftr">Q Food Company © 2026 — Sistema de Cotações</div>
 
 <script>
@@ -212,20 +214,16 @@ function render() {
   document.getElementById('xforn').textContent = COT.fornecedor || '—';
   document.getElementById('xdata').textContent = COT.data || '—';
   document.getElementById('xitens').textContent = COT.itens.length + ' item(ns)';
-
   if (COT.obs) {
     var ob = document.getElementById('xobs');
     ob.style.display = 'block';
     ob.innerHTML = '<b>Obs.:</b> ' + esc(COT.obs);
   }
-
   var mOpts = '<option value="">Selecione...</option>';
   for (var m = 1; m <= 36; m++) {
     mOpts += '<option value="' + m + '">' + (m === 1 ? '1 mês' : m + ' meses') + '</option>';
   }
-
   var uns = ['UN','CX','KG','PCT','FD','LT'];
-
   document.getElementById('TBODY').innerHTML = COT.itens.map(function(it, i) {
     var gt = it.classe === 'alto'
       ? "<span class='gb ga'>🔴 Alto</span>"
@@ -236,10 +234,7 @@ function render() {
     var vi = it.valMeses
       ? "<span style='font-size:.67rem;color:#8fa0c0'>" + it.valMeses + "m × " + (it.classe === 'alto' ? '70' : '80') + "% mín</span>"
       : '';
-    var uOpts = uns.map(function(u) {
-      return '<option value="' + u + '">' + u + '</option>';
-    }).join('');
-
+    var uOpts = uns.map(function(u) { return '<option value="' + u + '">' + u + '</option>'; }).join('');
     return '<tr>' +
       '<td><div class="iname">' + esc(it.desc || it.cod) + '</div><div class="icod">' + esc(it.cod) + '</div></td>' +
       '<td style="text-align:center">' + gt + '</td>' +
@@ -262,21 +257,16 @@ function chkv(i) {
   var el = document.getElementById('vs' + i);
   if (!m) { el.style.display = 'none'; calc(); return; }
   if (!it.valMeses) {
-    el.className = 'vs vnovo';
-    el.textContent = '⭐ Produto novo — sem mínimo definido';
-    el.style.display = 'block';
-    calc(); return;
+    el.className = 'vs vnovo'; el.textContent = '⭐ Produto novo — sem mínimo definido';
+    el.style.display = 'block'; calc(); return;
   }
   var min = Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80));
   if (m >= min) {
-    el.className = 'vs vok';
-    el.textContent = '✅ Aceita (' + m + ' meses ≥ mín. ' + min + ')';
+    el.className = 'vs vok'; el.textContent = '✅ Aceita (' + m + ' meses ≥ mín. ' + min + ')';
   } else {
-    el.className = 'vs vwarn';
-    el.textContent = '❌ Abaixo do mínimo — precisamos de ' + min + ' meses';
+    el.className = 'vs vwarn'; el.textContent = '❌ Abaixo do mínimo — precisamos de ' + min + ' meses';
   }
-  el.style.display = 'block';
-  calc();
+  el.style.display = 'block'; calc();
 }
 
 function calc() {
@@ -300,8 +290,7 @@ function calc() {
         (v ? ' | ' + v + 'm' + vok : '') +
       '</span></div>';
   });
-  var rc = document.getElementById('RCARD');
-  var rv = document.getElementById('RCONT');
+  var rc = document.getElementById('RCARD'), rv = document.getElementById('RCONT');
   if (has && rv) {
     rc.style.display = 'block';
     rv.innerHTML = lines +
@@ -311,19 +300,7 @@ function calc() {
   } else if (rc) rc.style.display = 'none';
 }
 
-function enviar() {
-  var erros = [];
-  if (!document.getElementById('fnome').value.trim()) erros.push('Informe o nome/empresa');
-  if (!document.getElementById('femail').value.trim()) erros.push('Informe o e-mail');
-  var temP = false;
-  COT.itens.forEach(function(it, i) {
-    if (parseFloat(document.getElementById('p' + i).value) > 0) temP = true;
-  });
-  if (!temP) erros.push('Informe o preço de ao menos 1 item');
-  var eEl = document.getElementById('FERR');
-  if (erros.length) { eEl.style.display = 'block'; eEl.textContent = '⚠️ ' + erros.join(' · '); return; }
-  eEl.style.display = 'none';
-
+function montarCorpo() {
   var nome    = document.getElementById('fnome').value.trim();
   var email   = document.getElementById('femail').value.trim();
   var contato = document.getElementById('fcontato').value.trim();
@@ -342,56 +319,108 @@ function enviar() {
       '\n   Quantidade: ' + it.qtd +
       (p ? '\n   Preco: R$ ' + p.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + u +
            ' = R$ ' + (p * it.qtd).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '') +
-      (v ? '\n   Validade disponivel: ' + v + ' meses' + (st ? ' (' + st + ')' : '') : '');
+      (v ? '\n   Validade: ' + v + ' meses' + (st ? ' (' + st + ')' : '') : '');
   }).join('\n\n');
 
   var tot = COT.itens.reduce(function(s, it, i) {
     return s + (parseFloat(document.getElementById('p' + i).value) || 0) * it.qtd;
   }, 0);
 
-  var corpo =
-    'RESPOSTA DE COTACAO - ' + nome + '\n' +
-    'Data: ' + today + '\n' +
-    'Email: ' + email +
-    (contato ? '\nRepresentante: ' + contato : '') +
-    (prazo   ? '\nPrazo de entrega: ' + prazo : '') +
-    '\n\nFornecedor: ' + COT.fornecedor +
-    '\nSolicitacao: ' + (COT.data || '') +
-    '\n\n--- ITENS ---\n\n' + linhas +
-    '\n\n--- TOTAL ---\nR$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
-    (obs ? '\n\n--- OBSERVACOES ---\n' + obs : '') +
-    '\n\nEnviado via Formulario de Cotacao Q Food Company';
-
-  var sub = encodeURIComponent('Resposta de Cotacao - ' + nome + ' - ' + today);
-  var bod = encodeURIComponent(corpo);
-  window.open(
-    'mailto:compras@qfoodcompany.com.br?cc=rodsilveira2012@gmail.com,adm@qfoodcompany.com.br,' + encodeURIComponent(email) +
-    '&subject=' + sub + '&body=' + bod,
-    '_blank'
-  );
-
-  document.getElementById('DIV_FORM').style.display = 'none';
-  document.getElementById('DIV_OK').style.display = 'block';
-  window.scrollTo({top: 0, behavior: 'smooth'});
+  return {
+    nome: nome, email: email, contato: contato, prazo: prazo, obs: obs, today: today,
+    corpo: 'RESPOSTA DE COTACAO - ' + nome + '\n' +
+      'Data: ' + today + '\nEmail: ' + email +
+      (contato ? '\nRepresentante: ' + contato : '') +
+      (prazo   ? '\nPrazo de entrega: ' + prazo : '') +
+      '\n\nFornecedor: ' + COT.fornecedor +
+      '\nSolicitacao: ' + (COT.data || '') +
+      '\n\n--- ITENS ---\n\n' + linhas +
+      '\n\n--- TOTAL ---\nR$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
+      (obs ? '\n\n--- OBSERVACOES ---\n' + obs : '') +
+      '\n\nEnviado via Formulario de Cotacao Q Food Company'
+  };
 }
 
-// ── INIT ──────────────────────────────────────────────────────────
+function enviar() {
+  var erros = [];
+  if (!document.getElementById('fnome').value.trim()) erros.push('Informe o nome/empresa');
+  if (!document.getElementById('femail').value.trim()) erros.push('Informe o e-mail');
+  var temP = false;
+  COT.itens.forEach(function(it, i) {
+    if (parseFloat(document.getElementById('p' + i).value) > 0) temP = true;
+  });
+  if (!temP) erros.push('Informe o preço de ao menos 1 item');
+  var eEl = document.getElementById('FERR');
+  if (erros.length) { eEl.style.display = 'block'; eEl.textContent = '⚠️ ' + erros.join(' · '); return; }
+  eEl.style.display = 'none';
+
+  var d = montarCorpo();
+  var btn = document.getElementById('BTNENV');
+  var status = document.getElementById('SEND_STATUS');
+  btn.disabled = true;
+  btn.textContent = '⏳ Enviando...';
+  status.style.display = 'block';
+  status.textContent = 'Enviando proposta...';
+
+  // Método 1: FormSubmit (envia e-mail real via POST, sem backend)
+  // Primeira vez: FormSubmit envia confirmação para o destinatário — após confirmar, funciona sempre
+  var formData = new FormData();
+  formData.append('_to',      'compras@qfoodcompany.com.br');
+  formData.append('_cc',      'rodsilveira2012@gmail.com,adm@qfoodcompany.com.br,' + d.email);
+  formData.append('_subject', 'Cotacao - ' + d.nome + ' - ' + d.today);
+  formData.append('_template','table');
+  formData.append('_captcha', 'false');
+  formData.append('Fornecedor',   COT.fornecedor);
+  formData.append('Data',         d.today);
+  formData.append('Representante',d.contato || '—');
+  formData.append('Email',        d.email);
+  formData.append('Prazo',        d.prazo || '—');
+  formData.append('Proposta',     d.corpo);
+
+  fetch('https://formsubmit.co/ajax/rodsilveira2012@gmail.com', {
+    method: 'POST',
+    body: formData
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(res){
+    if(res.success === 'true' || res.success === true){
+      document.getElementById('DIV_FORM').style.display = 'none';
+      document.getElementById('DIV_OK').style.display = 'block';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    } else {
+      throw new Error('FormSubmit retornou erro');
+    }
+  })
+  .catch(function(){
+    // Fallback: mailto (abre cliente de e-mail do fornecedor)
+    status.textContent = '⚠️ Enviando via cliente de e-mail...';
+    var sub = encodeURIComponent('Cotacao - ' + d.nome + ' - ' + d.today);
+    var bod = encodeURIComponent(d.corpo);
+    window.open(
+      'mailto:compras@qfoodcompany.com.br?cc=rodsilveira2012@gmail.com,adm@qfoodcompany.com.br,' +
+      encodeURIComponent(d.email) + '&subject=' + sub + '&body=' + bod,
+      '_blank'
+    );
+    setTimeout(function(){
+      document.getElementById('DIV_FORM').style.display = 'none';
+      document.getElementById('DIV_OK').style.display = 'block';
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }, 1500);
+  });
+}
+
 (function() {
   var s = null;
   try { s = new URLSearchParams(window.location.search).get('d'); } catch(e) {}
   if (!s) { var hh = window.location.hash.replace(/^#/, ''); if (hh.length > 20) s = hh; }
-
   if (!s) { document.getElementById('DIV_ERR').style.display = 'block'; return; }
-
   var decoded = dec(s);
   if (!decoded) { document.getElementById('DIV_ERR').style.display = 'block'; return; }
-
   try {
     var raw = JSON.parse(decoded);
     COT = normalize(raw);
     if (!COT || !COT.itens || !COT.itens.length) {
-      document.getElementById('DIV_ERR').style.display = 'block';
-      return;
+      document.getElementById('DIV_ERR').style.display = 'block'; return;
     }
     render();
     document.getElementById('DIV_FORM').style.display = 'block';
