@@ -1387,6 +1387,7 @@ function showTab(id){
 }
 
 // ---- MAIN LOAD ----
+adminLoadExtraUsers();
 async function go(){
   try{
     var r1=await fetch(UM),r2=await fetch(US),r3=await fetch(UP);
@@ -2143,20 +2144,28 @@ document.addEventListener("keydown",function(e){if(e.key==="Escape")cm();});
 // USERS: email -> {pwd, role, nome, sigla}
 // role: "admin" = acesso total | "vendedor" = ve apenas propria remuneracao
 var USERS = {
-  "rodrigo@qfoodcompany.com.br": {pwd:"qfood2026",    role:"admin",    nome:"Rodrigo",  sigla:""},
-  "adilson@qfoodcompany.com.br": {pwd:"qfood2026",    role:"admin",    nome:"Adilson",  sigla:""},
-  "celio@qfoodcompany.com.br":   {pwd:"Gestao2026@",  role:"admin",    nome:"Celio",    sigla:""},
-  "gustavo@qfoodcompany.com.br":{pwd:"qfood2026",role:"admin",nome:"Gustavo",sigla:""},
-  "maiko@qfoodcompany.com.br":  {pwd:"qfood2026",role:"admin",nome:"Maiko",  sigla:""},
-  "lucas@qfoodcompany.com.br":   {pwd:"vendas2026",   role:"vendedor", nome:"Lucas",    sigla:"LB"},
-  "vera@qfoodcompany.com.br":    {pwd:"vendas2026",   role:"vendedor", nome:"Vera",     sigla:"VS"},
-  "dayane@qfoodcompany.com.br":  {pwd:"vendas2026",   role:"vendedor", nome:"Dayane",   sigla:"DN"},
-  "eliane@qfoodcompany.com.br":  {pwd:"vendas2026",   role:"vendedor", nome:"Eliane",   sigla:"EM"},
-  "eder@qfoodcompany.com.br":    {pwd:"vendas2026",   role:"vendedor", nome:"Eder",     sigla:"ED"},
-  "claudia@qfoodcompany.com.br": {pwd:"vendas2026",   role:"vendedor", nome:"Claudia",  sigla:"CG"},
-  "camila@qfoodcompany.com.br":  {pwd:"vendas2026",   role:"vendedor", nome:"Camila",   sigla:"CC"},
-  "kenyo@qfoodcompany.com.br":   {pwd:"vendas2026",   role:"vendedor", nome:"Kenyo",    sigla:"KE"},
-  "deane@qfoodcompany.com.br":   {pwd:"vendas2026",   role:"vendedor", nome:"Deane",    sigla:"DE"}
+  // ── Admins completos ────────────────────────────────────────
+  "rodrigo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Rodrigo",  sigla:""},
+  "adilson@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Adilson",  sigla:""},
+  "celio@qfoodcompany.com.br":    {pwd:"Gestao2026@", role:"admin",   nome:"Celio",    sigla:""},
+  "gustavo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Gustavo",  sigla:""},
+  // ── Maiko: logística completa (entregas + quebra de rede) ───
+  "maiko@qfoodcompany.com.br":    {pwd:"qfood2026",   role:"gestor",  nome:"Maiko",    sigla:"", abas:"comercial,ceo,historico,sop,dre,lal,entregas,dev"},
+  // ── Cris (Compras): sem Remuneração ─────────────────────────
+  "compras@qfoodcompany.com.br":  {pwd:"compras2026", role:"gestor",  nome:"Cris",     sigla:"", abas:"comercial,ceo,historico,sop,fat,dre,lal,entregas,dev,compras"},
+  // ── Logística / Compras ──────────────────────────────────────
+  "jonathas@qfoodcompany.com.br": {pwd:"qfood2026",   role:"gestor",  nome:"Jonathas", sigla:"", abas:"entregas,dev,compras"},
+  "eduardo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"gestor",  nome:"Eduardo",  sigla:"", abas:"entregas,dev,compras"},
+  // ── Vendedores ───────────────────────────────────────────────
+  "lucas@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Lucas",    sigla:"LB"},
+  "vera@qfoodcompany.com.br":     {pwd:"vendas2026",  role:"vendedor",nome:"Vera",     sigla:"VS"},
+  "dayane@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Dayane",   sigla:"DN"},
+  "eliane@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Eliane",   sigla:"EM"},
+  "eder@qfoodcompany.com.br":     {pwd:"vendas2026",  role:"vendedor",nome:"Eder",     sigla:"ED"},
+  "claudia@qfoodcompany.com.br":  {pwd:"vendas2026",  role:"vendedor",nome:"Claudia",  sigla:"CG"},
+  "camila@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Camila",   sigla:"CC"},
+  "kenyo@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Kenyo",    sigla:"KE"},
+  "deane@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Deane",    sigla:"DE"}
 };
 var CURRENT_USER = null;
 
@@ -3783,10 +3792,12 @@ function adminOpen(){
 }
 
 function adminDefaultAbas(role,email){
-  if(email==="rodrigo@qfoodcompany.com.br") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,dev,compras";
-  if(email==="maiko@qfoodcompany.com.br") return "comercial,ceo,historico,sop,dre,lal,entregas";
-  if(role==="admin"||role==="gestor") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,dev,compras";
-  return "comercial,ceo,historico,sop,remuneracao,entregas";
+  // Admins completos — tudo incluindo dev
+  if(role==="admin") return "comercial,ceo,historico,sop,remuneracao,fat,dre,lal,entregas,dev,compras";
+  // Gestores sem abas explícitas — tudo menos remuneracao
+  if(role==="gestor") return "comercial,ceo,historico,sop,fat,dre,lal,entregas,dev,compras";
+  // Vendedores
+  return "comercial,ceo,historico,sop,remuneracao,entregas,dev";
 }
 
 function adminLoadUsers(){
@@ -3893,18 +3904,42 @@ function adminSaveUser(){
   var abasArr=[];
   document.querySelectorAll(".adm-aba-cb:checked").forEach(function(cb){abasArr.push(cb.value);});
   var abas=abasArr.join(",");
+
+  // 1. Save to runtime USERS object (works until page reload)
   USERS[email]={pwd:senha,role:role,nome:nome,sigla:sigla,abas:abas};
+
+  // 2. Persist to localStorage (survives reload, lost on clear cache)
+  try{
+    var stored=JSON.parse(localStorage.getItem("qfood_extra_users")||"{}");
+    stored[email]={pwd:senha,role:role,nome:nome,sigla:sigla,abas:abas};
+    localStorage.setItem("qfood_extra_users",JSON.stringify(stored));
+  }catch(e){}
+
+  // 3. Build CSV row and copy to clipboard
   var row=[email,nome,senha,role,sigla,abas.replace(/,/g,"|")].join(",");
-  var copy=function(){
-    if(navigator.clipboard){
-      navigator.clipboard.writeText(row).catch(function(){});
-    }
+  var csvFull="email,nome,senha,perfil,sigla,abas\n"+row;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(row).catch(function(){});
+  }
+
+  if(msg){
     msg.style.color="var(--ok)";
-    msg.textContent="Salvo na sessao! Cole na planilha USUARIOS: "+row;
-    adminTab("usuarios");
-    adminLoadUsers();
-  };
-  copy();
+    msg.innerHTML="<b>✓ Usuário salvo!</b> Acesso funciona até recarregar a página.<br>"+
+      "<span style='font-size:.78rem;color:var(--mu)'>Para acesso permanente, cole na aba USUARIOS da planilha Google Sheets:<br>"+
+      "<code style='background:var(--s2);padding:2px 6px;border-radius:4px;font-size:.75rem;word-break:break-all'>"+row+"</code></span>";
+  }
+  adminTab("usuarios");
+  adminLoadUsers();
+}
+
+// Load extra users from localStorage on startup
+function adminLoadExtraUsers(){
+  try{
+    var stored=JSON.parse(localStorage.getItem("qfood_extra_users")||"{}");
+    Object.keys(stored).forEach(function(email){
+      if(!USERS[email]) USERS[email]=stored[email];
+    });
+  }catch(e){}
 }
 
 
