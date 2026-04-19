@@ -3882,18 +3882,19 @@ function lalCatChart(cat,mA,mB){
   });
   var chartRow=document.createElement("tr");
   chartRow.id=chartId;
+  chartRow.style.cssText="max-height:280px";
   var td=document.createElement("td");
   td.colSpan=6;
-  td.style.cssText="padding:4px 10px 8px;max-width:100%;width:100%";
+  td.style.cssText="padding:4px 10px 8px;max-width:100%;width:100%;max-height:280px;overflow:hidden";
   var wrap=document.createElement("div");
-  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px;overflow:hidden";
+  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px;max-height:260px;overflow:hidden";
 
   if(nM<=2){
     // Classic 2-period SVG bars
     var arr=Object.keys(items).map(function(item){
       return{n:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
     }).filter(function(r){return r.vA>0||r.vB>0;})
-      .sort(function(a,b){return b.vA-a.vA;}).slice(0,10);
+      .sort(function(a,b){return b.vA-a.vA;}).slice(0,6);
     if(!arr.length){td.innerHTML="<span style='color:var(--mu);font-size:.8rem'>Sem dados</span>";chartRow.appendChild(td);if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);return;}
     var maxV=Math.max.apply(null,arr.map(function(d){return Math.max(d.vA,d.vB);}));
     if(maxV===0)maxV=1;
@@ -5119,10 +5120,17 @@ function devKPIs(rows){
   var byMes={};
   rows.forEach(function(r){
     var m=devMes(devGet(r,["Data","DATA"]));
+    if(!m) return; // skip invalid dates
     if(!byMes[m])byMes[m]=0;
     byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
   });
-  var meses=Object.keys(byMes).sort();
+  // Sort by date properly: MM/YYYY → sort by year then month
+  var meses=Object.keys(byMes).filter(function(m){return m&&m.indexOf("/")>0;}).sort(function(a,b){
+    var pa=a.split("/"),pb=b.split("/");
+    var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
+    if(ya!==yb) return ya-yb;
+    return parseInt(pa[0])-parseInt(pb[0]);
+  });
   var ticketMedio=clientes>0?totVal/clientes:0;
   var topGrupo="—",topGrupoVal=0;
   var byGrp={};
@@ -5136,15 +5144,15 @@ function devKPIs(rows){
   var k1=document.getElementById("dev-kpis1");
   var k2=document.getElementById("dev-kpis2");
   if(k1) k1.innerHTML=
-    kpi("r","Total Devolvido","<b>"+devFmtK(totVal)+"</b>",n+" registros")+
+    kpi("r","Total Devolvido","<b>"+devFmt(totVal)+"</b>",n+" registros")+
     kpi("w","Qtd. Itens Devolvidos","<b>"+totQtd.toFixed(0)+"</b>","unidades")+
     kpi("b","Clientes c/ Devolução","<b>"+clientes+"</b>","clientes únicos")+
     kpi("p","Produtos Devolvidos","<b>"+produtos+"</b>","SKUs únicos");
   if(k2) k2.innerHTML=
-    kpi("r","Ticket Médio/Cliente","<b>"+devFmtK(ticketMedio)+"</b>","valor médio por conta")+
-    kpi("g","Maior Grupo","<b style='font-size:.85rem'>"+topGrupo+"</b>",devFmtK(topGrupoVal))+
+    kpi("r","Ticket Médio/Cliente","<b>"+devFmt(ticketMedio)+"</b>","valor médio por conta")+
+    kpi("g","Maior Grupo","<b style='font-size:.85rem'>"+topGrupo+"</b>",devFmt(topGrupoVal))+
     kpi("w","Meses no Período","<b>"+meses.length+"</b>","meses com devoluções")+
-    kpi("b","Média Mensal","<b>"+devFmtK(meses.length>0?totVal/meses.length:0)+"</b>","R$/mês");
+    kpi("b","Média Mensal","<b>"+devFmt(meses.length>0?totVal/meses.length:0)+"</b>","R$/mês");
 }
 
 function devCharts(rows){
@@ -5154,10 +5162,17 @@ function devCharts(rows){
   var byMes={};
   rows.forEach(function(r){
     var m=devMes(devGet(r,["Data","DATA"]));
+    if(!m) return; // skip invalid dates
     if(!byMes[m])byMes[m]=0;
     byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
   });
-  var meses=Object.keys(byMes).sort();
+  // Sort by date properly: MM/YYYY → sort by year then month
+  var meses=Object.keys(byMes).filter(function(m){return m&&m.indexOf("/")>0;}).sort(function(a,b){
+    var pa=a.split("/"),pb=b.split("/");
+    var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
+    if(ya!==yb) return ya-yb;
+    return parseInt(pa[0])-parseInt(pb[0]);
+  });
   if(devC1){devC1.destroy();devC1=null;}
   var ctx1=document.getElementById("dev-c1");
   if(ctx1) devC1=new Chart(ctx1,{type:"bar",data:{
@@ -5167,35 +5182,17 @@ function devCharts(rows){
   },options:{responsive:true,maintainAspectRatio:false,
     onClick:function(evt,els){
       if(!els||!els.length) return;
-      var vend=vends[els[0].index];
-      var sel=document.getElementById("dev-filt-vend");
+      var mes=meses[els[0].index];
+      var sel=document.getElementById("dev-filt-mes");
       if(!sel) return;
-      // Toggle: if already filtered by this vendor, clear; else filter
-      if(sel.value===vend){
-        sel.value="";
-        devC4.data.datasets[0].borderWidth=vends.map(function(){return 1;});
-      } else {
-        sel.value=vend;
-        // Highlight selected bar, dim others
-        devC4.data.datasets[0].backgroundColor=vends.map(function(v,i){
-          return v===vend?COLORS[i%COLORS.length]:"rgba(255,255,255,0.08)";
-        });
-        devC4.data.datasets[0].borderWidth=vends.map(function(v){return v===vend?2:0;});
-      }
-      devC4.update();
+      if(sel.value===mes) sel.value=""; else sel.value=mes;
       devApply();
-      // Scroll to table
-      setTimeout(function(){
-        var tbl=document.getElementById("dev-table-wrap");
-        if(tbl) tbl.scrollIntoView({behavior:"smooth",block:"start"});
-      },300);
+      setTimeout(function(){var tbl=document.getElementById("dev-table-wrap");if(tbl)tbl.scrollIntoView({behavior:"smooth",block:"start"});},300);
     },
     plugins:{legend:{display:false},
       tooltip:{callbacks:{label:function(x){return devFmt(x.parsed.y)+" — clique para filtrar";}}}},
     scales:{x:{ticks:{color:"#8fa0c0"},grid:{display:false}},
             y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.05)"}}}}});
-  // Add cursor pointer
-  if(ctx4) ctx4.style.cursor="pointer";
 
   // C2: por grupo (doughnut)
   var byGrp={};
@@ -5318,13 +5315,13 @@ function devGauges(rows){
   if(el) el.innerHTML=topProds.map(function(p,i){
     var pct2=byProd[p]/maxPV*100;
     var medal=["🥇","🥈","🥉","4.","5."][i];
-    var short=p.length>30?p.substring(0,28)+"…":p;
-    return "<div style='margin-bottom:8px'>"+
-      "<div style='display:flex;justify-content:space-between;font-size:.8rem;margin-bottom:2px'>"+
-        "<span>"+medal+" "+short+"</span>"+
-        "<span style='color:#ffaa2b;font-weight:700'>"+devFmtK(byProd[p])+"</span>"+
+    var short=p.length>26?p.substring(0,24)+"…":p;
+    return "<div style='margin-bottom:6px'>"+
+      "<div style='display:flex;justify-content:space-between;align-items:baseline;gap:4px;font-size:.78rem;margin-bottom:2px'>"+
+        "<span style='white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%'>"+medal+" "+short+"</span>"+
+        "<span style='color:#ffaa2b;font-weight:700;font-size:.82rem;white-space:nowrap'>"+devFmt(byProd[p])+"</span>"+
       "</div>"+
-      "<div style='background:var(--br);border-radius:3px;height:4px'>"+
+      "<div style='background:var(--br);border-radius:3px;height:3px'>"+
         "<div style='height:100%;border-radius:3px;background:#ffaa2b;width:"+pct2.toFixed(1)+"%'></div>"+
       "</div></div>";
   }).join("");
@@ -5340,10 +5337,17 @@ function devAIAlert(rows){
   var byMes={};
   rows.forEach(function(r){
     var m=devMes(devGet(r,["Data","DATA"]));
+    if(!m) return; // skip invalid dates
     if(!byMes[m])byMes[m]=0;
     byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
   });
-  var meses=Object.keys(byMes).sort();
+  // Sort by date properly: MM/YYYY → sort by year then month
+  var meses=Object.keys(byMes).filter(function(m){return m&&m.indexOf("/")>0;}).sort(function(a,b){
+    var pa=a.split("/"),pb=b.split("/");
+    var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
+    if(ya!==yb) return ya-yb;
+    return parseInt(pa[0])-parseInt(pb[0]);
+  });
   var ultMes=meses[meses.length-1]||"—";
   var penMes=meses[meses.length-2]||"—";
   var ultVal=byMes[ultMes]||0;
@@ -5360,12 +5364,14 @@ function devAIAlert(rows){
   Object.keys(byGrp).forEach(function(g){if(byGrp[g]>topV){topV=byGrp[g];topG=g;}});
   var concPct=totVal>0?(topV/totVal*100):0;
 
-  var nivel=var_pct>20?"🔴 ALERTA":var_pct>5?"🟡 ATENÇÃO":var_pct<-10?"🟢 MELHORA":"⚪ ESTÁVEL";
+  // Teto aceitável: 2% do faturamento (base = total devoluções vs meta)
+  // Como não temos faturamento aqui, usamos variação vs mês anterior
+  var nivel=var_pct>15?"🔴 CRÍTICO":var_pct>2?"🟡 ATENÇÃO":var_pct<-5?"🟢 MELHORA":"✅ DENTRO DO TETO";
   var msg="";
-  if(var_pct>20) msg="Devoluções cresceram "+var_pct.toFixed(1)+"% no último mês. Revisar com urgência os processos de entrega e validade.";
-  else if(var_pct>5) msg="Leve aumento de "+var_pct.toFixed(1)+"% nas devoluções. Monitorar os próximos 30 dias.";
-  else if(var_pct<-10) msg="Redução de "+Math.abs(var_pct).toFixed(1)+"% nas devoluções. Ações anteriores estão surtindo efeito!";
-  else msg="Devoluções estáveis. Variação de "+(var_pct>=0?"+":"")+var_pct.toFixed(1)+"% vs mês anterior.";
+  if(var_pct>15) msg="Devoluções cresceram "+var_pct.toFixed(1)+"% vs mês anterior — muito acima do teto de 2%. Revisar com urgência processos de entrega e validade.";
+  else if(var_pct>2) msg="Devoluções "+var_pct.toFixed(1)+"% acima do mês anterior — acima do teto de 2%. Monitorar os próximos 30 dias.";
+  else if(var_pct<-5) msg="Redução de "+Math.abs(var_pct).toFixed(1)+"% nas devoluções. Ações estão surtindo efeito — mantendo abaixo do teto de 2%!";
+  else msg="Devoluções dentro do teto de 2%. Variação de "+(var_pct>=0?"+":"")+var_pct.toFixed(1)+"% vs mês anterior.";
 
   el.innerHTML=
     "<div style='font-size:.9rem;font-weight:700;margin-bottom:8px'>"+nivel+"</div>"+
