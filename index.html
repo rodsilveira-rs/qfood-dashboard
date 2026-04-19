@@ -573,7 +573,11 @@ tbody tr:hover td{background:var(--s2);}
   <!-- KPIs ROW 1 -->
   <div class="kpis" id="dev-kpis1" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
   <!-- KPIs ROW 2 -->
-  <div class="kpis" id="dev-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+  <div class="kpis" id="dev-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+  <div id="dev-kpis3-wrap" style="display:none;background:rgba(160,124,246,.06);border:1px solid rgba(160,124,246,.2);border-radius:10px;padding:12px;margin-bottom:20px">
+    <div style="font-size:.68rem;color:#a07cf6;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">&#127981; Análise por Indústria</div>
+    <div class="kpis" id="dev-kpis3" style="grid-template-columns:repeat(4,1fr)"></div>
+  </div>
 
   <!-- VELOCÍMETRO + GAUGE ROW -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
@@ -5384,6 +5388,7 @@ function devKPIs(rows){
     kpi("g","Maior Grupo","<b style='font-size:.85rem'>"+topGrupo+"</b>",devFmt(topGrupoVal))+
     kpi("w","Meses no Período","<b>"+meses.length+"</b>","meses com quebras")+
     kpi("b","Média Mensal","<b>"+devFmt(meses.length>0?totVal/meses.length:0)+"</b>","R$/mês");
+  devKPIsIndustria(rows);
 }
 
 function devCharts(rows){
@@ -5558,6 +5563,62 @@ function devGauges(rows){
   }).join("");
 }
 
+
+function devGetFaturamento(mes){
+  if(!mes) return 0;
+  var p=mes.split("/");
+  if(p.length!==2) return 0;
+  var mon=parseInt(p[0])-1;
+  var yr=parseInt(p[1]);
+  if(isNaN(mon)||isNaN(yr)||mon<0||mon>11) return 0;
+  var D=SOP_FALLBACK;
+  if(yr===2024&&D.fat2024) return D.fat2024[mon]||0;
+  if(yr===2025&&D.fat2025) return D.fat2025[mon]||0;
+  if(yr===2026&&D.fat2026) return D.fat2026[mon]||0;
+  return 0;
+}
+
+function devKPIsIndustria(rows){
+  var wrap=document.getElementById("dev-kpis3-wrap");
+  var k3=document.getElementById("dev-kpis3");
+  var indEl=document.getElementById("dev-filt-ind");
+  var indFilt=indEl?(indEl.value||"").trim():"";
+  if(!wrap||!k3) return;
+  if(!indFilt){wrap.style.display="none";return;}
+  wrap.style.display="block";
+  var totVal=rows.reduce(function(s,r){return s+devNum(devGet(r,["Total","TOTAL"]));},0);
+  var totQtd=rows.reduce(function(s,r){return s+devNum(devGet(r,["Qtde:","Qtde","QTDE"]));},0);
+  var clientes=new Set(rows.map(function(r){return devGet(r,["CLIENTE:","Cliente","CLIENTE"]);})).size;
+  var produtos=new Set(rows.map(function(r){return devGet(r,["Produto:","Produto"]);})).size;
+  var byProd={};
+  rows.forEach(function(r){
+    var p=devGet(r,["Produto:","Produto","PRODUTO"])||"N/A";
+    if(!byProd[p])byProd[p]=0;
+    byProd[p]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var topProd=Object.keys(byProd).sort(function(a,b){return byProd[b]-byProd[a];})[0]||"—";
+  var topProdVal=byProd[topProd]||0;
+  var topShort=topProd.length>22?topProd.substring(0,20)+"…":topProd;
+  var byMes={};
+  rows.forEach(function(r){
+    var m=devMes(devGet(r,["Data","DATA"]));if(!m)return;
+    if(!byMes[m])byMes[m]=0;
+    byMes[m]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var mL=Object.keys(byMes).sort(function(a,b){
+    var pa=a.split("/"),pb=b.split("/"),ya=parseInt(pa[1]||0),yb=parseInt(pb[1]||0);
+    return ya!==yb?ya-yb:parseInt(pa[0]||0)-parseInt(pb[0]||0);
+  });
+  var ultM=mL[mL.length-1]||"";
+  var fatM=devGetFaturamento(ultM);
+  var pctF=fatM>0?(totVal/fatM*100):0;
+  k3.innerHTML=
+    kpi("p","Total — "+indFilt,"<b>"+devFmt(totVal)+"</b>",totQtd.toFixed(0)+" un · "+clientes+" clientes")+
+    kpi("w","Produtos Únicos","<b>"+produtos+"</b>","SKUs desta indústria")+
+    kpi("r","Top Produto","<b style='font-size:.75rem'>"+topShort+"</b>",devFmt(topProdVal))+
+    kpi(pctF>2?"r":pctF>0?"w":"b","% sobre Fat. "+ultM,"<b>"+(pctF>0?pctF.toFixed(2)+"%":"—")+"</b>","teto: 2% | fat: "+devFmt(fatM));
+}
+
 function devAIAlert(rows){
   var el=document.getElementById("dev-ai-alert");
   if(!el) return;
@@ -5598,20 +5659,22 @@ function devAIAlert(rows){
 
   // Teto aceitável: 2% do faturamento (base = total devoluções vs meta)
   // Como não temos faturamento aqui, usamos variação vs mês anterior
-  var nivel=var_pct>15?"🔴 CRÍTICO":var_pct>2?"🟡 ATENÇÃO":var_pct<-5?"🟢 MELHORA":"✅ DENTRO DO TETO";
+  var fatMes=devGetFaturamento(ultMes);
+  var pctFat=fatMes>0?(totVal/fatMes*100):0;
+  var nivel=pctFat>4?"🔴 CRÍTICO":pctFat>2?"🟡 ATENÇÃO":pctFat>0?"✅ DENTRO DO TETO":"⚪ SEM DADOS";
   var msg="";
-  if(var_pct>15) msg="Quebra de Rede cresceu "+var_pct.toFixed(1)+"% vs mês anterior — muito acima do teto de 2%. Revisar com urgência processos de entrega e validade.";
-  else if(var_pct>2) msg="Quebra de Rede "+var_pct.toFixed(1)+"% acima do mês anterior — acima do teto de 2%. Monitorar os próximos 30 dias.";
-  else if(var_pct<-5) msg="Redução de "+Math.abs(var_pct).toFixed(1)+"% nas devoluções. Ações estão surtindo efeito — mantendo abaixo do teto de 2%!";
-  else msg="Quebra de Rede dentro do teto de 2% de 2%. Variação de "+(var_pct>=0?"+":"")+var_pct.toFixed(1)+"% vs mês anterior.";
+  if(pctFat>4) msg="Quebra representa "+pctFat.toFixed(2)+"% do faturamento ("+devFmt(fatMes)+") — CRÍTICO, acima do teto de 2%.";
+  else if(pctFat>2) msg="Quebra em "+pctFat.toFixed(2)+"% do faturamento ("+devFmt(fatMes)+") — acima do teto de 2%. Monitorar.";
+  else if(pctFat>0) msg="Quebra em "+pctFat.toFixed(2)+"% do faturamento de "+ultMes+" ("+devFmt(fatMes)+") — dentro do teto de 2%. ✓";
+  else msg="Faturamento de "+ultMes+" indisponível. Variação: "+(var_pct>=0?"+":"")+var_pct.toFixed(1)+"% vs mês ant.";
 
   el.innerHTML=
     "<div style='font-size:.9rem;font-weight:700;margin-bottom:8px'>"+nivel+"</div>"+
     "<div style='margin-bottom:8px;color:var(--mu)'>"+msg+"</div>"+
     "<div style='font-size:.78rem;color:var(--mu);border-top:1px solid var(--br);padding-top:8px;margin-top:6px'>"+
-    "📦 <b>"+n+"</b> registros no período<br>"+
-    "💰 Total: <b>"+devFmtK(totVal)+"</b><br>"+
-    "📅 Último mês: <b>"+ultMes+"</b> → "+devFmtK(ultVal)+"<br>"+
+    "📦 <b>"+n+"</b> registros | Total: <b>"+devFmt(totVal)+"</b><br>"+
+    "📅 Mês ref.: <b>"+ultMes+"</b> | Fat.: "+devFmt(fatMes)+"<br>"+
+    (pctFat>0?"📊 Quebra/Fat.: <b style='color:"+(pctFat>2?"#ff4d4f":"#36cfa0")+"'>"+ pctFat.toFixed(2)+"% (teto 2%)</b><br>":"")+
     "🏢 Maior grupo: <b>"+topG+"</b> ("+concPct.toFixed(1)+"% do total)"+
     "</div>";
 }
