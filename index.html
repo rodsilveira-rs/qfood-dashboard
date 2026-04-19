@@ -664,6 +664,48 @@ tbody tr:hover td{background:var(--s2);}
     </div>
   </div>
 
+
+  <!-- GRÁFICOS ESTRATÉGICOS -->
+  <div style="margin-bottom:6px;padding:10px 0 4px">
+    <div style="font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.6px;display:flex;align-items:center;gap:8px">
+      <span style="display:inline-block;width:3px;height:14px;background:var(--red);border-radius:2px"></span>
+      Visão Estratégica — Tomada de Decisão
+    </div>
+  </div>
+
+  <!-- S1: Indústria × Mês (linha do tempo) -->
+  <div class="cwrap" style="margin-bottom:14px">
+    <div class="ctitle">Indústria por Mês — Evolução temporal
+      <span style="font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">· qual indústria está crescendo?</span>
+    </div>
+    <div style="position:relative;height:220px"><canvas id="dev-s1" role="img" aria-label="Evolução de quebras por indústria ao longo dos meses"></canvas></div>
+    <div class="cleg" id="dev-s1-leg" style="margin-top:8px"></div>
+  </div>
+
+  <!-- S2+S3: Pareto + Reincidência lado a lado -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+    <div class="cwrap">
+      <div class="ctitle">Pareto — 20% das causas, 80% do valor
+        <span style="font-size:.65rem;color:var(--mu);font-weight:400;margin-left:4px">· onde agir primeiro</span>
+      </div>
+      <div style="position:relative;height:260px"><canvas id="dev-s2" role="img" aria-label="Pareto de produtos por valor devolvido com linha acumulada"></canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Reincidência por Cliente
+        <span style="font-size:.65rem;color:var(--mu);font-weight:400;margin-left:4px">· quem devolver sempre</span>
+      </div>
+      <div id="dev-s3-wrap" style="overflow-y:auto;max-height:280px;font-size:.8rem"></div>
+    </div>
+  </div>
+
+  <!-- S4: Heatmap Grupo × Indústria -->
+  <div class="cwrap" style="margin-bottom:14px">
+    <div class="ctitle">Heatmap — Grupo × Indústria
+      <span style="font-size:.65rem;color:var(--mu);font-weight:400;margin-left:6px">· qual combinação domina as perdas?</span>
+    </div>
+    <div id="dev-s4-wrap" style="overflow-x:auto"></div>
+  </div>
+
   <!-- TABELA -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
     <div class="sec" style="margin:0">Tabela Detalhada</div>
@@ -5289,6 +5331,228 @@ function devComparar(){
   }).join("");
 }
 
+
+var devS1=null, devS2=null;
+
+function devStrategicCharts(rows){
+  devChartS1(rows);
+  devChartS2(rows);
+  devChartS3(rows);
+  devChartS4(rows);
+}
+
+// ── S1: Indústria × Mês ────────────────────────────────────────
+function devChartS1(rows){
+  // Get all months in rows (sorted asc)
+  var byMesInd={};
+  rows.forEach(function(r){
+    var m=devMes(devGet(r,["Data","DATA"]));
+    var ind=devGet(r,["Industria:","Industria","INDUSTRIA"])||"Outros";
+    if(!m) return;
+    if(!byMesInd[m]) byMesInd[m]={};
+    if(!byMesInd[m][ind]) byMesInd[m][ind]=0;
+    byMesInd[m][ind]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var meses=Object.keys(byMesInd).sort(function(a,b){
+    var pa=a.split("/"),pb=b.split("/"),ya=parseInt(pa[1]||0),yb=parseInt(pb[1]||0);
+    return ya!==yb?ya-yb:parseInt(pa[0]||0)-parseInt(pb[0]||0);
+  });
+  // Get top industries by total
+  var totInd={};
+  rows.forEach(function(r){
+    var ind=devGet(r,["Industria:","Industria","INDUSTRIA"])||"Outros";
+    if(!totInd[ind])totInd[ind]=0;
+    totInd[ind]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var topInds=Object.keys(totInd).sort(function(a,b){return totInd[b]-totInd[a];}).slice(0,8);
+  var COLORS=["#ff4d4f","#4d8ef5","#36cfa0","#ffaa2b","#a07cf6","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4"];
+  var datasets=topInds.map(function(ind,i){
+    return{
+      label:ind,
+      data:meses.map(function(m){return byMesInd[m][ind]||0;}),
+      borderColor:COLORS[i%COLORS.length],
+      backgroundColor:COLORS[i%COLORS.length]+"22",
+      borderWidth:2,
+      pointRadius:4,
+      pointHoverRadius:6,
+      tension:0.3,
+      fill:false
+    };
+  });
+  if(devS1){devS1.destroy();devS1=null;}
+  var ctx=document.getElementById("dev-s1");
+  if(!ctx||!meses.length) return;
+  devS1=new Chart(ctx,{type:"line",data:{labels:meses,datasets:datasets},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:function(x){return x.dataset.label+": R$ "+x.parsed.y.toLocaleString("pt-BR",{minimumFractionDigits:2});}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      }
+    }});
+  // Custom legend
+  var leg=document.getElementById("dev-s1-leg");
+  if(leg) leg.innerHTML="<div style='display:flex;flex-wrap:wrap;gap:10px'>"+
+    topInds.map(function(ind,i){
+      return "<span style='display:flex;align-items:center;gap:5px;font-size:.72rem;color:var(--mu)'>"+
+        "<span style='display:inline-block;width:20px;height:3px;background:"+COLORS[i%COLORS.length]+";border-radius:2px'></span>"+
+        ind+"</span>";
+    }).join("")+"</div>";
+}
+
+// ── S2: Pareto ──────────────────────────────────────────────────
+function devChartS2(rows){
+  var byProd={};
+  rows.forEach(function(r){
+    var p=devGet(r,["Produto:","Produto","PRODUTO"])||"N/A";
+    if(!byProd[p])byProd[p]=0;
+    byProd[p]+=devNum(devGet(r,["Total","TOTAL"]));
+  });
+  var sorted=Object.keys(byProd).sort(function(a,b){return byProd[b]-byProd[a];}).slice(0,15);
+  var vals=sorted.map(function(p){return byProd[p];});
+  var total=vals.reduce(function(a,b){return a+b;},0);
+  var cumPct=[],acc=0;
+  vals.forEach(function(v){acc+=v/total*100;cumPct.push(parseFloat(acc.toFixed(1)));});
+  var labels=sorted.map(function(p){return p.length>22?p.substring(0,20)+"…":p;});
+  if(devS2){devS2.destroy();devS2=null;}
+  var ctx=document.getElementById("dev-s2");
+  if(!ctx||!sorted.length) return;
+  devS2=new Chart(ctx,{type:"bar",data:{
+    labels:labels,
+    datasets:[
+      {type:"bar",label:"Valor (R$)",data:vals,
+        backgroundColor:vals.map(function(v,i){return cumPct[i]<=80?"rgba(255,77,79,.8)":"rgba(255,170,43,.5)";}),
+        borderColor:vals.map(function(v,i){return cumPct[i]<=80?"#ff4d4f":"#ffaa2b";}),
+        borderWidth:1,borderRadius:3,yAxisID:"y"},
+      {type:"line",label:"% Acumulado",data:cumPct,
+        borderColor:"#4d8ef5",borderWidth:2,pointRadius:3,
+        backgroundColor:"rgba(77,142,245,.1)",fill:false,yAxisID:"y2"}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},
+      tooltip:{callbacks:{
+        label:function(x){
+          if(x.datasetIndex===0) return "R$ "+x.parsed.y.toLocaleString("pt-BR",{minimumFractionDigits:2});
+          return "Acumulado: "+x.parsed.y.toFixed(1)+"%";
+        }
+      }}},
+    scales:{
+      x:{ticks:{color:"#8fa0c0",font:{size:9},maxRotation:45,minRotation:30},grid:{display:false}},
+      y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.05)"}},
+      y2:{position:"right",min:0,max:100,ticks:{color:"#4d8ef5",callback:function(v){return v+"%";}},grid:{display:false}}
+    },
+    annotation:{annotations:{line80:{type:"line",yMin:80,yMax:80,yScaleID:"y2",borderColor:"rgba(77,142,245,.4)",borderWidth:1,borderDash:[4,4]}}}
+  }});
+}
+
+// ── S3: Reincidência por cliente ────────────────────────────────
+function devChartS3(rows){
+  var wrap=document.getElementById("dev-s3-wrap");
+  if(!wrap) return;
+  // Count months with devolutions per client
+  var cliData={};
+  rows.forEach(function(r){
+    var cli=devGet(r,["CLIENTE:","Cliente","CLIENTE"])||"—";
+    var vend=devGet(r,["Vendedor","VENDEDOR"])||"";
+    var m=devMes(devGet(r,["Data","DATA"]))||"";
+    var tot=devNum(devGet(r,["Total","TOTAL"]));
+    if(!cliData[cli]) cliData[cli]={meses:new Set(),total:0,qtd:0,vend:vend};
+    if(m) cliData[cli].meses.add(m);
+    cliData[cli].total+=tot;
+    cliData[cli].qtd++;
+  });
+  var sorted=Object.keys(cliData).map(function(cli){
+    return{cli:cli,meses:cliData[cli].meses.size,total:cliData[cli].total,qtd:cliData[cli].qtd,vend:cliData[cli].vend};
+  }).sort(function(a,b){return b.meses!==a.meses?b.meses-a.meses:b.total-a.total;}).slice(0,20);
+  if(!sorted.length){wrap.innerHTML="<div style='color:var(--mu);text-align:center;padding:20px'>Sem dados</div>";return;}
+  var maxM=sorted[0].meses||1;
+  wrap.innerHTML="<table style='width:100%;border-collapse:collapse'>"+
+    "<thead><tr style='font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px'>"+
+    "<th style='text-align:left;padding:4px 8px;border-bottom:1px solid var(--br)'>Cliente</th>"+
+    "<th style='text-align:center;padding:4px 8px;border-bottom:1px solid var(--br)'>Meses</th>"+
+    "<th style='text-align:left;padding:4px 8px;border-bottom:1px solid var(--br)'>Recorrência</th>"+
+    "<th style='text-align:right;padding:4px 8px;border-bottom:1px solid var(--br)'>Total R$</th>"+
+    "</tr></thead><tbody>"+
+    sorted.map(function(d,i){
+      var pct=d.meses/maxM*100;
+      var cor=d.meses>=4?"#ff4d4f":d.meses>=2?"#ffaa2b":"#36cfa0";
+      var bg=i%2===0?"":"background:var(--sf)";
+      var cliShort=d.cli.length>28?d.cli.substring(0,26)+"…":d.cli;
+      return "<tr style='"+bg+"'>"+
+        "<td style='padding:5px 8px;font-size:.77rem;font-weight:500'>"+cliShort+"</td>"+
+        "<td style='text-align:center;padding:5px 8px'><span style='background:"+cor+"22;color:"+cor+";font-weight:700;padding:1px 7px;border-radius:10px;font-size:.72rem'>"+d.meses+"m</span></td>"+
+        "<td style='padding:5px 8px'>"+
+          "<div style='background:var(--br);border-radius:3px;height:6px;width:80px'>"+
+          "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(0)+"%'></div></div>"+
+        "</td>"+
+        "<td style='text-align:right;padding:5px 8px;font-weight:600;color:#ffaa2b;font-size:.77rem'>"+devFmt(d.total)+"</td>"+
+      "</tr>";
+    }).join("")+
+    "</tbody></table>";
+}
+
+// ── S4: Heatmap Grupo × Indústria ──────────────────────────────
+function devChartS4(rows){
+  var wrap=document.getElementById("dev-s4-wrap");
+  if(!wrap) return;
+  var byGrpInd={};
+  var grps=new Set(), inds=new Set();
+  rows.forEach(function(r){
+    var g=devGet(r,["Grupo","GRUPO"])||"Outros";
+    var ind=devGet(r,["Industria:","Industria","INDUSTRIA"])||"Outros";
+    var tot=devNum(devGet(r,["Total","TOTAL"]));
+    if(!byGrpInd[g])byGrpInd[g]={};
+    if(!byGrpInd[g][ind])byGrpInd[g][ind]=0;
+    byGrpInd[g][ind]+=tot;
+    grps.add(g); inds.add(ind);
+  });
+  // Sort by total
+  var grpArr=Array.from(grps).sort(function(a,b){
+    var ta=Object.values(byGrpInd[a]||{}).reduce(function(s,v){return s+v;},0);
+    var tb=Object.values(byGrpInd[b]||{}).reduce(function(s,v){return s+v;},0);
+    return tb-ta;
+  });
+  var indArr=Array.from(inds).sort(function(a,b){
+    var ta=grpArr.reduce(function(s,g){return s+(byGrpInd[g][a]||0);},0);
+    var tb=grpArr.reduce(function(s,g){return s+(byGrpInd[g][b]||0);},0);
+    return tb-ta;
+  }).slice(0,12);
+  var maxVal=0;
+  grpArr.forEach(function(g){indArr.forEach(function(ind){var v=byGrpInd[g][ind]||0;if(v>maxVal)maxVal=v;});});
+  if(maxVal===0){wrap.innerHTML="<div style='color:var(--mu);padding:20px;text-align:center'>Sem dados</div>";return;}
+  var tdW=Math.max(70, Math.floor(520/indArr.length));
+  var html="<table style='border-collapse:collapse;min-width:100%'>"+
+    "<thead><tr><th style='padding:6px 10px;font-size:.65rem;color:var(--mu);text-align:left;border-bottom:1px solid var(--br);white-space:nowrap'>Grupo</th>"+
+    indArr.map(function(ind){
+      var s=ind.length>12?ind.substring(0,10)+"…":ind;
+      return "<th style='padding:4px 6px;font-size:.65rem;color:var(--mu);text-align:center;border-bottom:1px solid var(--br);width:"+tdW+"px;max-width:"+tdW+"px'>"+s+"</th>";
+    }).join("")+
+    "<th style='padding:4px 8px;font-size:.65rem;color:var(--mu);text-align:right;border-bottom:1px solid var(--br)'>Total</th>"+
+    "</tr></thead><tbody>"+
+    grpArr.map(function(g,gi){
+      var rowTotal=indArr.reduce(function(s,ind){return s+(byGrpInd[g][ind]||0);},0);
+      var bg=gi%2===0?"":"background:var(--sf)";
+      return "<tr style='"+bg+"'>"+
+        "<td style='padding:6px 10px;font-size:.78rem;font-weight:600;white-space:nowrap;border-right:1px solid var(--br)'>"+g+"</td>"+
+        indArr.map(function(ind){
+          var v=byGrpInd[g][ind]||0;
+          var pct=v/maxVal;
+          var alpha=v>0?Math.max(0.1,pct):0;
+          var r=Math.round(255*Math.min(1,pct*2));
+          var gb=Math.round(77*(1-pct));
+          var bgCell=v>0?"rgba("+r+","+gb+","+gb+","+alpha.toFixed(2)+")":"transparent";
+          var fgCell=pct>0.5?"#fff":"var(--tx)";
+          return "<td style='text-align:center;padding:4px 4px;font-size:.72rem;background:"+bgCell+";color:"+fgCell+";font-weight:"+(v>0?"600":"400")+";border:0.5px solid var(--br)'>"+
+            (v>0?devFmtK(v):"")+"</td>";
+        }).join("")+
+        "<td style='text-align:right;padding:4px 10px;font-size:.75rem;font-weight:700;color:#ffaa2b;border-left:1px solid var(--br)'>"+devFmt(rowTotal)+"</td>"+
+      "</tr>";
+    }).join("")+
+    "</tbody></table>";
+  wrap.innerHTML=html;
+}
+
 function devBuildFilters(){
   function fill(id,vals){
     var sel=document.getElementById(id);
@@ -5338,6 +5602,7 @@ function devApply(){
   devCharts(rows);
   devGauges(rows);
   devAIAlert(rows);
+  devStrategicCharts(rows);
   devTable(rows);
   // Se comparativo estiver aberto, atualiza também
   var compRes=document.getElementById("dev-comp-result");
