@@ -557,6 +557,9 @@ tbody tr:hover td{background:var(--s2);}
       <select id="dev-filt-vend" onchange="devApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
         <option value="">Todos os Vendedores</option>
       </select>
+      <select id="dev-filt-ind" onchange="devApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todas as Indústrias</option>
+      </select>
       <select id="dev-filt-mes" onchange="devApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
         <option value="">Todos os Meses</option>
       </select>
@@ -671,6 +674,7 @@ tbody tr:hover td{background:var(--s2);}
         <th style="text-align:left;cursor:pointer" onclick="devSort(2)">Cliente <span id="dso2"></span></th>
         <th style="text-align:left;cursor:pointer" onclick="devSort(3)">Vendedor <span id="dso3"></span></th>
         <th style="text-align:left">Produto</th>
+        <th style="text-align:left;cursor:pointer" onclick="devSort(4)">Indústria <span id="dso4"></span></th>
         <th style="text-align:center;cursor:pointer" onclick="devSort(5)">Qtde <span id="dso5"></span></th>
         <th style="text-align:right;cursor:pointer" onclick="devSort(6)">Total <span id="dso6"></span></th>
       </tr></thead>
@@ -5202,9 +5206,11 @@ function devComparar(){
   // Filter rows for each period (respecting current grupo/vendedor filters)
   var _grp=(document.getElementById("dev-filt-grp").value||"").trim();
   var _vend=(document.getElementById("dev-filt-vend").value||"").trim();
+  var _ind=(document.getElementById("dev-filt-ind").value||"").trim();
   function _baseFilter(r){
     if(_grp && devGet(r,["Grupo","GRUPO"])!==_grp) return false;
     if(_vend && devGet(r,["Vendedor","VENDEDOR"])!==_vend) return false;
+    if(_ind && devGet(r,["Industria:","Industria","INDUSTRIA"])!==_ind) return false;
     return true;
   }
   var rowsA=devAllRows.filter(function(r){return _baseFilter(r)&&devMes(devGet(r,["Data","DATA"]))===mA;});
@@ -5291,8 +5297,9 @@ function devBuildFilters(){
     });
     if(cur) sel.value=cur;
   }
-  fill("dev-filt-grp", [...new Set(devAllRows.map(function(r){return devGet(r,["Grupo","GRUPO"])||"";}).filter(Boolean))]);
-  fill("dev-filt-vend",[...new Set(devAllRows.map(function(r){return devGet(r,["Vendedor","VENDEDOR"])||"";}).filter(Boolean))]);
+  fill("dev-filt-grp", [...new Set(devAllRows.map(function(r){return devGet(r,["Grupo","GRUPO"])||"";}).filter(Boolean))].sort());
+  fill("dev-filt-vend",[...new Set(devAllRows.map(function(r){return devGet(r,["Vendedor","VENDEDOR"])||"";}).filter(Boolean))].sort());
+  fill("dev-filt-ind", [...new Set(devAllRows.map(function(r){return devGet(r,["Industria:","Industria","INDUSTRIA"])||"";}).filter(Boolean))].sort());
   var meses=[...new Set(devAllRows.map(function(r){return devMes(devGet(r,["Data","DATA"]));}).filter(Boolean))]
     .sort(function(a,b){
       var pa=a.split("/"),pb=b.split("/");
@@ -5306,12 +5313,14 @@ function devBuildFilters(){
 function devApply(){
   var grp =(document.getElementById("dev-filt-grp").value||"").trim();
   var vend=(document.getElementById("dev-filt-vend").value||"").trim();
+  var ind =(document.getElementById("dev-filt-ind").value||"").trim();
   var mes =(document.getElementById("dev-filt-mes").value||"").trim();
   var srch=(document.getElementById("dev-search").value||"").toLowerCase().trim();
 
   var rows=devAllRows.filter(function(r){
     if(grp  && devGet(r,["Grupo","GRUPO"])!==grp)  return false;
     if(vend && devGet(r,["Vendedor","VENDEDOR"])!==vend) return false;
+    if(ind  && devGet(r,["Industria:","Industria","INDUSTRIA"])!==ind) return false;
     if(mes  && devMes(devGet(r,["Data","DATA"]))!==mes) return false;
     if(srch){
       var hay=[devGet(r,["CLIENTE:","Cliente","CLIENTE"]),
@@ -5626,6 +5635,7 @@ function devTable(rows){
     var cli=devGet(r,["CLIENTE:","Cliente","CLIENTE"])||"—";
     var vend=devGet(r,["Vendedor","VENDEDOR"])||"—";
     var prod=devGet(r,["Produto:","Produto","PRODUTO"])||"—";
+    var ind_val=devGet(r,["Industria:","Industria","INDUSTRIA"])||"—";
     var qtd=devNum(devGet(r,["Qtde:","Qtde","QTDE"]));
     var tot=devNum(devGet(r,["Total","TOTAL"]));
     // Modo foco: highlight por valor
@@ -5644,6 +5654,7 @@ function devTable(rows){
       "<td style='font-size:.82rem;font-weight:500'>"+cli.substring(0,30)+"</td>"+
       "<td style='font-size:.8rem'>"+vend.replace("."," ").split(" ")[0]+"</td>"+
       "<td style='font-size:.78rem'>"+prod.substring(0,35)+"</td>"+
+      "<td style='font-size:.72rem;color:var(--mu)'>"+ind_val+"</td>"+
       "<td style='text-align:center'>"+qtd.toFixed(0)+"</td>"+
       "<td style='text-align:right;font-weight:600;color:#ffaa2b'>"+devFmt(tot)+trTag+"</td>"+
     "</tr>";
@@ -5665,6 +5676,7 @@ function devSort(col){
         case 1: return devGet(r,["Grupo","GRUPO"])||"";
         case 2: return devGet(r,["CLIENTE:","Cliente","CLIENTE"])||"";
         case 3: return devGet(r,["Vendedor","VENDEDOR"])||"";
+        case 4: return devGet(r,["Industria:","Industria","INDUSTRIA"])||"";
         case 5: return devNum(devGet(r,["Qtde:","Qtde","QTDE"]));
         case 6: return devNum(devGet(r,["Total","TOTAL"]));
         default: return "";
