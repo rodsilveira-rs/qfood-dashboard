@@ -589,6 +589,50 @@ tbody tr:hover td{background:var(--s2);}
     </div>
   </div>
 
+  <!-- COMPARATIVO A vs B -->
+  <div id="dev-comp-section" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+      <div style="font-size:.72rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px">&#128200; Análise Comparativa</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px">
+      <div>
+        <div style="font-size:.68rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período A (Base)</div>
+        <select id="dev-comp-a" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none"></select>
+      </div>
+      <div>
+        <div style="font-size:.68rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Comparar com</div>
+        <select id="dev-comp-b" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none"></select>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto">
+      <span style="font-size:.68rem;color:var(--mu);font-weight:700;white-space:nowrap;flex-shrink:0">&#9664; Ant.</span>
+      <button onclick="devPreset('prev')"  style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:.75rem;cursor:pointer;white-space:nowrap">Mês</button>
+      <button onclick="devPreset('trim')"  style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+      <button onclick="devPreset('sem')"   style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
+      <button onclick="devPreset('year')"  style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+      <span style="font-size:.68rem;color:#4d8ef5;font-weight:700;white-space:nowrap;flex-shrink:0;margin-left:4px">&#9654; Próx.</span>
+      <button onclick="devPreset('nextprev')"  style="padding:6px 10px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:.75rem;cursor:pointer;white-space:nowrap">Mês</button>
+      <button onclick="devPreset('nexttrim')"  style="padding:6px 10px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+      <button onclick="devPreset('nextsem')"   style="padding:6px 10px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
+      <button onclick="devPreset('nextyear')"  style="padding:6px 10px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+      <button onclick="devComparar()" style="padding:6px 16px;background:var(--red);border:none;border-radius:7px;color:#fff;font-weight:700;font-size:.78rem;cursor:pointer;white-space:nowrap;margin-left:6px;flex-shrink:0">Comparar</button>
+    </div>
+    <!-- Resultado comparativo -->
+    <div id="dev-comp-result" style="display:none;margin-top:14px">
+      <div class="kpis" id="dev-comp-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="cwrap">
+          <div class="ctitle" id="dev-comp-chart-title">Comparativo</div>
+          <div style="position:relative;height:180px"><canvas id="dev-comp-c1"></canvas></div>
+        </div>
+        <div class="cwrap">
+          <div class="ctitle">Top Produtos — Variação</div>
+          <div id="dev-comp-prods" style="font-size:.8rem;line-height:1.9;padding:6px 0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- GRÁFICOS -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
     <div class="cwrap">
@@ -3888,7 +3932,7 @@ function lalCatChart(cat,mA,mB){
   td.colSpan=6;
   td.style.cssText="padding:4px 10px 12px;max-width:100%;width:100%";
   var wrap=document.createElement("div");
-  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px 4px";
+  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px 4px;height:200px;position:relative";
 
   if(nM<=2){
     // Classic 2-period SVG bars
@@ -3924,13 +3968,13 @@ function lalCatChart(cat,mA,mB){
   } else {
     // 3+ months: Canvas bar chart showing monthly totals for this category
     var cvs=document.createElement("canvas");
-    cvs.style.cssText="width:100%;height:180px;display:block";
+    cvs.style.cssText="position:absolute;top:28px;left:0;right:0;bottom:0;width:100%";
     var monthTotals=range.map(function(m){
       return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
     });
     wrap.appendChild(cvs);
     var titleEl=document.createElement("div");
-    titleEl.style.cssText="font-size:.75rem;color:var(--mu);margin-bottom:8px;font-weight:600";
+    titleEl.style.cssText="font-size:.72rem;color:var(--mu);font-weight:600;position:absolute;top:0;left:12px";
     titleEl.textContent=cat+" — "+nM+" meses ("+range[0]+" → "+range[range.length-1]+")";
     wrap.insertBefore(titleEl,cvs);
     new Chart(cvs,{type:"bar",data:{
@@ -5079,6 +5123,7 @@ async function devLoad(force){
     var upd=document.getElementById("dev-last");
     if(upd) upd.textContent="Atualizado em "+new Date().toLocaleString("pt-BR")+" — "+devAllRows.length+" registros";
     devBuildFilters();
+    devPopulateCompSelects();
     devApply();
   }catch(e){
     if(ldg) ldg.innerHTML="<span style='color:var(--red)'>Erro: "+e.message+"</span>";
@@ -5091,6 +5136,128 @@ function devGet(r,keys){
     if(v!==undefined&&String(v).trim()!=="") return String(v).trim();
   }
   return "";
+}
+
+
+var devCompC1=null;
+
+function devPopulateCompSelects(){
+  // Get all unique sorted months from data
+  var meses=[...new Set(devAllRows.map(function(r){return devMes(devGet(r,["Data","DATA"]));}).filter(Boolean))]
+    .sort(function(a,b){
+      var pa=a.split("/"),pb=b.split("/");
+      var ya=parseInt(pa[1]||0),yb=parseInt(pb[1]||0);
+      if(ya!==yb)return ya-yb;
+      return parseInt(pa[0]||0)-parseInt(pb[0]||0);
+    });
+  ["dev-comp-a","dev-comp-b"].forEach(function(id){
+    var sel=document.getElementById(id);
+    if(!sel)return;
+    var cur=sel.value;
+    sel.innerHTML="<option value=''>Selecione...</option>";
+    meses.forEach(function(m){
+      var o=document.createElement("option");
+      o.value=m;o.textContent=m;sel.appendChild(o);
+    });
+    if(meses.length){
+      if(id==="dev-comp-a") sel.value=meses[meses.length-1];
+      if(id==="dev-comp-b" && meses.length>1) sel.value=meses[meses.length-2];
+    }
+  });
+}
+
+function devPreset(type){
+  var selA=document.getElementById("dev-comp-a");
+  var selB=document.getElementById("dev-comp-b");
+  if(!selA||!selB)return;
+  var meses=[...selA.options].map(function(o){return o.value;}).filter(Boolean);
+  var idxA=meses.indexOf(selA.value);
+  if(idxA<0)idxA=meses.length-1;
+  var idxB=-1;
+  if(type==="prev")     idxB=idxA-1;
+  if(type==="trim")     idxB=idxA-2;
+  if(type==="sem")      idxB=idxA-5;
+  if(type==="year")     idxB=idxA-11;
+  if(type==="nextprev") idxB=idxA+1;
+  if(type==="nexttrim") idxB=idxA+2;
+  if(type==="nextsem")  idxB=idxA+5;
+  if(type==="nextyear") idxB=idxA+11;
+  if(idxB>=0&&idxB<meses.length){
+    selB.value=meses[idxB];
+  } else if(idxB<0){
+    selB.value=meses[0];
+  } else {
+    selB.value=meses[meses.length-1];
+  }
+  devComparar();
+}
+
+function devComparar(){
+  var mA=document.getElementById("dev-comp-a").value;
+  var mB=document.getElementById("dev-comp-b").value;
+  if(!mA||!mB){return;}
+  var result=document.getElementById("dev-comp-result");
+  if(result)result.style.display="block";
+
+  // Filter rows for each period
+  var rowsA=devAllRows.filter(function(r){return devMes(devGet(r,["Data","DATA"]))===mA;});
+  var rowsB=devAllRows.filter(function(r){return devMes(devGet(r,["Data","DATA"]))===mB;});
+
+  var totA=rowsA.reduce(function(s,r){return s+devNum(devGet(r,["Total","TOTAL"]));},0);
+  var totB=rowsB.reduce(function(s,r){return s+devNum(devGet(r,["Total","TOTAL"]));},0);
+  var qtdA=rowsA.reduce(function(s,r){return s+devNum(devGet(r,["Qtde:","Qtde"]));},0);
+  var qtdB=rowsB.reduce(function(s,r){return s+devNum(devGet(r,["Qtde:","Qtde"]));},0);
+  var dv=totA-totB,dp=totB>0?(dv/totB*100):0;
+  var vc=dp>10?"r":dp>0?"w":dp<-10?"g":"b";
+
+  var kpis=document.getElementById("dev-comp-kpis");
+  if(kpis) kpis.innerHTML=
+    kpi("b",""+mB+" (Base)","<b>"+devFmt(totB)+"</b>",qtdB.toFixed(0)+" un")+
+    kpi("p",""+mA+" (Atual)","<b>"+devFmt(totA)+"</b>",qtdA.toFixed(0)+" un")+
+    kpi(vc,"Variação","<b>"+(dv>=0?"+":"")+devFmt(dv)+"</b>",(dp>=0?"+":"")+dp.toFixed(1).replace(".",",")+"%")+
+    kpi(dp>2?"r":"g","Status vs Teto 2%",dp>2?"<b>ACIMA</b>":"<b>OK</b>",dp>2?"acima de "+dp.toFixed(1)+"% ⚠":"dentro do teto ✓");
+
+  // Chart: by grupo comparison
+  var grpsAll=[...new Set([...rowsA,...rowsB].map(function(r){return devGet(r,["Grupo","GRUPO"])||"Outros";}))];
+  var byGrpA={},byGrpB={};
+  rowsA.forEach(function(r){var g=devGet(r,["Grupo","GRUPO"])||"Outros";if(!byGrpA[g])byGrpA[g]=0;byGrpA[g]+=devNum(devGet(r,["Total","TOTAL"]));});
+  rowsB.forEach(function(r){var g=devGet(r,["Grupo","GRUPO"])||"Outros";if(!byGrpB[g])byGrpB[g]=0;byGrpB[g]+=devNum(devGet(r,["Total","TOTAL"]));});
+
+  var tit=document.getElementById("dev-comp-chart-title");
+  if(tit)tit.textContent="Grupos — "+mB+" vs "+mA;
+
+  if(devCompC1){devCompC1.destroy();devCompC1=null;}
+  var ctx=document.getElementById("dev-comp-c1");
+  if(ctx) devCompC1=new Chart(ctx,{type:"bar",data:{
+    labels:grpsAll.map(function(g){return g.length>14?g.substring(0,12)+"…":g;}),
+    datasets:[
+      {label:mB,data:grpsAll.map(function(g){return byGrpB[g]||0;}),backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1,borderRadius:3},
+      {label:mA,data:grpsAll.map(function(g){return byGrpA[g]||0;}),backgroundColor:"rgba(255,77,79,.75)",borderColor:"#ff4d4f",borderWidth:1,borderRadius:3}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:"#8fa0c0",font:{size:10}},display:true},
+      tooltip:{callbacks:{label:function(x){return x.dataset.label+": "+devFmt(x.parsed.y);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",font:{size:9}},grid:{display:false}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.05)"}}}
+  }});
+
+  // Top produtos variação
+  var byProdA={},byProdB={};
+  rowsA.forEach(function(r){var p=devGet(r,["Produto:","Produto"])||"N/A";if(!byProdA[p])byProdA[p]=0;byProdA[p]+=devNum(devGet(r,["Total","TOTAL"]));});
+  rowsB.forEach(function(r){var p=devGet(r,["Produto:","Produto"])||"N/A";if(!byProdB[p])byProdB[p]=0;byProdB[p]+=devNum(devGet(r,["Total","TOTAL"]));});
+  var allProds=[...new Set([...Object.keys(byProdA),...Object.keys(byProdB)])];
+  var changes=allProds.map(function(p){return{p:p,va:byProdA[p]||0,vb:byProdB[p]||0,dv:(byProdA[p]||0)-(byProdB[p]||0)};})
+    .sort(function(a,b){return Math.abs(b.dv)-Math.abs(a.dv);}).slice(0,6);
+  var prodsEl=document.getElementById("dev-comp-prods");
+  if(prodsEl) prodsEl.innerHTML=changes.map(function(d){
+    var pct=d.vb>0?((d.dv/d.vb)*100):0;
+    var cor=d.dv>0?"#ff4d4f":"#36cfa0";
+    var srt=d.p.length>28?d.p.substring(0,26)+"…":d.p;
+    return "<div style='display:flex;justify-content:space-between;border-bottom:1px solid var(--br);padding:2px 0;font-size:.78rem'>"+
+      "<span>"+srt+"</span>"+
+      "<span style='color:"+cor+";font-weight:600'>"+(d.dv>=0?"+":"")+devFmt(d.dv)+"</span>"+
+    "</div>";
+  }).join("");
 }
 
 function devBuildFilters(){
@@ -5107,7 +5274,13 @@ function devBuildFilters(){
   }
   fill("dev-filt-grp", [...new Set(devAllRows.map(function(r){return devGet(r,["Grupo","GRUPO"])||"";}).filter(Boolean))]);
   fill("dev-filt-vend",[...new Set(devAllRows.map(function(r){return devGet(r,["Vendedor","VENDEDOR"])||"";}).filter(Boolean))]);
-  var meses=[...new Set(devAllRows.map(function(r){return devMes(devGet(r,["Data","DATA"]));}).filter(Boolean))].sort();
+  var meses=[...new Set(devAllRows.map(function(r){return devMes(devGet(r,["Data","DATA"]));}).filter(Boolean))]
+    .sort(function(a,b){
+      var pa=a.split("/"),pb=b.split("/");
+      var ya=parseInt(pa[1]||0),yb=parseInt(pb[1]||0);
+      if(ya!==yb)return ya-yb;
+      return parseInt(pa[0]||0)-parseInt(pb[0]||0);
+    });
   fill("dev-filt-mes", meses);
 }
 
