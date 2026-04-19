@@ -575,9 +575,9 @@ tbody tr:hover td{background:var(--s2);}
   <!-- VELOCÍMETRO + GAUGE ROW -->
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
     <div class="cwrap">
-      <div class="ctitle">Índice de Devolução por Grupo</div>
-      <canvas id="dev-gauge1" height="160"></canvas>
-      <div id="dev-gauge1-label" style="text-align:center;font-size:.8rem;color:var(--mu);margin-top:4px"></div>
+      <div class="ctitle">Concentração por Grupo (%)</div>
+      <div id="dev-gauge1" style="padding:8px 0"></div>
+      <div id="dev-gauge1-label" style="font-size:.72rem;color:var(--mu);margin-top:6px;line-height:1.8"></div>
     </div>
     <div class="cwrap">
       <div class="ctitle">Top Produto Devolvido</div>
@@ -3884,9 +3884,9 @@ function lalCatChart(cat,mA,mB){
   chartRow.id=chartId;
   var td=document.createElement("td");
   td.colSpan=6;
-  td.style.cssText="padding:6px 14px 10px;max-width:100%";
+  td.style.cssText="padding:4px 10px 8px;max-width:100%;width:100%";
   var wrap=document.createElement("div");
-  wrap.style.cssText="background:var(--s2);border-radius:10px;padding:10px 14px";
+  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px;overflow:hidden";
 
   if(nM<=2){
     // Classic 2-period SVG bars
@@ -3918,11 +3918,11 @@ function lalCatChart(cat,mA,mB){
     });
     var leg="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
     var svgEl="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
-    wrap.innerHTML="<div style='max-height:260px;overflow-y:auto;overflow-x:hidden'>"+svgEl+"</div>";
+    wrap.innerHTML="<div style='max-height:220px;overflow-y:auto;overflow-x:hidden;border-radius:8px'>"+svgEl+"</div>";
   } else {
     // 3+ months: Canvas bar chart showing monthly totals for this category
     var cvs=document.createElement("canvas");
-    cvs.style.cssText="width:100%;height:160px;display:block";
+    cvs.style.cssText="width:100%;height:140px;display:block";
     var monthTotals=range.map(function(m){
       return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
     });
@@ -4992,7 +4992,16 @@ var devC1=null,devC2=null,devC3=null,devC4=null;
 var devSortCol=-1,devSortAsc=true,devLastRows=[];
 
 function devNum(v){
-  var s=String(v||0).replace(/R\$\s*/g,"").replace(/\./g,"").replace(",",".").trim();
+  if(v===null||v===undefined||v==="") return 0;
+  var s=String(v).replace(/R\$\s*/g,"").trim();
+  // BR format: '1.234,56' → has both dot and comma
+  if(s.indexOf(",")>-1 && s.indexOf(".")>-1){
+    s=s.replace(/\./g,"").replace(",",".");
+  } else if(s.indexOf(",")>-1){
+    // Only comma: treat as decimal separator
+    s=s.replace(",",".");
+  }
+  // else: US format (10.9) or integer — use as-is
   var n=parseFloat(s);return isNaN(n)?0:n;
 }
 function devFmt(v){
@@ -5005,13 +5014,21 @@ function devFmtK(v){
   return devFmt(n);
 }
 function devParseDate(s){
-  if(!s) return new Date(0);
-  var p=String(s).split("/");
-  if(p.length===3) return new Date(p[2],p[1]-1,p[0]);
-  return new Date(s);
+  if(!s||s==="NaN/NaN") return new Date(0);
+  var str=String(s).trim();
+  var p=str.split("/");
+  if(p.length===3){
+    var day=parseInt(p[0]),mon=parseInt(p[1])-1,yr=parseInt(p[2]);
+    if(!isNaN(day)&&!isNaN(mon)&&!isNaN(yr)&&yr>1900){
+      return new Date(yr,mon,day);
+    }
+  }
+  var d=new Date(str);
+  return isNaN(d.getTime())?new Date(0):d;
 }
 function devMes(s){
   var d=devParseDate(s);
+  if(!d||isNaN(d.getTime())||d.getTime()===0) return "";
   return (d.getMonth()+1).toString().padStart(2,"0")+"/"+d.getFullYear();
 }
 
@@ -5255,39 +5272,38 @@ function devCharts(rows){
 }
 
 function devGauges(rows){
-  // Gauge: índice de devolução por grupo (% do maior grupo)
+  // Concentração por grupo — barras horizontais proporcionais
   var byGrp={};
   rows.forEach(function(r){
     var g=devGet(r,["Grupo","GRUPO"])||"Outros";
     if(!byGrp[g])byGrp[g]=0;
     byGrp[g]+=devNum(devGet(r,["Total","TOTAL"]));
   });
-  var vals=Object.values(byGrp);
-  var total=vals.reduce(function(a,b){return a+b;},0);
-  var topG="—",topV=0;
-  Object.keys(byGrp).forEach(function(g){if(byGrp[g]>topV){topV=byGrp[g];topG=g;}});
-  var pct=total>0?(topV/total*100):0;
+  var total=Object.values(byGrp).reduce(function(a,b){return a+b;},0);
+  var COLORS=["#ff4d4f","#ffaa2b","#4d8ef5","#36cfa0","#a07cf6","#00cec9","#fd79a8","#e17055","#74b9ff","#f8c291"];
+  var grps=Object.keys(byGrp).sort(function(a,b){return byGrp[b]-byGrp[a];});
 
-  var ctx=document.getElementById("dev-gauge1");
+  var el=document.getElementById("dev-gauge1");
   var lbl=document.getElementById("dev-gauge1-label");
-  if(!ctx) return;
+  if(!el) return;
 
-  // Draw speedometer style gauge using Chart.js doughnut trick
-  var gaugeVal=Math.min(pct,100);
-  var remaining=100-gaugeVal;
-  var hidden=100; // the bottom half hidden arc
-  var color=pct>60?"#ff4d4f":pct>35?"#ffaa2b":"#36cfa0";
-  if(ctx._chartInstance){ctx._chartInstance.destroy();}
-  var g=new Chart(ctx,{type:"doughnut",data:{
-    labels:["Concentração",""," "],
-    datasets:[{data:[gaugeVal,remaining,hidden],
-      backgroundColor:[color,"rgba(255,255,255,0.05)","rgba(0,0,0,0)"],
-      borderWidth:0,circumference:180,rotation:270}]
-  },options:{responsive:true,maintainAspectRatio:true,cutout:"72%",
-    plugins:{legend:{display:false},tooltip:{filter:function(i){return i.dataIndex===0;},
-      callbacks:{label:function(x){return pct.toFixed(1)+"% — "+topG;}}}}}});
-  ctx._chartInstance=g;
-  if(lbl) lbl.innerHTML="<b style='color:"+color+"'>"+pct.toFixed(1)+"%</b> — "+topG;
+  el.innerHTML=grps.map(function(g,i){
+    var pct=total>0?(byGrp[g]/total*100):0;
+    var col=COLORS[i%COLORS.length];
+    var alert=pct>50?"&#9888; ":"";
+    return "<div style='margin-bottom:10px'>"+
+      "<div style='display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:3px'>"+
+        "<span style='font-weight:600'>"+alert+g+"</span>"+
+        "<span style='color:"+col+";font-weight:700'>"+pct.toFixed(1)+"%</span>"+
+      "</div>"+
+      "<div style='background:var(--br);border-radius:4px;height:10px;overflow:hidden'>"+
+        "<div style='height:100%;border-radius:4px;background:"+col+";width:"+pct.toFixed(1)+"%'></div>"+
+      "</div>"+
+      "<div style='font-size:.67rem;color:var(--mu);margin-top:1px'>"+devFmtK(byGrp[g])+"</div>"+
+    "</div>";
+  }).join("");
+
+  if(lbl) lbl.innerHTML="Total: <b>"+devFmtK(total)+"</b>";
 
   // Top produto card
   var byProd={};
