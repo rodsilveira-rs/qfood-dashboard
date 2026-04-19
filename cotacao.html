@@ -122,7 +122,7 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
       <div class="fg2">
         <div class="fg"><label>Nome / Empresa *</label><input type="text" id="fnome" placeholder="Ex: Seiwa Bussan Imp Exp Ltda"></div>
         <div class="fg"><label>E-mail para resposta *</label><input type="email" id="femail" placeholder="vendas@empresa.com.br"></div>
-        <div class="fg"><label>Contato / Representante</label><input type="text" id="fcontato" placeholder="Nome do representante"></div>
+        <div class="fg"><label>Contato / Representante</label><input type="text" id="fcontato" placeholder="Nome do representante *"></div>
         <div class="fg"><label>Prazo de entrega estimado</label>
           <select id="fprazo">
             <option value="">Selecione...</option>
@@ -313,31 +313,49 @@ function montarCorpo() {
     var u = document.getElementById('un' + i).value;
     var v = parseInt(document.getElementById('v' + i).value) || 0;
     var min = it.valMeses ? Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80)) : 0;
-    var st = v && min ? (v >= min ? 'ACEITA' : 'ABAIXO DO MINIMO') : '';
-    return (i + 1) + '. ' + (it.desc || it.cod) +
-      '\n   Codigo: ' + it.cod +
-      '\n   Quantidade: ' + it.qtd +
-      (p ? '\n   Preco: R$ ' + p.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + u +
-           ' = R$ ' + (p * it.qtd).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '') +
-      (v ? '\n   Validade: ' + v + ' meses' + (st ? ' (' + st + ')' : '') : '');
+    var st = v && min ? (v >= min ? '✅ ACEITA' : '❌ ABAIXO DO MÍNIMO') : '';
+    var valIcon = v && min ? (v >= min ? '✅' : '❌') : '⚪';
+    var totItem = p * it.qtd;
+    return '▸ Item ' + (i + 1) + ': ' + (it.desc || it.cod).toUpperCase() + '\n' +
+      '   Código: ' + it.cod + ' | Qtde: ' + it.qtd + ' ' + u + '\n' +
+      (p ? '   💲 Preço unit.: R$ ' + p.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + u +
+           ' → Total: R$ ' + totItem.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' : '') +
+      (v ? '   ' + valIcon + ' Validade: ' + v + ' meses' + (st ? ' — ' + st : '') + '\n' : '') +
+      (it.minDate ? '   📅 Val. mínima exigida: ' + it.minDate : '');
   }).join('\n\n');
 
   var tot = COT.itens.reduce(function(s, it, i) {
     return s + (parseFloat(document.getElementById('p' + i).value) || 0) * it.qtd;
   }, 0);
 
+  var SEP = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
+  var corpoTexto =
+    '╔══════════════════════════════════════════╗\n' +
+    '║      RESPOSTA DE COTAÇÃO — ' + nome.substring(0,16).toUpperCase() + '\n' +
+    '╚══════════════════════════════════════════╝\n\n' +
+    '📅 Data: ' + today + '\n' +
+    '🏢 Fornecedor: ' + nome + '\n' +
+    '📧 E-mail: ' + email + '\n' +
+    (contato ? '👤 Representante: ' + contato + '\n' : '') +
+    (prazo   ? '🚚 Prazo de entrega: ' + prazo + '\n' : '') +
+    '\n' + SEP + '\n' +
+    '📦 FORNECEDOR NA COTAÇÃO: ' + COT.fornecedor + '\n' +
+    '📋 Solicitação: ' + (COT.data || today) + '\n' +
+    SEP + '\n\n' +
+    '┌─────────────────────────────────────────┐\n' +
+    '│              ITENS PROPOSTOS            │\n' +
+    '└─────────────────────────────────────────┘\n\n' +
+    linhas +
+    '\n\n' + SEP + '\n' +
+    '💰 TOTAL GERAL: R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
+    SEP + '\n' +
+    (obs ? '\n📝 OBSERVAÇÕES DO FORNECEDOR:\n' + obs + '\n\n' : '') +
+    'Enviado via Formulário de Cotação — Q Food Company\n' +
+    'compras@qfoodcompany.com.br';
+
   return {
     nome: nome, email: email, contato: contato, prazo: prazo, obs: obs, today: today,
-    corpo: 'RESPOSTA DE COTACAO - ' + nome + '\n' +
-      'Data: ' + today + '\nEmail: ' + email +
-      (contato ? '\nRepresentante: ' + contato : '') +
-      (prazo   ? '\nPrazo de entrega: ' + prazo : '') +
-      '\n\nFornecedor: ' + COT.fornecedor +
-      '\nSolicitacao: ' + (COT.data || '') +
-      '\n\n--- ITENS ---\n\n' + linhas +
-      '\n\n--- TOTAL ---\nR$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) +
-      (obs ? '\n\n--- OBSERVACOES ---\n' + obs : '') +
-      '\n\nEnviado via Formulario de Cotacao Q Food Company'
+    corpo: corpoTexto
   };
 }
 
@@ -350,6 +368,14 @@ function enviar() {
     if (parseFloat(document.getElementById('p' + i).value) > 0) temP = true;
   });
   if (!temP) erros.push('Informe o preço de ao menos 1 item');
+  if (!document.getElementById('fcontato').value.trim()) erros.push('Informe o nome do representante');
+  if (!document.getElementById('fprazo').value) erros.push('Informe o prazo de entrega');
+  // Validade obrigatória para cada item com preço preenchido
+  COT.itens.forEach(function(it, i) {
+    var p = parseFloat(document.getElementById('p' + i).value) || 0;
+    var v = parseInt(document.getElementById('v' + i).value) || 0;
+    if (p > 0 && !v) erros.push('Informe a validade do item: ' + (it.desc||it.cod).substring(0,25));
+  });
   var eEl = document.getElementById('FERR');
   if (erros.length) { eEl.style.display = 'block'; eEl.textContent = '⚠️ ' + erros.join(' · '); return; }
   eEl.style.display = 'none';
