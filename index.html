@@ -2862,9 +2862,10 @@ function lalChart1(mA,mB){
         label:function(x){return x.dataset.label+": "+dreFmt(x.parsed.y);}
       }}},
       scales:{
-        x:{ticks:{color:"#8fa0c0",font:{size:9},maxRotation:0,minRotation:0},grid:{color:"rgba(255,255,255,0.04)"}},
+        x:{ticks:{color:"#8fa0c0",font:{size:9},maxRotation:0,minRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
         y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
-      }
+      },
+      layout:{padding:{bottom:4}}
     }});
     if(lalLeg) makeLegend(lalLeg,lalC1,range.map(function(m,i){return{label:m,borderColor:MONTH_COLORS[i%MONTH_COLORS.length],backgroundColor:MONTH_COLORS[i%MONTH_COLORS.length]};}));
   }
@@ -3887,7 +3888,7 @@ function lalCatChart(cat,mA,mB){
   td.colSpan=6;
   td.style.cssText="padding:4px 10px 8px;max-width:100%;width:100%;max-height:280px;overflow:hidden";
   var wrap=document.createElement("div");
-  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px;max-height:260px;overflow:hidden";
+  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px;max-height:280px;overflow:hidden";
 
   if(nM<=2){
     // Classic 2-period SVG bars
@@ -3923,7 +3924,7 @@ function lalCatChart(cat,mA,mB){
   } else {
     // 3+ months: Canvas bar chart showing monthly totals for this category
     var cvs=document.createElement("canvas");
-    cvs.style.cssText="width:100%;height:140px;display:block";
+    cvs.style.cssText="width:100%;height:160px;display:block";
     var monthTotals=range.map(function(m){
       return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
     });
@@ -3945,9 +3946,10 @@ function lalCatChart(cat,mA,mB){
     },options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return dreFmt(x.parsed.y);}}}},
       scales:{
-        x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:0,minRotation:0},grid:{color:"rgba(255,255,255,0.04)"}},
+        x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:0,minRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
         y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
-      }
+      },
+      layout:{padding:{bottom:4}}
     }});
   }
 
@@ -5019,8 +5021,9 @@ function devParseDate(s){
   var str=String(s).trim();
   var p=str.split("/");
   if(p.length===3){
-    var day=parseInt(p[0]),mon=parseInt(p[1])-1,yr=parseInt(p[2]);
-    if(!isNaN(day)&&!isNaN(mon)&&!isNaN(yr)&&yr>1900){
+    // CSV from Google Sheets exports as MM/DD/YYYY
+    var mon=parseInt(p[0])-1, day=parseInt(p[1]), yr=parseInt(p[2]);
+    if(!isNaN(mon)&&!isNaN(day)&&!isNaN(yr)&&yr>1900&&mon>=0&&mon<=11){
       return new Date(yr,mon,day);
     }
   }
