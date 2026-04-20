@@ -106,7 +106,7 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
           <thead><tr>
             <th style="width:35%">Produto</th>
             <th style="text-align:center">Giro</th>
-            <th style="text-align:center">Qtd.</th>
+            <th style="text-align:center">Qtd.<br><span style="font-size:.6rem;color:#a07cf6;font-weight:400">editável</span></th>
             <th style="color:#e63329">Val. Mínima</th>
             <th style="color:#a07cf6">Preço Unit.</th>
             <th style="color:#a07cf6">Unidade</th>
@@ -312,12 +312,16 @@ function montarCorpo() {
     var p = parseFloat(document.getElementById('p' + i).value) || 0;
     var u = document.getElementById('un' + i).value;
     var v = parseInt(document.getElementById('v' + i).value) || 0;
+    var qEl = document.getElementById('qtd' + i);
+    var qtdEdit = qEl ? (parseInt(qEl.value) || it.qtd) : it.qtd;
+    var qtdDiff = qtdEdit !== it.qtd;
     var min = it.valMeses ? Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80)) : 0;
     var st = v && min ? (v >= min ? '✅ ACEITA' : '❌ ABAIXO DO MÍNIMO') : '';
     var valIcon = v && min ? (v >= min ? '✅' : '❌') : '⚪';
-    var totItem = p * it.qtd;
+    var totItem = p * qtdEdit;
     return '▸ Item ' + (i + 1) + ': ' + (it.desc || it.cod).toUpperCase() + '\n' +
-      '   Código: ' + it.cod + ' | Qtde: ' + it.qtd + ' ' + u + '\n' +
+      '   Código: ' + it.cod + ' | Qtde solicitada: ' + it.qtd + ' ' + u +
+      (qtdDiff ? '  →  ⚠️ Qtde disponível: ' + qtdEdit + ' ' + u : '  →  Qtde confirmada: ' + qtdEdit + ' ' + u) + '\n' +
       (p ? '   💲 Preço unit.: R$ ' + p.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + u +
            ' → Total: R$ ' + totItem.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' : '') +
       (v ? '   ' + valIcon + ' Validade: ' + v + ' meses' + (st ? ' — ' + st : '') + '\n' : '') +
@@ -325,7 +329,9 @@ function montarCorpo() {
   }).join('\n\n');
 
   var tot = COT.itens.reduce(function(s, it, i) {
-    return s + (parseFloat(document.getElementById('p' + i).value) || 0) * it.qtd;
+    var qE = document.getElementById('qtd' + i);
+    var qv = qE ? (parseInt(qE.value) || it.qtd) : it.qtd;
+    return s + (parseFloat(document.getElementById('p' + i).value) || 0) * qv;
   }, 0);
 
   var SEP = '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
