@@ -6835,7 +6835,12 @@ function chkMontarSemanas(gestor){
         } else if(gestor==='celio'){
           if(dadoDia.notas_total) kpis.push('Notas: <b>'+dadoDia.notas_total+'</b>'+(dadoDia.notas_pend?' ('+dadoDia.notas_pend+' pend.)':''));
           if(dadoDia.avar_val>0) kpis.push('<span style="color:#ff4d4f">Avarias: R$'+Number(dadoDia.avar_val).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>');
+          if(dadoDia.estoque&&dadoDia.estoque.length>0) kpis.push('<a href="javascript:void(0)" onclick="chkEstHistAbrir(\\"'+dStr+'\\")" style="color:#a07cf6;font-weight:700">📦 '+dadoDia.estoque.length+' parado(s)</a>');
           if(dadoDia.pend) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend.substring(0,40)+'</span>');
+         } else if(gestor==='cris'){
+          if(dadoDia.ped_sol) kpis.push('Pedidos: <b>'+dadoDia.ped_rec+'/'+dadoDia.ped_sol+'</b>');
+          if(dadoDia.pend_itens>0) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend_itens+' pend.</span>');
+          if(dadoDia.negociacoes&&dadoDia.negociacoes.length>0) kpis.push('<span style="color:#a07cf6">🤝 '+dadoDia.negociacoes.length+' neg.</span>');
         }
         resumoHtml = kpis.length
           ? '<div style="font-size:.72rem;color:var(--tx);margin-top:3px;line-height:1.7">'+kpis.join(' · ')+'</div>'
@@ -6873,7 +6878,8 @@ function chkMontarSemanas(gestor){
       (diasTotal>0 ? diasHtml : '<div style="font-size:.75rem;color:var(--mu);padding:8px 0">Semana futura</div>') +
       // Campo obs
       '<div style="margin-top:12px">' +
-        '<label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">📝 Observação da semana</label>' +
+        (gestor==='celio'?'<button onclick="chkEstHistSemana(\''+isoIni+'\')" style="width:100%;margin-bottom:10px;padding:8px;background:rgba(160,124,246,.12);border:1px solid rgba(160,124,246,.25);border-radius:8px;color:#a07cf6;font-size:.78rem;font-weight:700;cursor:pointer">📦 Ver Estoque Parado desta semana</button>':'')+
+      '<label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">📝 Observação da semana</label>' +
         '<textarea id="chk-sw-obs-'+gestor+'-'+isoIni+'" rows="4" placeholder="Análise da semana, ajustes identificados, negociações com fornecedores, pontos de atenção..."' +
         ' style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.82rem;outline:none;resize:vertical;font-family:inherit;min-height:80px">'+(dadoObs&&dadoObs.obs?dadoObs.obs:'')+'</textarea>' +
       '</div>' +
@@ -7355,6 +7361,75 @@ function chkCCarregarHistorico(){
       '<span>'+tipo+' — '+data+'</span>'+
       '<span style="color:var(--mu)">'+new Date(item.v.ts||0).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})+'</span></div>';
   }).join('');
+}
+
+
+function chkEstRenderItem(it){
+  var lbl={baixa:'⚡ Baixa saída',venc:'⚠️ Venc. próximo',outro:'📌 Outro'};
+  var urg=it.mot==='venc'&&(it.val||99)<=3;
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--br)">'+
+    '<div style="flex:1"><div style="font-size:.82rem;font-weight:600">'+(it.desc||it.cod||'—').substring(0,38)+'</div>'+
+    '<div style="font-size:.7rem;color:var(--mu)">'+(lbl[it.mot]||it.mot)+(it.val?' · '+it.val+'m':'')+'</div></div>'+
+    (it.qtd?'<div style="font-size:.82rem;font-weight:700;color:'+(urg?'#ff4d4f':'#ffaa2b')+';margin-left:10px">'+it.qtd+' un</div>':'')+
+  '</div>';
+}
+function chkEstHistAbrir(dataStr){
+  var modal=document.getElementById('chk-est-hist-modal');
+  if(!modal) return;
+  var dado=null;
+  try{dado=JSON.parse(localStorage.getItem(chkChaveData(dataStr,'celio'))||'null');}catch(e){}
+  var itens=(dado&&dado.estoque)||[];
+  document.getElementById('chk-est-hist-titulo').textContent='📦 Estoque Parado — '+dataStr;
+  document.getElementById('chk-est-hist-sub').textContent=itens.length+' item(ns)';
+  var body=document.getElementById('chk-est-hist-body');
+  if(!itens.length){body.innerHTML='<div style="color:var(--mu);text-align:center;padding:32px">Nenhum item neste dia.</div>';}
+  else{
+    var m={venc:[],baixa:[],outro:[]};
+    itens.forEach(function(it){(m[it.mot]||m.outro).push(it);});
+    var lb={venc:'⚠️ Vencimento Próximo',baixa:'⚡ Baixa Saída',outro:'📌 Outros'};
+    var cl={venc:'#ff4d4f',baixa:'#ffaa2b',outro:'var(--mu)'};
+    var html='';
+    ['venc','baixa','outro'].forEach(function(k){
+      if(!m[k].length) return;
+      html+='<div style="font-size:.72rem;color:'+cl[k]+';font-weight:700;text-transform:uppercase;margin:12px 0 6px">'+lb[k]+' ('+m[k].length+')</div>';
+      m[k].forEach(function(it){html+=chkEstRenderItem(it);});
+    });
+    body.innerHTML=html;
+  }
+  modal.style.display='block';
+}
+function chkEstHistSemana(isoIni){
+  var modal=document.getElementById('chk-est-hist-modal');
+  if(!modal) return;
+  var ini=new Date(isoIni+'T12:00:00');
+  var dias=['Seg','Ter','Qua','Qui','Sex'];
+  var html='',total=0;
+  for(var di=0;di<5;di++){
+    var dD=new Date(ini); dD.setDate(ini.getDate()+di);
+    if(dD>new Date()) continue;
+    var dStr=dD.toLocaleDateString('pt-BR');
+    var dado=null;
+    try{dado=JSON.parse(localStorage.getItem(chkChaveData(dStr,'celio'))||'null');}catch(e){}
+    var itens=(dado&&dado.estoque)||[];
+    if(!itens.length) continue;
+    total+=itens.length;
+    html+='<div style="background:var(--sf);border-radius:8px;padding:12px;margin-bottom:12px">';
+    html+='<div style="font-size:.8rem;font-weight:700;margin-bottom:8px;display:flex;justify-content:space-between"><span>'+dias[di]+' '+dStr+'</span><span style="color:var(--mu)">'+itens.length+' it.</span></div>';
+    var mv={venc:[],baixa:[],outro:[]};
+    itens.forEach(function(it){(mv[it.mot]||mv.outro).push(it);});
+    ['venc','baixa','outro'].forEach(function(k){
+      if(!mv[k].length) return;
+      var lb={venc:'⚠️ Venc.',baixa:'⚡ Baixa',outro:'📌 Outro'};
+      html+='<div style="font-size:.68rem;color:var(--mu);font-weight:700;text-transform:uppercase;margin-bottom:3px">'+lb[k]+'</div>';
+      mv[k].forEach(function(it){html+=chkEstRenderItem(it);});
+    });
+    html+='</div>';
+  }
+  document.getElementById('chk-est-hist-titulo').textContent='📦 Estoque Parado — Semana';
+  var fim=new Date(ini); fim.setDate(ini.getDate()+4);
+  document.getElementById('chk-est-hist-sub').textContent=ini.toLocaleDateString('pt-BR')+' a '+fim.toLocaleDateString('pt-BR')+' · '+total+' registros';
+  document.getElementById('chk-est-hist-body').innerHTML=html||'<div style="color:var(--mu);text-align:center;padding:32px">Nenhum item nesta semana.</div>';
+  modal.style.display='block';
 }
 
 go();
