@@ -1983,12 +1983,17 @@ function showTab(id){
 adminLoadExtraUsers();
 async function go(){
   try{
+    console.log("[DIAG] go() iniciou — vai fazer fetch das planilhas");
     var r1=await fetch(UM),r2=await fetch(US),r3=await fetch(UP);
+    console.log("[DIAG] fetch OK — status:", r1.status, r2.status, r3.status);
     if(!r1.ok||!r2.ok||!r3.ok) throw new Error("Erro HTTP "+r1.status+"/"+r2.status+"/"+r3.status);
     var t1=await r1.text(),t2=await r2.text(),t3=await r3.text();
+    console.log("[DIAG] textos lidos — tamanhos:", t1.length, t2.length, t3.length);
+    console.log("[DIAG] t1 primeiras 100 chars:", t1.substring(0,100));
     if(t1.trim().startsWith("<")) throw new Error("META_MENSAL nao esta publicada como CSV.");
     if(t2.trim().startsWith("<")) throw new Error("META_SEMANAL nao esta publicada como CSV.");
     if(t3.trim().startsWith("<")) throw new Error("PERF_INDIVIDUAL nao esta publicada como CSV.");
+    console.log("[DIAG] validacao CSV passou");
     DM=csv(t1).map(function(r){
       var s=SG[r.nome]||(r.nome||"").substring(0,2).toUpperCase();
       return {nome:r.nome,s:s,av:AV[s]||"avLB",meta:parseBR(r.meta),real:parseBR(r.realizado),
@@ -2012,7 +2017,9 @@ async function go(){
         mg:parseInt((r.margem||"0").replace(/[^0-9]/g,""))||0,
         mk:parseInt((r.markup||"0").replace(/[^0-9]/g,""))||0};
     });
+    console.log("[DIAG] parse dos dados completo — DM:", DM.length, "DS:", DS.length, "DP:", DP.length);
     document.getElementById("loading").style.display="none";
+    console.log("[DIAG] loading ocultado");
     // Only show comercial tab if no active session (checkSession handles the rest)
     if(!CURRENT_USER){
       document.getElementById("tab-comercial").style.display="block";
@@ -2020,10 +2027,12 @@ async function go(){
     }
     build();
   }catch(e){
+    console.error("[DIAG] ERRO em go():", e);
+    console.error("[DIAG] Stack:", e.stack);
     document.getElementById("loading").style.display="none";
     var el=document.getElementById("err");
     el.style.display="block";
-    el.innerHTML="<strong>Erro ao carregar dados:</strong> "+e.message+"<br><small>Verifique se todas as abas estao publicadas como CSV em Arquivo > Compartilhar > Publicar na web.</small>";
+    el.innerHTML="<strong>Erro ao carregar dados:</strong> "+e.message+"<br><small>Verifique se todas as abas estao publicadas como CSV em Arquivo > Compartilhar > Publicar na web.</small><br><small>Detalhe: "+(e.stack||"").substring(0,500)+"</small>";
   }
 }
 
