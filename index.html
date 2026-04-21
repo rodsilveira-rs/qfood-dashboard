@@ -1407,9 +1407,23 @@ tbody tr:hover td{background:var(--s2);}
           </div>
 
           <div style="margin-bottom:10px">
-            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Notas lançadas — Total e pendências</label>
-            <textarea id="chk-c-notas" rows="3" placeholder="Ex: 47 notas lançadas, 3 pendentes (fornecedor X, Y, Z)..."
-              style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Notas lançadas</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Total lançadas</label>
+                <input type="number" id="chk-c-notas-total" min="0" placeholder="0"
+                  oninput="chkCCalcNotas()"
+                  style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              </div>
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Pendentes</label>
+                <input type="number" id="chk-c-notas-pend" min="0" placeholder="0"
+                  oninput="chkCCalcNotas()"
+                  style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              </div>
+              <div id="chk-c-notas-pct" style="padding:8px 12px;background:var(--sf);border:1px solid var(--br);border-radius:8px;font-size:.85rem;font-weight:700;color:#36cfa0;white-space:nowrap;min-width:70px;text-align:center">—</div>
+            </div>
+            <div id="chk-c-notas-alerta" style="font-size:.7rem;margin-top:4px;display:none"></div>
           </div>
           <div style="margin-bottom:10px">
             <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Suporte ao financeiro</label>
@@ -6612,13 +6626,21 @@ function initCheckpoint(){
   if(selMes){
     selMes.innerHTML = '';
     var now = new Date();
-    for(var i = 0; i < 6; i++){
-      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      var val = (d.getMonth()+1).toString().padStart(2,'0') + '/' + d.getFullYear();
-      var o = document.createElement('option');
-      o.value = val; o.textContent = val;
-      selMes.appendChild(o);
+    // Gerar meses de jan/2026 até mês atual
+    var startY=2026, startM=1;
+    var endY=now.getFullYear(), endM=now.getMonth()+1;
+    var meses=[];
+    for(var y=endY;y>=startY;y--){
+      var mFim=(y===endY)?endM:12;
+      var mIni=(y===startY)?startM:1;
+      for(var m=mFim;m>=mIni;m--){
+        meses.push(m.toString().padStart(2,'0')+'/'+y);
+      }
     }
+    meses.forEach(function(val){
+      var o=document.createElement('option');
+      o.value=val; o.textContent=val; selMes.appendChild(o);
+    });
   }
 
   chkSubTab('diario');
@@ -6798,7 +6820,8 @@ function chkMontarSemanas(gestor){
       try{ travada = !localStorage.getItem(prevChave); }catch(e){}
     }
 
-    var label = s.w===0?'Semana atual':'Semana '+(4-s.w);
+    var numSem = 4-s.w; // 1=mais antiga, 4=atual
+    var label = s.w===0?'Semana '+numSem+' (atual)':'Semana '+numSem;
     var statusColor = dado?'#36cfa0':travada?'#555':'#ffaa2b';
     var statusTxt = dado?'✓ Preenchida':travada?'🔒 Bloqueada':'⚡ Pendente';
     var id = s.ini.toISOString().split('T')[0];
@@ -6953,6 +6976,28 @@ function chkSalvarObs(){
 var CHK_C_KEY = 'qfood_chk_celio_';
 var chkCEstoqueItens = []; // itens selecionados no modal
 
+
+function chkCCalcNotas(){
+  var total = parseInt((document.getElementById('chk-c-notas-total')||{value:0}).value)||0;
+  var pend  = parseInt((document.getElementById('chk-c-notas-pend')||{value:0}).value)||0;
+  var pct = document.getElementById('chk-c-notas-pct');
+  var alerta = document.getElementById('chk-c-notas-alerta');
+  if(!pct) return;
+  if(total > 0){
+    var pendPct = (pend/total*100).toFixed(1);
+    pct.textContent = pendPct + '% pend.';
+    pct.style.color = pend/total > 0.1 ? '#ff4d4f' : pend/total > 0.05 ? '#ffaa2b' : '#36cfa0';
+    if(alerta){
+      if(pend/total > 0.1){ alerta.style.display='block'; alerta.style.color='#ff4d4f'; alerta.textContent='⚠ Pendências acima de 10% — verificar'; }
+      else if(pend/total > 0.05){ alerta.style.display='block'; alerta.style.color='#ffaa2b'; alerta.textContent='⚡ Atenção: 5-10% de notas pendentes'; }
+      else { alerta.style.display='none'; }
+    }
+  } else {
+    pct.textContent = '—';
+    pct.style.color = '#36cfa0';
+    if(alerta) alerta.style.display='none';
+  }
+}
 function initCheckpointCelio(){
   var hoje = new Date().toLocaleDateString('pt-BR');
   var el = document.getElementById('chk-c-hoje');
@@ -6965,11 +7010,14 @@ function initCheckpointCelio(){
   var selMes = document.getElementById('chk-c-m-mes');
   if(selMes && !selMes.options.length){
     var now = new Date();
-    for(var i=0; i<6; i++){
-      var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-      var val = (d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear();
-      var o = document.createElement('option');
-      o.value=val; o.textContent=val; selMes.appendChild(o);
+    var startY=2026, startM=1;
+    var endY=now.getFullYear(), endM=now.getMonth()+1;
+    for(var y=endY;y>=startY;y--){
+      var mFim=(y===endY)?endM:12; var mIni=(y===startY)?startM:1;
+      for(var m=mFim;m>=mIni;m--){
+        var val=m.toString().padStart(2,'0')+'/'+y;
+        var o=document.createElement('option'); o.value=val; o.textContent=val; selMes.appendChild(o);
+      }
     }
   }
 
@@ -7000,7 +7048,10 @@ function chkCCarregarDiario(){
   try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
   var badge = document.getElementById('chk-c-d-badge');
   if(dado){
-    ['notas','fin','cmp','acoes','pend'].forEach(function(f){
+    if(dado.notas_total!==undefined){ var nt=document.getElementById('chk-c-notas-total'); if(nt) nt.value=dado.notas_total; }
+  if(dado.notas_pend!==undefined){ var np=document.getElementById('chk-c-notas-pend'); if(np) np.value=dado.notas_pend; }
+  if(dado.notas_total||dado.notas_pend) chkCCalcNotas();
+  ['fin','cmp','acoes','pend'].forEach(function(f){
       var el = document.getElementById('chk-c-'+f);
       if(el && dado[f]) el.value = dado[f];
     });
@@ -7018,7 +7069,8 @@ function chkCCarregarDiario(){
 
 function chkCSalvarDiario(){
   var dado = {
-    notas: (document.getElementById('chk-c-notas')||{value:''}).value,
+    notas_total: parseInt((document.getElementById('chk-c-notas-total')||{value:0}).value)||0,
+    notas_pend:  parseInt((document.getElementById('chk-c-notas-pend')||{value:0}).value)||0,
     fin:   (document.getElementById('chk-c-fin')||{value:''}).value,
     cmp:   (document.getElementById('chk-c-cmp')||{value:''}).value,
     acoes: (document.getElementById('chk-c-acoes')||{value:''}).value,
@@ -7027,7 +7079,7 @@ function chkCSalvarDiario(){
     avar_qtd: parseInt((document.getElementById('chk-c-avar-qtd')||{value:0}).value)||0,
     estoque: chkCEstoqueItens
   };
-  var temAlgo = dado.notas||dado.fin||dado.cmp||dado.acoes||dado.pend||dado.avar_val>0;
+  var temAlgo = dado.notas_total>0||dado.notas_pend>0||dado.fin||dado.cmp||dado.acoes||dado.pend||dado.avar_val>0;
   if(!temAlgo){ var er=document.getElementById('chk-c-d-err'); if(er){er.style.display='block';er.textContent='⚠️ Preencha ao menos um campo.';} return; }
   var agora = new Date();
   dado.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -7095,11 +7147,12 @@ function chkCEstoqueFechar(){
 }
 
 function chkCEstoquePopularFiltros(){
-  if(typeof gpRows === 'undefined' || !gpRows || !gpRows.length) return;
+  // Usa cmpAllRows (UGIRO) — mesma base do módulo Compras
+  if(typeof cmpAllRows === 'undefined' || !cmpAllRows || !cmpAllRows.length) return;
   var fornSet = new Set(), indSet = new Set();
-  gpRows.forEach(function(r){
-    var f = r['Fornecedor']||r['FORNECEDOR']||r['fornecedor']||'';
-    var ind = r['Industria:']||r['Industria']||r['INDUSTRIA']||'';
+  cmpAllRows.forEach(function(r){
+    var f = String(r['Fornecedor']||r['FORNECEDOR']||'').trim();
+    var ind = String(r['Industria:']||r['Industria']||r['INDUSTRIA']||'').trim();
     if(f) fornSet.add(f);
     if(ind) indSet.add(ind);
   });
@@ -7116,36 +7169,52 @@ function chkCEstoquePopularFiltros(){
 function chkCEstoqueFiltrar(){
   var lista = document.getElementById('chk-c-est-lista');
   if(!lista) return;
-  if(typeof gpRows === 'undefined' || !gpRows || !gpRows.length){
-    lista.innerHTML='<div style="color:var(--mu);padding:20px;text-align:center">Carregue a aba Compras primeiro para ter acesso à base de produtos.</div>';
+  if(typeof cmpAllRows === 'undefined' || !cmpAllRows || !cmpAllRows.length){
+    lista.innerHTML='<div style="color:var(--mu);padding:20px;text-align:center">⚠️ Acesse a aba <b>Compras</b> primeiro para carregar a base de produtos, depois volte aqui.</div>';
     return;
   }
   var filtForn = (document.getElementById('chk-c-est-forn')||{value:''}).value;
   var filtInd  = (document.getElementById('chk-c-est-ind')||{value:''}).value;
-  var rows = gpRows.filter(function(r){
-    if(filtForn && (r['Fornecedor']||r['FORNECEDOR']||'')!==filtForn) return false;
-    if(filtInd  && (r['Industria:']||r['Industria']||r['INDUSTRIA']||'')!==filtInd)  return false;
-    return true;
-  }).slice(0,80);
+  // De-duplicate by cod
+  var seen = {}, rows = [];
+  cmpAllRows.forEach(function(r){
+    var f = String(r['Fornecedor']||r['FORNECEDOR']||'').trim();
+    var ind = String(r['Industria:']||r['Industria']||r['INDUSTRIA']||'').trim();
+    if(filtForn && f!==filtForn) return;
+    if(filtInd  && ind!==filtInd)  return;
+    var cod = String(r['Código']||r['Codigo']||r['CODIGO']||r['COD']||'').trim();
+    var desc = String(r['Descrição']||r['Descricao']||r['DESCRICAO']||r['Produto']||'').trim();
+    var key = cod||desc;
+    if(!key||seen[key]) return;
+    seen[key]=true;
+    var estq = String(r['E. Disp.']||r['Disp.']||r['Virtual']||'').trim();
+    var giro = parseFloat(String(r['Total']||r['TOTAL']||r['Giro']||'0').replace(',','.'))||0;
+    rows.push({cod:cod, desc:desc, forn:f, ind:ind, estq:estq, giro:giro});
+  });
+  rows = rows.slice(0,100);
   if(!rows.length){ lista.innerHTML='<div style="color:var(--mu);padding:16px;text-align:center">Nenhum produto encontrado.</div>'; return; }
   lista.innerHTML = '<table style="width:100%;border-collapse:collapse">' +
-    '<thead><tr style="font-size:.65rem;color:var(--mu);text-transform:uppercase">' +
-    '<th style="padding:6px 4px;border-bottom:1px solid var(--br);text-align:left">Produto</th>' +
-    '<th style="padding:6px 8px;border-bottom:1px solid var(--br);text-align:center">Qtd. estoque</th>' +
-    '<th style="padding:6px 8px;border-bottom:1px solid var(--br);text-align:center">Val. (meses)</th>' +
-    '<th style="padding:6px 8px;border-bottom:1px solid var(--br);text-align:center">Motivo</th>' +
-    '<th style="padding:6px 4px;border-bottom:1px solid var(--br);text-align:center">Sel.</th>' +
+    '<thead><tr style="font-size:.63rem;color:var(--mu);text-transform:uppercase;background:var(--sf)">' +
+    '<th style="padding:7px 8px;border-bottom:1px solid var(--br);text-align:left">Produto</th>' +
+    '<th style="padding:7px 8px;border-bottom:1px solid var(--br);text-align:center">Estq.</th>' +
+    '<th style="padding:7px 8px;border-bottom:1px solid var(--br);text-align:center">Qtd.</th>' +
+    '<th style="padding:7px 8px;border-bottom:1px solid var(--br);text-align:center">Val.(m)</th>' +
+    '<th style="padding:7px 8px;border-bottom:1px solid var(--br);text-align:center">Motivo</th>' +
+    '<th style="padding:7px 8px;border-bottom:1px solid var(--br);text-align:center">✓</th>' +
     '</tr></thead><tbody>' +
     rows.map(function(r,i){
-      var cod = r['Codigo']||r['CODIGO']||r['cod']||'';
-      var desc = r['Descricao']||r['DESCRICAO']||r['Produto']||r['desc']||cod;
       var id = 'est-'+i;
+      var estqColor = r.estq&&r.estq!=='0'?'#36cfa0':'#ff4d4f';
+      var estqTxt = r.estq&&r.estq!=='0'?r.estq:'0';
       return '<tr style="border-bottom:1px solid var(--br)">' +
-        '<td style="padding:7px 4px;font-size:.78rem"><b>'+desc.substring(0,40)+'</b><div style="font-size:.68rem;color:var(--mu)">'+cod+'</div></td>' +
-        '<td style="padding:5px 8px;text-align:center"><input type="number" id="'+id+'-qtd" min="0" placeholder="0" style="width:56px;padding:4px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);font-size:.78rem;text-align:center;outline:none"></td>' +
-        '<td style="padding:5px 8px;text-align:center"><input type="number" id="'+id+'-val" min="0" placeholder="0" style="width:56px;padding:4px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);font-size:.78rem;text-align:center;outline:none"></td>' +
-        '<td style="padding:5px 8px;text-align:center"><select id="'+id+'-mot" style="background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px;color:var(--tx);font-size:.7rem;outline:none"><option value="baixa">Baixa saída</option><option value="venc">Venc. próximo</option><option value="outro">Outro</option></select></td>' +
-        '<td style="padding:5px 8px;text-align:center"><input type="checkbox" id="'+id+'-sel" data-cod="'+cod+'" data-desc="'+desc.replace(/"/g,"'").substring(0,50)+'" style="width:16px;height:16px;cursor:pointer"></td>' +
+        '<td style="padding:6px 8px;font-size:.78rem"><div style="font-weight:600">'+(r.desc||r.cod).substring(0,36)+'</div>'+
+          '<div style="font-size:.66rem;color:var(--mu)">'+r.cod+(r.forn?' · '+r.forn.substring(0,20):'')+'</div></td>' +
+        '<td style="padding:5px 8px;text-align:center;font-weight:700;font-size:.78rem;color:'+estqColor+'">'+estqTxt+'</td>' +
+        '<td style="padding:5px 4px;text-align:center"><input type="number" id="'+id+'-qtd" min="0" placeholder="0" style="width:52px;padding:4px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);font-size:.78rem;text-align:center;outline:none"></td>' +
+        '<td style="padding:5px 4px;text-align:center"><input type="number" id="'+id+'-val" min="0" placeholder="m" style="width:52px;padding:4px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);font-size:.78rem;text-align:center;outline:none"></td>' +
+        '<td style="padding:5px 4px;text-align:center"><select id="'+id+'-mot" style="background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px;color:var(--tx);font-size:.68rem;outline:none">'+
+          '<option value="baixa">Baixa saída</option><option value="venc">Venc. próximo</option><option value="outro">Outro</option></select></td>' +
+        '<td style="padding:5px 8px;text-align:center"><input type="checkbox" id="'+id+'-sel" data-cod="'+r.cod+'" data-desc="'+r.desc.replace(/"/g,"'").substring(0,50)+'" style="width:16px;height:16px;cursor:pointer"></td>' +
       '</tr>';
     }).join('') + '</tbody></table>';
 }
