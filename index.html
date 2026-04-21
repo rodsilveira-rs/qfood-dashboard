@@ -6626,21 +6626,15 @@ function initCheckpoint(){
   if(selMes){
     selMes.innerHTML = '';
     var now = new Date();
-    // Gerar meses de jan/2026 até mês atual
-    var startY=2026, startM=1;
-    var endY=now.getFullYear(), endM=now.getMonth()+1;
-    var meses=[];
-    for(var y=endY;y>=startY;y--){
-      var mFim=(y===endY)?endM:12;
-      var mIni=(y===startY)?startM:1;
-      for(var m=mFim;m>=mIni;m--){
-        meses.push(m.toString().padStart(2,'0')+'/'+y);
-      }
-    }
-    meses.forEach(function(val){
+    // Jan/2026 a Dez/2026 fixo
+    for(var m=1;m<=12;m++){
+      var val=m.toString().padStart(2,'0')+'/2026';
       var o=document.createElement('option');
       o.value=val; o.textContent=val; selMes.appendChild(o);
-    });
+    }
+    // Selecionar mês atual por padrão
+    var mesAtual=(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear();
+    if(selMes) selMes.value=mesAtual;
   }
 
   chkSubTab('diario');
@@ -6674,15 +6668,15 @@ function chkShowGestor(g){
 }
 
 // ── DIÁRIO ────────────────────────────────────────────────────────
-function chkChaveData(data){
-  // DD/MM/YYYY → YYYY-MM-DD para chave
+function chkChaveData(data, gestor){
+  gestor = gestor||'gustavo';
   var p = data.split('/');
-  return CHK_KEY + 'diario_' + p[2] + '-' + p[1] + '-' + p[0];
+  return 'qfood_chk_'+gestor+'_diario_' + p[2] + '-' + p[1] + '-' + p[0];
 }
 
 function chkCarregarDiario(){
   var hoje = new Date().toLocaleDateString('pt-BR');
-  var chave = chkChaveData(hoje);
+  var chave = chkChaveData(hoje,'gustavo');
   var dado = null;
   try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
 
@@ -6724,7 +6718,7 @@ function chkSalvarDiario(){
   dado.data = agora.toLocaleDateString('pt-BR');
   dado.ts = agora.getTime();
 
-  var chave = chkChaveData(dado.data);
+  var chave = chkChaveData(dado.data,'gustavo');
   try{ localStorage.setItem(chave, JSON.stringify(dado)); }catch(e){}
 
   var saved = document.getElementById('chk-d-saved');
@@ -6775,7 +6769,7 @@ function chkProgressoSemana(){
   for(var i=0; i<=Math.min(diaSem,4); i++){
     var d = new Date(hoje); d.setDate(d.getDate() - diaSem + i);
     var dStr = d.toLocaleDateString('pt-BR');
-    var chave = chkChaveData(dStr);
+    var chave = chkChaveData(dStr,'gustavo');
     var tem = false;
     try{ tem = !!localStorage.getItem(chave); }catch(e){}
     html += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--br)">'+
@@ -6797,55 +6791,95 @@ function chkMontarSemanas(gestor){
   var diaSem = hoje.getDay()===0?6:hoje.getDay()-1;
   var segAtual = new Date(hoje); segAtual.setDate(hoje.getDate()-diaSem);
 
-  // Gerar 4 semanas: 3 anteriores + semana atual (ordem CRESCENTE: mais antiga primeiro)
+  // 4 semanas em ordem crescente (Semana 1=mais antiga, Semana 4=atual)
   var semanas = [];
   for(var w=3; w>=0; w--){
     var ini = new Date(segAtual); ini.setDate(segAtual.getDate()-w*7);
     var fim = new Date(ini); fim.setDate(ini.getDate()+4);
-    semanas.push({ini:ini, fim:fim, w:w}); // w=0 = semana atual
+    semanas.push({ini:ini, fim:fim, w:w});
   }
 
   grid.innerHTML = semanas.map(function(s, idx){
-    var chave = KEY+'semanal_'+s.ini.toISOString().split('T')[0];
-    var dado = null;
-    try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+    var isoIni = s.ini.toISOString().split('T')[0];
+    var chaveObs = KEY+'semanal_'+isoIni;
+    var dadoObs = null;
+    try{ dadoObs = JSON.parse(localStorage.getItem(chaveObs)||'null'); }catch(e){}
+    var numSem = 4-s.w;
+    var label = s.w===0?'Semana '+numSem+' (atual)':'Semana '+numSem;
 
-    // Trava: semana anterior (idx-1) precisa estar preenchida
-    // Semana atual (s.w===0) sempre desbloqueada
-    // Semana mais antiga (idx===0) sempre desbloqueada
-    var travada = false;
-    if(idx > 0 && s.w > 0){
-      var prevIni = new Date(s.ini); prevIni.setDate(prevIni.getDate()-7);
-      var prevChave = KEY+'semanal_'+prevIni.toISOString().split('T')[0];
-      try{ travada = !localStorage.getItem(prevChave); }catch(e){}
+    // Coletar dias desta semana
+    var diasNomes = ['Seg','Ter','Qua','Qui','Sex'];
+    var diasHtml = '';
+    var diasOk = 0, diasTotal = 0;
+    for(var di=0; di<5; di++){
+      var diaD = new Date(s.ini); diaD.setDate(s.ini.getDate()+di);
+      // Só mostrar dias até hoje (não futuros)
+      if(diaD > hoje) continue;
+      diasTotal++;
+      var dStr = diaD.toLocaleDateString('pt-BR');
+      var chaveDia = chkChaveData(dStr, gestor);
+      var dadoDia = null;
+      try{ dadoDia = JSON.parse(localStorage.getItem(chaveDia)||'null'); }catch(e){}
+      if(dadoDia) diasOk++;
+
+      var resumoHtml = '';
+      if(dadoDia){
+        var kpis = [];
+        if(gestor==='gustavo'){
+          if(dadoDia.fat) kpis.push('Fat: <b>R$'+Number(dadoDia.fat).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b>');
+          if(dadoDia.sal) kpis.push('Saldo: <b>R$'+Number(dadoDia.sal).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b>');
+          if(dadoDia.ebitda) kpis.push('EBITDA: <b>'+dadoDia.ebitda+'%</b>');
+          if(dadoDia.cmv) kpis.push('CMV: <b>'+dadoDia.cmv+'%</b>');
+          if(dadoDia.ven>0) kpis.push('<span style="color:#ff4d4f">Venc.: R$'+Number(dadoDia.ven).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>');
+          if(dadoDia.prob) kpis.push('<span style="color:#ffaa2b">⚠ '+dadoDia.prob.substring(0,40)+'</span>');
+        } else if(gestor==='celio'){
+          if(dadoDia.notas_total) kpis.push('Notas: <b>'+dadoDia.notas_total+'</b>'+(dadoDia.notas_pend?' ('+dadoDia.notas_pend+' pend.)':''));
+          if(dadoDia.avar_val>0) kpis.push('<span style="color:#ff4d4f">Avarias: R$'+Number(dadoDia.avar_val).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>');
+          if(dadoDia.pend) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend.substring(0,40)+'</span>');
+        }
+        resumoHtml = kpis.length
+          ? '<div style="font-size:.72rem;color:var(--tx);margin-top:3px;line-height:1.7">'+kpis.join(' · ')+'</div>'
+          : '<div style="font-size:.72rem;color:#36cfa0">✓ Enviado às '+dadoDia.hora+'</div>';
+      } else {
+        resumoHtml = '<div style="font-size:.7rem;color:var(--mu)">⏳ Pendente</div>';
+      }
+
+      diasHtml += '<div style="padding:5px 0;border-bottom:1px solid var(--br)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:.75rem;font-weight:600;color:'+(dadoDia?'var(--tx)':'var(--mu)')+'">'+
+            diasNomes[di]+' '+dStr+
+          '</span>'+
+          '<span style="font-size:.68rem;font-weight:700;color:'+(dadoDia?'#36cfa0':'#ffaa2b')+'">'+
+            (dadoDia?'✓ '+dadoDia.hora:'⏳')+
+          '</span>'+
+        '</div>'+
+        resumoHtml+
+      '</div>';
     }
 
-    var numSem = 4-s.w; // 1=mais antiga, 4=atual
-    var label = s.w===0?'Semana '+numSem+' (atual)':'Semana '+numSem;
-    var statusColor = dado?'#36cfa0':travada?'#555':'#ffaa2b';
-    var statusTxt = dado?'✓ Preenchida':travada?'🔒 Bloqueada':'⚡ Pendente';
-    var id = s.ini.toISOString().split('T')[0];
+    var progColor = diasOk===diasTotal&&diasTotal>0?'#36cfa0':diasOk>0?'#ffaa2b':'#ff4d4f';
+    var progTxt = diasOk+'/'+diasTotal+' dias';
 
-    return '<div class="card" style="padding:16px;opacity:'+(travada?'.5':'1')+'">' +
-      '<div style="font-size:.68rem;color:var(--mu);margin-bottom:4px">'+label+'</div>' +
-      '<div style="font-size:.78rem;font-weight:700;margin-bottom:6px">'+
-        s.ini.toLocaleDateString('pt-BR')+' — '+s.fim.toLocaleDateString('pt-BR')+'</div>' +
-      '<div style="color:'+statusColor+';font-size:.75rem;font-weight:700;margin-bottom:12px">'+statusTxt+'</div>' +
-      (!travada ?
-        '<div style="margin-bottom:10px">'+
-          '<label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Análise semanal (despesas/CMV)</label>'+
-          '<textarea id="chk-sw-anal-'+gestor+'-'+id+'" rows="6" placeholder="Análise de curvas de despesas, variações de CMV, propostas de ajuste para a próxima semana..."'+
-          ' style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px;color:var(--tx);font-size:.82rem;outline:none;resize:vertical;font-family:inherit;min-height:120px">'+(dado&&dado.analise?dado.analise:'')+'</textarea>'+
+    return '<div class="card" style="padding:16px">' +
+      // Header
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<div>'+
+          '<div style="font-size:.68rem;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px">'+label+'</div>'+
+          '<div style="font-size:.8rem;font-weight:700">'+s.ini.toLocaleDateString('pt-BR')+' — '+s.fim.toLocaleDateString('pt-BR')+'</div>'+
         '</div>'+
-        '<div style="margin-bottom:12px">'+
-          '<label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">Negociações com fornecedores</label>'+
-          '<textarea id="chk-sw-neg-'+gestor+'-'+id+'" rows="6" placeholder="Fornecedores contatados, condições obtidas, ajustes de preço negociados, pendências..."'+
-          ' style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px;color:var(--tx);font-size:.82rem;outline:none;resize:vertical;font-family:inherit;min-height:120px">'+(dado&&dado.neg?dado.neg:'')+'</textarea>'+
-        '</div>'+
-        '<button onclick="chkSalvarSemanal(\''+id+'\',\''+gestor+'\')" '+
-        'style="width:100%;padding:10px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.82rem;cursor:pointer">✅ Salvar Semana</button>'+
-        (dado?'<div style="color:#36cfa0;font-size:.72rem;margin-top:6px;text-align:center">✓ Salvo em '+dado.data+'</div>':'')
-      : '<div style="font-size:.72rem;color:var(--mu);padding:8px 0">Preencha a semana anterior primeiro para desbloquear.</div>') +
+        '<div style="font-size:.75rem;font-weight:700;color:'+progColor+'">'+progTxt+'</div>'+
+      '</div>' +
+      // Dias
+      (diasTotal>0 ? diasHtml : '<div style="font-size:.75rem;color:var(--mu);padding:8px 0">Semana futura</div>') +
+      // Campo obs
+      '<div style="margin-top:12px">' +
+        '<label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:700;text-transform:uppercase;letter-spacing:.4px">📝 Observação da semana</label>' +
+        '<textarea id="chk-sw-obs-'+gestor+'-'+isoIni+'" rows="4" placeholder="Análise da semana, ajustes identificados, negociações com fornecedores, pontos de atenção..."' +
+        ' style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.82rem;outline:none;resize:vertical;font-family:inherit;min-height:80px">'+(dadoObs&&dadoObs.obs?dadoObs.obs:'')+'</textarea>' +
+      '</div>' +
+      '<button onclick="chkSalvarSemanal(\''+isoIni+'\',\''+gestor+'\')" ' +
+      'style="width:100%;margin-top:8px;padding:9px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.8rem;cursor:pointer">✅ Salvar Observação</button>' +
+      (dadoObs?'<div style="font-size:.7rem;color:#36cfa0;margin-top:5px;text-align:center">✓ Obs. salva em '+dadoObs.data+'</div>':'') +
     '</div>';
   }).join('');
 }
@@ -6853,10 +6887,9 @@ function chkMontarSemanas(gestor){
 function chkSalvarSemanal(chaveDate, gestor){
   gestor = gestor||'gustavo';
   var KEY = 'qfood_chk_'+gestor+'_';
-  var anal = (document.getElementById('chk-sw-anal-'+gestor+'-'+chaveDate)||{value:''}).value;
-  var neg  = (document.getElementById('chk-sw-neg-'+gestor+'-'+chaveDate)||{value:''}).value;
-  if(!anal.trim() && !neg.trim()){ alert('Preencha ao menos um campo.'); return; }
-  var dado = { analise:anal, neg:neg, ts:Date.now(), data:new Date().toLocaleDateString('pt-BR') };
+  var obs = (document.getElementById('chk-sw-obs-'+gestor+'-'+chaveDate)||{value:''}).value.trim();
+  if(!obs){ alert('Escreva uma observação antes de salvar.'); return; }
+  var dado = { obs:obs, ts:Date.now(), data:new Date().toLocaleDateString('pt-BR') };
   try{ localStorage.setItem(KEY+'semanal_'+chaveDate, JSON.stringify(dado)); }catch(e){}
   chkMontarSemanas(gestor);
   chkAtualizarNota(gestor);
@@ -6921,7 +6954,7 @@ function chkAtualizarNota(gestor){
   var diasPreench = 0;
   for(var i=0; i<totalDias; i++){
     var d = new Date(hoje); d.setDate(d.getDate()-diaSem+i);
-    try{ if(localStorage.getItem(chkChaveData(d.toLocaleDateString('pt-BR')))) diasPreench++; }catch(e){}
+    try{ if(localStorage.getItem(chkChaveData(d.toLocaleDateString('pt-BR'),gestor))) diasPreench++; }catch(e){}
   }
   if(totalDias>0) score += Math.round(diasPreench/totalDias*30);
   // Semanais (última semana)
@@ -6936,10 +6969,10 @@ function chkAtualizarNota(gestor){
   try{ obs = JSON.parse(localStorage.getItem(CHK_KEY+'obs')||'[]'); }catch(e){}
   if(!obs.some(function(o){return o.critico;})) score += 15;
 
-  var nota = document.getElementById('chk-g-nota');
-  var status = document.getElementById('chk-g-status');
-  if(nota) nota.textContent = score;
-  if(nota) nota.style.color = score>=90?'#36cfa0':score>=80?'#ffaa2b':'#ff4d4f';
+  var prefix = gestor==='celio'?'chk-c':'chk-g';
+  var nota = document.getElementById(prefix+'-nota');
+  var status = document.getElementById(prefix+'-status');
+  if(nota){ nota.textContent = score; nota.style.color = score>=90?'#36cfa0':score>=80?'#ffaa2b':'#ff4d4f'; }
   if(status) status.textContent = score>=90?'🟢 Controlado':score>=80?'🟡 Atenção':'🔴 Crítico';
 }
 
@@ -7010,20 +7043,18 @@ function initCheckpointCelio(){
   var selMes = document.getElementById('chk-c-m-mes');
   if(selMes && !selMes.options.length){
     var now = new Date();
-    var startY=2026, startM=1;
-    var endY=now.getFullYear(), endM=now.getMonth()+1;
-    for(var y=endY;y>=startY;y--){
-      var mFim=(y===endY)?endM:12; var mIni=(y===startY)?startM:1;
-      for(var m=mFim;m>=mIni;m--){
-        var val=m.toString().padStart(2,'0')+'/'+y;
-        var o=document.createElement('option'); o.value=val; o.textContent=val; selMes.appendChild(o);
-      }
+    for(var m=1;m<=12;m++){
+      var val=m.toString().padStart(2,'0')+'/2026';
+      var o=document.createElement('option'); o.value=val; o.textContent=val; selMes.appendChild(o);
     }
+    var mesAtual=(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear();
+    if(selMes) selMes.value=mesAtual;
   }
 
   chkCSubTab('diario');
   chkCCarregarDiario();
   chkMontarSemanas('celio');
+  chkAtualizarNota('celio');
   chkCCarregarObs();
   chkCCarregarEstoqueResumo();
 }
@@ -7094,6 +7125,7 @@ function chkCSalvarDiario(){
   if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Salvo '+dado.hora; }
   chkCAtSemaforo(dado);
   chkCProgressoSemana();
+  chkAtualizarNota('celio');
 }
 
 function chkCAtSemaforo(dado){
