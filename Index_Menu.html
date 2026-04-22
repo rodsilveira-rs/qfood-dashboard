@@ -3,21 +3,219 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Q Food — Menu Principal</title>
+<title>Q Food — Compras / Cotações</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
   --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
   --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
-  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;
   --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;scroll-behavior:smooth;}
-body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
 
-/* ---- LOGIN ---- */
+/* ---- HEADER ---- */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;}
+.logo{height:52px;object-fit:contain;}
+.hdr-c h1{font-family:var(--fh);font-size:1.15rem;font-weight:700;text-align:center;}
+.hdr-c p{font-size:0.72rem;color:var(--mu);text-align:center;margin-top:2px;}
+.dbadge{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 14px;text-align:right;min-width:150px;}
+.dbadge strong{display:block;font-family:var(--fh);font-size:0.9rem;}
+.dbadge span{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABS ---- */
+.tabs{display:flex;gap:2px;padding:0 28px;background:var(--sf);border-bottom:1px solid var(--br);}
+.tab{padding:13px 20px;font-size:0.84rem;font-weight:500;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.tab:hover{color:var(--tx);}
+.tab.active{color:var(--tx);border-bottom-color:var(--red);font-weight:600;}
+
+/* ---- MAIN ---- */
+.page{display:none;padding:28px;max-width:1000px;margin:0 auto;}
+.page.active{display:block;}
+
+/* ---- SECTION ---- */
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+
+/* ---- KPI GRID ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.kpi .lbl{font-size:0.74rem;color:var(--mu);margin-bottom:8px;letter-spacing:0.3px;}
+.kpi .val{font-family:var(--fh);font-size:1.5rem;font-weight:700;line-height:1;}
+.kpi .sub{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.kpi .delta{font-size:0.7rem;margin-top:4px;font-weight:500;}
+.kpi.r{border-color:var(--red);}.kpi.r .val{color:var(--red);}
+.kpi.g{border-color:var(--ok);}.kpi.g .val{color:var(--ok);}
+.kpi.w{border-color:var(--warn);}.kpi.w .val{color:var(--warn);}
+.kpi.b{border-color:var(--blue);}.kpi.b .val{color:var(--blue);}
+.kpi.p{border-color:var(--pur);}.kpi.p .val{color:var(--pur);}
+
+/* ---- CHART WRAP ---- */
+.cwrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:24px;}
+.cwrap .ctitle{font-family:var(--fh);font-size:0.78rem;font-weight:600;margin-bottom:16px;color:var(--tx);}
+.cleg{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:0.68rem;color:var(--mu);}
+.cleg span{display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 7px;border-radius:5px;transition:all .15s;user-select:none;border:1px solid transparent;}
+.cleg span:hover{background:var(--s2);border-color:var(--br);}
+.cleg span.off{opacity:.3;text-decoration:line-through;}
+.cleg i{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0;}
+
+/* ---- RANKING ---- */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.rcard{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;}
+.rnum{font-family:var(--fh);font-size:1.4rem;font-weight:800;color:var(--b2);width:24px;flex-shrink:0;line-height:1;}
+.rnum.t1{color:#f59e0b;}.rnum.t2{color:#94a3b8;}.rnum.t3{color:#b45309;}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.ri .rn{font-size:0.8rem;font-weight:500;}
+.ri .rp{font-size:0.95rem;font-family:var(--fh);font-weight:700;}
+.ri .rv{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABLE ---- */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.7rem;font-weight:500;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--br);}
+th:not(:first-child){text-align:right;}
+td{padding:11px 14px;font-size:0.85rem;border-bottom:1px solid var(--br);vertical-align:middle;}
+td:not(:first-child){text-align:right;}
+tbody tr{cursor:pointer;transition:background 0.12s;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--s2);}
+.vc{display:flex;align-items:center;gap:10px;}
+.mav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;}
+.bm{height:4px;border-radius:2px;background:var(--br);overflow:hidden;margin-top:4px;}
+.bmf{height:100%;border-radius:2px;}
+.pv{font-family:var(--fh);font-weight:700;font-size:0.85rem;}
+.tag{display:inline-block;font-size:0.62rem;padding:2px 6px;border-radius:20px;font-weight:500;}
+.tg{background:rgba(54,207,160,0.18);color:#36cfa0;}
+.tr{background:rgba(255,77,79,0.18);color:#ff7875;}
+.ty{background:rgba(255,170,43,0.18);color:#ffaa2b;}
+.tb{background:rgba(77,142,245,0.18);color:#74a9ff;}
+.ch{font-size:0.62rem;color:var(--mu);margin-top:1px;}
+
+/* ---- CEO SECTION ---- */
+.ceo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px;}
+.ceo-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.ceo-card .cc-title{font-size:0.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600;}
+
+/* ---- SOP TABLE ---- */
+.sop-table-wrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.generic-row{display:grid;gap:8px;padding:10px 16px;border-bottom:1px solid var(--br);font-size:0.8rem;align-items:center;}
+.generic-row:last-child{border-bottom:none;}
+.generic-row.hdr-row{font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;font-weight:500;background:var(--s2);}
+
+/* ---- LOADING / ERROR ---- */
+.spin-wrap{text-align:center;padding:80px 20px;color:var(--mu);}
+.spin{width:28px;height:28px;border:2px solid var(--b2);border-top-color:var(--red);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 14px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.errmsg{background:rgba(230,51,41,0.08);border:1px solid rgba(230,51,41,0.25);border-radius:8px;padding:12px 16px;color:#ef4444;font-size:0.8rem;margin:16px 28px;display:none;}
+
+/* ---- MODAL ---- */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.ov.open{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--b2);border-radius:16px;width:100%;max-width:680px;padding:24px;position:relative;margin:auto;}
+.mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{color:var(--tx);border-color:var(--b2);}
+.mhdr{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--br);}
+.mav2{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;}
+.mn{font-family:var(--fh);font-size:1.2rem;font-weight:700;}
+.ms{font-size:0.75rem;color:var(--mu);margin-top:2px;}
+.msec{margin-bottom:18px;}
+.msect{font-size:0.65rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.msect::after{content:'';flex:1;height:1px;background:var(--br);}
+.mg3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.mc{background:var(--bg);border-radius:10px;padding:11px 13px;}
+.mc .ml{font-size:0.65rem;color:var(--mu);margin-bottom:3px;}
+.mc .mv{font-family:var(--fh);font-size:1rem;font-weight:700;}
+.tr2{background:var(--bg);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.tr2 .tl{font-size:0.72rem;color:var(--mu);}
+.tr2 .tv{font-family:var(--fh);font-size:0.95rem;font-weight:700;}
+.pbw{background:var(--bg);border-radius:10px;padding:13px;}
+.pbl{display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:7px;}
+.pbb{height:10px;background:var(--br);border-radius:5px;overflow:hidden;margin-bottom:10px;}
+.pbf{height:100%;border-radius:5px;}
+.pg4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.ps{background:var(--bg);border-radius:8px;padding:9px 11px;}
+.ps .psl{font-size:0.62rem;color:var(--mu);margin-bottom:2px;}
+.ps .psv{font-size:0.9rem;font-weight:700;font-family:var(--fh);}
+.sp2{background:var(--bg);border-radius:10px;padding:13px;margin-bottom:8px;}
+.sp2t{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+.sp2b{height:7px;background:var(--b2);border-radius:4px;overflow:hidden;margin-bottom:7px;}
+.sp2f{height:100%;border-radius:4px;}
+.sp2v{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--mu);}
+
+/* ---- AVATAR COLORS ---- */
+.avLB{background:rgba(59,130,246,0.2);color:#60a5fa;}
+.avVS{background:rgba(6,214,160,0.2);color:#06d6a0;}
+.avDN{background:rgba(245,158,11,0.2);color:#f59e0b;}
+.avEM{background:rgba(167,139,250,0.2);color:#a78bfa;}
+.avED{background:rgba(249,115,22,0.2);color:#fb923c;}
+.avCG{background:rgba(230,51,41,0.2);color:#ef4444;}
+.avCC{background:rgba(16,185,129,0.2);color:#10b981;}
+.avKE{background:rgba(99,102,241,0.2);color:#818cf8;}
+.avDE{background:rgba(20,184,166,0.2);color:#2dd4bf;}
+
+/* ---- FOOTER ---- */
+.ftr{text-align:center;font-size:0.68rem;color:var(--mu2);padding:20px 28px;border-top:1px solid var(--br);}
+.home-overlay{position:fixed;inset:0;background:var(--bg);z-index:8000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.home-overlay.open{display:flex;}
+.home-welcome{font-family:var(--fh);font-size:1.5rem;font-weight:700;color:var(--tx);margin-bottom:6px;text-align:center;}
+.home-sub{font-size:0.85rem;color:var(--mu);margin-bottom:40px;text-align:center;}
+.home-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;width:100%;max-width:1100px;}
+.home-btn{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:28px 20px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.home-btn:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.home-btn .hb-icon{font-size:2rem;line-height:1;}
+.home-btn .hb-title{font-family:var(--fh);font-size:0.95rem;font-weight:700;color:var(--tx);}
+.home-btn .hb-sub{font-size:0.7rem;color:var(--mu);line-height:1.5;}
+.home-btn.hb-com{border-top:3px solid #4d8ef5;}
+.home-btn.hb-fin{border-top:3px solid #36cfa0;}
+.home-btn.hb-log{border-top:3px solid #ffaa2b;}
+.home-btn.hb-adm{border-top:3px solid #ff4d4f;}
+.home-btn.hb-cmp{border-top:3px solid #a07cf6;}
+.cmp-qty{width:70px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:5px 8px;color:var(--tx);font-size:.82rem;text-align:center;outline:none;}
+.cmp-qty:focus{border-color:#a07cf6;}
+.val-sel{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;outline:none;}
+.val-sel:focus{border-color:#a07cf6;}
+.giro-tag{padding:2px 7px;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.giro-alto{background:rgba(54,207,160,.15);color:#36cfa0;border:1px solid rgba(54,207,160,.3);}
+.giro-normal{background:rgba(143,160,192,.1);color:#8fa0c0;border:1px solid rgba(143,160,192,.2);}
+.admin-overlay{position:fixed;inset:0;background:var(--bg);z-index:7000;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px;overflow-y:auto;}
+.admin-overlay.open{display:flex;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:900px;margin-bottom:28px;}
+.admin-back{background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:0.82rem;}
+.lal-act-btn{padding:3px 9px;border:1px solid var(--br);border-radius:6px;font-size:.7rem;cursor:pointer;font-weight:500;white-space:nowrap;background:var(--s2);color:var(--mu);margin-left:4px;}
+.lal-act-btn:hover{border-color:var(--b2);color:var(--tx);}
+.lal-act-btn.ai{border-color:rgba(160,124,246,.4);color:#a07cf6;background:rgba(160,124,246,.08);}
+.lal-act-btn.chart{border-color:rgba(77,142,245,.4);color:#4d8ef5;background:rgba(77,142,245,.08);}
+.lal-ai-box{background:rgba(160,124,246,.08);border:1px solid rgba(160,124,246,.25);border-radius:8px;padding:12px 16px;margin:8px 0;font-size:.82rem;}
+@media(max-width:900px){.home-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.home-grid{grid-template-columns:repeat(2,1fr);}}
+
+
+/* Readable font for large numbers */
+.kpi .val,.kpi .sub,.kpi .lbl,
+#tend-card *,
+.rp,.rv,.ri .rp,
+.mc .mv,
+.tr2 .tv,
+.sp2t span,
+#tend-meta-dia,#tend-media-atual,#tend-projecao,#tend-ritmo{
+  font-family:var(--fb) !important;
+  letter-spacing:-0.3px;
+}
+.kpi .val{font-size:1.6rem !important; font-weight:600 !important;}
+@media(max-width:680px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .rgrid{grid-template-columns:1fr 1fr;}
+  .ceo-grid{grid-template-columns:1fr;}
+  .pg4{grid-template-columns:repeat(2,1fr);}
+  .tabs{overflow-x:auto;}
+  .tab{font-size:0.72rem;padding:10px 14px;}
+  .hdr{padding:14px 16px;}
+  .page{padding:16px;}
+}
+
 .login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#151929,#1e2438);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
 .login-box{background:#242938;border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,0.5);}
 .login-logo{display:flex;justify-content:center;margin-bottom:28px;}
@@ -25,274 +223,729 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .login-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;text-align:center;color:#f0f4ff;margin-bottom:6px;}
 .login-sub{font-size:0.78rem;color:#6b7ea8;text-align:center;margin-bottom:28px;}
 .login-label{font-size:0.72rem;color:#6b7ea8;margin-bottom:6px;display:block;letter-spacing:0.3px;}
-.login-input{width:100%;background:#1a1f2e;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;color:#eef1f8;font-size:0.88rem;margin-bottom:14px;font-family:'DM Sans',sans-serif;outline:none;}
+.login-input{width:100%;background:#1a1f2e;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;color:#eef1f8;font-size:0.95rem;font-size:0.88rem;margin-bottom:14px;font-family:'DM Sans',sans-serif;outline:none;}
 .login-input:focus{border-color:#e63329;}
 .login-btn{width:100%;background:#e63329;border:none;border-radius:10px;padding:12px;color:#fff;font-size:0.9rem;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.3px;margin-top:4px;}
 .login-btn:hover{background:#c42820;}
 .login-err{font-size:0.78rem;color:#ef4444;text-align:center;margin-top:10px;min-height:20px;}
 .login-footer{font-size:0.68rem;color:#6b7ea8;text-align:center;margin-top:20px;}
 
-/* ---- MENU ---- */
-.menu-wrap{width:100%;max-width:1100px;display:none;flex-direction:column;align-items:center;}
-.menu-wrap.open{display:flex;}
-.menu-logo{height:60px;object-fit:contain;margin-bottom:22px;}
-.menu-welcome{font-family:var(--fh);font-size:1.6rem;font-weight:700;color:var(--tx);margin-bottom:6px;text-align:center;}
-.menu-sub{font-size:0.85rem;color:var(--mu);margin-bottom:36px;text-align:center;}
-.menu-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%;}
-.menu-btn{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:32px 22px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:12px;text-decoration:none;color:inherit;}
-.menu-btn:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.25);}
-.menu-btn .mb-icon{font-size:2.2rem;line-height:1;}
-.menu-btn .mb-title{font-family:var(--fh);font-size:1rem;font-weight:700;color:var(--tx);}
-.menu-btn .mb-sub{font-size:0.72rem;color:var(--mu);line-height:1.55;}
-.menu-btn.mb-com{border-top:3px solid var(--blue);}
-.menu-btn.mb-sop{border-top:3px solid var(--cyan);}
-.menu-btn.mb-rem{border-top:3px solid var(--pur);}
-.menu-btn.mb-fin{border-top:3px solid var(--ok);}
-.menu-btn.mb-log{border-top:3px solid var(--warn);}
-.menu-btn.mb-cmp{border-top:3px solid #a07cf6;}
-.menu-btn.mb-adm{border-top:3px solid var(--red);}
-.menu-btn.mb-chk{border-top:3px solid #f59e0b;}
+/* Ajustes específicos desta página */
+.page{display:block;padding:28px;max-width:1100px;margin:0 auto;}
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
 
-.menu-bar{margin-top:32px;display:flex;gap:18px;align-items:center;font-size:0.75rem;color:var(--mu);}
-.menu-bar .user-info{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:6px 12px;}
-.menu-bar button{background:none;border:none;color:var(--mu);cursor:pointer;font-size:0.75rem;text-decoration:underline;padding:0;}
-.menu-bar button:hover{color:var(--tx);}
+/* Spinner */
+.spin-wrap{display:flex;align-items:center;gap:10px;padding:20px;color:var(--mu);font-size:.85rem;}
+.spin{width:18px;height:18px;border:2px solid var(--br);border-top-color:var(--tx);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 
-@media(max-width:900px){.menu-grid{grid-template-columns:repeat(2,1fr);}}
-@media(max-width:540px){.menu-grid{grid-template-columns:1fr;}}
+/* Table wrap do original */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.7rem;font-weight:500;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--br);}
+th:not(:first-child){text-align:right;}
+td{padding:11px 14px;font-size:0.85rem;border-bottom:1px solid var(--br);vertical-align:middle;}
+td:not(:first-child){text-align:right;}
+
+/* Header desta página */
+.page-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;}
+.page-hdr .logo{height:44px;object-fit:contain;}
+.page-hdr .titulo{font-family:var(--fh);font-size:1.1rem;font-weight:700;}
+.page-hdr .subt{font-size:0.7rem;color:var(--mu);margin-top:2px;}
+.page-hdr .user{font-size:0.72rem;color:var(--mu);padding:0 8px;}
+.page-hdr button{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.76rem;font-weight:500;}
+.page-hdr button:hover{background:var(--s3);color:var(--tx);}
+.hdr-actions{display:flex;gap:8px;align-items:center;}
 </style>
 </head>
 <body>
 
-<!-- ============ LOGIN ============ -->
-<div class="login-overlay" id="login-overlay">
-  <div class="login-box">
-    <div class="login-logo">
-      <img src="logo.png" alt="Q Food Company" onerror="this.style.display='none'">
+<!-- HEADER -->
+<div class="page-hdr">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <img src="logo.png" class="logo" alt="Q Food Company" onerror="this.style.display='none'">
+    <div>
+      <div class="titulo">🛒 Compras / Cotações</div>
+      <div class="subt">Q Food Company · Cotação por fornecedor</div>
     </div>
-    <div class="login-title">Painel Operacional</div>
-    <div class="login-sub">Q Food Company &middot; Acesso restrito</div>
-
-    <label class="login-label" for="login-email">E-mail</label>
-    <input type="email" id="login-email" class="login-input" placeholder="seu@qfoodcompany.com.br" autocomplete="username">
-
-    <label class="login-label" for="login-pwd">Senha</label>
-    <input type="password" id="login-pwd" class="login-input" placeholder="••••••••" autocomplete="current-password">
-
-    <button class="login-btn" onclick="doLogin()">Entrar</button>
-    <div class="login-err" id="login-err"></div>
-    <div class="login-footer">© 2026 Q Food Company</div>
   </div>
-</div>
-
-<!-- ============ MENU ============ -->
-<div class="menu-wrap" id="menu-wrap">
-  <img src="logo.png" class="menu-logo" alt="Q Food Company" onerror="this.style.display='none'">
-  <div class="menu-welcome" id="menu-welcome">Bem-vindo!</div>
-  <div class="menu-sub">Painel Operacional Q Food &mdash; Selecione a área de trabalho</div>
-
-  <div class="menu-grid" id="menu-grid">
-
-    <a href="Index_Comercial.html" class="menu-btn mb-com" id="mbtn-comercial">
-      <div class="mb-icon">📊</div>
-      <div class="mb-title">Comercial</div>
-      <div class="mb-sub">Comercial · Visão Executiva<br>Histórico · Fat. Dinâmico</div>
-    </a>
-
-    <a href="Index_SOP.html" class="menu-btn mb-sop" id="mbtn-sop">
-      <div class="mb-icon">📦</div>
-      <div class="mb-title">S&amp;OP</div>
-      <div class="mb-sub">Planejamento de Vendas<br>e Operações</div>
-    </a>
-
-    <a href="Index_Remuneracao.html" class="menu-btn mb-rem" id="mbtn-remuneracao">
-      <div class="mb-icon">💰</div>
-      <div class="mb-title">Remuneração</div>
-      <div class="mb-sub">Variável por vendedor<br>Metas e bonificação</div>
-    </a>
-
-    <a href="Index_Financeiro.html" class="menu-btn mb-fin" id="mbtn-financeiro">
-      <div class="mb-icon">📈</div>
-      <div class="mb-title">Financeiro</div>
-      <div class="mb-sub">DRE / Custos<br>Linha a Linha</div>
-    </a>
-
-    <a href="Index_Logistica.html" class="menu-btn mb-log" id="mbtn-logistica">
-      <div class="mb-icon">🚚</div>
-      <div class="mb-title">Logística</div>
-      <div class="mb-sub">Entregas · Ocorrências<br>Quebra de Rede</div>
-    </a>
-
-    <a href="Index_Compras.html" class="menu-btn mb-cmp" id="mbtn-compras">
-      <div class="mb-icon">🛒</div>
-      <div class="mb-title">Compras</div>
-      <div class="mb-sub">Cotações · Fornecedores<br>Controle de Validade</div>
-    </a>
-
-    <a href="Index_Admin.html" class="menu-btn mb-adm" id="mbtn-admin" style="display:none">
-      <div class="mb-icon">⚙️</div>
-      <div class="mb-title">Admin</div>
-      <div class="mb-sub">Usuários<br>Configurações</div>
-    </a>
-
-    <a href="Index_Checkpoint.html" class="menu-btn mb-chk" id="mbtn-checkpoint" style="display:none">
-      <div class="mb-icon">🎯</div>
-      <div class="mb-title">Checkpoint</div>
-      <div class="mb-sub">Rotinas · Metas · Cobranças<br>Painel de Gestores</div>
-    </a>
-
-  </div>
-
-  <div class="menu-bar">
-    <span class="user-info" id="user-info">—</span>
-    <button onclick="showAccessLog()">Ver acessos</button>
+  <div class="hdr-actions">
+    <span class="user" id="user-info">—</span>
+    <button onclick="location.href='Index_Menu.html'">🏠 Menu</button>
     <button onclick="logout()">Sair</button>
   </div>
 </div>
 
+<!-- CONTEÚDO DA ABA COMPRAS (extraído do sistema original) -->
+<div id="tab-compras" class="page active" style="display:block">
+
+  <div id="cmp-step1">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div class="sec" style="margin:0">&#128722; Cota&#231;&#227;o de Compras</div>
+      <button onclick="cmpLoad(true)" style="padding:7px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:.82rem;cursor:pointer">&#128260; Recarregar base</button>
+    </div>
+    <div id="cmp-loading" class="spin-wrap" style="display:none"><div class="spin"></div>Carregando produtos...</div>
+    <div id="cmp-error" style="display:none;color:var(--red);padding:12px;background:var(--s2);border-radius:8px;margin-bottom:12px"></div>
+    <div id="cmp-step1-content" style="display:none">
+      <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px 24px;margin-bottom:20px">
+        <div style="font-size:.7rem;color:var(--mu);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Selecione o Fornecedor</div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+          <select id="cmp-fornecedor" onchange="cmpSelectFornecedor()"
+            style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 14px;color:var(--tx);font-size:.92rem;outline:none;width:100%">
+            <option value="">-- Selecione um fornecedor --</option>
+          </select>
+          <div id="cmp-forn-badge" style="display:none;font-size:.75rem;color:var(--mu);white-space:nowrap;padding:6px 0"></div>
+        </div>
+      </div>
+      <div id="cmp-produtos-wrap" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div class="sec" style="margin:0" id="cmp-forn-title">Produtos do Fornecedor</div>
+          <div style="display:flex;gap:8px">
+            <button onclick="cmpSelectAll()" style="padding:5px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:.75rem;cursor:pointer">&#9745; Marcar todos qtd=1</button>
+            <button onclick="cmpClearAll()" style="padding:5px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:.75rem;cursor:pointer">&#9746; Limpar qtd</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:16px;margin-bottom:10px;font-size:.72rem;color:var(--mu);flex-wrap:wrap">
+          <span style="color:#36cfa0;font-weight:600">&#128308; Giro Alto</span> = top 30% do mix &mdash; validade m&#237;nima: 70% do prazo total
+          &nbsp;|&nbsp;
+          <span style="color:#8fa0c0;font-weight:600">&#9679; Giro Normal</span> = demais &mdash; validade m&#237;nima: 80% do prazo total
+        </div>
+        <div class="twrap">
+          <table>
+            <thead><tr>
+              <th style="text-align:left;width:38%">Produto</th>
+              <th style="text-align:center">Giro 12m</th>
+              <th style="text-align:center">Perfil</th>
+              <th style="text-align:left">Val. Total do Produto</th>
+              <th style="text-align:center;color:#a07cf6">Val. M&#237;nima Aceit&#225;vel</th>
+              <th style="text-align:center;color:#a07cf6">Qtd. Solicitar</th>
+            </tr></thead>
+            <tbody id="cmp-tbody"></tbody>
+          </table>
+        </div>
+        <div id="cmp-selecionados" style="font-size:.75rem;color:var(--mu);margin-top:6px;text-align:right"></div>
+        <div style="margin-top:16px;text-align:right">
+          <button onclick="cmpNextStep()" style="padding:10px 32px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.9rem;cursor:pointer">
+            Pr&#243;ximo: Dados do Envio &#8594;
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="cmp-step2" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+      <button onclick="cmpBackStep()" style="padding:7px 14px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:.82rem;cursor:pointer">&#8592; Voltar</button>
+      <div class="sec" style="margin:0">Dados para Envio da Cota&#231;&#227;o</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
+      <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px">
+        <div class="sec" style="margin-bottom:16px;font-size:.85rem">&#9993; Envio</div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.7rem;color:var(--mu);display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">E-mail do Fornecedor</label>
+          <input id="cmp-email" type="email" placeholder="fornecedor@empresa.com.br"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.88rem;outline:none">
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.7rem;color:var(--mu);display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Contato / Representante</label>
+          <input id="cmp-contato" type="text" placeholder="Nome do contato (opcional)"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.88rem;outline:none">
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--mu);display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Observa&#231;&#245;es para o fornecedor</label>
+          <textarea id="cmp-obs" rows="3" placeholder="Ex: Necessitamos de resposta ate sexta-feira..."
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.85rem;outline:none;resize:vertical"></textarea>
+        </div>
+      </div>
+      <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px">
+        <div class="sec" style="margin-bottom:12px;font-size:.85rem">&#128203; Resumo</div>
+        <div id="cmp-resumo" style="font-size:.82rem;line-height:1.8;color:var(--tx)"></div>
+      </div>
+    </div>
+    <!-- LINK DO FORMULÁRIO — em destaque -->
+    <div style="background:rgba(160,124,246,.08);border:2px solid #a07cf6;border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:.7rem;color:#a07cf6;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">&#128279; Link do Formul&#225;rio para o Fornecedor</div>
+      <div style="font-size:.82rem;color:var(--mu);margin-bottom:14px;line-height:1.6">
+        Clique em <b style="color:#a07cf6">&#128279; Encurtar e Copiar</b> para gerar um link curto tipo <code style="color:#a07cf6">tinyurl.com/xxxxx</code>.<br>
+        Cole no e-mail ou WhatsApp do fornecedor. O formul&#225;rio j&#225; abre com todos os produtos e quantidades preenchidos.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button id="btn-copy-link" onclick="cmpCopyLink()" style="padding:11px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.92rem;cursor:pointer">&#128279; Encurtar e Copiar Link</button>
+        <button onclick="cmpPreviewLink()" style="padding:10px 18px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128065; Visualizar Formul&#225;rio</button>
+      </div>
+      <div id="cmp-link-preview" style="font-size:.75rem;color:var(--mu);margin-top:10px;word-break:break-all;display:none"></div>
+    </div>
+
+    <!-- PRÉVIA DO E-MAIL -->
+    <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="sec" style="margin:0;font-size:.85rem">&#128196; Pr&#233;via do E-mail <span style="font-size:.72rem;color:var(--mu);font-weight:400">(sem o link — envie separado)</span></div>
+        <button onclick="cmpCopyEmail()" style="padding:5px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:.75rem;cursor:pointer">&#128203; Copiar texto</button>
+      </div>
+      <div id="cmp-email-subj" style="background:rgba(160,124,246,.12);border:1px solid rgba(160,124,246,.3);border-radius:8px;padding:8px 14px;font-size:.82rem;margin-bottom:8px;display:none"><span style="font-size:.68rem;color:#a07cf6;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Assunto do e-mail</span><br><span id="cmp-email-subj-text" style="font-weight:600;color:var(--tx)"></span></div>
+      <div id="cmp-email-preview" style="background:var(--s2);border-radius:8px;padding:14px 16px;font-size:.8rem;line-height:1.9;color:var(--mu);white-space:pre-wrap;max-height:260px;overflow-y:auto;font-family:monospace"></div>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+      <button onclick="cmpCopyEmail()" style="padding:10px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128203; Copiar Texto E-mail</button>
+      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">&#9993; Abrir no E-mail</button>
+    </div>
+    <div id="cmp-send-msg" style="font-size:.8rem;color:var(--ok);text-align:right;margin-top:8px"></div>
+  </div>
+
+</div>
+
+
 <script>
 /* ============================================================
-   Q FOOD COMPANY — PAINEL OPERACIONAL
-   Arquivo: Index_Menu.html
-   Responsabilidade: Login + Navegação principal
+   Q FOOD — INDEX_COMPRAS
+   Cópia fiel do módulo de Compras do sistema antigo
    ============================================================ */
 
-// ---- USUARIOS ----
-// role: "admin" = acesso total | "gestor" = lista em 'abas' | "vendedor" = so Remuneracao
-var USERS = {
-  // Admins completos
-  "rodrigo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Rodrigo",  sigla:""},
-  "adilson@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Adilson",  sigla:""},
-  "celio@qfoodcompany.com.br":    {pwd:"Gestao2026@", role:"admin",   nome:"Celio",    sigla:""},
-  "gustavo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Gustavo",  sigla:"", abas:"checkpoint"},
-  // Maiko: logistica completa (entregas + quebra de rede)
-  "maiko@qfoodcompany.com.br":    {pwd:"qfood2026",   role:"gestor",  nome:"Maiko",    sigla:"", abas:"comercial,sop,financeiro,logistica"},
-  // Cris (Compras): sem Remuneracao
-  "compras@qfoodcompany.com.br":  {pwd:"compras2026", role:"gestor",  nome:"Cris",     sigla:"", abas:"comercial,sop,financeiro,logistica,compras"},
-  // Logistica / Compras
-  "jonathas@qfoodcompany.com.br": {pwd:"qfood2026",   role:"gestor",  nome:"Jonathas", sigla:"", abas:"logistica,compras"},
-  "eduardo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"gestor",  nome:"Eduardo",  sigla:"", abas:"logistica,compras"},
-  // Vendedores (apenas Remuneracao)
-  "lucas@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Lucas",    sigla:"LB"},
-  "vera@qfoodcompany.com.br":     {pwd:"vendas2026",  role:"vendedor",nome:"Vera",     sigla:"VS"},
-  "dayane@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Dayane",   sigla:"DN"},
-  "eliane@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Eliane",   sigla:"EM"},
-  "eder@qfoodcompany.com.br":     {pwd:"vendas2026",  role:"vendedor",nome:"Eder",     sigla:"ED"},
-  "claudia@qfoodcompany.com.br":  {pwd:"vendas2026",  role:"vendedor",nome:"Claudia",  sigla:"CG"},
-  "camila@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Camila",   sigla:"CC"},
-  "kenyo@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Kenyo",    sigla:"KE"},
-  "deane@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Deane",    sigla:"DE"}
-};
-
-// Cards que admin ve por padrao
-var DEFAULT_ADMIN_CARDS = "comercial,sop,remuneracao,financeiro,logistica,compras,admin,checkpoint";
-
-var CURRENT_USER = null;
-
-// ---- LOGIN ----
-function doLogin(){
-  var email = document.getElementById("login-email").value.trim().toLowerCase();
-  var pwd = document.getElementById("login-pwd").value;
-  var err = document.getElementById("login-err");
-  if(!email || !pwd){ err.textContent="Preencha e-mail e senha."; return; }
-  var u = USERS[email];
-  if(!u){ err.textContent="E-mail nao encontrado."; return; }
-  if(u.pwd !== pwd){ err.textContent="Senha incorreta."; return; }
-
-  // Registra acesso
-  var log = JSON.parse(localStorage.getItem("qfood_access_log") || "[]");
-  log.push({email:email, nome:u.nome, role:u.role, ts:new Date().toISOString(), ua:navigator.userAgent.substring(0,80)});
-  if(log.length > 500) log = log.slice(-500);
-  localStorage.setItem("qfood_access_log", JSON.stringify(log));
-
-  // Cria sessao (8 horas)
-  localStorage.setItem("qfood_session", JSON.stringify({
-    email:email, role:u.role, nome:u.nome, sigla:u.sigla, ts:Date.now()
-  }));
-
-  CURRENT_USER = {email:email, role:u.role, nome:u.nome, sigla:u.sigla, abas:u.abas};
-  err.textContent = "";
-  showMenu();
-}
-
-function checkSession(){
+// Guarda de sessão: sem login, manda de volta pro Menu
+(function checkSession(){
   var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
-  if(sess && (Date.now() - sess.ts < 8*60*60*1000)){
-    var u = USERS[sess.email] || {};
-    CURRENT_USER = {
-      email:sess.email, role:sess.role, nome:sess.nome,
-      sigla:sess.sigla, abas:u.abas
-    };
-    showMenu();
-    return true;
+  if(!sess || (Date.now() - sess.ts >= 8*60*60*1000)){
+    alert("Sessão expirada ou inexistente. Redirecionando para o menu...");
+    location.href = "Index_Menu.html";
+    return;
   }
-  return false;
-}
-
-function showMenu(){
-  document.getElementById("login-overlay").style.display = "none";
-  document.getElementById("menu-wrap").classList.add("open");
-  document.getElementById("menu-welcome").textContent = "Ola, " + (CURRENT_USER.nome || "usuario") + "!";
-  document.getElementById("user-info").textContent = CURRENT_USER.nome + " · " + CURRENT_USER.role;
-  applyUserAccess();
-}
-
-function applyUserAccess(){
-  if(!CURRENT_USER) return;
-  var role = CURRENT_USER.role;
-  var allowed;
-  if(role === "admin"){
-    allowed = DEFAULT_ADMIN_CARDS.split(",");
-  } else if(role === "vendedor"){
-    allowed = ["remuneracao"];
-  } else {
-    // gestor -> usa lista 'abas' do usuario
-    allowed = (CURRENT_USER.abas || "").split(",").map(function(s){return s.trim();});
+  // Verifica permissão: admin, gestor com 'compras' nas abas
+  var USERS_ABAS = {
+    "rodrigo@qfoodcompany.com.br": "all",
+    "adilson@qfoodcompany.com.br": "all",
+    "celio@qfoodcompany.com.br":   "all",
+    "gustavo@qfoodcompany.com.br": "all",
+    "compras@qfoodcompany.com.br": "comercial,sop,financeiro,logistica,compras",
+    "jonathas@qfoodcompany.com.br":"logistica,compras",
+    "eduardo@qfoodcompany.com.br": "logistica,compras"
+  };
+  var perm = USERS_ABAS[sess.email] || "";
+  var temAcesso = (perm === "all") || (perm.indexOf("compras") >= 0);
+  if(!temAcesso){
+    alert("Voce nao tem permissao para acessar o modulo de Compras.");
+    location.href = "Index_Menu.html";
+    return;
   }
-  var cards = ["comercial","sop","remuneracao","financeiro","logistica","compras","admin","checkpoint"];
-  cards.forEach(function(id){
-    var el = document.getElementById("mbtn-" + id);
-    if(!el) return;
-    if(allowed.indexOf(id) >= 0){
-      el.style.display = "flex";
-    } else {
-      el.style.display = "none";
-    }
-  });
-}
+  var ui = document.getElementById("user-info");
+  if(ui) ui.textContent = sess.nome;
+})();
 
 function logout(){
   if(confirm("Sair do sistema?")){
     localStorage.removeItem("qfood_session");
-    location.reload();
+    location.href = "Index_Menu.html";
   }
 }
 
-function showAccessLog(){
-  var log = JSON.parse(localStorage.getItem("qfood_access_log") || "[]");
-  if(log.length === 0){ alert("Nenhum acesso registrado."); return; }
-  var lines = log.slice(-30).reverse().map(function(e){
-    var d = new Date(e.ts);
-    var dt = d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-    return dt + " - " + e.email;
+// URL da planilha Giro (mesma do sistema antigo)
+var UGIRO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+
+// Parser CSV do sistema antigo
+function csv(txt){
+  var rows=txt.trim().split("\n");
+  function parseRow(row){
+    var result=[],cur="",inQ=false;
+    for(var i=0;i<row.length;i++){
+      var c=row[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===","&&!inQ){result.push(cur.trim());cur="";}
+      else{cur+=c;}
+    }
+    result.push(cur.trim());
+    return result;
+  }
+  var hdr=parseRow(rows[0]).map(function(h){return h.replace(/^"|"$/g,"").trim();});
+  return rows.slice(1).map(function(row){
+    var vals=parseRow(row).map(function(v){return v.replace(/^"|"$/g,"").trim();});
+    var o={};hdr.forEach(function(h,i){o[h]=vals[i]||"";});return o;
+  }).filter(function(r){return Object.values(r).some(function(v){return v!="";});});
+}
+
+
+// ════════════════════════════════════════════════════════════
+// MÓDULO COMPRAS — código original completo
+// ════════════════════════════════════════════════════════════
+// MÓDULO COMPRAS
+// ════════════════════════════════════════════════════════
+var cmpAllRows=[],cmpLoaded=false,cmpProdutos=[];
+var CMP_VAL_KEY="cmpv_";
+
+function cmpMinVal(meses,classe){
+  var pct=classe==="alto"?0.30:0.20;
+  var m=Math.ceil(meses*(1-pct));
+  var d=new Date();d.setMonth(d.getMonth()+m);return d;
+}
+function cmpFmtDate(d){return d.toLocaleDateString("pt-BR");}
+function cmpGF(r,keys){
+  for(var i=0;i<keys.length;i++){
+    if(r[keys[i]]!==undefined&&String(r[keys[i]]).trim()!=="")return String(r[keys[i]]).trim();
+  }return "";
+}
+var CMP_HIST_KEY="cmp_hist_";
+function cmpSaveHistory(forn,itens){
+  try{
+    var key=CMP_HIST_KEY+forn.replace(/[^a-zA-Z0-9]/g,"_");
+    var hist=JSON.parse(localStorage.getItem(key)||"[]");
+    hist.unshift({data:new Date().toLocaleDateString("pt-BR"),ts:Date.now(),itens:itens.length,total:itens.reduce(function(s,x){return s+(x.qtd||0);},0)});
+    if(hist.length>20)hist=hist.slice(0,20);
+    localStorage.setItem(key,JSON.stringify(hist));
+  }catch(e){}
+}
+function cmpShowHistory(forn){
+  var panel=document.getElementById("cmp-hist-panel");
+  var kpisEl=document.getElementById("cmp-hist-kpis");
+  var listEl=document.getElementById("cmp-hist-list");
+  var nomeEl=document.getElementById("cmp-hist-nome");
+  if(!panel)return;
+  var key=CMP_HIST_KEY+forn.replace(/[^a-zA-Z0-9]/g,"_");
+  var hist=JSON.parse(localStorage.getItem(key)||"[]");
+  if(nomeEl)nomeEl.textContent=forn;
+  if(!hist.length){
+    panel.style.display="block";
+    if(kpisEl)kpisEl.innerHTML="";
+    if(listEl)listEl.innerHTML="<span style='color:var(--mu2)'>Nenhuma cotação registrada ainda.</span>";
+    return;
+  }
+  var mediaItens=(hist.reduce(function(s,h){return s+h.itens;},0)/hist.length).toFixed(1);
+  var mediaVol=(hist.reduce(function(s,h){return s+h.total;},0)/hist.length).toFixed(0);
+  if(kpisEl)kpisEl.innerHTML=
+    "<div class='kpi b'><div class='lbl'>Última Cotação</div><div class='val' style='font-size:1rem'>"+hist[0].data+"</div></div>"+
+    "<div class='kpi g'><div class='lbl'>Total Cotações</div><div class='val'>"+hist.length+"</div></div>"+
+    "<div class='kpi p'><div class='lbl'>Média de Itens</div><div class='val'>"+mediaItens+"</div></div>"+
+    "<div class='kpi w'><div class='lbl'>Média Volume</div><div class='val'>"+mediaVol+" un</div></div>";
+  if(listEl)listEl.innerHTML="<div style='font-size:.7rem;color:var(--mu);font-weight:600;margin-bottom:6px'>ÚLTIMAS COTAÇÕES:</div>"+
+    hist.slice(0,8).map(function(h){
+      return "<div style='display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--br);font-size:.78rem'>"+
+        "<span>"+h.data+"</span><span style='color:var(--mu)'>"+h.itens+" itens · "+h.total+" un</span></div>";
+    }).join("");
+  panel.style.display="block";
+}
+async function initCompras(){if(cmpLoaded){cmpBuildFornecedores();return;}cmpLoad(false);}
+
+function cmpDebugCols(){
+  if(!cmpAllRows.length){console.log("No rows loaded");return;}
+  var keys=Object.keys(cmpAllRows[0]);
+  console.log("=== CSV COLUMNS ("+keys.length+") ===");
+  keys.forEach(function(k,i){console.log(i+": "+JSON.stringify(k)+" = "+JSON.stringify(cmpAllRows[0][k]));});
+  console.log("=== FORNECEDORES ===");
+  var fns=[...new Set(cmpAllRows.map(function(r){return Object.values(r)[0]||"";}).filter(Boolean))];
+  console.log(fns.slice(0,5));
+}
+async function cmpLoad(force){
+  if(force)cmpLoaded=false;
+  var ldg=document.getElementById("cmp-loading");
+  var err=document.getElementById("cmp-error");
+  var cont=document.getElementById("cmp-step1-content");
+  if(ldg)ldg.style.display="flex";
+  if(err)err.style.display="none";
+  if(cont)cont.style.display="none";
+  try{
+    var r=await fetch(UGIRO+"&t="+Date.now());
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    var txt=await r.text();
+    if(txt.trim().startsWith("<"))throw new Error("Planilha nao publicada como CSV.");
+    cmpAllRows=csv(txt);cmpLoaded=true;
+    if(ldg)ldg.style.display="none";
+    if(cont)cont.style.display="block";
+    cmpDebugCols();
+    cmpBuildFornecedores();
+  }catch(e){
+    if(ldg)ldg.style.display="none";
+    if(err){err.style.display="block";err.textContent="Erro: "+e.message;}
+  }
+}
+function cmpGuessField(r, hints){
+  // Try exact match first
+  for(var i=0;i<hints.length;i++){if(r[hints[i]]!==undefined&&String(r[hints[i]]).trim()!=="")return String(r[hints[i]]).trim();}
+  // Try case-insensitive partial match on column names
+  var keys=Object.keys(r);
+  var hl=hints.map(function(h){return h.toLowerCase();});
+  for(var j=0;j<keys.length;j++){
+    var kl=keys[j].toLowerCase().replace(/[^a-z0-9]/g,"");
+    for(var h=0;h<hl.length;h++){
+      var hlc=hl[h].replace(/[^a-z0-9]/g,"");
+      if(kl===hlc||kl.indexOf(hlc)>-1||hlc.indexOf(kl)>-1){
+        var v=String(r[keys[j]]||"").trim();
+        if(v&&v!=="undefined")return v;
+      }
+    }
+  }
+  return "";
+}
+
+function cmpBuildFornecedores(){
+  var sel=document.getElementById("cmp-fornecedor");
+  if(!sel)return;
+  sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+  var fns=[...new Set(cmpAllRows.map(function(r){
+    return String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim();
+  }).filter(Boolean))].sort();
+  fns.forEach(function(f){var o=document.createElement("option");o.value=f;o.textContent=f;sel.appendChild(o);});
+  document.getElementById("cmp-produtos-wrap").style.display="none";
+  var b=document.getElementById("cmp-forn-badge");if(b)b.style.display="none";
+}
+function cmpSelectFornecedor(){
+  var forn=document.getElementById("cmp-fornecedor").value;
+  if(!forn){document.getElementById("cmp-produtos-wrap").style.display="none";return;}
+  var rows=cmpAllRows.filter(function(r){
+    return (String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim())===forn;
   });
-  alert("Ultimos 30 acessos:\n\n" + lines.join("\n"));
+  var seen={},prods=[],giros=[];
+  rows.forEach(function(r){
+    var cod =String(r["Código"]||r["Código"]||r["CODIGO"]||r["Codigo"]||r["COD"]||"").trim();
+    var desc=String(r["Descrição"]||r["Descricao"]||r["DESCRICAO"]||r["PRODUTO"]||r["Produto"]||"").trim();
+    if(!cod&&!desc)return;
+    var key=cod||desc;
+    if(seen[key])return;seen[key]=true;
+    var g=parseFloat(String(r["Total"]||r["TOTAL"]||r["Giro"]||r["GIRO"]||"0").replace(",","."))||0;
+    prods.push({cod:cod,desc:desc,giro:g,row:r});
+    giros.push(g);
+  });
+  var sorted=giros.slice().sort(function(a,b){return b-a;});
+  var limiar=sorted[Math.floor(sorted.length*0.30)]||0;
+  prods.forEach(function(p){p.classe=p.giro>=limiar&&p.giro>0?"alto":"normal";});
+  prods.sort(function(a,b){return b.giro-a.giro;});
+  cmpProdutos=prods;
+  document.getElementById("cmp-forn-title").textContent="Produtos — "+forn;
+  cmpShowHistory(forn);
+  var b=document.getElementById("cmp-forn-badge");
+  if(b){b.style.display="block";b.textContent=prods.length+" SKUs · "+prods.filter(function(p){return p.classe==="alto";}).length+" giro alto";}
+  cmpRenderProdutos();
+  document.getElementById("cmp-produtos-wrap").style.display="block";
+}
+function cmpRenderProdutos(){
+  var tbody=document.getElementById("cmp-tbody");if(!tbody)return;
+  tbody.innerHTML=cmpProdutos.map(function(p,i){
+    var sv=localStorage.getItem(CMP_VAL_KEY+p.cod);
+    var vm=sv?parseInt(sv):0;
+    var gt=p.classe==="alto"?"<span class='giro-tag giro-alto'>&#128308; Alto</span>":"<span class='giro-tag giro-normal'>&#9679; Normal</span>";
+    var pct=p.classe==="alto"?"30%":"20%";
+    var md=vm>0?cmpFmtDate(cmpMinVal(vm,p.classe)):"&#8212;";
+    var mdc=vm>0?"color:#a07cf6;font-weight:700":"color:var(--mu2)";
+    var opts="<option value='0'>Informe a validade total</option>";
+    for(var m=1;m<=36;m++){opts+="<option value='"+m+"'"+(m===vm?" selected":"")+">"+(m===1?"1 m&#234;s":m+" meses")+"</option>";}
+    var estDisp=String(p.row["E. Disp."]||p.row["Disp."]||p.row["Virtual"]||"").trim();
+    var ativo=String(p.row["Ativo?"]||"").trim();
+    var emLinha=String(p.row["Em Linha?"]||"").trim();
+    var estTag=estDisp&&estDisp!=="0"
+      ?"<span style='font-size:.65rem;color:#36cfa0;margin-left:4px'>Estq: "+estDisp+"</span>"
+      :"<span style='font-size:.65rem;color:var(--mu2);margin-left:4px'>Sem estoque</span>";
+    var atvTag=(ativo==="Não"||emLinha==="Não")
+      ?"<span style='font-size:.62rem;color:#ff4d4f;margin-left:4px'>Inativo</span>":"";
+    return "<tr"+(ativo==="Não"?" style='opacity:.5'":"")+">" +
+      "<td style='font-size:.82rem'><div style='font-weight:600'>"+(p.desc||p.cod)+atvTag+"</div>"+
+        "<div style='font-size:.7rem;color:var(--mu);margin-top:2px'>"+p.cod+estTag+"</div></td>"+
+      "<td style='text-align:center;font-weight:600'>"+(p.giro>0?p.giro.toFixed(0):"<span style='color:var(--mu2)'>Novo</span>")+"</td>"+
+      "<td style='text-align:center'>"+gt+"</td>"+
+      "<td><select class='val-sel' data-idx='"+i+"' onchange='cmpSaveVal(this)'>"+opts+"</select>"+
+        "<div style='font-size:.65rem;color:var(--mu);margin-top:2px'>Regra: consumir at&#233; "+pct+" do prazo</div></td>"+
+      "<td style='text-align:center'><span id='cmp-mv-"+i+"' style='"+mdc+";font-size:.82rem'>"+md+"</span></td>"+
+      "<td style='text-align:center'><input type='number' min='0' step='1' class='cmp-qty' data-idx='"+i+"' value='0' oninput='cmpUpdateCount()'></td>"+
+    "</tr>";
+  }).join("");
+  cmpUpdateCount();
+}
+function cmpSaveVal(sel){
+  var i=parseInt(sel.dataset.idx),m=parseInt(sel.value),p=cmpProdutos[i];if(!p)return;
+  if(m>0)localStorage.setItem(CMP_VAL_KEY+p.cod,m);else localStorage.removeItem(CMP_VAL_KEY+p.cod);
+  var cell=document.getElementById("cmp-mv-"+i);
+  if(cell){
+    if(m>0){cell.style.color="#a07cf6";cell.style.fontWeight="700";cell.textContent=cmpFmtDate(cmpMinVal(m,p.classe));}
+    else{cell.style.color="var(--mu2)";cell.style.fontWeight="400";cell.innerHTML="&#8212;";}
+  }
+}
+function cmpUpdateCount(){
+  var t=0, totalQtd=0;
+  document.querySelectorAll(".cmp-qty").forEach(function(inp){
+    var q=parseInt(inp.value)||0;
+    if(q>0){t++;totalQtd+=q;}
+  });
+  var el=document.getElementById("cmp-selecionados");
+  if(el){
+    if(t>0){
+      el.innerHTML=
+        "<b style='color:#a07cf6'>"+t+"</b> item(ns) selecionado(s) &nbsp;·&nbsp; "+
+        "<b style='color:#a07cf6'>"+totalQtd+"</b> unidades no total";
+    } else {
+      el.textContent="";
+    }
+  }
+}
+function cmpSelectAll(){document.querySelectorAll(".cmp-qty").forEach(function(inp){if(!parseInt(inp.value))inp.value="1";});cmpUpdateCount();}
+function cmpClearAll(){document.querySelectorAll(".cmp-qty").forEach(function(inp){inp.value="0";});cmpUpdateCount();}
+function cmpGetItens(){
+  var it=[];
+  document.querySelectorAll(".cmp-qty").forEach(function(inp){
+    var q=parseInt(inp.value);if(q<=0)return;
+    var i=parseInt(inp.dataset.idx),p=cmpProdutos[i];if(!p)return;
+    var sv=localStorage.getItem(CMP_VAL_KEY+p.cod);
+    var vm=sv?parseInt(sv):0;
+    it.push({p:p,qtd:q,valMeses:vm,minDate:vm>0?cmpMinVal(vm,p.classe):null});
+  });
+  return it;
+}
+function cmpNextStep(){
+  var it=cmpGetItens();
+  if(!it.length){alert("Selecione ao menos um produto com quantidade > 0.");return;}
+  var forn=document.getElementById("cmp-fornecedor").value;
+  cmpSaveHistory(forn,it);
+  document.getElementById("cmp-step1").style.display="none";
+  document.getElementById("cmp-step2").style.display="block";
+  var semVal=it.filter(function(x){return !x.minDate;}).length;
+  var forn=document.getElementById("cmp-fornecedor").value;
+  var res=document.getElementById("cmp-resumo");
+  if(res)res.innerHTML="<b>Fornecedor:</b> "+forn+"<br><b>Itens:</b> "+it.length+" produto(s)<br>"+
+    (semVal?"<span style='color:var(--warn)'>&#9888; "+semVal+" item(ns) sem validade configurada</span><br>":"")+
+    "<b>Hoje:</b> "+new Date().toLocaleDateString("pt-BR");
+  cmpUpdateEmailPreview(it,forn);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function cmpBackStep(){
+  document.getElementById("cmp-step2").style.display="none";
+  document.getElementById("cmp-step1").style.display="block";
+}
+function cmpGerarLink(it, forn, obs){
+  // Payload minimo — sem desc longa e giro para encurtar URL
+  var payload={
+    f: forn,
+    d: new Date().toLocaleDateString("pt-BR"),
+    o: obs||"",
+    i: it.map(function(x){
+      return [
+        x.p.cod,                                          // 0: codigo
+        x.p.desc||x.p.cod,                               // 1: descricao
+        x.qtd,                                            // 2: quantidade
+        x.p.classe==="alto"?1:0,                          // 3: classe (1=alto,0=normal)
+        x.valMeses||0,                                    // 4: validade total (meses)
+        x.minDate ? x.minDate.toLocaleDateString("pt-BR") : "" // 5: data minima
+      ];
+    })
+  };
+  try{
+    var json = JSON.stringify(payload);
+    var b64  = btoa(unescape(encodeURIComponent(json)))
+                .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+    return COTACAO_FORM_URL + "?d=" + b64;
+  }catch(e){
+    return COTACAO_FORM_URL;
+  }
 }
 
-// ---- INICIALIZACAO ----
-document.addEventListener("DOMContentLoaded", function(){
-  // Se tem sessao ativa, pula login
-  if(!checkSession()){
-    // foca no email
-    setTimeout(function(){ document.getElementById("login-email").focus(); }, 100);
+function cmpUpdateEmailPreview(it,forn){
+  var contato=(document.getElementById("cmp-contato").value||"").trim();
+  var obs=(document.getElementById("cmp-obs").value||"").trim();
+  var today=new Date().toLocaleDateString("pt-BR");
+  var NL="\n";
+  var SEP="─────────────────────────────────────────────";
+
+  var linhas=it.map(function(x,i){
+    var parts=[];
+    parts.push((i+1)+". "+(x.p.desc||x.p.cod));
+    parts.push("   Código: "+x.p.cod);
+    parts.push("   Quantidade: "+x.qtd);
+    if(x.minDate){
+      parts.push("   *** VALIDADE MÍNIMA ACEITÁVEL: "+cmpFmtDate(x.minDate)+" ***");
+      parts.push("   (Prazo total: "+x.valMeses+(x.valMeses===1?" mês":" meses")+
+                 " — aceitamos "+(x.p.classe==="alto"?"70%":"80%")+" do prazo restante)");
+    } else {
+      parts.push("   Validade mínima: A CONFIRMAR (informe a validade total para cálculo)");
+    }
+    return parts.join(NL);
+  }).join(NL+NL);
+
+  var STAR="★ ";
+  var corpo=[
+    "╔══════════════════════════════════════════════╗",
+    "║     SOLICITAÇÃO DE COTAÇÃO — Q FOOD COMPANY     ║",
+    "╚══════════════════════════════════════════════╝",
+    "",
+    contato?"Att. "+contato+",":"Prezado(a) parceiro(a) "+forn+",",
+    "",
+    "Solicitamos sua melhor proposta para os itens abaixo.",
+    "Por favor, informe PREÇO UNITÁRIO, UNIDADE e VALIDADE disponível",
+    "para cada item.",
+    "",
+    "┌─────────────────────────────────────────────┐",
+    "│              ITENS SOLICITADOS              │",
+    "└─────────────────────────────────────────────┘",
+    "",
+    linhas,
+    "",
+    SEP,
+    "",
+    "⚠️  POLÍTICA DE VALIDADE — LEIA COM ATENÇÃO",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "A Q Food Company SÓ ACEITA produtos com o prazo de validade",
+    "mínimo indicado acima para cada item.",
+    "Produtos entregues fora desta especificação serão DEVOLVIDOS",
+    "sem ônus para a Q Food.",
+    "",
+    obs?(SEP+NL+"📋 OBSERVAÇÕES INTERNAS:"+NL+obs+NL):"",
+    "┌─────────────────────────────────────────────┐",
+    "│           COMO RESPONDER ESTA COTAÇÃO       │",
+    "└─────────────────────────────────────────────┘",
+    "",
+    "Basta acessar o link abaixo, preencher preços e validades",
+    "e enviar. Simples e rápido!",
+    "",
+    "[ COLE O LINK DO FORMULARIO AQUI ]",
+    "",
+    "Dúvidas: compras@qfoodcompany.com.br",
+    "",
+    SEP,
+    "Atenciosamente,",
+    "Equipe de Compras",
+    "Q Food Company | compras@qfoodcompany.com.br",
+    SEP
+  ].join(NL);
+
+  var el=document.getElementById("cmp-email-preview");
+  if(el) el.textContent=corpo;
+  var subjBox=document.getElementById("cmp-email-subj");
+  var subjTxt=document.getElementById("cmp-email-subj-text");
+  if(subjBox&&subjTxt){subjTxt.textContent="Cotação Q Food — "+forn+" — "+today;subjBox.style.display="block";}
+  return corpo;
+}
+
+function cmpCopyEmail(){
+  var it   =cmpGetItens();
+  var forn =document.getElementById("cmp-fornecedor").value;
+  var obs  =(document.getElementById("cmp-obs").value||"").trim();
+  var linkEl=document.getElementById("cmp-link-preview");
+  var link="";
+  if(linkEl&&linkEl.style.display!=="none"){var a=linkEl.querySelector("a");if(a)link=a.href;}
+  if(!link) link=cmpGerarLink(it,forn,obs);
+  var txt=cmpUpdateEmailPreview(it,forn)
+    .replace("[ COLE O LINK DO FORMULARIO AQUI ]",
+      ">> ACESSE O FORMULARIO ONLINE PARA RESPONDER:\n"+link);
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
+    var msg=document.getElementById("cmp-send-msg");
+    if(msg){
+      msg.innerHTML="&#10003; E-mail copiado com o link do formulário!";
+      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
+    }
+  });
+}
+
+function cmpOpenMailto(){
+  var email  =(document.getElementById("cmp-email").value||"").trim();
+  var it     =cmpGetItens();
+  var forn   =document.getElementById("cmp-fornecedor").value;
+  var obs    =(document.getElementById("cmp-obs").value||"").trim();
+  var today  =new Date().toLocaleDateString("pt-BR");
+  var msg    =document.getElementById("cmp-send-msg");
+  var longLink=cmpGerarLink(it,forn,obs);
+
+  function abrirComLink(link){
+    var txt=cmpUpdateEmailPreview(it,forn)
+      .replace("[ COLE O LINK DO FORMULARIO AQUI ]",
+        ">> ACESSE O FORMULARIO ONLINE PARA RESPONDER:\n"+link);
+    var subj=encodeURIComponent("Cotação Q Food — "+forn+" — "+today);
+    var body=encodeURIComponent(txt);
+    window.open("mailto:"+email+"?subject="+subj+"&body="+body,"_blank");
+    if(msg){
+      msg.innerHTML="&#10003; E-mail aberto"+(link!==longLink?" com link encurtado":"")+" ✓";
+      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
+    }
   }
-  // Enter key no login
-  var inputs = document.querySelectorAll(".login-input");
-  inputs.forEach(function(inp){
-    inp.addEventListener("keydown", function(e){
-      if(e.key === "Enter") doLogin();
+
+  // Verifica se já tem link curto no preview
+  var linkEl=document.getElementById("cmp-link-preview");
+  var existingShort="";
+  if(linkEl&&linkEl.style.display!=="none"){
+    var a=linkEl.querySelector("a");
+    if(a&&a.href.indexOf("tinyurl")>-1) existingShort=a.href;
+  }
+  if(existingShort){abrirComLink(existingShort);return;}
+
+  // Encurtar antes de abrir
+  if(msg) msg.innerHTML="&#9203; Encurtando link...";
+  fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longLink))
+    .then(function(r){return r.ok?r.text():Promise.reject();})
+    .then(function(s){
+      var short=s.trim().startsWith("http")?s.trim():longLink;
+      if(linkEl){linkEl.style.display="block";linkEl.innerHTML="Link: <a href='"+short+"' target='_blank' style='color:#a07cf6'>"+short+"</a>";}
+      abrirComLink(short);
+    })
+    .catch(function(){abrirComLink(longLink);});
+}
+
+function cmpCopyLink(){
+  var it   = cmpGetItens();
+  var forn = document.getElementById("cmp-fornecedor").value;
+  var obs  = (document.getElementById("cmp-obs").value||"").trim();
+  var link = cmpGerarLink(it, forn, obs);
+  var btn  = document.getElementById("btn-copy-link");
+  var msgEl= document.getElementById("cmp-send-msg");
+  if(btn){ btn.innerHTML="&#9203; Encurtando..."; btn.disabled=true; }
+
+  function finalize(shortLink){
+    var today = new Date().toLocaleDateString("pt-BR");
+    var txt   =
+      "Ola! Segue o link para preenchimento da nossa cotacao (" + today + "):\n\n" +
+      shortLink + "\n\n" +
+      "Basta acessar o link, preencher preços e validades e enviar.\n" +
+      "Dúvidas: compras@qfoodcompany.com.br";
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(txt).then(function(){
+        if(btn){
+          btn.innerHTML="&#10003; Copiado!";
+          btn.disabled=false;
+          btn.style.background="#36cfa0";
+          btn.style.color="#fff";
+          btn.style.borderColor="#36cfa0";
+          setTimeout(function(){
+            btn.innerHTML="&#128279; Copiar Link do Formul\u00e1rio";
+            btn.style.background="";
+            btn.style.color="";
+            btn.style.borderColor="";
+          },4000);
+        }
+        if(msgEl){
+          msgEl.innerHTML=
+            (shortLink!==link ? "&#10003; Link encurtado e copiado! " : "&#10003; Link copiado! ")+
+            "<a href='"+shortLink+"' target='_blank' style='color:#a07cf6;font-size:.8rem'>Testar &#128279;</a>";
+          setTimeout(function(){if(msgEl)msgEl.innerHTML="";},7000);
+        }
+        var prev=document.getElementById("cmp-link-preview");
+        if(prev){
+          prev.style.display="block";
+          prev.innerHTML="Link gerado: <a href='"+shortLink+"' target='_blank' style='color:#a07cf6'>"+shortLink+"</a>";
+        }
+      });
+    }
+  }
+
+  // TinyURL CORS-free API
+  fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(link))
+    .then(function(r){return r.ok?r.text():Promise.reject();})
+    .then(function(s){finalize(s.trim().startsWith("http")?s.trim():link);})
+    .catch(function(){finalize(link);});
+}
+
+function cmpPreviewLink(){
+  var it   = cmpGetItens();
+  var forn = document.getElementById("cmp-fornecedor").value;
+  var obs  = (document.getElementById("cmp-obs").value||"").trim();
+  var link = cmpGerarLink(it, forn, obs);
+  window.open(link, "_blank");
+}
+
+document.addEventListener("DOMContentLoaded",function(){
+  ["cmp-obs","cmp-contato"].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el)el.addEventListener("input",function(){
+      var it=cmpGetItens(),forn=document.getElementById("cmp-fornecedor").value;
+      if(it.length)cmpUpdateEmailPreview(it,forn);
     });
   });
+});
+
+// Inicialização: carregar dados automaticamente ao abrir a página
+document.addEventListener("DOMContentLoaded", function(){
+  initCompras();
 });
 </script>
 </body>
