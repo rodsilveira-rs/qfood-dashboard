@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Remuneração Variável</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+/* ---- HEADER ---- */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;}
+.logo{height:52px;object-fit:contain;}
+.hdr-c h1{font-family:var(--fh);font-size:1.15rem;font-weight:700;text-align:center;}
+.hdr-c p{font-size:0.72rem;color:var(--mu);text-align:center;margin-top:2px;}
+.dbadge{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 14px;text-align:right;min-width:150px;}
+.dbadge strong{display:block;font-family:var(--fh);font-size:0.9rem;}
+.dbadge span{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABS ---- */
+.tabs{display:flex;gap:2px;padding:0 28px;background:var(--sf);border-bottom:1px solid var(--br);}
+.tab{padding:13px 20px;font-size:0.84rem;font-weight:500;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.tab:hover{color:var(--tx);}
+.tab.active{color:var(--tx);border-bottom-color:var(--red);font-weight:600;}
+
+/* ---- MAIN ---- */
+.page{display:none;padding:28px;max-width:1000px;margin:0 auto;}
+.page.active{display:block;}
+
+/* ---- SECTION ---- */
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+
+/* ---- KPI GRID ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.kpi .lbl{font-size:0.74rem;color:var(--mu);margin-bottom:8px;letter-spacing:0.3px;}
+.kpi .val{font-family:var(--fh);font-size:1.5rem;font-weight:700;line-height:1;}
+.kpi .sub{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.kpi .delta{font-size:0.7rem;margin-top:4px;font-weight:500;}
+.kpi.r{border-color:var(--red);}.kpi.r .val{color:var(--red);}
+.kpi.g{border-color:var(--ok);}.kpi.g .val{color:var(--ok);}
+.kpi.w{border-color:var(--warn);}.kpi.w .val{color:var(--warn);}
+.kpi.b{border-color:var(--blue);}.kpi.b .val{color:var(--blue);}
+.kpi.p{border-color:var(--pur);}.kpi.p .val{color:var(--pur);}
+
+/* ---- CHART WRAP ---- */
+.cwrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:24px;}
+.cwrap .ctitle{font-family:var(--fh);font-size:0.78rem;font-weight:600;margin-bottom:16px;color:var(--tx);}
+.cleg{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:0.68rem;color:var(--mu);}
+.cleg span{display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 7px;border-radius:5px;transition:all .15s;user-select:none;border:1px solid transparent;}
+.cleg span:hover{background:var(--s2);border-color:var(--br);}
+.cleg span.off{opacity:.3;text-decoration:line-through;}
+.cleg i{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0;}
+
+/* ---- RANKING ---- */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.rcard{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;}
+.rnum{font-family:var(--fh);font-size:1.4rem;font-weight:800;color:var(--b2);width:24px;flex-shrink:0;line-height:1;}
+.rnum.t1{color:#f59e0b;}.rnum.t2{color:#94a3b8;}.rnum.t3{color:#b45309;}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.ri .rn{font-size:0.8rem;font-weight:500;}
+.ri .rp{font-size:0.95rem;font-family:var(--fh);font-weight:700;}
+.ri .rv{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABLE ---- */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.7rem;font-weight:500;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--br);}
+th:not(:first-child){text-align:right;}
+td{padding:11px 14px;font-size:0.85rem;border-bottom:1px solid var(--br);vertical-align:middle;}
+td:not(:first-child){text-align:right;}
+tbody tr{cursor:pointer;transition:background 0.12s;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--s2);}
+.vc{display:flex;align-items:center;gap:10px;}
+.mav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;}
+.bm{height:4px;border-radius:2px;background:var(--br);overflow:hidden;margin-top:4px;}
+.bmf{height:100%;border-radius:2px;}
+.pv{font-family:var(--fh);font-weight:700;font-size:0.85rem;}
+.tag{display:inline-block;font-size:0.62rem;padding:2px 6px;border-radius:20px;font-weight:500;}
+.tg{background:rgba(54,207,160,0.18);color:#36cfa0;}
+.tr{background:rgba(255,77,79,0.18);color:#ff7875;}
+.ty{background:rgba(255,170,43,0.18);color:#ffaa2b;}
+.tb{background:rgba(77,142,245,0.18);color:#74a9ff;}
+.ch{font-size:0.62rem;color:var(--mu);margin-top:1px;}
+
+/* ---- CEO SECTION ---- */
+.ceo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px;}
+.ceo-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.ceo-card .cc-title{font-size:0.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600;}
+
+/* ---- SOP TABLE ---- */
+.sop-table-wrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.generic-row{display:grid;gap:8px;padding:10px 16px;border-bottom:1px solid var(--br);font-size:0.8rem;align-items:center;}
+.generic-row:last-child{border-bottom:none;}
+.generic-row.hdr-row{font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;font-weight:500;background:var(--s2);}
+
+/* ---- LOADING / ERROR ---- */
+.spin-wrap{text-align:center;padding:80px 20px;color:var(--mu);}
+.spin{width:28px;height:28px;border:2px solid var(--b2);border-top-color:var(--red);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 14px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.errmsg{background:rgba(230,51,41,0.08);border:1px solid rgba(230,51,41,0.25);border-radius:8px;padding:12px 16px;color:#ef4444;font-size:0.8rem;margin:16px 28px;display:none;}
+
+/* ---- MODAL ---- */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.ov.open{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--b2);border-radius:16px;width:100%;max-width:680px;padding:24px;position:relative;margin:auto;}
+.mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{color:var(--tx);border-color:var(--b2);}
+.mhdr{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--br);}
+.mav2{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;}
+.mn{font-family:var(--fh);font-size:1.2rem;font-weight:700;}
+.ms{font-size:0.75rem;color:var(--mu);margin-top:2px;}
+.msec{margin-bottom:18px;}
+.msect{font-size:0.65rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.msect::after{content:'';flex:1;height:1px;background:var(--br);}
+.mg3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.mc{background:var(--bg);border-radius:10px;padding:11px 13px;}
+.mc .ml{font-size:0.65rem;color:var(--mu);margin-bottom:3px;}
+.mc .mv{font-family:var(--fh);font-size:1rem;font-weight:700;}
+.tr2{background:var(--bg);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.tr2 .tl{font-size:0.72rem;color:var(--mu);}
+.tr2 .tv{font-family:var(--fh);font-size:0.95rem;font-weight:700;}
+.pbw{background:var(--bg);border-radius:10px;padding:13px;}
+.pbl{display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:7px;}
+.pbb{height:10px;background:var(--br);border-radius:5px;overflow:hidden;margin-bottom:10px;}
+.pbf{height:100%;border-radius:5px;}
+.pg4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.ps{background:var(--bg);border-radius:8px;padding:9px 11px;}
+.ps .psl{font-size:0.62rem;color:var(--mu);margin-bottom:2px;}
+.ps .psv{font-size:0.9rem;font-weight:700;font-family:var(--fh);}
+.sp2{background:var(--bg);border-radius:10px;padding:13px;margin-bottom:8px;}
+.sp2t{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+.sp2b{height:7px;background:var(--b2);border-radius:4px;overflow:hidden;margin-bottom:7px;}
+.sp2f{height:100%;border-radius:4px;}
+.sp2v{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--mu);}
+
+/* ---- AVATAR COLORS ---- */
+.avLB{background:rgba(59,130,246,0.2);color:#60a5fa;}
+.avVS{background:rgba(6,214,160,0.2);color:#06d6a0;}
+.avDN{background:rgba(245,158,11,0.2);color:#f59e0b;}
+.avEM{background:rgba(167,139,250,0.2);color:#a78bfa;}
+.avED{background:rgba(249,115,22,0.2);color:#fb923c;}
+.avCG{background:rgba(230,51,41,0.2);color:#ef4444;}
+.avCC{background:rgba(16,185,129,0.2);color:#10b981;}
+.avKE{background:rgba(99,102,241,0.2);color:#818cf8;}
+.avDE{background:rgba(20,184,166,0.2);color:#2dd4bf;}
+
+/* ---- FOOTER ---- */
+.ftr{text-align:center;font-size:0.68rem;color:var(--mu2);padding:20px 28px;border-top:1px solid var(--br);}
+.home-overlay{position:fixed;inset:0;background:var(--bg);z-index:8000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.home-overlay.open{display:flex;}
+.home-welcome{font-family:var(--fh);font-size:1.5rem;font-weight:700;color:var(--tx);margin-bottom:6px;text-align:center;}
+.home-sub{font-size:0.85rem;color:var(--mu);margin-bottom:40px;text-align:center;}
+.home-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;width:100%;max-width:1100px;}
+.home-btn{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:28px 20px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.home-btn:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.home-btn .hb-icon{font-size:2rem;line-height:1;}
+.home-btn .hb-title{font-family:var(--fh);font-size:0.95rem;font-weight:700;color:var(--tx);}
+.home-btn .hb-sub{font-size:0.7rem;color:var(--mu);line-height:1.5;}
+.home-btn.hb-com{border-top:3px solid #4d8ef5;}
+.home-btn.hb-fin{border-top:3px solid #36cfa0;}
+.home-btn.hb-log{border-top:3px solid #ffaa2b;}
+.home-btn.hb-adm{border-top:3px solid #ff4d4f;}
+.home-btn.hb-cmp{border-top:3px solid #a07cf6;}
+.cmp-qty{width:70px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:5px 8px;color:var(--tx);font-size:.82rem;text-align:center;outline:none;}
+.cmp-qty:focus{border-color:#a07cf6;}
+.val-sel{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;outline:none;}
+.val-sel:focus{border-color:#a07cf6;}
+.giro-tag{padding:2px 7px;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.giro-alto{background:rgba(54,207,160,.15);color:#36cfa0;border:1px solid rgba(54,207,160,.3);}
+.giro-normal{background:rgba(143,160,192,.1);color:#8fa0c0;border:1px solid rgba(143,160,192,.2);}
+.admin-overlay{position:fixed;inset:0;background:var(--bg);z-index:7000;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px;overflow-y:auto;}
+.admin-overlay.open{display:flex;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:900px;margin-bottom:28px;}
+.admin-back{background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:0.82rem;}
+.lal-act-btn{padding:3px 9px;border:1px solid var(--br);border-radius:6px;font-size:.7rem;cursor:pointer;font-weight:500;white-space:nowrap;background:var(--s2);color:var(--mu);margin-left:4px;}
+.lal-act-btn:hover{border-color:var(--b2);color:var(--tx);}
+.lal-act-btn.ai{border-color:rgba(160,124,246,.4);color:#a07cf6;background:rgba(160,124,246,.08);}
+.lal-act-btn.chart{border-color:rgba(77,142,245,.4);color:#4d8ef5;background:rgba(77,142,245,.08);}
+.lal-ai-box{background:rgba(160,124,246,.08);border:1px solid rgba(160,124,246,.25);border-radius:8px;padding:12px 16px;margin:8px 0;font-size:.82rem;}
+@media(max-width:900px){.home-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.home-grid{grid-template-columns:repeat(2,1fr);}}
+
+
+/* Readable font for large numbers */
+.kpi .val,.kpi .sub,.kpi .lbl,
+#tend-card *,
+.rp,.rv,.ri .rp,
+.mc .mv,
+.tr2 .tv,
+.sp2t span,
+#tend-meta-dia,#tend-media-atual,#tend-projecao,#tend-ritmo{
+  font-family:var(--fb) !important;
+  letter-spacing:-0.3px;
+}
+.kpi .val{font-size:1.6rem !important; font-weight:600 !important;}
+@media(max-width:680px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .rgrid{grid-template-columns:1fr 1fr;}
+  .ceo-grid{grid-template-columns:1fr;}
+  .pg4{grid-template-columns:repeat(2,1fr);}
+  .tabs{overflow-x:auto;}
+  .tab{font-size:0.72rem;padding:10px 14px;}
+  .hdr{padding:14px 16px;}
+  .page{padding:16px;}
+}
+
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#151929,#1e2438);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-box{background:#242938;border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,0.5);}
+.login-logo{display:flex;justify-content:center;margin-bottom:28px;}
+.login-logo img{height:60px;object-fit:contain;}
+.login-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;text-align:center;color:#f0f4ff;margin-bottom:6px;}
+.login-sub{font-size:0.78rem;color:#6b7ea8;text-align:center;margin-bottom:28px;}
+.login-label{font-size:0.72rem;color:#6b7ea8;margin-bottom:6px;display:block;letter-spacing:0.3px;}
+.login-input{width:100%;background:#1a1f2e;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;color:#eef1f8;font-size:0.95rem;font-size:0.88rem;margin-bottom:14px;font-family:'DM Sans',sans-serif;outline:none;}
+.login-input:focus{border-color:#e63329;}
+.login-btn{width:100%;background:#e63329;border:none;border-radius:10px;padding:12px;color:#fff;font-size:0.9rem;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.3px;margin-top:4px;}
+.login-btn:hover{background:#c42820;}
+.login-err{font-size:0.78rem;color:#ef4444;text-align:center;margin-top:10px;min-height:20px;}
+.login-footer{font-size:0.68rem;color:#6b7ea8;text-align:center;margin-top:20px;}
+
+/* Ajustes específicos desta página */
+.page{display:block;padding:28px;max-width:1100px;margin:0 auto;}
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+
+/* Spinner */
+.spin-wrap{display:flex;align-items:center;gap:10px;padding:20px;color:var(--mu);font-size:.85rem;}
+.spin{width:18px;height:18px;border:2px solid var(--br);border-top-color:var(--tx);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.kpi .lbl{font-size:0.74rem;color:var(--mu);margin-bottom:8px;letter-spacing:0.3px;}
+.kpi .val{font-family:var(--fh);font-size:1.5rem;font-weight:700;line-height:1;}
+
+/* Header desta página */
+.page-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;}
+.page-hdr .logo{height:44px;object-fit:contain;}
+.page-hdr .titulo{font-family:var(--fh);font-size:1.1rem;font-weight:700;}
+.page-hdr .subt{font-size:0.7rem;color:var(--mu);margin-top:2px;}
+.page-hdr .user{font-size:0.72rem;color:var(--mu);padding:0 8px;}
+.page-hdr button{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.76rem;font-weight:500;}
+.page-hdr button:hover{background:var(--s3);color:var(--tx);}
+.hdr-actions{display:flex;gap:8px;align-items:center;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="page-hdr">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <img src="logo.png" class="logo" alt="Q Food Company" onerror="this.style.display='none'">
+    <div>
+      <div class="titulo">💰 Remuneração Variável</div>
+      <div class="subt">Q Food Company · Comissões e bônus dos vendedores</div>
+    </div>
+  </div>
+  <div class="hdr-actions">
+    <span class="user" id="user-info">—</span>
+    <button onclick="location.href='Index_Menu.html'">🏠 Menu</button>
+    <button onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<!-- CONTEÚDO DA ABA REMUNERAÇÃO (extraído do sistema original) -->
+<div id="tab-remuneracao" class="page active" style="display:block">
+  <div class="sec">Remuneracao variavel</div>
+  <div id="rem-loading" class="spin-wrap"><div class="spin"></div>Carregando...</div>
+  <div id="rem-content" style="display:none">
+    <!-- ADMIN: selector -->
+    <div id="rem-selector" style="display:none;margin-bottom:20px;">
+      <div style="font-size:0.78rem;color:var(--mu);margin-bottom:8px;">Selecionar vendedor:</div>
+      <div id="rem-btns" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+    <!-- Card principal -->
+    <div id="rem-card"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Q FOOD — INDEX_REMUNERACAO
+   Cópia fiel do módulo de Remuneração do sistema antigo
+   ============================================================ */
+
+// Mapeamento de email -> nome (para vendedores acessarem própria remuneração)
+var EMAIL_TO_VENDEDOR = {
+  "lucas@qfoodcompany.com.br":   {nome:"Lucas",   sigla:"LB"},
+  "vera@qfoodcompany.com.br":    {nome:"Vera",    sigla:"VS"},
+  "dayane@qfoodcompany.com.br":  {nome:"Dayane",  sigla:"DN"},
+  "eliane@qfoodcompany.com.br":  {nome:"Eliane",  sigla:"EM"},
+  "eder@qfoodcompany.com.br":    {nome:"Eder",    sigla:"ED"},
+  "claudia@qfoodcompany.com.br": {nome:"Claudia", sigla:"CG"},
+  "camila@qfoodcompany.com.br":  {nome:"Camila",  sigla:"CC"},
+  "kenyo@qfoodcompany.com.br":   {nome:"Kenyo",   sigla:"KE"},
+  "deane@qfoodcompany.com.br":   {nome:"Deane",   sigla:"DE"}
+};
+
+// Guarda de sessão: define CURRENT_USER global
+var CURRENT_USER = null;
+(function checkSession(){
+  var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
+  if(!sess || (Date.now() - sess.ts >= 8*60*60*1000)){
+    alert("Sessao expirada ou inexistente. Redirecionando para o menu...");
+    location.href = "Index_Menu.html";
+    return;
+  }
+
+  // Permissões: admin (vê tudo) | gestor com 'remuneracao' nas abas | vendedor (vê só própria)
+  var USERS_PERM = {
+    "rodrigo@qfoodcompany.com.br": "admin",
+    "adilson@qfoodcompany.com.br": "admin",
+    "celio@qfoodcompany.com.br":   "admin",
+    "gustavo@qfoodcompany.com.br": "admin",
+    "compras@qfoodcompany.com.br": "comercial,sop,financeiro,logistica,compras",
+    "maiko@qfoodcompany.com.br":   "comercial,sop,financeiro,logistica",
+    "jonathas@qfoodcompany.com.br":"logistica,compras",
+    "eduardo@qfoodcompany.com.br": "logistica,compras"
+  };
+
+  var perm = USERS_PERM[sess.email] || "";
+  var isAdmin = (perm === "admin");
+  var vendInfo = EMAIL_TO_VENDEDOR[sess.email] || null;
+  var isVendedor = !!vendInfo;
+  var temAcesso = isAdmin || isVendedor || (perm.indexOf("remuneracao") >= 0);
+
+  if(!temAcesso){
+    alert("Voce nao tem permissao para acessar o modulo de Remuneracao.");
+    location.href = "Index_Menu.html";
+    return;
+  }
+
+  CURRENT_USER = {
+    email: sess.email,
+    role: isAdmin ? "admin" : (isVendedor ? "vendedor" : "gestor"),
+    nome: isVendedor ? vendInfo.nome : sess.nome,
+    sigla: isVendedor ? vendInfo.sigla : (sess.sigla || ""),
+    isAdmin: isAdmin,
+    isVendedor: isVendedor
+  };
+  var ui = document.getElementById("user-info");
+  if(ui) ui.textContent = sess.nome;
+})();
+
+function logout(){
+  if(confirm("Sair do sistema?")){
+    localStorage.removeItem("qfood_session");
+    location.href = "Index_Menu.html";
+  }
+}
+
+// URLs das planilhas (mesmas do sistema antigo)
+var UR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=667453580&single=true&output=csv";
+var UM = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=0&single=true&output=csv";
+
+// Mapas de Siglas e Avatares (do original)
+var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
+var AV={LB:"avLB",VS:"avVS",DN:"avDN",EM:"avEM",ED:"avED",CG:"avCG",CC:"avCC",KE:"avKE",DE:"avDE"};
+var DM=[]; // Meta mensal (carregado em loadMeta)
+
+// Helpers de formatacao do sistema antigo
+function fv(v){
+  var n=Math.abs(parseFloat(v)||0);
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function parseBR(v){
+  if(!v||v==="") return 0;
+  var s=String(v).trim();
+  var isPercent=s.indexOf("%")>-1;
+  s=s.replace(/%/g,"").trim();
+  // Handle Brazilian format: 1.234.567,89 -> 1234567.89
+  if(s.indexOf(",")>-1 && s.indexOf(".")>-1){
+    s=s.replace(/\./g,"").replace(",",".");
+  } else if(s.indexOf(",")>-1){
+    s=s.replace(",",".");
+  }
+  var n=parseFloat(s)||0;
+  // If it came as a % string like "30%", return 30
+  // If it came as decimal like 0.30, convert to 30
+  if(!isPercent && n>0 && n<1.5 && s.indexOf(".")<0 && s.indexOf(",")<0){
+    // plain small integer like "0" - keep as is
+  } else if(!isPercent && n>0 && n<=1.5){
+    // decimal representation like 0.30 -> 30
+    n=n*100;
+  }
+  return n;
+}
+function pc(a,b){return b>0?Math.round((a/b)*100):0;}
+function cl(v,a,b){return Math.min(Math.max(v,a),b);}
+function cp(p){if(p>=100)return"#10b981";if(p>=80)return"#3b82f6";if(p>=60)return"#f59e0b";return"#e63329";}
+function sgFor(raw){
+  var k=raw?raw.trim():"";
+  return SG[k]||SG[k.charAt(0).toUpperCase()+k.slice(1).toLowerCase()]||k.substring(0,2).toUpperCase();
+}
+
+
+// Parser CSV do sistema antigo
+function csv(txt){
+  var rows=txt.trim().split("\n");
+  function parseRow(row){
+    var result=[],cur="",inQ=false;
+    for(var i=0;i<row.length;i++){
+      var c=row[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===","&&!inQ){result.push(cur.trim());cur="";}
+      else{cur+=c;}
+    }
+    result.push(cur.trim());
+    return result;
+  }
+  var hdr=parseRow(rows[0]).map(function(h){return h.replace(/^"|"$/g,"").trim();});
+  return rows.slice(1).map(function(row){
+    var vals=parseRow(row).map(function(v){return v.replace(/^"|"$/g,"").trim();});
+    var o={};hdr.forEach(function(h,i){o[h]=vals[i]||"";});return o;
+  }).filter(function(r){return Object.values(r).some(function(v){return v!="";});});
+}
+
+// Carrega Meta Mensal pra ter DM disponivel
+async function loadMeta(){
+  try{
+    var r = await fetch(UM + "&t=" + Date.now());
+    if(!r.ok) return;
+    var txt = await r.text();
+    if(txt.trim().startsWith("<")) return;
+    var rows = csv(txt);
+    DM = rows.map(function(o){
+      var nome = (o["Nome"] || o["nome"] || "").trim();
+      var sigla = SG[nome] || "";
+      return {
+        nome: nome,
+        sigla: sigla,
+        av: AV[sigla] || "avLB"
+      };
+    }).filter(function(v){return v.nome;});
+  } catch(e){
+    console.warn("Erro ao carregar meta:", e);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// MODULO REMUNERACAO — codigo original completo
+// ════════════════════════════════════════════════════════════
+// ---- REMUNERACAO VARIAVEL ----
+var DR=[]; // remuneracao data from sheets
+var remLoaded=false;
+
+// URL for remuneracao sheet - set GID after publishing
+// Column structure expected:
+// nome | faturamento | meta_fat | margem | posit_pct | novos | trocas_pct | mes | ano | observacao
+
+var URL_REM = UR; // set from sheet URL above
+
+async function loadRemuneracao(){
+  document.getElementById("rem-loading").style.display="block";
+  document.getElementById("rem-content").style.display="none";
+  try{
+    var r=await fetch(UR);
+    if(r.ok){
+      var txt=await r.text();
+      if(!txt.trim().startsWith("<")) DR=csv(txt);
+    }
+  }catch(e){ console.warn("Remuneracao CSV error:",e.message); }
+  remLoaded=true;
+  buildRemuneracao();
+  document.getElementById("rem-loading").style.display="none";
+  document.getElementById("rem-content").style.display="block";
+}
+
+function buildRemuneracao(){
+  document.getElementById("rem-loading").style.display="none";
+  document.getElementById("rem-content").style.display="block";
+
+  var isAdmin = CURRENT_USER && CURRENT_USER.role==="admin";
+  var selDiv = document.getElementById("rem-selector");
+  var btnsDiv = document.getElementById("rem-btns");
+
+  // Get list of vendors with data
+  var vendores=["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
+
+  if(isAdmin){
+    selDiv.style.display="block";
+    btnsDiv.innerHTML="";
+    vendores.forEach(function(v){
+      var btn=document.createElement("button");
+      btn.style.cssText="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.78rem;transition:all 0.2s;";
+      btn.textContent=v;
+      btn.onmouseover=function(){this.style.color="var(--tx)";this.style.borderColor="var(--b2)";};
+      btn.onmouseout=function(){this.style.color="var(--mu)";this.style.borderColor="var(--br)";};
+      btn.onclick=function(){renderRemCard(v);};
+      btnsDiv.appendChild(btn);
+    });
+    // Default: show first vendor
+    renderRemCard(vendores[0]);
+  } else {
+    // Vendedor: show only own card
+    selDiv.style.display="none";
+    var myNome = CURRENT_USER ? CURRENT_USER.nome : "";
+    renderRemCard(myNome);
+  }
+}
+
+function getRemData(nome){
+  // Try to get from CSV first
+  // Columns: Vendedor | Mes/Ano | Faturamento Realizado | Meta Faturamento |
+  //          % Fat vs Meta | Margem % | Positivacao % | Novos Clientes |
+  //          Trocas % | P1 Fat% | P2 Marg% | P3 Posit% | P4 Novos% |
+  //          Total % | Premio R$ | Tipo Regra | Observa
+  if(DR && DR.length>0){
+    var row=DR.find(function(r){
+      var v=r["Vendedor"]||r["vendedor"]||r["VENDEDOR"]||r["nome"]||"";
+      return v.toString().toLowerCase().trim()===nome.toLowerCase().trim();
+    });
+    if(row) return {
+      nome:nome,
+      faturamento:parseBR(row["Faturamento Realizado"]||row["faturamento"]||"0"),
+      meta_fat:parseBR(row["Meta Faturamento"]||row["meta_fat"]||row["meta"]||"0"),
+      margem:parseBR(row["Margem %"]||row["margem"]||"0"),
+      posit_pct:parseBR(row["Positivacao %"]||row["posit_pct"]||row["positivacao"]||"0"),
+      novos:parseInt((row["Novos Clientes"]||row["novos"]||"0").toString().replace(/[^0-9]/g,""))||0,
+      trocas_pct:parseBR(row["Trocas %"]||row["trocas_pct"]||row["trocas"]||"0"),
+      mes:row["Mes/Ano"]||row["mes"]||row["MES"]||"",
+      premio_sheet:parseBR(row["Premio R$"]||row["premio"]||"0"),
+      total_pct_sheet:parseBR(row["Total %"]||row["total_pct"]||"0"),
+      tipo:row["Tipo Regra"]||row["tipo"]||"padrao",
+      observacao:row["Observa"]||row["observacao"]||""
+    };
+  }
+  // Fallback: use current month data from DM/DP
+  var dm=DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var dp=DP.find(function(v){
+    var mn=DM.find(function(x){return x.s===v.s;});
+    return mn&&mn.nome&&mn.nome.toLowerCase()===nome.toLowerCase();
+  });
+  return {
+    nome:nome,
+    faturamento:dm?dm.real:0,
+    meta_fat:dm?dm.meta:0,
+    margem:dp?dp.mg:0,
+    posit_pct:dp?dp.po:0,
+    novos:dp?dp.nv:0,
+    trocas_pct:0,
+    mes:"",
+    observacao:""
+  };
+}
+
+function calcRemuneracao(d){
+  var nome=d.nome.toUpperCase();
+  var fat=d.faturamento;
+  var meta=d.meta_fat;
+  var margem=d.margem;
+  var posit=d.posit_pct;
+  var novos=d.novos;
+  var trocas=d.trocas_pct;
+  var pctFat=meta>0?Math.round((fat/meta)*100):0;
+
+  var pilares=[];
+  var totalPct=0;
+
+  if(nome==="DEANE"){
+    // Apenas Margem
+    var p1=0,p1txt="",p1ok=false;
+    if(margem>=30){p1=3;p1txt="Faixa Boa (30%+) = 3,00%";p1ok=true;}
+    else if(margem>=25){p1=1.35;p1txt="Faixa Basica (25%-29%) = 1,35%";p1ok=true;}
+    else if(margem>=19){p1=0.6;p1txt="Faixa Minima (19%-24%) = 0,60%";p1ok=true;}
+    else{p1=0;p1txt="Abaixo do minimo ("+margem+"%) = 0%";}
+    pilares.push({nome:"Margem",pct:p1,desc:p1txt,ok:p1ok,base:fat});
+    totalPct=p1;
+  } else if(nome==="CLAUDIA"){
+    // Faturamento
+    var p1=0.75,p1txt="Faturamento fixo = 0,75%";
+    pilares.push({nome:"Faturamento",pct:p1,desc:p1txt,ok:true,base:fat});
+    // Margem
+    var p2=0,p2txt="",p2ok=false;
+    if(margem>=45){p2=0.25;p2txt="Margem 45%+ = 0,25%";p2ok=true;}
+    else{p2=0;p2txt="Margem abaixo de 45% ("+margem+"%) = 0%";}
+    pilares.push({nome:"Margem (45%)",pct:p2,desc:p2txt,ok:p2ok,base:fat});
+    // Trocas
+    var p3=0,p3txt="",p3ok=false;
+    if(trocas<=2){p3=0.5;p3txt="Trocas \u22642% ("+trocas+"%) = 0,50%";p3ok=true;}
+    else if(trocas<=5){p3=0.25;p3txt="Trocas 2,1%-5% ("+trocas+"%) = 0,25%";}
+    else{p3=0;p3txt="Trocas >5% ("+trocas+"%) = PERDE todos os pilares";
+      // If trocas > 5%, zero everything
+      return {pilares:[{nome:"ATENCAO",pct:0,desc:"Trocas acima de 5% ("+trocas+"%) — sem remuneracao variavel",ok:false,base:fat}],totalPct:0,premio:0,fat:fat};
+    }
+    pilares.push({nome:"Trocas",pct:p3,desc:p3txt,ok:p3ok,base:fat});
+    // Positivacao
+    var p4=0,p4txt="",p4ok=false;
+    if(posit>=80){p4=0.25;p4txt="Positivacao 80%+ ("+posit+"%) = 0,25%";p4ok=true;}
+    else{p4=0;p4txt="Positivacao abaixo de 80% ("+posit+"%) = 0%";}
+    pilares.push({nome:"Positivacao",pct:p4,desc:p4txt,ok:p4ok,base:fat});
+    totalPct=p1+p2+p3+p4;
+  } else {
+    // PADRAO: 4 pilares
+    // Pilar 1: Faturamento
+    var p1=0,p1txt="",p1ok=false;
+    if(pctFat>=90){p1=0.5;p1txt="Acima de 90% ("+pctFat+"%) = 0,50%";p1ok=true;}
+    else{p1=0.25;p1txt="Ate 90% ("+pctFat+"%) = 0,25%";p1ok=true;}
+    pilares.push({nome:"Faturamento vs Meta",pct:p1,desc:p1txt,ok:p1ok,base:fat});
+    // Pilar 2: Margem
+    var p2=0,p2txt="",p2ok=false;
+    if(margem>=30){p2=1;p2txt="Faixa Boa 30%+ ("+margem+"%) = 1,00%";p2ok=true;}
+    else if(margem>=27){p2=0.75;p2txt="Faixa Basica 27%-29% ("+margem+"%) = 0,75%";p2ok=true;}
+    else if(margem>=24){p2=0.5;p2txt="Faixa Minima 24%-26% ("+margem+"%) = 0,50%";p2ok=true;}
+    else{p2=0;p2txt="Abaixo do minimo ("+margem+"%) = 0%";}
+    pilares.push({nome:"Margem Media",pct:p2,desc:p2txt,ok:p2ok,base:fat});
+    // Pilar 3: Positivacao
+    var p3=0,p3txt="",p3ok=false;
+    if(posit>85){p3=0.5;p3txt="Acima de 86% ("+posit+"%) = 0,50%";p3ok=true;}
+    else if(posit>=70){p3=0.25;p3txt="70% a 85% ("+posit+"%) = 0,25%";p3ok=true;}
+    else{p3=0;p3txt="Abaixo de 70% ("+posit+"%) = 0%";}
+    pilares.push({nome:"Positivacao",pct:p3,desc:p3txt,ok:p3ok,base:fat});
+    // Pilar 4: Novos clientes
+    var p4=0,p4txt="",p4ok=false;
+    if(novos>=15){p4=1;p4txt="Excelente 15+ clientes ("+novos+") = 1,00%";p4ok=true;}
+    else if(novos>=8){p4=0.5;p4txt="Basico 8-14 clientes ("+novos+") = 0,50%";p4ok=true;}
+    else{p4=0;p4txt="Abaixo do minimo ("+novos+" clientes) = 0%";}
+    pilares.push({nome:"Novos Clientes",pct:p4,desc:p4txt,ok:p4ok,base:fat});
+    totalPct=p1+p2+p3+p4;
+  }
+
+  var premio=fat*(totalPct/100);
+  return {pilares:pilares,totalPct:totalPct,premio:premio,fat:fat,pctFat:pctFat};
+}
+
+function renderRemCard(nome){
+  var d=getRemData(nome);
+  var r=calcRemuneracao(d);
+  var card=document.getElementById("rem-card");
+
+  var dm=DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var av=dm?dm.av:"avLB";
+
+  var pilaresHTML=r.pilares.map(function(p){
+    var cor=p.ok?"#10b981":"#e63329";
+    var bg=p.ok?"rgba(16,185,129,0.08)":"rgba(230,51,41,0.08)";
+    var bd=p.ok?"rgba(16,185,129,0.2)":"rgba(230,51,41,0.2)";
+    var icon=p.ok?"\u2714":"\u2715";
+    var premio=p.base*(p.pct/100);
+    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'+
+      '<div style="display:flex;align-items:center;gap:10px;">'+
+        '<span style="font-size:14px;color:'+cor+'">'+icon+'</span>'+
+        '<div>'+
+          '<div style="font-size:0.78rem;font-weight:600;color:var(--tx);">'+p.nome+'</div>'+
+          '<div style="font-size:0.68rem;color:var(--mu);margin-top:2px;">'+p.desc+'</div>'+
+        '</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0;">'+
+        '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">+'+p.pct.toFixed(2).replace(".",",")+'%</div>'+
+        (p.pct>0?'<div style="font-size:0.65rem;color:var(--mu);">= '+fv(premio)+'</div>':'')+ 
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  card.innerHTML=
+    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:14px;padding:24px;">'+
+      // Header
+      '<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--br);">'+
+        '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;">'+
+          (dm?dm.s:nome.substring(0,2).toUpperCase())+
+        '</div>'+
+        '<div>'+
+          '<div style="font-family:var(--fh);font-size:1.2rem;font-weight:700;">'+nome+'</div>'+
+          '<div style="font-size:0.75rem;color:var(--mu);margin-top:2px;">Remuneracao variavel — '+( d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
+        '</div>'+
+        '<div style="margin-left:auto;text-align:right;">'+
+          '<div style="font-size:0.68rem;color:var(--mu);">Faturamento</div>'+
+          '<div style="font-family:var(--fh);font-size:1rem;font-weight:700;">'+fv(d.faturamento)+'</div>'+
+          (d.meta_fat>0?'<div style="font-size:0.68rem;color:var(--mu);">de '+fv(d.meta_fat)+' ('+r.pctFat+'%)</div>':'')+
+        '</div>'+
+      '</div>'+
+      // Pilares
+      '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">'+pilaresHTML+'</div>'+
+      // Total
+      '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">'+
+        '<div>'+
+          '<div style="font-size:0.72rem;color:var(--mu);margin-bottom:4px;">Total da remuneracao variavel</div>'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+fv(r.premio)+'</div>'+
+          (d.observacao?'<div style="font-size:0.68rem;color:var(--mu);margin-top:4px;">Obs: '+d.observacao+'</div>':'')+
+        '</div>'+
+        '<div style="text-align:right;">'+
+          '<div style="font-size:0.72rem;color:var(--mu);">% aplicado</div>'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+r.totalPct.toFixed(2).replace(".",",")+"%</div>"+
+          '<div style="font-size:0.68rem;color:var(--mu);">sobre faturamento</div>'+
+        '</div>'+
+      '</div>'+
+      // Info note
+      '<div style="margin-top:12px;font-size:0.68rem;color:var(--mu2);text-align:center;">'+
+        'Calculo automatico com base nos dados da planilha. Celio confirma os valores finais.'+
+      '</div>'+
+    '</div>';
+}
+
+// Inicializacao: carrega Meta + Remuneracao ao abrir a pagina
+document.addEventListener("DOMContentLoaded", async function(){
+  await loadMeta();
+  loadRemuneracao();
+});
+</script>
+</body>
+</html>
