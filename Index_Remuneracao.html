@@ -412,25 +412,70 @@ function sgFor(raw){
 }
 
 
-// Parser CSV do sistema antigo
+// Parser CSV robusto (RFC 4180) — suporta aspas, virgulas dentro de campos, e aspas duplas escapadas
 function csv(txt){
-  var rows=txt.trim().split("\n");
-  function parseRow(row){
-    var result=[],cur="",inQ=false;
-    for(var i=0;i<row.length;i++){
-      var c=row[i];
-      if(c==='"'){inQ=!inQ;}
-      else if(c===","&&!inQ){result.push(cur.trim());cur="";}
-      else{cur+=c;}
+  // Normaliza quebras de linha (Windows, Mac, Unix)
+  txt = txt.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+
+  // Parser que respeita aspas e escapes RFC 4180
+  var rows = [];
+  var curRow = [];
+  var curField = "";
+  var inQuotes = false;
+
+  for(var i = 0; i < txt.length; i++){
+    var c = txt[i];
+    var next = txt[i+1];
+
+    if(inQuotes){
+      if(c === '"'){
+        if(next === '"'){ // aspas duplas escapadas dentro de campo
+          curField += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        curField += c;
+      }
+    } else {
+      if(c === '"'){
+        inQuotes = true;
+      } else if(c === ','){
+        curRow.push(curField);
+        curField = "";
+      } else if(c === '\n'){
+        curRow.push(curField);
+        rows.push(curRow);
+        curRow = [];
+        curField = "";
+      } else {
+        curField += c;
+      }
     }
-    result.push(cur.trim());
-    return result;
   }
-  var hdr=parseRow(rows[0]).map(function(h){return h.replace(/^"|"$/g,"").trim();});
+  // Ultimo campo da ultima linha
+  if(curField.length > 0 || curRow.length > 0){
+    curRow.push(curField);
+    rows.push(curRow);
+  }
+
+  if(rows.length === 0) return [];
+
+  // Primeira linha = cabecalho
+  var hdr = rows[0].map(function(h){ return String(h).trim(); });
+
+  // Converte cada linha seguinte em objeto usando o cabecalho
   return rows.slice(1).map(function(row){
-    var vals=parseRow(row).map(function(v){return v.replace(/^"|"$/g,"").trim();});
-    var o={};hdr.forEach(function(h,i){o[h]=vals[i]||"";});return o;
-  }).filter(function(r){return Object.values(r).some(function(v){return v!="";});});
+    var o = {};
+    hdr.forEach(function(h, i){
+      o[h] = (row[i] !== undefined) ? String(row[i]).trim() : "";
+    });
+    return o;
+  }).filter(function(r){
+    // Remove linhas totalmente vazias
+    return Object.values(r).some(function(v){ return v !== ""; });
+  });
 }
 
 // Carrega Meta Mensal pra ter DM disponivel
