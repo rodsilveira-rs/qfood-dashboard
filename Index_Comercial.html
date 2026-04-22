@@ -715,6 +715,7 @@ var UP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPv
 var UH="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1201393298&single=true&output=csv";
 var USP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1173958447&single=true&output=csv";
 var UR="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=667453580&single=true&output=csv";
+var UFAT="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=493739923&single=true&output=csv";
 
 // ---- MAPS ----
 var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
@@ -1084,7 +1085,7 @@ function build(){
   document.getElementById("ek8").textContent=acima;
   document.getElementById("ek8s").textContent="de "+DM.length+" vendedores";
 
-  brank();btab();bch1();bch2();bceo();brisk();
+  brank();btab();bch1();bch2();bceo();brisk();buildTend();
 }
 
 function brank(){
@@ -1713,6 +1714,40 @@ function om(sig){
 function cm(){document.getElementById("ov").classList.remove("open");document.body.style.overflow="";}
 document.getElementById("ov").addEventListener("click",function(e){if(e.target===this)cm();});
 document.addEventListener("keydown",function(e){if(e.key==="Escape")cm();});
+
+// ---- BUILD TEND (Tendencia de fechamento do mes) ----
+function buildTend(){
+  // Uses dias_uteis and dia_atual from DM (META_MENSAL sheet)
+  // If not in sheet, use defaults
+  var tm=DM.reduce(function(s,v){return s+v.meta;},0);
+  var tr=DM.reduce(function(s,v){return s+v.real;},0);
+  // Get dias from first row that has them, or use defaults
+  var du=0, da=0;
+  // Try META_SEMANAL first (more likely to have dias_uteis/dia_atual)
+  DS.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
+  // Fallback to META_MENSAL
+  if(du===0) DM.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
+  if(du===0){du=22;da=18;} // fallback defaults
+  var diasRest=Math.max(du-da,0);
+  var metaDia=tm/du;
+  var mediaAtual=da>0?tr/da:0;
+  var projecao=tr+(mediaAtual*diasRest);
+  var pMetaDia=metaDia>0?Math.round((mediaAtual/metaDia)*100):0;
+  var colMedia=pMetaDia>=100?"#10b981":pMetaDia>=80?"#3b82f6":"#f59e0b";
+  var colProj=projecao>=tm?"#10b981":"#f59e0b";
+  var ritmoText=pMetaDia>=100?"Acima do ritmo":pMetaDia>=85?"No ritmo":"Abaixo do ritmo";
+  var colRitmo=pMetaDia>=100?"#10b981":pMetaDia>=85?"#3b82f6":"#f59e0b";
+  var el;
+  el=document.getElementById("tend-meta-dia"); if(el) el.textContent=fv(metaDia);
+  el=document.getElementById("tend-dias-info"); if(el) el.textContent=du+" dias uteis no mes";
+  el=document.getElementById("tend-media-atual"); if(el){ el.textContent=fv(mediaAtual); el.style.color=colMedia; }
+  el=document.getElementById("tend-dias-rest"); if(el) el.textContent=diasRest+" dias restantes (dia "+da+" de "+du+")";
+  el=document.getElementById("tend-projecao"); if(el){ el.textContent=fv(projecao); el.style.color=colProj; }
+  var vsStr=projecao>=tm?("+" +fv(projecao-tm)+" acima da meta"):("-"+fv(tm-projecao)+" abaixo da meta");
+  el=document.getElementById("tend-projecao-vs"); if(el){ el.textContent=vsStr; el.style.color=colProj; }
+  el=document.getElementById("tend-ritmo"); if(el){ el.textContent=ritmoText; el.style.color=colRitmo; }
+  el=document.getElementById("tend-ritmo-sub"); if(el) el.textContent=pMetaDia+"% da media necessaria";
+}
 
 
 // ════════════════════════════════════════════════════════════════
