@@ -585,45 +585,66 @@ function buildRemuneracao(){
   }
 }
 
+// Helper: normaliza string (remove acentos + lowercase + trim) para comparar nomes de coluna
+function _norm(s){
+  return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+}
+// Helper: pega o valor de uma coluna aceitando variacoes de acentos/maiusculas
+// Tenta cada hint em ordem, comparando a forma normalizada com as chaves disponiveis
+function _getCol(row){
+  var hints = Array.prototype.slice.call(arguments, 1);
+  var keys = Object.keys(row);
+  for(var h=0; h<hints.length; h++){
+    var nh = _norm(hints[h]);
+    for(var k=0; k<keys.length; k++){
+      if(_norm(keys[k]) === nh) return row[keys[k]];
+    }
+    // Se nao achou match exato, tenta match parcial (contains)
+    for(var k=0; k<keys.length; k++){
+      if(_norm(keys[k]).indexOf(nh) >= 0) return row[keys[k]];
+    }
+  }
+  return "";
+}
+
 function getRemData(nome){
-  // Try to get from CSV first
-  // Columns: Vendedor | Mes/Ano | Faturamento Realizado | Meta Faturamento |
-  //          % Fat vs Meta | Margem % | Positivacao % | Novos Clientes |
-  //          Trocas % | P1 Fat% | P2 Marg% | P3 Posit% | P4 Novos% |
-  //          Total % | Premio R$ | Tipo Regra | Observa
+  // Tenta pegar os dados do CSV (planilha Remuneracao)
+  // A planilha tem acentos/cedilha nas colunas: Mês/Ano, Positivação %, Prêmio R$, Observação.
+  // Usamos _getCol() que e tolerante a acentos e variacoes de maiusculas/minusculas.
   if(DR && DR.length>0){
     var row=DR.find(function(r){
-      var v=r["Vendedor"]||r["vendedor"]||r["VENDEDOR"]||r["nome"]||"";
+      var v = _getCol(r, "Vendedor", "nome");
       return v.toString().toLowerCase().trim()===nome.toLowerCase().trim();
     });
-    if(row) return {
-      nome:nome,
-      faturamento:parseBR(row["Faturamento Realizado"]||row["faturamento"]||"0"),
-      meta_fat:parseBR(row["Meta Faturamento"]||row["meta_fat"]||row["meta"]||"0"),
-      margem:parseBR(row["Margem %"]||row["margem"]||"0"),
-      posit_pct:parseBR(row["Positivacao %"]||row["posit_pct"]||row["positivacao"]||"0"),
-      novos:parseInt((row["Novos Clientes"]||row["novos"]||"0").toString().replace(/[^0-9]/g,""))||0,
-      trocas_pct:parseBR(row["Trocas %"]||row["trocas_pct"]||row["trocas"]||"0"),
-      mes:row["Mes/Ano"]||row["mes"]||row["MES"]||"",
-      premio_sheet:parseBR(row["Premio R$"]||row["premio"]||"0"),
-      total_pct_sheet:parseBR(row["Total %"]||row["total_pct"]||"0"),
-      tipo:row["Tipo Regra"]||row["tipo"]||"padrao",
-      observacao:row["Observa"]||row["observacao"]||""
-    };
+    if(row){
+      var result = {
+        nome: nome,
+        faturamento: parseBR(_getCol(row, "Faturamento Realizado", "faturamento") || "0"),
+        meta_fat: parseBR(_getCol(row, "Meta Faturamento", "meta_fat", "meta") || "0"),
+        margem: parseBR(_getCol(row, "Margem %", "Margem", "margem") || "0"),
+        posit_pct: parseBR(_getCol(row, "Positivação %", "Positivacao %", "posit_pct", "positivacao") || "0"),
+        novos: parseInt(String(_getCol(row, "Novos Clientes", "novos") || "0").replace(/[^0-9]/g,""))||0,
+        trocas_pct: parseBR(_getCol(row, "Trocas %", "trocas_pct", "trocas") || "0"),
+        mes: _getCol(row, "Mês/Ano", "Mes/Ano", "mes") || "",
+        premio_sheet: parseBR(_getCol(row, "Prêmio R$", "Premio R$", "premio") || "0"),
+        total_pct_sheet: parseBR(_getCol(row, "Total %", "total_pct") || "0"),
+        tipo: _getCol(row, "Tipo Regra", "tipo") || "padrao",
+        observacao: _getCol(row, "Observação", "Observa", "observacao") || ""
+      };
+      console.log("[DIAG] getRemData("+nome+"):", JSON.stringify(result));
+      return result;
+    }
+    console.warn("[DIAG] getRemData("+nome+"): vendedor nao encontrado no DR");
   }
-  // Fallback: use current month data from DM/DP
+  // Fallback: usa dados do DM (Meta Mensal) quando DR nao tem o vendedor
   var dm=DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
-  var dp=DP.find(function(v){
-    var mn=DM.find(function(x){return x.s===v.s;});
-    return mn&&mn.nome&&mn.nome.toLowerCase()===nome.toLowerCase();
-  });
   return {
     nome:nome,
     faturamento:dm?dm.real:0,
     meta_fat:dm?dm.meta:0,
-    margem:dp?dp.mg:0,
-    posit_pct:dp?dp.po:0,
-    novos:dp?dp.nv:0,
+    margem:0,
+    posit_pct:0,
+    novos:0,
     trocas_pct:0,
     mes:"",
     observacao:""
