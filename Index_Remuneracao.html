@@ -442,14 +442,20 @@ async function loadMeta(){
     if(txt.trim().startsWith("<")) return;
     var rows = csv(txt);
     DM = rows.map(function(o){
-      var nome = (o["Nome"] || o["nome"] || "").trim();
+      // A planilha Meta tem colunas: nome, meta, realizado
+      var nome = (o["nome"] || o["Nome"] || o["NOME"] || "").trim();
+      // Normaliza primeira letra maiuscula pra bater com SG
+      if(nome) nome = nome.charAt(0).toUpperCase() + nome.slice(1).toLowerCase();
       var sigla = SG[nome] || "";
       return {
         nome: nome,
         sigla: sigla,
-        av: AV[sigla] || "avLB"
+        av: AV[sigla] || "avLB",
+        meta: parseBR(o["meta"] || o["Meta"] || "0"),
+        real: parseBR(o["realizado"] || o["Realizado"] || o["real"] || o["Real"] || "0")
       };
     }).filter(function(v){return v.nome;});
+    console.log("[DIAG] DM carregado:", DM.length, "vendedores -", DM.map(function(v){return v.nome;}).join(","));
   } catch(e){
     console.warn("Erro ao carregar meta:", e);
   }
@@ -472,10 +478,27 @@ async function loadRemuneracao(){
   document.getElementById("rem-loading").style.display="block";
   document.getElementById("rem-content").style.display="none";
   try{
-    var r=await fetch(UR);
+    var r=await fetch(UR + "&t=" + Date.now());
     if(r.ok){
       var txt=await r.text();
-      if(!txt.trim().startsWith("<")) DR=csv(txt);
+      if(!txt.trim().startsWith("<")){
+        // A planilha Remuneracao tem 2 linhas de titulo antes do cabecalho real.
+        // Detecta automaticamente a linha que comeca com "Vendedor" e usa ela como header.
+        var allLines = txt.split("\n");
+        var headerIdx = 0;
+        for(var i=0; i<Math.min(5, allLines.length); i++){
+          if(allLines[i].toLowerCase().indexOf("vendedor") === 0){
+            headerIdx = i;
+            break;
+          }
+        }
+        if(headerIdx > 0){
+          // Reconstroi o CSV sem as linhas de titulo
+          txt = allLines.slice(headerIdx).join("\n");
+        }
+        DR = csv(txt);
+        console.log("[DIAG] DR carregado:", DR.length, "linhas. Colunas:", DR[0] ? Object.keys(DR[0]).join(" | ") : "(vazio)");
+      }
     }
   }catch(e){ console.warn("Remuneracao CSV error:",e.message); }
   remLoaded=true;
