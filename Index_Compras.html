@@ -380,7 +380,7 @@ td:not(:first-child){text-align:right;}
     <!-- PRÉVIA DO E-MAIL -->
     <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="sec" style="margin:0;font-size:.85rem">&#128196; Pr&#233;via do E-mail <span style="font-size:.72rem;color:var(--mu);font-weight:400">(sem o link — envie separado)</span></div>
+        <div class="sec" style="margin:0;font-size:.85rem">&#128196; Pr&#233;via do E-mail <span style="font-size:.72rem;color:var(--ok);font-weight:400">(assunto + link já incluídos — pronto para copiar)</span></div>
         <button onclick="cmpCopyEmail()" style="padding:5px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:.75rem;cursor:pointer">&#128203; Copiar texto</button>
       </div>
       <div id="cmp-email-subj" style="background:rgba(160,124,246,.12);border:1px solid rgba(160,124,246,.3);border-radius:8px;padding:8px 14px;font-size:.82rem;margin-bottom:8px;display:none"><span style="font-size:.68rem;color:#a07cf6;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Assunto do e-mail</span><br><span id="cmp-email-subj-text" style="font-weight:600;color:var(--tx)"></span></div>
@@ -417,7 +417,7 @@ td:not(:first-child){text-align:right;}
     "adilson@qfoodcompany.com.br": "all",
     "celio@qfoodcompany.com.br":   "all",
     "gustavo@qfoodcompany.com.br": "all",
-    "compras@qfoodcompany.com.br": "comercial,sop,financeiro,logistica,compras",
+    "compras@qfoodcompany.com.br": "comercial,financeiro,logistica,compras",
     "jonathas@qfoodcompany.com.br":"logistica,compras",
     "eduardo@qfoodcompany.com.br": "logistica,compras"
   };
@@ -441,6 +441,9 @@ function logout(){
 
 // URL da planilha Giro (mesma do sistema antigo)
 var UGIRO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+
+// URL do formulário público que o fornecedor preenche (hospedado no GitHub Pages, mesma raiz)
+var COTACAO_FORM_URL = "https://rodsilveira-rs.github.io/qfood-dashboard/cotacao.html";
 
 // Parser CSV do sistema antigo
 function csv(txt){
@@ -740,6 +743,10 @@ function cmpUpdateEmailPreview(it,forn){
   var NL="\n";
   var SEP="─────────────────────────────────────────────";
 
+  // Gera o link do formulário na hora (longo — será encurtado ao copiar/abrir)
+  var formLink = cmpGerarLink(it, forn, obs);
+  var assunto  = "Cotação Q Food — " + forn + " — " + today;
+
   var linhas=it.map(function(x,i){
     var parts=[];
     parts.push((i+1)+". "+(x.p.desc||x.p.cod));
@@ -755,8 +762,10 @@ function cmpUpdateEmailPreview(it,forn){
     return parts.join(NL);
   }).join(NL+NL);
 
-  var STAR="★ ";
   var corpo=[
+    "▶ ASSUNTO: " + assunto,
+    SEP,
+    "",
     "╔══════════════════════════════════════════════╗",
     "║     SOLICITAÇÃO DE COTAÇÃO — Q FOOD COMPANY     ║",
     "╚══════════════════════════════════════════════╝",
@@ -790,7 +799,8 @@ function cmpUpdateEmailPreview(it,forn){
     "Basta acessar o link abaixo, preencher preços e validades",
     "e enviar. Simples e rápido!",
     "",
-    "[ COLE O LINK DO FORMULARIO AQUI ]",
+    "🔗 FORMULÁRIO ONLINE:",
+    formLink,
     "",
     "Dúvidas: compras@qfoodcompany.com.br",
     "",
@@ -805,7 +815,9 @@ function cmpUpdateEmailPreview(it,forn){
   if(el) el.textContent=corpo;
   var subjBox=document.getElementById("cmp-email-subj");
   var subjTxt=document.getElementById("cmp-email-subj-text");
-  if(subjBox&&subjTxt){subjTxt.textContent="Cotação Q Food — "+forn+" — "+today;subjBox.style.display="block";}
+  if(subjBox&&subjTxt){subjTxt.textContent=assunto;subjBox.style.display="block";}
+  // Guarda o link gerado pra uso dos outros botões
+  window._cmpLastLink = formLink;
   return corpo;
 }
 
@@ -813,20 +825,40 @@ function cmpCopyEmail(){
   var it   =cmpGetItens();
   var forn =document.getElementById("cmp-fornecedor").value;
   var obs  =(document.getElementById("cmp-obs").value||"").trim();
-  var linkEl=document.getElementById("cmp-link-preview");
-  var link="";
-  if(linkEl&&linkEl.style.display!=="none"){var a=linkEl.querySelector("a");if(a)link=a.href;}
-  if(!link) link=cmpGerarLink(it,forn,obs);
-  var txt=cmpUpdateEmailPreview(it,forn)
-    .replace("[ COLE O LINK DO FORMULARIO AQUI ]",
-      ">> ACESSE O FORMULARIO ONLINE PARA RESPONDER:\n"+link);
-  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){
-    var msg=document.getElementById("cmp-send-msg");
-    if(msg){
-      msg.innerHTML="&#10003; E-mail copiado com o link do formulário!";
-      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
+  var msg  =document.getElementById("cmp-send-msg");
+  if(!it.length){ alert("Nenhum item selecionado."); return; }
+
+  // Corpo atual do preview (já contém o link longo)
+  var corpoLongo = cmpUpdateEmailPreview(it,forn);
+  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs);
+
+  if(msg) msg.innerHTML="&#9203; Encurtando link...";
+
+  function copiar(corpoFinal, linkUsado){
+    if(navigator.clipboard){
+      navigator.clipboard.writeText(corpoFinal).then(function(){
+        if(msg){
+          msg.innerHTML="&#10003; E-mail copiado"+(linkUsado!==longLink?" com link encurtado":"")+"! Cole no Outlook/Gmail.";
+          setTimeout(function(){if(msg)msg.innerHTML="";},6000);
+        }
+      });
     }
-  });
+  }
+
+  // Tenta encurtar via TinyURL
+  fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longLink))
+    .then(function(r){return r.ok?r.text():Promise.reject();})
+    .then(function(s){
+      var short=s.trim().startsWith("http")?s.trim():longLink;
+      var corpoFinal = corpoLongo.replace(longLink, short);
+      // Atualiza preview com link curto
+      var el=document.getElementById("cmp-email-preview");
+      if(el) el.textContent = corpoFinal;
+      var prev=document.getElementById("cmp-link-preview");
+      if(prev){prev.style.display="block";prev.innerHTML="Link: <a href='"+short+"' target='_blank' style='color:#a07cf6'>"+short+"</a>";}
+      copiar(corpoFinal, short);
+    })
+    .catch(function(){ copiar(corpoLongo, longLink); });
 }
 
 function cmpOpenMailto(){
@@ -836,40 +868,37 @@ function cmpOpenMailto(){
   var obs    =(document.getElementById("cmp-obs").value||"").trim();
   var today  =new Date().toLocaleDateString("pt-BR");
   var msg    =document.getElementById("cmp-send-msg");
-  var longLink=cmpGerarLink(it,forn,obs);
+  if(!it.length){ alert("Nenhum item selecionado."); return; }
 
-  function abrirComLink(link){
-    var txt=cmpUpdateEmailPreview(it,forn)
-      .replace("[ COLE O LINK DO FORMULARIO AQUI ]",
-        ">> ACESSE O FORMULARIO ONLINE PARA RESPONDER:\n"+link);
-    var subj=encodeURIComponent("Cotação Q Food — "+forn+" — "+today);
-    var body=encodeURIComponent(txt);
-    window.open("mailto:"+email+"?subject="+subj+"&body="+body,"_blank");
+  var corpoLongo = cmpUpdateEmailPreview(it,forn);
+  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs);
+  var subj       = "Cotação Q Food — "+forn+" — "+today;
+
+  function abrir(corpoFinal, linkUsado){
+    // mailto: não aceita assunto no corpo — remove linha "▶ ASSUNTO" pra não duplicar
+    var corpoMail = corpoFinal
+      .replace(/^▶ ASSUNTO:.*\n/,"")
+      .replace(/^─+\n/,"");
+    window.open("mailto:"+email+"?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(corpoMail),"_blank");
     if(msg){
-      msg.innerHTML="&#10003; E-mail aberto"+(link!==longLink?" com link encurtado":"")+" ✓";
+      msg.innerHTML="&#10003; E-mail aberto"+(linkUsado!==longLink?" com link encurtado":"")+" ✓";
       setTimeout(function(){if(msg)msg.innerHTML="";},5000);
     }
   }
 
-  // Verifica se já tem link curto no preview
-  var linkEl=document.getElementById("cmp-link-preview");
-  var existingShort="";
-  if(linkEl&&linkEl.style.display!=="none"){
-    var a=linkEl.querySelector("a");
-    if(a&&a.href.indexOf("tinyurl")>-1) existingShort=a.href;
-  }
-  if(existingShort){abrirComLink(existingShort);return;}
-
-  // Encurtar antes de abrir
   if(msg) msg.innerHTML="&#9203; Encurtando link...";
   fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longLink))
     .then(function(r){return r.ok?r.text():Promise.reject();})
     .then(function(s){
       var short=s.trim().startsWith("http")?s.trim():longLink;
-      if(linkEl){linkEl.style.display="block";linkEl.innerHTML="Link: <a href='"+short+"' target='_blank' style='color:#a07cf6'>"+short+"</a>";}
-      abrirComLink(short);
+      var corpoFinal = corpoLongo.replace(longLink, short);
+      var el=document.getElementById("cmp-email-preview");
+      if(el) el.textContent = corpoFinal;
+      var prev=document.getElementById("cmp-link-preview");
+      if(prev){prev.style.display="block";prev.innerHTML="Link: <a href='"+short+"' target='_blank' style='color:#a07cf6'>"+short+"</a>";}
+      abrir(corpoFinal, short);
     })
-    .catch(function(){abrirComLink(longLink);});
+    .catch(function(){ abrir(corpoLongo, longLink); });
 }
 
 function cmpCopyLink(){
