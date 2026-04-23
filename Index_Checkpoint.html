@@ -668,16 +668,69 @@ textarea{resize:vertical;min-height:60px;}
 
   <!-- MODAL NEGOCIAÇÕES -->
   <div id="chk-cr-neg-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center">
-    <div style="background:var(--bg);border-radius:14px;padding:24px;width:90%;max-width:700px;max-height:88vh;overflow-y:auto;border:1px solid var(--br)">
+    <div style="background:var(--bg);border-radius:14px;padding:24px;width:92%;max-width:820px;max-height:92vh;overflow-y:auto;border:1px solid var(--br)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div class="sec" style="margin:0">🤝 Registrar Negociação</div><button onclick="chkCrNegFechar()" style="background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer">✕</button></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-        <div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Filtrar por Fornecedor</label><select id="chk-cr-neg-forn" onchange="chkCrNegFiltrar()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none"><option value="">Todos</option></select></div>
-        <div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Filtrar por Indústria</label><select id="chk-cr-neg-ind" onchange="chkCrNegFiltrar()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none"><option value="">Todas</option></select></div>
+
+      <div id="chk-cr-neg-loading" style="display:none;text-align:center;padding:30px;color:var(--mu)">Carregando base de produtos…</div>
+      <div id="chk-cr-neg-err" style="display:none;color:var(--red);padding:12px;background:var(--s2);border-radius:8px;margin-bottom:12px"></div>
+
+      <div id="chk-cr-neg-content" style="display:none">
+        <!-- SELECIONAR FORNECEDOR -->
+        <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+          <div style="font-size:.65rem;color:var(--mu);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">1. Selecione o Fornecedor</div>
+          <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+            <select id="chk-cr-neg-forn" onchange="chkCrNegSelectFornecedor()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 14px;color:var(--tx);font-size:.92rem;outline:none;width:100%">
+              <option value="">-- Selecione um fornecedor --</option>
+            </select>
+            <div id="chk-cr-neg-forn-badge" style="display:none;font-size:.75rem;color:var(--mu);white-space:nowrap;padding:6px 0"></div>
+          </div>
+        </div>
+
+        <!-- PRODUTOS DO FORNECEDOR -->
+        <div id="chk-cr-neg-produtos-wrap" style="display:none;margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+            <div style="font-size:.65rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px">2. Marque os produtos negociados</div>
+            <div style="display:flex;gap:6px">
+              <input type="text" id="chk-cr-neg-busca" oninput="chkCrNegFiltrarProdutos()" placeholder="🔍 buscar produto..." style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);font-size:.78rem;outline:none;width:180px">
+              <button onclick="chkCrNegLimparMarc()" style="padding:5px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.72rem;cursor:pointer">Limpar</button>
+            </div>
+          </div>
+          <div id="chk-cr-neg-lista" style="max-height:260px;overflow-y:auto;border:1px solid var(--br);border-radius:8px;background:var(--s2)"></div>
+          <div id="chk-cr-neg-contador" style="font-size:.72rem;color:var(--mu);margin-top:6px;text-align:right"></div>
+        </div>
+
+        <!-- O QUE FOI NEGOCIADO -->
+        <div id="chk-cr-neg-detalhes-wrap" style="display:none;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+          <div style="font-size:.65rem;color:var(--mu);margin-bottom:8px;font-weight:700;text-transform:uppercase;letter-spacing:.5px">3. O que foi negociado</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div>
+              <label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Tipo</label>
+              <select id="chk-cr-neg-tipo" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none">
+                <option value="preco">💰 Preço</option>
+                <option value="prazo">📅 Prazo de pagamento</option>
+                <option value="condicao">📦 Condição / volume</option>
+                <option value="troca">🔄 Troca / substituição</option>
+                <option value="bonificacao">🎁 Bonificação</option>
+                <option value="outro">📌 Outro</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Status</label>
+              <select id="chk-cr-neg-status" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none">
+                <option value="em_andamento">🟡 Em andamento</option>
+                <option value="fechado">🟢 Fechado</option>
+                <option value="nao_aceito">🔴 Não aceito</option>
+              </select>
+            </div>
+          </div>
+          <label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Descrição da negociação</label>
+          <textarea id="chk-cr-neg-desc" rows="3" placeholder="Ex: desconto 5% no volume acima de 100un; prazo estendido de 28→35 dias; troca de SKU por nova embalagem..." style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:70px"></textarea>
+        </div>
       </div>
-      <div id="chk-cr-neg-lista" style="max-height:380px;overflow-y:auto;font-size:.82rem;margin-bottom:14px">Carregando...</div>
+
       <div style="display:flex;justify-content:flex-end;gap:8px">
         <button onclick="chkCrNegFechar()" style="padding:9px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);cursor:pointer">Cancelar</button>
-        <button onclick="chkCrNegSalvar()" style="padding:9px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer">✅ Salvar</button>
+        <button onclick="chkCrNegSalvar()" style="padding:9px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer">✅ Registrar</button>
       </div>
     </div>
   </div>
@@ -728,8 +781,8 @@ var GESTORES = [
   { id:"celio",    nome:"Célio",    emoji:"📋", cor:"#ffaa2b", tipo:"completo" },
   { id:"cris",     nome:"Cristina", emoji:"🛒", cor:"#a07cf6", tipo:"completo" },
   { id:"maiko",    nome:"Maiko",    emoji:"🚚", cor:"#4d8ef5", tipo:"completoGen", area:"Logística",  desc:"Saídas · Ocupação · Custo por entrega · Ocorrências" },
-  { id:"barbara",  nome:"Bárbara",  emoji:"📣", cor:"#36cfa0", tipo:"simples", area:"Marketing",   desc:"Campanhas · Redes sociais · Performance" },
-  { id:"mariana",  nome:"Mariana",  emoji:"🧀", cor:"#00cec9", tipo:"simples", area:"Mercearia Liberdade", desc:"Operação da loja · Vendas · Estoque" },
+  { id:"barbara",  nome:"Bárbara",  emoji:"📣", cor:"#36cfa0", tipo:"completoGen", area:"Marketing",   desc:"Campanhas · Leads · ROI · Ações PDV" },
+  { id:"mariana",  nome:"Mariana",  emoji:"🧀", cor:"#00cec9", tipo:"completoGen", area:"Mercearia Liberdade", desc:"Vendas · Perdas · Qualidade · Coord. Elizeu" },
   { id:"elizeu",   nome:"Elizeu",   emoji:"🍣", cor:"#fd79a8", tipo:"simples", area:"Sushi Trip",  desc:"Cozinha · Insumos · Qualidade" }
 ];
 
@@ -796,7 +849,137 @@ var CONFIG_COMPLETO_GEN = {
       }}
     ]
   }
-  // bárbara, mariana, elizeu entram na Entrega 2
+  // ─────────── BÁRBARA — Marketing ───────────
+  ,barbara: {
+    titulo: "Marketing",
+    corAccent: "#36cfa0",
+    prazoTxt: "até 10:00",
+    diario: [
+      { sec:"📱 Campanhas do Dia", cor:"#36cfa0", campos:[
+        { id:"posts_feitos",   label:"Posts publicados",       tipo:"number", placeholder:"0" },
+        { id:"anuncios_ativos",label:"Anúncios rodando",       tipo:"number", placeholder:"0" },
+        { id:"engajamento",    label:"Engajamento (likes+coment.)", tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"🎯 Leads & Conversões", cor:"#a07cf6", campos:[
+        { id:"leads_gerados",  label:"Leads gerados",          tipo:"number", placeholder:"0" },
+        { id:"conversoes",     label:"Conversões (vendas)",    tipo:"number", placeholder:"0" },
+        { id:"investimento",   label:"Investimento do dia (R$)", tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" }
+      ]},
+      { sec:"🏪 Ações na Mercearia Liberdade", cor:"#ffaa2b", textarea:{
+        id:"acoes_pdv", label:"Promoções, eventos, material de PDV",
+        placeholder:"Ex: promoção de queijos no fim de semana; banner novo na entrada; degustação de vinhos sábado..."
+      }},
+      { sec:"💡 Problemas & Oportunidades", cor:"#ff4d4f", textarea:{
+        id:"prob_oport", label:"O que travou e o que apareceu de oportunidade",
+        placeholder:"Ex: Meta Ads travou, passando pro manual; fornecedor ofereceu brinde para sorteio..."
+      }}
+    ],
+    semanal: [
+      { sec:"📊 ROI das Campanhas", cor:"#36cfa0", textarea:{
+        id:"roi_campanhas", label:"Análise de retorno (investido vs. vendas geradas)",
+        placeholder:"Ex: Campanha Fazenda Futuro — investido R$800, gerou R$12k em vendas (ROI 15x); Campanha mercearia — investido R$300, gerou R$1,8k (ROI 6x)..."
+      }},
+      { sec:"📅 Planejamento da Próxima Semana", cor:"#a07cf6", textarea:{
+        id:"planej", label:"Campanhas, posts, eventos programados",
+        placeholder:"Ex: Seg — post Instagram queijos; Ter — lançamento campanha Fazenda Futuro; Qua — story Mercearia..."
+      }},
+      { sec:"🤝 Alinhamento com Operações", cor:"#ffaa2b", textarea:{
+        id:"align_ops", label:"Conversas com Rodrigo e gestores sobre campanhas específicas",
+        placeholder:"Ex: alinhado com Rodrigo campanha Dia dos Pais; Mariana pediu divulgação do novo setor de vinhos..."
+      }}
+    ],
+    mensal: [
+      { sec:"📈 Métricas do Mês", cor:"#36cfa0", campos:[
+        { id:"seguidores",     label:"Seguidores ganhos",      tipo:"number", placeholder:"0" },
+        { id:"leads_mes",      label:"Leads totais",           tipo:"number", placeholder:"0" },
+        { id:"clientes_mes",   label:"Clientes adquiridos",    tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"💰 Orçamento de Marketing", cor:"#a07cf6", campos:[
+        { id:"orcamento_usado",label:"Orçamento utilizado (R$)", tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"orcamento_total",label:"Orçamento previsto (R$)",  tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" }
+      ]},
+      { sec:"🎯 Análise & Próximos Passos", cor:"#ffaa2b", textarea:{
+        id:"analise_mensal", label:"O que funcionou, o que mudar no próximo mês",
+        placeholder:"Ex: Reels com 3x mais engajamento que fotos; reduzir investimento em Facebook, aumentar Instagram; testar TikTok..."
+      }}
+    ]
+  }
+  // ─────────── MARIANA — Mercearia Liberdade ───────────
+  ,mariana: {
+    titulo: "Mercearia Liberdade",
+    corAccent: "#00cec9",
+    prazoTxt: "até 20:00 (fechamento da loja)",
+    diario: [
+      { sec:"💰 Vendas do Dia", cor:"#36cfa0", campos:[
+        { id:"faturamento",    label:"Faturamento (R$)",       tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"ticket_medio",   label:"Ticket médio (R$)",      tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"clientes_dia",   label:"Clientes atendidos",     tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"🗑️ Perdas & Desperdício", cor:"#ff4d4f", campos:[
+        { id:"perdas_valor",   label:"Valor perdas (R$)",      tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"perdas_qtd",     label:"Itens descartados",      tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"⭐ Qualidade de Serviço", cor:"#ffaa2b", campos:[
+        { id:"reclamacoes",    label:"Reclamações recebidas",  tipo:"number", placeholder:"0" },
+        { id:"elogios",        label:"Elogios recebidos",      tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"🍣 Coordenação com Elizeu (Cozinha)", cor:"#a07cf6", textarea:{
+        id:"coord_elizeu", label:"Alinhamento com a cozinha (volume, rupturas, sobras)",
+        placeholder:"MODELO:\n• Volume produzido hoje: ____ pratos\n• Rupturas de insumo: (quais)\n• Sobras relevantes: (quais)\n• Pedido para amanhã: ____\n• Observações: ____"
+      }},
+      { sec:"🚨 Problemas do Dia", cor:"#ff4d4f", textarea:{
+        id:"prob", label:"O que deu errado / pendências",
+        placeholder:"Ex: ar-condicionado quebrou na área de vinhos; PIX travou no almoço; falta de troco..."
+      }}
+    ],
+    semanal: [
+      { sec:"👥 Escala de Funcionários", cor:"#4d8ef5", chkList:{
+        id:"escala", label:"A escala da próxima semana está definida?",
+        itens:[
+          "Escala de caixa planejada",
+          "Cobertura de fim de semana confirmada",
+          "Folgas programadas alinhadas",
+          "Substituições em caso de falta definidas"
+        ],
+        fallback:"Observações / pendências sobre a escala"
+      }},
+      { sec:"📣 Promoções com Bárbara", cor:"#36cfa0", chkList:{
+        id:"promos", label:"Promoções alinhadas com Marketing?",
+        itens:[
+          "Calendário de promoções discutido",
+          "Material gráfico solicitado",
+          "Produtos com giro baixo sinalizados",
+          "Degustações / eventos combinados"
+        ],
+        fallback:"Observações / ideias de promoção"
+      }},
+      { sec:"📦 Estoque com Célio & Cristina", cor:"#ffaa2b", chkList:{
+        id:"estoque", label:"Revisão de estoque feita?",
+        itens:[
+          "Validades próximas identificadas",
+          "Rupturas sinalizadas para Cristina",
+          "Estoque parado reportado a Célio",
+          "Pedidos de reposição solicitados"
+        ],
+        fallback:"Observações / rupturas / ajustes"
+      }}
+    ],
+    mensal: [
+      { sec:"📈 Rentabilidade da Loja", cor:"#36cfa0", campos:[
+        { id:"fat_mes",        label:"Faturamento mensal (R$)",   tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"margem_pct",     label:"Margem bruta (%)",          tipo:"number", placeholder:"0", step:"0.1", sufixo:"%" },
+        { id:"ticket_mes",     label:"Ticket médio do mês (R$)",  tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" }
+      ]},
+      { sec:"🎯 Indicadores Operacionais", cor:"#a07cf6", campos:[
+        { id:"clientes_mes",   label:"Clientes no mês",           tipo:"number", placeholder:"0" },
+        { id:"perdas_mes",     label:"Perdas do mês (R$)",        tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" }
+      ]},
+      { sec:"💡 Propostas de Melhoria", cor:"#ffaa2b", textarea:{
+        id:"propostas", label:"Ações para o próximo mês",
+        placeholder:"Ex: reorganizar área de queijos especiais; testar horário estendido aos sábados; parceria com vinícola local..."
+      }}
+    ]
+  }
 };
 
 // ─────────── Helper: renderiza um grid de campos ───────────
@@ -805,7 +988,26 @@ function chkRenderGridCampos(gestorId, secao, valores){
   if(secao.textarea){
     var v = valores[secao.textarea.id]||'';
     return '<div style="margin-bottom:14px"><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">'+secao.textarea.label+'</label>'+
-      '<textarea id="chk-'+gestorId+'-'+secao.textarea.id+'" rows="3" placeholder="'+secao.textarea.placeholder+'" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:70px">'+(v.replace(/</g,'&lt;'))+'</textarea></div>';
+      '<textarea id="chk-'+gestorId+'-'+secao.textarea.id+'" rows="3" placeholder="'+(secao.textarea.placeholder||'').replace(/"/g,'&quot;')+'" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:70px">'+(v.replace(/</g,'&lt;'))+'</textarea></div>';
+  }
+  if(secao.chkList){
+    var cl = secao.chkList;
+    var marc = valores[cl.id] || {};
+    var obsFb = valores[cl.id+'_obs'] || '';
+    var itensHtml = cl.itens.map(function(it, i){
+      var chk = marc['i'+i] ? 'checked' : '';
+      var done = marc['i'+i] ? 'opacity:.6;text-decoration:line-through' : '';
+      return '<label style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--s2);border:1px solid var(--br);border-radius:8px;margin-bottom:5px;cursor:pointer">' +
+        '<input type="checkbox" id="chk-'+gestorId+'-'+cl.id+'-i'+i+'" '+chk+' style="width:16px;height:16px;cursor:pointer;accent-color:#36cfa0">' +
+        '<span style="flex:1;font-size:.83rem;'+done+'">'+it+'</span>' +
+      '</label>';
+    }).join('');
+    return '<div style="margin-bottom:14px">' +
+      '<label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">'+cl.label+'</label>' +
+      itensHtml +
+      '<div style="margin-top:8px"><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">'+(cl.fallback||'Observações')+' (opcional)</label>' +
+        '<textarea id="chk-'+gestorId+'-'+cl.id+'-obs" rows="2" placeholder="Se algum item acima não estiver ok, detalhe aqui..." style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px;color:var(--tx);font-size:.82rem;outline:none;resize:vertical;font-family:inherit;min-height:56px">'+(obsFb.replace(/</g,'&lt;'))+'</textarea></div>' +
+    '</div>';
   }
   var campos = secao.campos||[];
   var cols = campos.length>=3?'1fr 1fr 1fr':campos.length===2?'1fr 1fr':'1fr';
@@ -953,6 +1155,16 @@ function chkColetarSecoes(gestorId, secoes, prefixoExtra){
     if(s.textarea){
       var el = document.getElementById('chk-'+gestorId+(prefixoExtra||'')+'-'+s.textarea.id);
       if(el) d[s.textarea.id] = el.value.trim();
+    } else if(s.chkList){
+      var cl = s.chkList;
+      var marc = {};
+      cl.itens.forEach(function(it, i){
+        var cb = document.getElementById('chk-'+gestorId+(prefixoExtra||'')+'-'+cl.id+'-i'+i);
+        if(cb) marc['i'+i] = cb.checked;
+      });
+      d[cl.id] = marc;
+      var obsEl = document.getElementById('chk-'+gestorId+(prefixoExtra||'')+'-'+cl.id+'-obs');
+      if(obsEl) d[cl.id+'_obs'] = obsEl.value.trim();
     } else if(s.campos){
       s.campos.forEach(function(c){
         var el = document.getElementById('chk-'+gestorId+(prefixoExtra||'')+'-'+c.id);
@@ -1035,6 +1247,15 @@ function chkCarregarSemanalGen(gestorId){
     if(s.textarea){
       var el = document.getElementById('chk-'+gestorId+'-s-'+s.textarea.id);
       if(el && d[s.textarea.id]!==undefined) el.value = d[s.textarea.id];
+    } else if(s.chkList){
+      var cl = s.chkList;
+      var marc = d[cl.id] || {};
+      cl.itens.forEach(function(it, i){
+        var cb = document.getElementById('chk-'+gestorId+'-s-'+cl.id+'-i'+i);
+        if(cb) cb.checked = !!marc['i'+i];
+      });
+      var obsEl = document.getElementById('chk-'+gestorId+'-s-'+cl.id+'-obs');
+      if(obsEl && d[cl.id+'_obs']!==undefined) obsEl.value = d[cl.id+'_obs'];
     } else if(s.campos){
       s.campos.forEach(function(c){
         var el = document.getElementById('chk-'+gestorId+'-s-'+c.id);
@@ -1055,6 +1276,15 @@ function chkCarregarMensalGen(gestorId){
     if(s.textarea){
       var el = document.getElementById('chk-'+gestorId+'-m-'+s.textarea.id);
       if(el) el.value = d && d[s.textarea.id] ? d[s.textarea.id] : '';
+    } else if(s.chkList){
+      var cl = s.chkList;
+      var marc = (d && d[cl.id]) || {};
+      cl.itens.forEach(function(it, i){
+        var cb = document.getElementById('chk-'+gestorId+'-m-'+cl.id+'-i'+i);
+        if(cb) cb.checked = !!marc['i'+i];
+      });
+      var obsEl = document.getElementById('chk-'+gestorId+'-m-'+cl.id+'-obs');
+      if(obsEl) obsEl.value = (d && d[cl.id+'_obs']) ? d[cl.id+'_obs'] : '';
     } else if(s.campos){
       s.campos.forEach(function(c){
         var el = document.getElementById('chk-'+gestorId+'-m-'+c.id);
@@ -1082,6 +1312,25 @@ function chkAtualizarSemaforoGen(gestorId, d){
     if(d.reentregas>0){ score-=8; alerts.push('<span style="color:#ffaa2b">↩ '+d.reentregas+' reentrega(s)</span>'); }
     if(d.devolucoes>0){ score-=5; alerts.push('<span style="color:#ff4d4f">✗ '+d.devolucoes+' devolução(ões)</span>'); }
     if(d.prob && d.prob.length>5){ score-=10; alerts.push('⚡ Problemas reportados'); }
+  } else if(gestorId==='barbara'){
+    if(d.posts_feitos>0) alerts.push('📱 <b>'+d.posts_feitos+'</b> post(s)');
+    if(d.leads_gerados>0) alerts.push('<span style="color:#36cfa0">🎯 '+d.leads_gerados+' lead(s)</span>');
+    if(d.conversoes>0) alerts.push('<span style="color:#36cfa0">💰 '+d.conversoes+' conv.</span>');
+    if(d.investimento>0 && d.conversoes===0){ score-=15; alerts.push('⚠ Invest. sem conversão'); }
+    if(d.posts_feitos===0 && d.anuncios_ativos===0){ score-=20; alerts.push('<span style="color:#ff4d4f">✗ Sem atividade hoje</span>'); }
+    if(d.prob_oport && d.prob_oport.length>5) alerts.push('💡 Notas registradas');
+  } else if(gestorId==='mariana'){
+    if(d.faturamento>0) alerts.push('💰 <b>R$'+Number(d.faturamento).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</b>');
+    if(d.clientes_dia>0) alerts.push('👥 '+d.clientes_dia+' clientes');
+    if(d.perdas_valor>0){
+      alerts.push('<span style="color:#ff4d4f">🗑️ R$'+Number(d.perdas_valor).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
+      if(d.perdas_valor>200) score-=15;
+      else if(d.perdas_valor>100) score-=8;
+    }
+    if(d.reclamacoes>0){ score-=10; alerts.push('<span style="color:#ff4d4f">😠 '+d.reclamacoes+' recl.</span>'); }
+    if(d.elogios>0) alerts.push('<span style="color:#36cfa0">⭐ '+d.elogios+' elogio(s)</span>');
+    if(!d.coord_elizeu || d.coord_elizeu.length<10){ score-=10; alerts.push('⚠ Coord. Elizeu pendente'); }
+    if(d.prob && d.prob.length>5){ score-=5; alerts.push('⚡ Problemas reportados'); }
   }
 
   var temDados = Object.keys(d).some(function(k){return d[k]&&k!=='hora'&&k!=='data'&&k!=='ts';});
@@ -1499,6 +1748,18 @@ function chkMontarSemanas(gestor){
           if(dadoDia.reentregas>0) kpis.push('<span style="color:#ffaa2b">↩ '+dadoDia.reentregas+'</span>');
           if(dadoDia.devolucoes>0) kpis.push('<span style="color:#ff4d4f">✗ '+dadoDia.devolucoes+'</span>');
           if(dadoDia.prob) kpis.push('<span style="color:#ffaa2b">⚠ '+dadoDia.prob.substring(0,40)+'</span>');
+        } else if(gestor==='barbara'){
+          if(dadoDia.posts_feitos>0) kpis.push('📱 <b>'+dadoDia.posts_feitos+'</b> posts');
+          if(dadoDia.leads_gerados>0) kpis.push('<span style="color:#36cfa0">🎯 '+dadoDia.leads_gerados+' lead(s)</span>');
+          if(dadoDia.conversoes>0) kpis.push('<span style="color:#36cfa0">💰 '+dadoDia.conversoes+' conv.</span>');
+          if(dadoDia.investimento>0) kpis.push('Invest: <b>R$'+Number(dadoDia.investimento).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</b>');
+          if(dadoDia.prob_oport) kpis.push('<span style="color:#ffaa2b">💡 '+dadoDia.prob_oport.substring(0,35)+'</span>');
+        } else if(gestor==='mariana'){
+          if(dadoDia.faturamento>0) kpis.push('💰 <b>R$'+Number(dadoDia.faturamento).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</b>');
+          if(dadoDia.clientes_dia>0) kpis.push('👥 '+dadoDia.clientes_dia);
+          if(dadoDia.perdas_valor>0) kpis.push('<span style="color:#ff4d4f">🗑️ R$'+Number(dadoDia.perdas_valor).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
+          if(dadoDia.reclamacoes>0) kpis.push('<span style="color:#ff4d4f">😠 '+dadoDia.reclamacoes+'</span>');
+          if(dadoDia.elogios>0) kpis.push('<span style="color:#36cfa0">⭐ '+dadoDia.elogios+'</span>');
         }
         resumoHtml = kpis.length
           ? '<div style="font-size:.72rem;color:var(--tx);margin-top:3px;line-height:1.7">'+kpis.join(' · ')+'</div>'
@@ -2323,16 +2584,60 @@ function initCheckpointCris(){
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// CRISTINA — MODAL NEGOCIAÇÕES (estrutura espelha a do Célio)
+// CRISTINA — MODAL NEGOCIAÇÕES (fornecedor → produtos → detalhes)
+// Fonte: planilha UGIRO (mesma usada pelo Index_Compras)
 // ═══════════════════════════════════════════════════════════════════
-var chkCrNegSel = [];
-var chkCrNegProdutos = [];
+var chkCrNegSel = [];          // negociações já salvas no dia atual
+var chkCrNegBaseRows = [];     // rows carregados da planilha (todas as linhas)
+var chkCrNegProdAtual = [];    // produtos filtrados do fornecedor selecionado
+var chkCrNegLoaded = false;
+
+var CHK_CR_NEG_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+
+// CSV parser (RFC 4180 simples, igual Index_Compras)
+function chkCrNegParseCSV(txt){
+  var rows = txt.trim().split("\n");
+  function parseRow(row){
+    var result=[], cur="", inQ=false;
+    for(var i=0;i<row.length;i++){
+      var c=row[i];
+      if(c==='"'){ inQ=!inQ; }
+      else if(c===',' && !inQ){ result.push(cur.trim()); cur=""; }
+      else { cur+=c; }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+  var hdr = parseRow(rows[0]).map(function(h){return h.replace(/^"|"$/g,"").trim();});
+  return rows.slice(1).map(function(row){
+    var vals = parseRow(row).map(function(v){return v.replace(/^"|"$/g,"").trim();});
+    var o={}; hdr.forEach(function(h,i){o[h]=vals[i]||"";});
+    return o;
+  }).filter(function(r){ return Object.values(r).some(function(v){return v!="";}); });
+}
 
 function chkCrNegModal(){
   var modal = document.getElementById('chk-cr-neg-modal');
   if(!modal) return;
   modal.style.display = 'flex';
-  chkCrNegCarregarProdutos();
+
+  // Resetar formulário de detalhes
+  var tipo = document.getElementById('chk-cr-neg-tipo'); if(tipo) tipo.value='preco';
+  var stat = document.getElementById('chk-cr-neg-status'); if(stat) stat.value='em_andamento';
+  var desc = document.getElementById('chk-cr-neg-desc'); if(desc) desc.value='';
+  var busca = document.getElementById('chk-cr-neg-busca'); if(busca) busca.value='';
+
+  // Esconder panels de produtos e detalhes até selecionar fornecedor
+  var wrapP = document.getElementById('chk-cr-neg-produtos-wrap'); if(wrapP) wrapP.style.display='none';
+  var wrapD = document.getElementById('chk-cr-neg-detalhes-wrap'); if(wrapD) wrapD.style.display='none';
+  var badge = document.getElementById('chk-cr-neg-forn-badge'); if(badge) badge.style.display='none';
+
+  if(!chkCrNegLoaded){
+    chkCrNegCarregarBase();
+  } else {
+    var content = document.getElementById('chk-cr-neg-content'); if(content) content.style.display='block';
+    chkCrNegBuildSelectFornecedores();
+  }
 }
 
 function chkCrNegFechar(){
@@ -2340,92 +2645,187 @@ function chkCrNegFechar(){
   if(modal) modal.style.display='none';
 }
 
-function chkCrNegCarregarProdutos(){
-  var lista = document.getElementById('chk-cr-neg-lista');
-  if(!lista) return;
-  if(typeof devRows !== 'undefined' && devRows && devRows.length>0){
-    chkCrNegProdutos = devRows.map(function(r){
-      return {
-        cod: r.codigo||r.Codigo||'',
-        nome: r.produto||r.Produto||r.nome||r.Nome||'',
-        forn: r.fornecedor||r.Fornecedor||'',
-        ind: r.industria||r.Industria||r.marca||r.Marca||'',
-        sku: r.sku||r.SKU||r.codigo||r.Codigo||''
-      };
-    }).filter(function(p){ return p.nome; });
-  } else {
-    chkCrNegProdutos = [];
-  }
-  var selForn = document.getElementById('chk-cr-neg-forn');
-  var selInd = document.getElementById('chk-cr-neg-ind');
-  if(selForn){
-    var forns = [...new Set(chkCrNegProdutos.map(function(p){return p.forn;}).filter(Boolean))].sort();
-    selForn.innerHTML = '<option value="">Todos</option>'+forns.map(function(f){return '<option value="'+f.replace(/"/g,'&quot;')+'">'+f+'</option>';}).join('');
-  }
-  if(selInd){
-    var inds = [...new Set(chkCrNegProdutos.map(function(p){return p.ind;}).filter(Boolean))].sort();
-    selInd.innerHTML = '<option value="">Todas</option>'+inds.map(function(i){return '<option value="'+i.replace(/"/g,'&quot;')+'">'+i+'</option>';}).join('');
-  }
-  chkCrNegFiltrar();
+function chkCrNegCarregarBase(){
+  var loading = document.getElementById('chk-cr-neg-loading');
+  var errEl = document.getElementById('chk-cr-neg-err');
+  var content = document.getElementById('chk-cr-neg-content');
+  if(loading) loading.style.display='block';
+  if(errEl) errEl.style.display='none';
+  if(content) content.style.display='none';
+
+  fetch(CHK_CR_NEG_URL+"&t="+Date.now())
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(function(txt){
+      if(txt.trim().startsWith('<')) throw new Error('Planilha não publicada como CSV.');
+      chkCrNegBaseRows = chkCrNegParseCSV(txt);
+      chkCrNegLoaded = true;
+      if(loading) loading.style.display='none';
+      if(content) content.style.display='block';
+      chkCrNegBuildSelectFornecedores();
+    })
+    .catch(function(e){
+      if(loading) loading.style.display='none';
+      if(errEl){ errEl.style.display='block'; errEl.textContent='Erro ao carregar base: '+e.message; }
+    });
 }
 
-function chkCrNegFiltrar(){
-  var lista = document.getElementById('chk-cr-neg-lista');
-  if(!lista) return;
-  var fForn = (document.getElementById('chk-cr-neg-forn')||{}).value||'';
-  var fInd  = (document.getElementById('chk-cr-neg-ind')||{}).value||'';
-  var filtrados = chkCrNegProdutos.filter(function(p){
-    if(fForn && p.forn!==fForn) return false;
-    if(fInd && p.ind!==fInd) return false;
-    return true;
+function chkCrNegBuildSelectFornecedores(){
+  var sel = document.getElementById('chk-cr-neg-forn');
+  if(!sel) return;
+  sel.querySelectorAll("option:not([value=''])").forEach(function(o){ o.remove(); });
+  var forns = [...new Set(chkCrNegBaseRows.map(function(r){
+    return String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim();
+  }).filter(Boolean))].sort();
+  forns.forEach(function(f){
+    var o = document.createElement('option'); o.value=f; o.textContent=f;
+    sel.appendChild(o);
   });
-  if(!filtrados.length){
-    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado. Carregue o módulo "Quebra de Rede" primeiro.</div>';
+}
+
+function chkCrNegSelectFornecedor(){
+  var forn = document.getElementById('chk-cr-neg-forn').value;
+  var wrapP = document.getElementById('chk-cr-neg-produtos-wrap');
+  var wrapD = document.getElementById('chk-cr-neg-detalhes-wrap');
+  var badge = document.getElementById('chk-cr-neg-forn-badge');
+
+  if(!forn){
+    if(wrapP) wrapP.style.display='none';
+    if(wrapD) wrapD.style.display='none';
+    if(badge) badge.style.display='none';
     return;
   }
-  var selSet = new Set(chkCrNegSel.map(function(i){return i.sku||i.cod;}));
-  lista.innerHTML = filtrados.slice(0,300).map(function(p,idx){
-    var key = p.sku||p.cod||('idx_'+idx);
-    var checked = selSet.has(key) ? 'checked' : '';
-    return '<label style="display:flex;gap:10px;padding:8px;border-bottom:1px solid var(--br);cursor:pointer;align-items:center">' +
-      '<input type="checkbox" '+checked+' data-sku="'+key.replace(/"/g,'&quot;')+'" data-nome="'+(p.nome||'').replace(/"/g,'&quot;')+'" data-forn="'+(p.forn||'').replace(/"/g,'&quot;')+'" data-ind="'+(p.ind||'').replace(/"/g,'&quot;')+'">' +
-      '<div style="flex:1"><div style="font-weight:600">'+p.nome+'</div>' +
-      '<div style="font-size:.7rem;color:var(--mu)">'+(p.forn||'—')+' · '+(p.ind||'—')+'</div></div>' +
+
+  // Coletar produtos únicos do fornecedor
+  var rows = chkCrNegBaseRows.filter(function(r){
+    return String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim() === forn;
+  });
+  var seen = {}, prods = [];
+  rows.forEach(function(r){
+    var cod = String(r["Código"]||r["CODIGO"]||r["Codigo"]||r["COD"]||"").trim();
+    var desc = String(r["Descrição"]||r["Descricao"]||r["DESCRICAO"]||r["PRODUTO"]||r["Produto"]||"").trim();
+    if(!cod && !desc) return;
+    var key = cod || desc;
+    if(seen[key]) return;
+    seen[key] = true;
+    prods.push({ cod: cod, nome: desc || cod, forn: forn });
+  });
+  prods.sort(function(a,b){ return a.nome.localeCompare(b.nome); });
+  chkCrNegProdAtual = prods;
+
+  if(badge){ badge.style.display='block'; badge.textContent = prods.length + ' SKUs'; }
+  if(wrapP) wrapP.style.display='block';
+  if(wrapD) wrapD.style.display='block';
+
+  chkCrNegFiltrarProdutos();
+}
+
+function chkCrNegFiltrarProdutos(){
+  var lista = document.getElementById('chk-cr-neg-lista');
+  if(!lista) return;
+  var busca = ((document.getElementById('chk-cr-neg-busca')||{}).value||'').toLowerCase().trim();
+  var filtrados = chkCrNegProdAtual.filter(function(p){
+    if(!busca) return true;
+    return (p.nome||'').toLowerCase().indexOf(busca)>=0 || (p.cod||'').toLowerCase().indexOf(busca)>=0;
+  });
+
+  if(!filtrados.length){
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu);font-size:.8rem">Nenhum produto encontrado para este fornecedor com esse filtro.</div>';
+    chkCrNegAtualizarContador();
+    return;
+  }
+
+  lista.innerHTML = filtrados.map(function(p){
+    var key = p.cod || p.nome;
+    return '<label style="display:flex;gap:10px;padding:8px 12px;border-bottom:1px solid var(--br);cursor:pointer;align-items:center">' +
+      '<input type="checkbox" class="chk-cr-neg-prod-cb" '+
+        'data-cod="'+(p.cod||'').replace(/"/g,'&quot;')+'" '+
+        'data-nome="'+(p.nome||'').replace(/"/g,'&quot;')+'" '+
+        'onchange="chkCrNegAtualizarContador()" '+
+        'style="width:16px;height:16px;cursor:pointer;accent-color:#a07cf6">' +
+      '<div style="flex:1;font-size:.82rem">' +
+        '<div style="font-weight:600">'+p.nome+'</div>' +
+        (p.cod ? '<div style="font-size:.68rem;color:var(--mu);margin-top:2px">cód. '+p.cod+'</div>' : '') +
+      '</div>' +
     '</label>';
-  }).join('') + (filtrados.length>300 ? '<div style="padding:10px;text-align:center;color:var(--mu);font-size:.75rem">Mostrando primeiros 300 de '+filtrados.length+'. Refine os filtros.</div>' : '');
+  }).join('');
+  chkCrNegAtualizarContador();
+}
+
+function chkCrNegLimparMarc(){
+  var lista = document.getElementById('chk-cr-neg-lista');
+  if(!lista) return;
+  lista.querySelectorAll('input.chk-cr-neg-prod-cb:checked').forEach(function(cb){ cb.checked=false; });
+  chkCrNegAtualizarContador();
+}
+
+function chkCrNegAtualizarContador(){
+  var el = document.getElementById('chk-cr-neg-contador');
+  if(!el) return;
+  var n = document.querySelectorAll('input.chk-cr-neg-prod-cb:checked').length;
+  el.textContent = n>0 ? (n+' produto'+(n>1?'s':'')+' marcado'+(n>1?'s':'')) : 'Nenhum produto marcado';
 }
 
 function chkCrNegSalvar(){
-  var lista = document.getElementById('chk-cr-neg-lista');
-  if(!lista) return;
-  var checks = lista.querySelectorAll('input[type="checkbox"]:checked');
-  var selecionados = [];
+  var forn = document.getElementById('chk-cr-neg-forn').value;
+  if(!forn){ alert('Selecione um fornecedor primeiro.'); return; }
+
+  var checks = document.querySelectorAll('input.chk-cr-neg-prod-cb:checked');
+  if(checks.length===0){ alert('Marque ao menos 1 produto.'); return; }
+
+  var tipo = document.getElementById('chk-cr-neg-tipo').value;
+  var status = document.getElementById('chk-cr-neg-status').value;
+  var desc = (document.getElementById('chk-cr-neg-desc').value||'').trim();
+  if(!desc){ alert('Descreva o que foi negociado.'); return; }
+
+  var produtos = [];
   checks.forEach(function(cb){
-    selecionados.push({
-      sku: cb.dataset.sku,
-      nome: cb.dataset.nome,
-      forn: cb.dataset.forn,
-      ind: cb.dataset.ind
-    });
+    produtos.push({ cod: cb.dataset.cod, nome: cb.dataset.nome });
   });
-  chkCrNegSel = selecionados;
+
+  // Adiciona nova negociação (não substitui as anteriores do dia)
+  chkCrNegSel.push({
+    forn: forn,
+    produtos: produtos,
+    tipo: tipo,
+    status: status,
+    desc: desc,
+    hora: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    ts: Date.now()
+  });
+
   chkCrNegAtualizarResumo();
   chkCrNegFechar();
+}
+
+function chkCrNegRemover(idx){
+  if(!confirm('Remover esta negociação?')) return;
+  chkCrNegSel.splice(idx,1);
+  chkCrNegAtualizarResumo();
 }
 
 function chkCrNegAtualizarResumo(){
   var el = document.getElementById('chk-cr-neg-resumo');
   if(!el) return;
   if(!chkCrNegSel.length){
-    el.innerHTML = '<div style="font-size:.75rem;color:var(--mu);padding:8px">Nenhuma negociação em andamento.</div>';
+    el.innerHTML = '<div style="font-size:.75rem;color:var(--mu);padding:4px">Nenhuma negociação registrada hoje.</div>';
     return;
   }
-  el.innerHTML = chkCrNegSel.map(function(i){
-    return '<div style="padding:6px 10px;background:var(--s2);border-radius:6px;margin-bottom:4px;font-size:.78rem">' +
-      '🤝 <strong>'+(i.nome||'—')+'</strong>'+
-      '<div style="font-size:.68rem;color:var(--mu)">'+(i.forn||'—')+' · '+(i.ind||'—')+'</div>' +
+  var TIPOS = { preco:'💰 Preço', prazo:'📅 Prazo', condicao:'📦 Condição', troca:'🔄 Troca', bonificacao:'🎁 Bonificação', outro:'📌 Outro' };
+  var STATUS = { em_andamento:'🟡', fechado:'🟢', nao_aceito:'🔴' };
+  el.innerHTML = chkCrNegSel.map(function(n, idx){
+    var prodTxt = (n.produtos||[]).slice(0,3).map(function(p){return p.nome;}).join(', ');
+    if((n.produtos||[]).length>3) prodTxt += ' +'+(n.produtos.length-3)+' outros';
+    return '<div style="padding:8px 10px;background:var(--s2);border-radius:6px;margin-bottom:6px;font-size:.78rem;position:relative">' +
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+        '<div style="flex:1">' +
+          '<div style="font-weight:700">'+(STATUS[n.status]||'')+' '+(TIPOS[n.tipo]||n.tipo)+' — '+n.forn+'</div>' +
+          '<div style="font-size:.72rem;color:var(--mu);margin-top:2px">'+prodTxt+'</div>' +
+          '<div style="font-size:.72rem;color:var(--tx);margin-top:4px;font-style:italic">"'+n.desc.replace(/</g,'&lt;')+'"</div>' +
+        '</div>' +
+        '<button onclick="chkCrNegRemover('+idx+')" title="Remover" style="background:none;border:none;color:var(--mu);cursor:pointer;font-size:.9rem;padding:0 4px">✕</button>' +
+      '</div>' +
     '</div>';
-  }).join('') + '<div style="font-size:.72rem;color:var(--mu);margin-top:6px">Total: '+chkCrNegSel.length+' neg.</div>';
+  }).join('') + '<div style="font-size:.7rem;color:var(--mu);margin-top:6px;text-align:right">Total: '+chkCrNegSel.length+' negociação(ões)</div>';
 }
 
 
