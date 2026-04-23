@@ -104,13 +104,13 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th style="width:35%">Produto</th>
-            <th style="text-align:center">Giro</th>
-            <th style="text-align:center">Qtd.<br><span style="font-size:.6rem;color:#a07cf6;font-weight:400">editável</span></th>
-            <th style="color:#e63329">Val. Mínima</th>
-            <th style="color:#a07cf6">Preço Unit.</th>
-            <th style="color:#a07cf6">Unidade</th>
-            <th style="color:#a07cf6">Val. Disponível</th>
+            <th style="width:28%">Produto</th>
+            <th style="text-align:center;width:70px">Giro</th>
+            <th style="text-align:center;width:110px">Qtd.<br><span style="font-size:.6rem;color:#a07cf6;font-weight:400">editável</span></th>
+            <th style="color:#e63329;width:110px">Val. Mínima</th>
+            <th style="color:#a07cf6;min-width:130px">Preço Unit.</th>
+            <th style="color:#a07cf6;width:85px">Unidade</th>
+            <th style="color:#a07cf6;min-width:130px">Val. Disponível</th>
           </tr></thead>
           <tbody id="TBODY"></tbody>
         </table>
@@ -298,15 +298,22 @@ function calc() {
     var p = parseFloat(document.getElementById('p' + i).value) || 0;
     var u = document.getElementById('un' + i).value;
     var v = parseInt(document.getElementById('v' + i).value) || 0;
-    var s = p * it.qtd;
+    var qEl = document.getElementById('qtd' + i);
+    var qtdEdit = qEl ? (parseInt(qEl.value) || it.qtd) : it.qtd;
+    var qtdDiff = qtdEdit !== it.qtd;
+    var s = p * qtdEdit;
     var sub = document.getElementById('sub' + i);
     if (sub) sub.textContent = p ? '= R$ ' + s.toLocaleString('pt-BR', {minimumFractionDigits:2}) : '';
     if (!p && !v) return;
-    has = true; tot += s; totQ += it.qtd;
+    has = true; tot += s; totQ += qtdEdit;
     var min = it.valMeses ? Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80)) : 0;
     var vok = v && min ? (v >= min ? ' ✅' : ' ❌') : '';
-    lines += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #eee;font-size:.82rem">' +
-      '<span>' + esc(it.desc || it.cod) + ' × ' + it.qtd + ' ' + u + '</span>' +
+    // Exibe a qtd com destaque se foi alterada
+    var qtdDisp = qtdDiff
+      ? '<span style="color:#e89200;font-weight:600">' + qtdEdit + '</span> <span style="color:#8fa0c0;font-size:.7rem;text-decoration:line-through">' + it.qtd + '</span> <span style="background:#fff3dd;color:#e89200;font-size:.65rem;padding:1px 5px;border-radius:4px;font-weight:600">ALTERADA</span>'
+      : qtdEdit;
+    lines += '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:.82rem;gap:10px;flex-wrap:wrap">' +
+      '<span>' + esc(it.desc || it.cod) + ' × ' + qtdDisp + ' ' + u + '</span>' +
       '<span style="font-weight:600">' +
         (p ? 'R$ ' + p.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + u : '') +
         (s ? ' = R$ ' + s.toLocaleString('pt-BR',{minimumFractionDigits:2}) : '') +
