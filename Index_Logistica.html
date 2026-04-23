@@ -1011,11 +1011,14 @@ function entSortData(){
 var CUSTO_DEFAULTS = {
   "ANDERSON NANDOLFO":  { tipo:"diaria", valor: 375 },
   "JOSÉ JESUS":         { tipo:"diaria", valor: 600 },
-  "JOSE JESUS":         { tipo:"diaria", valor: 600 }, // alias sem acento
   "LEANDRO FEITOSA":    { tipo:"diaria", valor: 395 },
   "LUCINEIA AGUILAR":   { tipo:"diaria", valor: 350 },
   "LUIZ CARLOS RIBEIRO":{ tipo:"clt",    valor: 0   }  // Maiko preenche
 };
+
+// Lista de "motoristas" que não são motoristas reais (retirada pelo cliente, etc)
+// Comparado após normalização (uppercase + trim)
+var CUSTO_EXCLUIR = ["RETIRADA CLIENTE","RETIRADA","CLIENTE RETIRA","S/N",""];
 
 // Emails autorizados a editar
 var CUSTO_EDITORES = ["rodrigo@qfoodcompany.com.br","maiko@qfoodcompany.com.br"];
@@ -1036,7 +1039,18 @@ function custoLoad(){
       // Mescla: defaults primeiro, salvos sobrescrevem
       var out = {};
       Object.keys(CUSTO_DEFAULTS).forEach(function(k){ out[k] = Object.assign({}, CUSTO_DEFAULTS[k]); });
-      Object.keys(saved).forEach(function(k){ out[k] = Object.assign({}, out[k]||{tipo:"diaria",valor:0}, saved[k]); });
+      // Remove chaves órfãs que batem com excluídos ou que são duplicatas sem acento
+      var defIdxLocal = {};
+      Object.keys(CUSTO_DEFAULTS).forEach(function(k){
+        defIdxLocal[(k||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"")] = k;
+      });
+      Object.keys(saved).forEach(function(k){
+        var norm = (k||"").trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+        if(CUSTO_EXCLUIR.indexOf(norm) >= 0) return;      // pula retirada cliente etc
+        var chaveCanon = defIdxLocal[norm] || k;
+        if(!out[chaveCanon]) out[chaveCanon] = {tipo:"diaria",valor:0};
+        out[chaveCanon] = Object.assign({}, out[chaveCanon], saved[k]);
+      });
       return out;
     }
   }catch(e){}
@@ -1108,34 +1122,49 @@ function custoImportar(evt){
   evt.target.value = "";
 }
 
-// Normaliza nome para casar com CUSTO_DEFAULTS (upper + remove acentos extras)
+// Normaliza nome para casar com CUSTO_DEFAULTS (upper + remove acentos)
 function custoNormNome(n){
-  return (n||"").trim().toUpperCase();
+  return (n||"").trim().toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+}
+
+// Índice: chave normalizada (sem acentos) → chave original (com acento) do CUSTO_DEFAULTS
+function custoIndexDefaults(){
+  var idx = {};
+  Object.keys(CUSTO_DEFAULTS).forEach(function(k){
+    idx[custoNormNome(k)] = k;
+  });
+  return idx;
 }
 
 function custoCalcular(rows){
   var data = custoLoad();
+  var defIdx = custoIndexDefaults();
   var porMotorista = {};
 
   // Agrupa entregas: conta datas únicas por motorista + soma NFs + conta entregas
   rows.forEach(function(r){
-    var nome = custoNormNome(r["Motorista"]);
-    if(!nome) return;
+    var bruto = (r["Motorista"]||"").trim();
+    var norm  = custoNormNome(bruto);
+    if(!norm) return;
+    // Filtra "não motoristas" (retirada cliente etc.)
+    if(CUSTO_EXCLUIR.indexOf(norm) >= 0) return;
+    // Chave canônica: se bate com algum default, usa a forma oficial; senão usa o normalizado
+    var chave = defIdx[norm] || bruto.toUpperCase();
     var dtStr = (r["Data Registro"]||"").trim();
     if(!dtStr) return;
     var d = entParseDate(dtStr);
     if(!d) return;
-    // Chave de dia: YYYY-MM-DD
     var diaKey = d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
-    if(!porMotorista[nome]){
-      porMotorista[nome] = { entregas:0, valorNF:0, dias:{} };
+    if(!porMotorista[chave]){
+      porMotorista[chave] = { entregas:0, valorNF:0, dias:{} };
     }
-    porMotorista[nome].entregas++;
-    porMotorista[nome].valorNF += entNum(r["Total Geral"]);
-    porMotorista[nome].dias[diaKey] = true;
+    porMotorista[chave].entregas++;
+    porMotorista[chave].valorNF += entNum(r["Total Geral"]);
+    porMotorista[chave].dias[diaKey] = true;
   });
 
-  // Adiciona motoristas cadastrados que não apareceram nas entregas (pra manter na tabela)
+  // Adiciona motoristas cadastrados que não apareceram nas entregas
   Object.keys(data).forEach(function(n){
     if(!porMotorista[n]) porMotorista[n] = { entregas:0, valorNF:0, dias:{} };
   });
@@ -1147,7 +1176,7 @@ function custoCalcular(rows){
     var diasCount = Object.keys(info.dias).length;
     var custo = 0;
     if(cfg.tipo === "clt"){
-      custo = cfg.valor; // salário mensal fixo
+      custo = cfg.valor;
     } else {
       custo = diasCount * cfg.valor;
     }
@@ -1698,10 +1727,20 @@ async function devLoad(force){
       console.log("Total linhas:", devAllRows.length);
       console.log("Colunas:", Object.keys(devAllRows[0]));
       console.log("Primeira linha:", devAllRows[0]);
-      // Verifica colunas críticas
-      var chk = ["Total","Grupo","Produto:","Produto","Industria:","Industria","Data","Vendedor","CLIENTE:","Cliente","Qtde:","Qtde"];
-      var found = chk.filter(function(c){return devAllRows[0][c] !== undefined;});
-      console.log("Colunas críticas encontradas:", found);
+      // Testa parseDate + devNum na primeira linha
+      var r0 = devAllRows[0];
+      var dtRaw = devGet(r0,["Data","DATA"]);
+      var totRaw = devGet(r0,["Total","TOTAL"]);
+      console.log("→ Data raw:", JSON.stringify(dtRaw), "→ Parsed:", devParseDate(dtRaw), "→ Mês:", devMes(dtRaw));
+      console.log("→ Total raw:", JSON.stringify(totRaw), "→ Num:", devNum(totRaw));
+      // Amostra de 3 meses distintos + sum por grupo
+      var testBy = {};
+      devAllRows.slice(0,50).forEach(function(r){
+        var m = devMes(devGet(r,["Data","DATA"]));
+        if(!testBy[m]) testBy[m]=0;
+        testBy[m] += devNum(devGet(r,["Total","TOTAL"]));
+      });
+      console.log("→ Amostra 50 linhas — meses agregados:", testBy);
     }
     if(ldg) ldg.style.display="none";
     var upd=document.getElementById("dev-last");
