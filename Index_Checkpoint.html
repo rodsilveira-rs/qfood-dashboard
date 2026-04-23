@@ -1,0 +1,1988 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Checkpoint</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#e63329;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;padding:20px 24px 60px;}
+a{color:inherit;text-decoration:none;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:14px;border-bottom:1px solid var(--br);flex-wrap:wrap;gap:10px;}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar img{height:36px;object-fit:contain;}
+.topbar h1{font-family:var(--fh);font-size:1.2rem;font-weight:700;}
+.topbar-right{display:flex;align-items:center;gap:12px;font-size:.78rem;color:var(--mu);}
+.topbar-right .user-info{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:6px 12px;}
+.topbar-right button,.topbar-right a{background:none;border:none;color:var(--mu);cursor:pointer;font-size:.78rem;text-decoration:underline;}
+.topbar-right button:hover,.topbar-right a:hover{color:var(--tx);}
+
+/* CARDS e SEÇÕES */
+.card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:16px;}
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+.ct{font-family:var(--fh);font-size:1rem;font-weight:700;margin-bottom:10px;color:var(--tx);}
+
+/* INPUTS */
+input,select,textarea{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;font-family:inherit;outline:none;transition:border .15s;}
+input:focus,select:focus,textarea:focus{border-color:var(--pur);}
+textarea{resize:vertical;min-height:60px;}
+
+/* TABS DOS GESTORES */
+.chk-tabs-wrap{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:20px;border-bottom:2px solid var(--br);}
+.chk-tab{padding:8px 16px;cursor:pointer;border-radius:8px 8px 0 0;font-size:.8rem;font-weight:600;background:var(--s2);color:var(--mu);border:none;margin-bottom:-2px;transition:all .15s;user-select:none;}
+.chk-tab:hover{background:var(--s3);color:var(--tx);}
+
+/* SUB-ABAS */
+.chk-sub,.chk-sub-c,.chk-sub-cr,.chk-sub-gen{padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer;font-family:inherit;transition:all .15s;}
+.chk-sub:hover,.chk-sub-c:hover,.chk-sub-cr:hover,.chk-sub-gen:hover{background:var(--s3);}
+
+/* MODAL */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.ov.open{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--b2);border-radius:16px;width:100%;max-width:720px;padding:24px;position:relative;margin:auto;}
+.mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{color:var(--tx);border-color:var(--b2);}
+.semaforo-box{display:inline-block;padding:8px 18px;border-radius:10px;font-size:.95rem;font-weight:700;}
+@media(max-width:900px){
+  .chk-diario-grid{grid-template-columns:1fr !important;}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="logo.png" alt="Q Food Company" onerror="this.style.display='none'">
+    <h1>🎯 Checkpoint — Painel de Gestores</h1>
+  </div>
+  <div class="topbar-right">
+    <span class="user-info" id="user-info">—</span>
+    <a href="Index_Menu.html">← Menu</a>
+    <button onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<!-- HEADER PRINCIPAL (Semana) -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+  <div>
+    <div class="sec" style="margin:0">🎯 Checkpoint — Painel de Gestores</div>
+    <div style="font-size:.75rem;color:var(--mu);margin-top:3px">Rotinas · Metas · Cobranças · Performance</div>
+  </div>
+  <div style="font-size:.75rem;color:var(--mu)" id="chk-semana-label"></div>
+</div>
+
+<!-- TABS DOS 7 GESTORES -->
+<div class="chk-tabs-wrap" id="chk-tabs-wrap"></div>
+
+  <div id="chk-gestor-gustavo">
+
+    <!-- HEADER DO GESTOR -->
+    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div>
+        <div style="font-size:1rem;font-weight:700">Gustavo — Financeiro &amp; RH</div>
+        <div style="font-size:.78rem;color:var(--mu);margin-top:3px">Saúde financeira diária · DRE · Indicadores de eficiência</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nota do Mês</div>
+        <div id="chk-g-nota" style="font-size:1.8rem;font-weight:900;color:#36cfa0">—</div>
+        <div id="chk-g-status" style="font-size:.7rem;color:var(--mu)">aguardando dados</div>
+      </div>
+    </div>
+
+    <!-- SUB-ABAS: Diário | Semanal | Mensal | Histórico | Obs. CEO -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="chk-sub active" id="chk-sub-diario" onclick="chkSubTab('diario')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--red);color:#fff;font-size:.8rem;font-weight:600;cursor:pointer">
+        📅 Diário
+      </button>
+      <button class="chk-sub" id="chk-sub-semanal" onclick="chkSubTab('semanal')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">
+        📊 Semanal
+      </button>
+      <button class="chk-sub" id="chk-sub-mensal" onclick="chkSubTab('mensal')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">
+        📆 Mensal
+      </button>
+      <button class="chk-sub" id="chk-sub-historico" onclick="chkSubTab('historico')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">
+        📋 Histórico
+      </button>
+    </div>
+
+    <!-- ════════ ABA DIÁRIO ════════ -->
+    <div id="chk-panel-diario">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <!-- FORMULÁRIO REPORT DIÁRIO -->
+        <div class="card" style="padding:20px">
+          <div class="ct">Report Diário — Financeiro</div>
+          <div style="font-size:.72rem;color:var(--mu);margin-bottom:14px">
+            📅 <span id="chk-hoje"></span> &nbsp;|&nbsp;
+            ⏰ Prazo: até 08:00
+            <span id="chk-d-status-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;display:none"></span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Faturamento do dia</label>
+              <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+              <input type="number" id="chk-d-fat" placeholder="0,00" step="0.01"
+                style="width:100%;padding:8px 8px 8px 30px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Entradas (recebimentos)</label>
+              <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+              <input type="number" id="chk-d-ent" placeholder="0,00" step="0.01"
+                style="width:100%;padding:8px 8px 8px 30px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Saídas (pagamentos)</label>
+              <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+              <input type="number" id="chk-d-sai" placeholder="0,00" step="0.01"
+                style="width:100%;padding:8px 8px 8px 30px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Saldo atual (caixa/banco)</label>
+              <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+              <input type="number" id="chk-d-sal" placeholder="0,00" step="0.01"
+                style="width:100%;padding:8px 8px 8px 30px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Contas vencidas/atraso</label>
+              <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+              <input type="number" id="chk-d-ven" placeholder="0,00" step="0.01"
+                style="width:100%;padding:8px 8px 8px 30px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Margem EBITDA %</label>
+              <div style="position:relative">
+              <input type="number" id="chk-d-ebitda" placeholder="0,0" step="0.1" min="0" max="100"
+                style="width:100%;padding:8px 28px 8px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">%</span></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">CMV %</label>
+              <div style="position:relative">
+              <input type="number" id="chk-d-cmv" placeholder="0,0" step="0.1" min="0" max="100"
+                style="width:100%;padding:8px 28px 8px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">%</span></div>
+            </div>
+            <div>
+              <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Despesa %</label>
+              <div style="position:relative">
+              <input type="number" id="chk-d-desp" placeholder="0,0" step="0.1" min="0" max="100"
+                style="width:100%;padding:8px 28px 8px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">%</span></div>
+            </div>
+          </div>
+
+          <div style="margin-bottom:12px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Problemas do dia</label>
+            <textarea id="chk-d-prob" rows="3" placeholder="Descreva ocorrências, atrasos, fornecedores problemáticos..."
+              style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+          </div>
+
+          <div style="margin-bottom:16px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Planejado vs. Realizado — Acumulado do mês</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Meta acumulada até hoje</label>
+                <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+                <input type="number" id="chk-d-meta-ac" placeholder="0,00" step="0.01"
+                  style="width:100%;padding:7px 7px 7px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.82rem;outline:none"></div>
+              </div>
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Realizado acumulado</label>
+                <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+                <input type="number" id="chk-d-real-ac" placeholder="0,00" step="0.01"
+                  style="width:100%;padding:7px 7px 7px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.82rem;outline:none"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="chk-d-err" style="display:none;color:var(--red);font-size:.78rem;margin-bottom:8px"></div>
+          <button onclick="chkSalvarDiario()" style="width:100%;padding:11px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">
+            ✅ Salvar Report Diário
+          </button>
+          <div id="chk-d-saved" style="display:none;text-align:center;font-size:.78rem;color:#36cfa0;margin-top:8px">✓ Salvo com sucesso!</div>
+        </div>
+
+        <!-- PAINEL DIREITO: KPIs DO DIA + SEMÁFORO -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="padding:16px">
+            <div class="ct">Semáforo de Hoje</div>
+            <div id="chk-d-semaforo" style="text-align:center;padding:16px 0">
+              <div style="font-size:3rem">⚪</div>
+              <div style="font-size:.82rem;color:var(--mu);margin-top:4px">Aguardando report</div>
+            </div>
+            <div id="chk-d-kpis" style="font-size:.78rem;line-height:2;color:var(--tx)"></div>
+          </div>
+          <div class="card" style="padding:16px">
+            <div class="ct">Reports desta semana</div>
+            <div id="chk-d-semana-prog" style="font-size:.78rem;line-height:2;color:var(--mu)">Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OBSERVAÇÕES DO CEO -->
+      <div id="chk-obs-ceo-section" style="display:none">
+        <div class="card" style="padding:16px;border:1px solid rgba(255,170,43,.3);background:rgba(255,170,43,.05)">
+          <div class="ct" style="color:#ffaa2b">📌 Observações CEO — Cobrança</div>
+          <div id="chk-obs-lista" style="margin-bottom:10px;font-size:.8rem;max-height:120px;overflow-y:auto"></div>
+          <div style="display:flex;gap:8px">
+            <textarea id="chk-obs-input" rows="2" placeholder="Registrar pendência ou cobrança para o Gustavo..."
+              style="flex:1;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px;color:var(--tx);font-size:.82rem;outline:none;font-family:inherit;resize:none"></textarea>
+            <button onclick="chkSalvarObs()" style="padding:8px 16px;background:#ffaa2b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:.8rem;cursor:pointer;align-self:flex-end">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ ABA SEMANAL ════════ -->
+    <div id="chk-panel-semanal" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px" id="chk-semanas-grid">
+        <!-- Gerado por JS -->
+      </div>
+    </div>
+
+    <!-- ════════ ABA MENSAL ════════ -->
+    <div id="chk-panel-mensal" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="ct">Fechamento Mensal — Financeiro</div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Mês de referência</label>
+          <select id="chk-m-mes" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none;width:200px">
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Faturamento realizado</label>
+            <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+            <input type="number" id="chk-m-fat" placeholder="0,00" step="0.01"
+              style="width:100%;padding:8px 8px 8px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+          </div>
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Meta do mês</label>
+            <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+            <input type="number" id="chk-m-meta" placeholder="0,00" step="0.01"
+              style="width:100%;padding:8px 8px 8px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+          </div>
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Margem EBITDA % mês</label>
+            <div style="position:relative">
+            <input type="number" id="chk-m-ebitda" placeholder="0,0" step="0.1"
+              style="width:100%;padding:8px 28px 8px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">%</span></div>
+          </div>
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">CMV % mês</label>
+            <div style="position:relative">
+            <input type="number" id="chk-m-cmv" placeholder="0,0" step="0.1"
+              style="width:100%;padding:8px 28px 8px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">%</span></div>
+          </div>
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Despesa % mês</label>
+            <div style="position:relative">
+            <input type="number" id="chk-m-desp" placeholder="0,0" step="0.1"
+              style="width:100%;padding:8px 28px 8px 8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+            <span style="position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">%</span></div>
+          </div>
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">DRE fechada?</label>
+            <select id="chk-m-dre" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px;color:var(--tx);font-size:.85rem;outline:none">
+              <option value="">Selecione</option>
+              <option value="sim">✅ Sim — dentro do prazo</option>
+              <option value="atraso">⚠️ Sim — com atraso</option>
+              <option value="nao">❌ Não</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Análise do mês / Ajustes propostos</label>
+          <textarea id="chk-m-analise" rows="3" placeholder="Destaques do mês, ajustes de meta, negociações com fornecedores..."
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+        </div>
+        <button onclick="chkSalvarMensal()" style="padding:11px 32px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">
+          ✅ Salvar Fechamento Mensal
+        </button>
+        <div id="chk-m-saved" style="display:none;color:#36cfa0;font-size:.78rem;margin-top:8px">✓ Fechamento salvo!</div>
+      </div>
+    </div>
+
+    <!-- ════════ ABA HISTÓRICO ════════ -->
+    <div id="chk-panel-historico" style="display:none">
+      <div class="card" style="padding:16px">
+        <div class="ct">Histórico de Reports</div>
+        <div id="chk-hist-lista" style="font-size:.78rem;line-height:1.8;color:var(--mu)">Nenhum report salvo ainda.</div>
+      </div>
+    </div>
+
+  </div><!-- /chk-gestor-gustavo -->
+
+  <div id="chk-gestor-celio" style="display:none">
+
+    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div>
+        <div style="font-size:1rem;font-weight:700">Célio — Administrativo</div>
+        <div style="font-size:.78rem;color:var(--mu);margin-top:3px">Organização · Prevenção de perdas · Integração Compras/Financeiro</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nota do Mês</div>
+        <div id="chk-c-nota" style="font-size:1.8rem;font-weight:900;color:#36cfa0">—</div>
+        <div id="chk-c-status" style="font-size:.7rem;color:var(--mu)">aguardando dados</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="chk-sub-c active" id="chk-sub-c-diario" onclick="chkCSubTab('diario')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--red);color:#fff;font-size:.8rem;font-weight:600;cursor:pointer">📅 Diário</button>
+      <button class="chk-sub-c" id="chk-sub-c-semanal" onclick="chkCSubTab('semanal')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">📊 Semanal</button>
+      <button class="chk-sub-c" id="chk-sub-c-mensal" onclick="chkCSubTab('mensal')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">📆 Mensal</button>
+      <button class="chk-sub-c" id="chk-sub-c-historico" onclick="chkCSubTab('historico')"
+        style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">📋 Histórico</button>
+    </div>
+
+    <!-- ABA DIÁRIO CÉLIO -->
+    <div id="chk-c-panel-diario">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card" style="padding:20px">
+          <div class="ct">Report Diário — Administrativo</div>
+          <div style="font-size:.72rem;color:var(--mu);margin-bottom:14px">
+            📅 <span id="chk-c-hoje"></span> &nbsp;|&nbsp; ⏰ Prazo: até 08:00
+            <span id="chk-c-d-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;display:none"></span>
+          </div>
+
+          <div style="margin-bottom:10px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Notas lançadas</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Total lançadas</label>
+                <input type="number" id="chk-c-notas-total" min="0" placeholder="0"
+                  oninput="chkCCalcNotas()"
+                  style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              </div>
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Pendentes</label>
+                <input type="number" id="chk-c-notas-pend" min="0" placeholder="0"
+                  oninput="chkCCalcNotas()"
+                  style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+              </div>
+              <div id="chk-c-notas-pct" style="padding:8px 12px;background:var(--sf);border:1px solid var(--br);border-radius:8px;font-size:.85rem;font-weight:700;color:#36cfa0;white-space:nowrap;min-width:70px;text-align:center">—</div>
+            </div>
+            <div id="chk-c-notas-alerta" style="font-size:.7rem;margin-top:4px;display:none"></div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Suporte ao financeiro</label>
+            <textarea id="chk-c-fin" rows="3" placeholder="Divergências encontradas, atrasos ou OK..."
+              style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Suporte às compras</label>
+            <textarea id="chk-c-cmp" rows="3" placeholder="Pedidos lançados? Algo travado? Pendências com fornecedores..."
+              style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Avarias e trocas</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px">
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Valor total (R$)</label>
+                <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+                <input type="number" id="chk-c-avar-val" placeholder="0,00" step="0.01"
+                  style="width:100%;padding:7px 7px 7px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.82rem;outline:none"></div>
+              </div>
+              <div>
+                <label style="font-size:.6rem;color:var(--mu);display:block;margin-bottom:2px">Nº de ocorrências</label>
+                <input type="number" id="chk-c-avar-qtd" placeholder="0" min="0"
+                  style="width:100%;padding:7px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.82rem;outline:none">
+              </div>
+            </div>
+          </div>
+          <div style="margin-bottom:10px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Ações para evitar prejuízo</label>
+            <textarea id="chk-c-acoes" rows="3" placeholder="Medidas adotadas hoje para prevenir perdas..."
+              style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+          </div>
+          <div style="margin-bottom:14px">
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Pendências gerais e problemas</label>
+            <textarea id="chk-c-pend" rows="3" placeholder="Outras pendências, problemas do dia, pontos de atenção..."
+              style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit"></textarea>
+          </div>
+
+          <div id="chk-c-d-err" style="display:none;color:var(--red);font-size:.78rem;margin-bottom:8px"></div>
+          <button onclick="chkCSalvarDiario()" style="width:100%;padding:11px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">
+            ✅ Salvar Report Diário
+          </button>
+          <div id="chk-c-d-saved" style="display:none;text-align:center;font-size:.78rem;color:#36cfa0;margin-top:8px">✓ Salvo!</div>
+        </div>
+
+        <!-- LADO DIREITO: Estoque Parado + Semáforo -->
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="padding:16px">
+            <div class="ct">Semáforo de Hoje</div>
+            <div id="chk-c-semaforo" style="text-align:center;padding:12px 0">
+              <div style="font-size:2.5rem">⚪</div>
+              <div style="font-size:.8rem;color:var(--mu);margin-top:4px">Aguardando report</div>
+            </div>
+            <div id="chk-c-kpis" style="font-size:.78rem;line-height:1.8;color:var(--tx)"></div>
+          </div>
+
+          <!-- ESTOQUE PARADO -->
+          <div class="card" style="padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div class="ct" style="margin:0">📦 Estoque Parado</div>
+              <button onclick="chkCEstoqueModal()" style="padding:5px 12px;background:#a07cf6;border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer">+ Adicionar</button>
+            </div>
+            <div id="chk-c-estoque-resumo" style="font-size:.78rem;color:var(--mu)">Nenhum item registrado hoje.</div>
+          </div>
+
+          <div class="card" style="padding:16px">
+            <div class="ct">Reports desta semana</div>
+            <div id="chk-c-semana-prog" style="font-size:.78rem;line-height:2;color:var(--mu)">Carregando...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OBS CEO CÉLIO -->
+      <div id="chk-c-obs-section" style="display:none">
+        <div class="card" style="padding:16px;border:1px solid rgba(255,170,43,.3);background:rgba(255,170,43,.05)">
+          <div class="ct" style="color:#ffaa2b">📌 Observações CEO — Cobrança</div>
+          <div id="chk-c-obs-lista" style="margin-bottom:10px;font-size:.8rem;max-height:120px;overflow-y:auto"></div>
+          <div style="display:flex;gap:8px">
+            <textarea id="chk-c-obs-input" rows="2" placeholder="Registrar pendência ou cobrança para o Célio..."
+              style="flex:1;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px;color:var(--tx);font-size:.82rem;outline:none;font-family:inherit;resize:none"></textarea>
+            <button onclick="chkCSalvarObs()" style="padding:8px 16px;background:#ffaa2b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:.8rem;cursor:pointer;align-self:flex-end">Salvar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA SEMANAL CÉLIO -->
+    <div id="chk-c-panel-semanal" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px" id="chk-semanas-grid-celio"></div>
+    </div>
+
+    <!-- ABA MENSAL CÉLIO -->
+    <div id="chk-c-panel-mensal" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="ct">Fechamento Mensal — Administrativo</div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Mês de referência</label>
+          <select id="chk-c-m-mes" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none;width:200px"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Valor total de perdas (R$)</label>
+            <div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span>
+            <input type="number" id="chk-c-m-perdas" placeholder="0,00" step="0.01"
+              style="width:100%;padding:8px 8px 8px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+          </div>
+          <div>
+            <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Nº total de ocorrências</label>
+            <input type="number" id="chk-c-m-ocorr" placeholder="0" min="0"
+              style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none">
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Levantamento de perdas do mês</label>
+          <textarea id="chk-c-m-levant" rows="5" placeholder="Detalhe as principais perdas: produtos, causas, responsáveis, valores..."
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:100px"></textarea>
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Sugestões de prevenção para o próximo mês</label>
+          <textarea id="chk-c-m-prev" rows="5" placeholder="Ações preventivas propostas, mudanças de processo, negociações sugeridas..."
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:100px"></textarea>
+        </div>
+        <button onclick="chkCSalvarMensal()" style="padding:11px 32px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">✅ Salvar Fechamento</button>
+        <div id="chk-c-m-saved" style="display:none;color:#36cfa0;font-size:.78rem;margin-top:8px">✓ Salvo!</div>
+      </div>
+    </div>
+
+    <!-- ABA HISTÓRICO CÉLIO -->
+    <div id="chk-c-panel-historico" style="display:none">
+      <div class="card" style="padding:16px">
+        <div class="ct">Histórico de Reports — Célio</div>
+        <div id="chk-c-hist-lista" style="font-size:.78rem;line-height:1.8;color:var(--mu)">Nenhum registro ainda.</div>
+      </div>
+    </div>
+
+  </div><!-- /chk-gestor-celio -->
+
+
+  <!-- MODAL ESTOQUE PARADO -->
+  <div id="chk-c-estoque-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:14px;padding:24px;width:90%;max-width:680px;max-height:85vh;overflow-y:auto;border:1px solid var(--br)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="sec" style="margin:0">📦 Selecionar Itens — Estoque Parado</div>
+        <button onclick="chkCEstoqueFechar()" style="background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Filtrar por Fornecedor</label>
+          <select id="chk-c-est-forn" onchange="chkCEstoqueFiltrar()"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none">
+            <option value="">Todos os fornecedores</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Filtrar por Indústria</label>
+          <select id="chk-c-est-ind" onchange="chkCEstoqueFiltrar()"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none">
+            <option value="">Todas as indústrias</option>
+          </select>
+        </div>
+      </div>
+      <div id="chk-c-est-lista" style="max-height:350px;overflow-y:auto;font-size:.82rem">Carregando produtos...</div>
+      <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px">
+        <button onclick="chkCEstoqueFechar()" style="padding:9px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);cursor:pointer">Cancelar</button>
+        <button onclick="chkCEstoqueSalvar()" style="padding:9px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer">✅ Confirmar Seleção</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- GESTOR: CRISTINA -->
+  <div id="chk-gestor-cris" style="display:none">
+
+  <div id="chk-gestor-cris" style="display:none">
+    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:16px">
+      <div>
+        <div style="font-size:1rem;font-weight:700">Cristina</div>
+        <div style="font-size:.78rem;color:var(--mu);margin-top:3px">Abastecimento · Ruptura mínima · Melhores preços</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nota do Mês</div>
+        <div id="chk-cr-nota" style="font-size:1.8rem;font-weight:900;color:#36cfa0">—</div>
+        <div id="chk-cr-status" style="font-size:.7rem;color:var(--mu)">aguardando dados</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="chk-sub-cr active" id="chk-sub-cr-diario" onclick="chkCrSubTab('diario')" style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--red);color:#fff;font-size:.8rem;font-weight:600;cursor:pointer">📅 Diário</button>
+      <button class="chk-sub-cr" id="chk-sub-cr-semanal" onclick="chkCrSubTab('semanal')" style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">📊 Semanal</button>
+      <button class="chk-sub-cr" id="chk-sub-cr-mensal" onclick="chkCrSubTab('mensal')" style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">📆 Mensal</button>
+      <button class="chk-sub-cr" id="chk-sub-cr-historico" onclick="chkCrSubTab('historico')" style="padding:7px 16px;border-radius:8px;border:1px solid var(--br);background:var(--s2);color:var(--tx);font-size:.8rem;cursor:pointer">📋 Histórico</button>
+    </div>
+    <!-- DIÁRIO -->
+    <div id="chk-cr-panel-diario">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+        <div class="card" style="padding:20px">
+          <div class="ct">Report Diário — Compras</div>
+          <div style="font-size:.72rem;color:var(--mu);margin-bottom:14px">📅 <span id="chk-cr-hoje"></span> &nbsp;|&nbsp; ⏰ Prazo: até 08:00 <span id="chk-cr-d-badge" style="margin-left:8px;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;display:none"></span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+            <div><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Pedidos solicitados</label><input type="number" id="chk-cr-ped-sol" min="0" placeholder="0" oninput="chkCrCalcPed()" style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            <div><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Pedidos recebidos</label><input type="number" id="chk-cr-ped-rec" min="0" placeholder="0" oninput="chkCrCalcPed()" style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            <div style="display:flex;align-items:flex-end"><div id="chk-cr-ped-pct" style="width:100%;padding:8px;background:var(--sf);border:1px solid var(--br);border-radius:8px;font-size:.85rem;font-weight:700;color:#36cfa0;text-align:center">—</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+            <div><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Itens pendentes (Célio)</label><input type="number" id="chk-cr-pend-itens" min="0" placeholder="0" style="width:100%;padding:8px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div>
+            <div><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Volume previsto compras (R$)</label><div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span><input type="number" id="chk-cr-prev-vol" min="0" placeholder="0,00" step="0.01" style="width:100%;padding:8px 8px 8px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div></div>
+          </div>
+          <div style="margin-bottom:12px"><label style="font-size:.62rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Problemas com fornecedores</label><textarea id="chk-cr-prob-forn" rows="4" placeholder="Atrasos, qualidade, preços, rupturas previstas..." style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:90px"></textarea></div>
+          <div id="chk-cr-d-err" style="display:none;color:var(--red);font-size:.78rem;margin-bottom:8px"></div>
+          <button onclick="chkCrSalvarDiario()" style="width:100%;padding:11px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">✅ Salvar Report Diário</button>
+          <div id="chk-cr-d-saved" style="display:none;text-align:center;font-size:.78rem;color:#36cfa0;margin-top:8px">✓ Salvo!</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="card" style="padding:16px"><div class="ct">Semáforo de Hoje</div><div id="chk-cr-semaforo" style="text-align:center;padding:12px 0"><div style="font-size:2.5rem">⚪</div><div style="font-size:.8rem;color:var(--mu);margin-top:4px">Aguardando report</div></div><div id="chk-cr-kpis" style="font-size:.78rem;line-height:1.8"></div></div>
+          <div class="card" style="padding:16px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div class="ct" style="margin:0">🤝 Negociações do Dia</div><button onclick="chkCrNegModal()" style="padding:5px 12px;background:#a07cf6;border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer">+ Adicionar</button></div>
+            <div id="chk-cr-neg-resumo" style="font-size:.78rem;color:var(--mu)">Nenhuma negociação registrada hoje.</div>
+          </div>
+          <div class="card" style="padding:16px"><div class="ct">Reports desta semana</div><div id="chk-cr-semana-prog" style="font-size:.78rem;line-height:2;color:var(--mu)">Carregando...</div></div>
+        </div>
+      </div>
+      <div id="chk-cr-obs-section" style="display:none">
+        <div class="card" style="padding:16px;border:1px solid rgba(255,170,43,.3);background:rgba(255,170,43,.05)">
+          <div class="ct" style="color:#ffaa2b">📌 Observações CEO</div>
+          <div id="chk-cr-obs-lista" style="margin-bottom:10px;font-size:.8rem;max-height:120px;overflow-y:auto"></div>
+          <div style="display:flex;gap:8px"><textarea id="chk-cr-obs-input" rows="2" placeholder="Registrar pendência para Cristina..." style="flex:1;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px;color:var(--tx);font-size:.82rem;outline:none;font-family:inherit;resize:none"></textarea><button onclick="chkCrSalvarObs()" style="padding:8px 16px;background:#ffaa2b;border:none;border-radius:8px;color:#000;font-weight:700;font-size:.8rem;cursor:pointer;align-self:flex-end">Salvar</button></div>
+        </div>
+      </div>
+    </div>
+    <!-- SEMANAL -->
+    <div id="chk-cr-panel-semanal" style="display:none"><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px" id="chk-semanas-grid-cris"></div></div>
+    <!-- MENSAL -->
+    <div id="chk-cr-panel-mensal" style="display:none">
+      <div class="card" style="padding:20px">
+        <div class="ct">Fechamento Mensal — Compras</div>
+        <div style="margin-bottom:12px"><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Mês de referência</label><select id="chk-cr-m-mes" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none;width:200px"></select></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+          <div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Preço médio de compra (R$)</label><div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span><input type="number" id="chk-cr-m-preco-med" placeholder="0,00" step="0.01" style="width:100%;padding:8px 8px 8px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div></div>
+          <div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Total comprado (R$)</label><div style="position:relative"><span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:.8rem;color:var(--mu)">R$</span><input type="number" id="chk-cr-m-total" placeholder="0,00" step="0.01" style="width:100%;padding:8px 8px 8px 28px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.85rem;outline:none"></div></div>
+        </div>
+        <div style="margin-bottom:12px"><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Comparativo de preços (vs. mês anterior)</label><textarea id="chk-cr-m-comp-preco" rows="4" placeholder="Produtos com aumento, reduções obtidas..." style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:90px"></textarea></div>
+        <div style="margin-bottom:14px"><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Oportunidades de economia</label><textarea id="chk-cr-m-oport" rows="4" placeholder="Fornecedores alternativos, negociações..." style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px;color:var(--tx);font-size:.83rem;outline:none;resize:vertical;font-family:inherit;min-height:90px"></textarea></div>
+        <button onclick="chkCrSalvarMensal()" style="padding:11px 32px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">✅ Salvar Fechamento</button>
+        <div id="chk-cr-m-saved" style="display:none;color:#36cfa0;font-size:.78rem;margin-top:8px">✓ Salvo!</div>
+      </div>
+    </div>
+    <!-- HISTÓRICO -->
+    <div id="chk-cr-panel-historico" style="display:none"><div class="card" style="padding:16px"><div class="ct">Histórico — Cristina</div><div id="chk-cr-hist-lista" style="font-size:.78rem;line-height:1.8;color:var(--mu)">Nenhum registro ainda.</div></div></div>
+  </div><!-- /chk-gestor-cris -->
+
+  </div><!-- /chk-gestor-cris -->
+
+  <!-- MODAL NEGOCIAÇÕES -->
+  <div id="chk-cr-neg-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center">
+    <div style="background:var(--bg);border-radius:14px;padding:24px;width:90%;max-width:700px;max-height:88vh;overflow-y:auto;border:1px solid var(--br)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><div class="sec" style="margin:0">🤝 Registrar Negociação</div><button onclick="chkCrNegFechar()" style="background:none;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer">✕</button></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Filtrar por Fornecedor</label><select id="chk-cr-neg-forn" onchange="chkCrNegFiltrar()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none"><option value="">Todos</option></select></div>
+        <div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase">Filtrar por Indústria</label><select id="chk-cr-neg-ind" onchange="chkCrNegFiltrar()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem;outline:none"><option value="">Todas</option></select></div>
+      </div>
+      <div id="chk-cr-neg-lista" style="max-height:380px;overflow-y:auto;font-size:.82rem;margin-bottom:14px">Carregando...</div>
+      <div style="display:flex;justify-content:flex-end;gap:8px">
+        <button onclick="chkCrNegFechar()" style="padding:9px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);cursor:pointer">Cancelar</button>
+        <button onclick="chkCrNegSalvar()" style="padding:9px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;cursor:pointer">✅ Salvar</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tab-checkpoint -->
+
+
+<!-- ════════════════════════════════════════════════════════════════
+     4 NOVOS GESTORES (estrutura simples genérica)
+     ════════════════════════════════════════════════════════════════ -->
+<div id="chk-gestor-maicon"  style="display:none"></div>
+<div id="chk-gestor-barbara" style="display:none"></div>
+<div id="chk-gestor-mariana" style="display:none"></div>
+<div id="chk-gestor-elizeu"  style="display:none"></div>
+
+
+<script>
+/* ============================================================
+   Q FOOD — INDEX_CHECKPOINT
+   Cópia fiel dos 3 gestores originais (Gustavo, Célio, Cris)
+   + 4 novos gestores simples (Maicon, Bárbara, Mariana, Elizeu)
+   ============================================================ */
+
+// ---- GUARDA DE SESSÃO ----
+(function checkSession(){
+  var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
+  if(!sess || (Date.now() - sess.ts >= 8*60*60*1000)){
+    alert("Sessão expirada ou inexistente. Redirecionando para o menu...");
+    location.href = "Index_Menu.html";
+    return;
+  }
+  window.CURRENT_USER = {email:sess.email, nome:sess.nome, role:sess.role};
+  var ui = document.getElementById("user-info");
+  if(ui) ui.textContent = sess.nome + " · " + sess.role;
+})();
+
+function logout(){
+  if(confirm("Sair do sistema?")){
+    localStorage.removeItem("qfood_session");
+    location.href = "Index_Menu.html";
+  }
+}
+
+// ---- CONFIG DOS 7 GESTORES ----
+var GESTORES = [
+  { id:"gustavo",  nome:"Gustavo",  emoji:"💰", cor:"#ff4d4f", tipo:"completo" },
+  { id:"celio",    nome:"Célio",    emoji:"📋", cor:"#ffaa2b", tipo:"completo" },
+  { id:"cris",     nome:"Cristina", emoji:"🛒", cor:"#a07cf6", tipo:"completo" },
+  { id:"maicon",   nome:"Maicon",   emoji:"🚚", cor:"#4d8ef5", tipo:"simples", area:"Logística",  desc:"Entregas · Ocorrências · Frota" },
+  { id:"barbara",  nome:"Bárbara",  emoji:"📣", cor:"#36cfa0", tipo:"simples", area:"Marketing",   desc:"Campanhas · Redes sociais · Performance" },
+  { id:"mariana",  nome:"Mariana",  emoji:"🧀", cor:"#00cec9", tipo:"simples", area:"Mercearia Liberdade", desc:"Operação da loja · Vendas · Estoque" },
+  { id:"elizeu",   nome:"Elizeu",   emoji:"🍣", cor:"#fd79a8", tipo:"simples", area:"Sushi Trip",  desc:"Cozinha · Insumos · Qualidade" }
+];
+
+var ROTINAS_DEFAULT = {
+  maicon:  ["Conferir saídas do dia","Monitorar ocorrências","Checar ocupação dos veículos","Acompanhar motoristas","Validar entregas críticas"],
+  barbara: ["Postar conteúdo planejado","Responder DMs e comentários","Monitorar engajamento","Acompanhar campanhas ativas","Alinhar pauta semanal"],
+  mariana: ["Abertura da loja + conferência","Conferir caixa do dia anterior","Verificar validades e estoque","Organizar gôndolas e promoções","Fechamento do dia"],
+  elizeu:  ["Checar insumos e validades","Mise en place completa","Acompanhar pedidos do dia","Controle de desperdício","Fechamento da cozinha"]
+};
+
+// ---- RENDERIZAR TABS ----
+function renderTabs(){
+  var wrap = document.getElementById("chk-tabs-wrap");
+  wrap.innerHTML = GESTORES.map(function(g){
+    var active = g.id === "gustavo" ? " active" : "";
+    var style = g.id === "gustavo" ? "background:"+g.cor+";color:#fff" : "";
+    return '<div class="chk-tab'+active+'" id="chk-tab-'+g.id+'" onclick="chkShowGestor(\''+g.id+'\')" style="'+style+'">'+g.emoji+' '+g.nome+'</div>';
+  }).join("");
+}
+
+// ---- SIMPLES: monta div de cada novo gestor ----
+function renderGestorSimples(g){
+  var hoje = chkToday();
+  var el = document.getElementById("chk-gestor-"+g.id);
+  if(!el) return;
+  var dados = loadJSON("qfood_chk_"+g.id+"_diario_"+hoje) || {};
+  var marc  = loadJSON("qfood_chk_"+g.id+"_rotinas_"+hoje) || {};
+  var rotinas = ROTINAS_DEFAULT[g.id] || [];
+  var notaInfo = calcNotaSimples(g.id);
+
+  var rotinasHTML = rotinas.map(function(r,i){
+    var chk = marc["r"+i] ? "checked" : "";
+    var done = marc["r"+i] ? "opacity:.5;text-decoration:line-through" : "";
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px;margin-bottom:6px">'+
+      '<input type="checkbox" id="'+g.id+'-rot'+i+'" '+chk+' onchange="toggleRotinaSimples(\''+g.id+'\','+i+', this.checked)" style="width:18px;height:18px;cursor:pointer;accent-color:var(--ok)">'+
+      '<label for="'+g.id+'-rot'+i+'" style="flex:1;font-size:.85rem;cursor:pointer;'+done+'">'+r+'</label>'+
+    '</div>';
+  }).join("");
+
+  el.innerHTML =
+    // Header do gestor
+    '<div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:16px">'+
+      '<div>'+
+        '<div style="font-size:1rem;font-weight:700">'+g.emoji+' '+g.nome+' — '+g.area+'</div>'+
+        '<div style="font-size:.78rem;color:var(--mu);margin-top:3px">'+g.desc+'</div>'+
+      '</div>'+
+      '<div style="text-align:center">'+
+        '<div style="font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nota do Mês</div>'+
+        '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:900;color:'+notaInfo.cor+'">'+notaInfo.texto+'</div>'+
+        '<div style="font-size:.7rem;color:var(--mu)">'+notaInfo.status+'</div>'+
+      '</div>'+
+    '</div>'+
+
+    // Grid 2 colunas: rotinas + report
+    '<div class="chk-diario-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">'+
+      '<div class="card">'+
+        '<div class="ct">✅ Rotinas do Dia</div>'+
+        '<div style="font-size:.72rem;color:var(--mu);margin-bottom:12px">📅 '+new Date().toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"})+'</div>'+
+        rotinasHTML +
+      '</div>'+
+      '<div class="card">'+
+        '<div class="ct">📊 Report Diário</div>'+
+        '<div style="font-size:.72rem;color:var(--mu);margin-bottom:12px">Preencha os indicadores do dia</div>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'+
+          '<div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Indicador A</label><input type="number" id="'+g.id+'-ind1" style="width:100%" step="0.01" value="'+(dados.ind1||"")+'"></div>'+
+          '<div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Indicador B</label><input type="number" id="'+g.id+'-ind2" style="width:100%" step="0.01" value="'+(dados.ind2||"")+'"></div>'+
+          '<div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Meta do Dia (%)</label><input type="number" id="'+g.id+'-meta" style="width:100%" step="0.1" value="'+(dados.meta||"")+'"></div>'+
+          '<div><label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Realizado (%)</label><input type="number" id="'+g.id+'-real" style="width:100%" step="0.1" value="'+(dados.real||"")+'"></div>'+
+        '</div>'+
+        '<label style="font-size:.65rem;color:var(--mu);display:block;margin-bottom:3px;font-weight:600;text-transform:uppercase">Atividades / Problemas</label>'+
+        '<textarea id="'+g.id+'-prob" style="width:100%" rows="2" placeholder="O que fez hoje, problemas, cobranças...">'+(dados.prob||"")+'</textarea>'+
+        '<button onclick="salvarDiarioSimples(\''+g.id+'\')" style="margin-top:10px;width:100%;padding:8px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer">💾 Salvar Diário</button>'+
+        '<div id="'+g.id+'-msg" style="font-size:.78rem;color:var(--ok);text-align:center;margin-top:6px"></div>'+
+      '</div>'+
+    '</div>';
+}
+
+function toggleRotinaSimples(gestor, idx, checked){
+  var hoje = chkToday();
+  var key = "qfood_chk_"+gestor+"_rotinas_"+hoje;
+  var marc = loadJSON(key) || {};
+  marc["r"+idx] = checked;
+  localStorage.setItem(key, JSON.stringify(marc));
+  var g = GESTORES.find(function(x){return x.id === gestor;});
+  if(g) renderGestorSimples(g);
+}
+
+function salvarDiarioSimples(gestor){
+  var hoje = chkToday();
+  var dados = {
+    ind1: document.getElementById(gestor+"-ind1").value,
+    ind2: document.getElementById(gestor+"-ind2").value,
+    meta: document.getElementById(gestor+"-meta").value,
+    real: document.getElementById(gestor+"-real").value,
+    prob: document.getElementById(gestor+"-prob").value,
+    salvo_em: new Date().toISOString()
+  };
+  localStorage.setItem("qfood_chk_"+gestor+"_diario_"+hoje, JSON.stringify(dados));
+  var msg = document.getElementById(gestor+"-msg");
+  if(msg){ msg.textContent = "✓ Salvo com sucesso!"; setTimeout(function(){if(msg)msg.textContent="";},2500); }
+}
+
+function calcNotaSimples(gestor){
+  var hoje = new Date(), mes = hoje.getMonth(), ano = hoje.getFullYear();
+  var diasUteis = 0, diasPreench = 0, totalRot = 0, feitas = 0;
+  for(var d=1; d<=hoje.getDate(); d++){
+    var dt = new Date(ano,mes,d); if(dt.getDay()===0||dt.getDay()===6) continue;
+    diasUteis++;
+    var key = ano+"-"+String(mes+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    if(loadJSON("qfood_chk_"+gestor+"_diario_"+key)) diasPreench++;
+    var marc = loadJSON("qfood_chk_"+gestor+"_rotinas_"+key) || {};
+    var rots = ROTINAS_DEFAULT[gestor] || [];
+    totalRot += rots.length;
+    for(var i=0;i<rots.length;i++){if(marc["r"+i]) feitas++;}
+  }
+  if(!diasUteis) return {texto:"—",cor:"#8fa0c0",status:"aguardando dados"};
+  var nota = ((diasPreench/diasUteis)*0.4 + (totalRot?feitas/totalRot:0)*0.6)*10;
+  var cor = nota>=8?"#36cfa0":(nota>=6?"#ffaa2b":"#ff4d4f");
+  var status = nota>=8?"excelente":(nota>=6?"bom":(nota>=4?"atenção":"crítico"));
+  return {texto:nota.toFixed(1).replace(".",","), cor:cor, status:status};
+}
+
+// ---- Helpers compartilhados com o JS original ----
+function loadJSON(key){
+  try{ var raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : null; }
+  catch(e){ return null; }
+}
+
+function chkToday(){
+  var d = new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+// ---- ALIAS de chkShowGestor (original acessa divs diretamente) ----
+// Substitui a original porque agora temos 7 gestores em vez de 3
+window._chkShowGestorOriginal = null;
+
+// MÓDULO CHECKPOINT
+// ════════════════════════════════════════════════════════════════
+var CHK_KEY = 'qfood_chk_gustavo_';
+
+// Quem pode ver obs CEO?
+function chkIsCEO(){
+  var u = window.CURRENT_USER || {};
+  var e = (u.email || '').toLowerCase();
+  return e === 'rodrigo@qfoodcompany.com.br' || e === 'adilson@qfoodcompany.com.br' || u.role === 'admin';
+}
+
+function initCheckpoint(){
+  // Data de hoje
+  var hoje = new Date();
+  var hojeStr = hoje.toLocaleDateString('pt-BR');
+  var el = document.getElementById('chk-hoje');
+  if(el) el.textContent = hojeStr;
+
+  // Semana label
+  var sem = document.getElementById('chk-semana-label');
+  if(sem){
+    var ini = new Date(hoje); ini.setDate(ini.getDate() - ini.getDay() + 1);
+    var fim = new Date(ini); fim.setDate(fim.getDate() + 4);
+    sem.textContent = 'Semana: ' + ini.toLocaleDateString('pt-BR') + ' — ' + fim.toLocaleDateString('pt-BR');
+  }
+
+  // CEO obs section
+  var obsSection = document.getElementById('chk-obs-ceo-section');
+  if(obsSection) obsSection.style.display = chkIsCEO() ? 'block' : 'none';
+
+  // Populate mes select
+  var selMes = document.getElementById('chk-m-mes');
+  if(selMes){
+    selMes.innerHTML = '';
+    var now = new Date();
+    // Jan/2026 a Dez/2026 fixo
+    for(var m=1;m<=12;m++){
+      var val=m.toString().padStart(2,'0')+'/2026';
+      var o=document.createElement('option');
+      o.value=val; o.textContent=val; selMes.appendChild(o);
+    }
+    // Selecionar mês atual por padrão
+    var mesAtual=(now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear();
+    if(selMes) selMes.value=mesAtual;
+  }
+
+  chkSubTab('diario');
+  chkCarregarDiario();
+  chkMontarSemanas('gustavo');
+  chkAtualizarNota('gustavo');
+  chkCarregarObs();
+}
+
+function chkSubTab(tab){
+  ['diario','semanal','mensal','historico'].forEach(function(t){
+    var p = document.getElementById('chk-panel-'+t);
+    var b = document.getElementById('chk-sub-'+t);
+    if(p) p.style.display = t===tab?'block':'none';
+    if(b){
+      b.style.background = t===tab?'var(--red)':'var(--s2)';
+      b.style.color = t===tab?'#fff':'var(--tx)';
+    }
+  });
+  if(tab==='historico') chkCarregarHistorico();
+}
+
+// chkShowGestor original substituída pela versão final (que suporta 7 gestores) - ver abaixo
+
+// ── DIÁRIO ────────────────────────────────────────────────────────
+function chkChaveData(data, gestor){
+  gestor = gestor||'gustavo';
+  var p = data.split('/');
+  return 'qfood_chk_'+gestor+'_diario_' + p[2] + '-' + p[1] + '-' + p[0];
+}
+
+function chkCarregarDiario(){
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  var chave = chkChaveData(hoje,'gustavo');
+  var dado = null;
+  try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+
+  var badge = document.getElementById('chk-d-status-badge');
+  if(dado){
+    // Preencher campos
+    ['fat','ent','sai','sal','ven','ebitda','cmv','desp','meta_ac','real_ac'].forEach(function(f){
+      var el = document.getElementById('chk-d-'+f.replace('_','-'));
+      if(el && dado[f]!==undefined) el.value = dado[f];
+    });
+    var prob = document.getElementById('chk-d-prob');
+    if(prob) prob.value = dado.prob||'';
+    if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Enviado '+dado.hora; }
+    chkAtualizarSemaforo(dado);
+  } else {
+    if(badge){ badge.style.display='inline'; badge.style.background='rgba(255,77,79,.2)'; badge.style.color='#ff4d4f'; badge.textContent='⚠ Pendente'; }
+  }
+  chkProgressoSemana();
+}
+
+function chkSalvarDiario(){
+  var campos = ['fat','ent','sai','sal','ven','ebitda','cmv','desp','meta_ac','real_ac'];
+  var dado = {};
+  var vazios = [];
+  campos.forEach(function(f){
+    var el = document.getElementById('chk-d-'+f.replace('_','-'));
+    var v = el ? parseFloat(el.value) : NaN;
+    if(isNaN(v) || el.value.trim()==='') { vazios.push(f); dado[f]=0; }
+    else dado[f] = v;
+  });
+  dado.prob = (document.getElementById('chk-d-prob').value||'').trim();
+  var err = document.getElementById('chk-d-err');
+  if(vazios.length > 0 && vazios.length === campos.length){
+    err.style.display='block'; err.textContent='⚠️ Preencha ao menos um campo antes de salvar.'; return;
+  }
+  err.style.display='none';
+  var agora = new Date();
+  dado.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  dado.data = agora.toLocaleDateString('pt-BR');
+  dado.ts = agora.getTime();
+
+  var chave = chkChaveData(dado.data,'gustavo');
+  try{ localStorage.setItem(chave, JSON.stringify(dado)); }catch(e){}
+
+  var saved = document.getElementById('chk-d-saved');
+  if(saved){ saved.style.display='block'; setTimeout(function(){saved.style.display='none';},3000); }
+  chkAtualizarSemaforo(dado);
+  chkProgressoSemana();
+  chkAtualizarNota();
+
+  var badge = document.getElementById('chk-d-status-badge');
+  if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Salvo '+dado.hora; }
+}
+
+function chkAtualizarSemaforo(dado){
+  var el = document.getElementById('chk-d-semaforo');
+  var kpis = document.getElementById('chk-d-kpis');
+  if(!el) return;
+
+  // Scoring rápido
+  var score = 100;
+  var alerts = [];
+  if(dado.ven > 0 && dado.ven > dado.sal * 0.2){ score -= 20; alerts.push('⚠ Contas vencidas altas'); }
+  if(dado.ebitda > 0 && dado.ebitda < 8){ score -= 15; alerts.push('⚠ EBITDA abaixo de 8%'); }
+  if(dado.cmv > 0 && dado.cmv > 70){ score -= 15; alerts.push('⚠ CMV acima de 70%'); }
+  if(dado.meta_ac > 0 && dado.real_ac > 0){
+    var pct = dado.real_ac / dado.meta_ac;
+    if(pct < 0.85){ score -= 20; alerts.push('⚠ Realizado abaixo de 85% da meta'); }
+    else if(pct < 0.95){ score -= 10; alerts.push('⚡ Atenção: ritmo abaixo da meta'); }
+  }
+
+  var icon = score>=90?'🟢':score>=80?'🟡':'🔴';
+  var label = score>=90?'Controlado':score>=80?'Atenção':'Crítico';
+  el.innerHTML = '<div style="font-size:2.5rem">'+icon+'</div><div style="font-size:.88rem;font-weight:700;margin-top:4px">'+label+'</div><div style="font-size:.72rem;color:var(--mu)">Score: '+score+'</div>';
+
+  if(kpis) kpis.innerHTML = (alerts.length?alerts.join('<br>'):'<span style="color:#36cfa0">✓ Todos os indicadores normais</span>') +
+    '<br><span style="color:var(--mu)">Fat: R$'+chkFmt(dado.fat)+' | Saldo: R$'+chkFmt(dado.sal)+'</span>'+
+    (dado.ebitda?'<br>EBITDA: '+dado.ebitda+'% | CMV: '+dado.cmv+'% | Desp: '+dado.desp+'%':'');
+}
+
+function chkFmt(v){ return Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
+
+function chkProgressoSemana(){
+  var el = document.getElementById('chk-d-semana-prog');
+  if(!el) return;
+  var hoje = new Date();
+  var diaSem = hoje.getDay() === 0 ? 6 : hoje.getDay() - 1; // 0=seg
+  var diasNomes = ['Seg','Ter','Qua','Qui','Sex'];
+  var html = '';
+  for(var i=0; i<=Math.min(diaSem,4); i++){
+    var d = new Date(hoje); d.setDate(d.getDate() - diaSem + i);
+    var dStr = d.toLocaleDateString('pt-BR');
+    var chave = chkChaveData(dStr,'gustavo');
+    var tem = false;
+    try{ tem = !!localStorage.getItem(chave); }catch(e){}
+    html += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--br)">'+
+      '<span>'+diasNomes[i]+' '+dStr+'</span>'+
+      '<span style="color:'+(tem?'#36cfa0':'#ff4d4f')+';font-weight:600">'+(tem?'✓ Enviado':'✗ Pendente')+'</span>'+
+    '</div>';
+  }
+  el.innerHTML = html || '<span style="color:var(--mu)">Início de semana</span>';
+}
+
+// ── SEMANAL ───────────────────────────────────────────────────────
+function chkMontarSemanas(gestor){
+  gestor = gestor||'gustavo';
+  var KEY = 'qfood_chk_'+gestor+'_';
+  var gridId = gestor==='gustavo'?'chk-semanas-grid':'chk-semanas-grid-'+gestor;
+  var grid = document.getElementById(gridId);
+  if(!grid) return;
+  var hoje = new Date();
+  var diaSem = hoje.getDay()===0?6:hoje.getDay()-1;
+  var segAtual = new Date(hoje); segAtual.setDate(hoje.getDate()-diaSem);
+
+  // 4 semanas em ordem crescente (Semana 1=mais antiga, Semana 4=atual)
+  var semanas = [];
+  for(var w=3; w>=0; w--){
+    var ini = new Date(segAtual); ini.setDate(segAtual.getDate()-w*7);
+    var fim = new Date(ini); fim.setDate(ini.getDate()+4);
+    semanas.push({ini:ini, fim:fim, w:w});
+  }
+
+  grid.innerHTML = semanas.map(function(s, idx){
+    var isoIni = s.ini.toISOString().split('T')[0];
+    var chaveObs = KEY+'semanal_'+isoIni;
+    var dadoObs = null;
+    try{ dadoObs = JSON.parse(localStorage.getItem(chaveObs)||'null'); }catch(e){}
+    var numSem = 4-s.w;
+    var label = s.w===0?'Semana '+numSem+' (atual)':'Semana '+numSem;
+
+    // Coletar dias desta semana
+    var diasNomes = ['Seg','Ter','Qua','Qui','Sex'];
+    var diasHtml = '';
+    var diasOk = 0, diasTotal = 0;
+    for(var di=0; di<5; di++){
+      var diaD = new Date(s.ini); diaD.setDate(s.ini.getDate()+di);
+      // Só mostrar dias até hoje (não futuros)
+      if(diaD > hoje) continue;
+      diasTotal++;
+      var dStr = diaD.toLocaleDateString('pt-BR');
+      var chaveDia = chkChaveData(dStr, gestor);
+      var dadoDia = null;
+      try{ dadoDia = JSON.parse(localStorage.getItem(chaveDia)||'null'); }catch(e){}
+      if(dadoDia) diasOk++;
+
+      var resumoHtml = '';
+      if(dadoDia){
+        var kpis = [];
+        if(gestor==='gustavo'){
+          if(dadoDia.fat) kpis.push('Fat: <b>R$'+Number(dadoDia.fat).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b>');
+          if(dadoDia.sal) kpis.push('Saldo: <b>R$'+Number(dadoDia.sal).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</b>');
+          if(dadoDia.ebitda) kpis.push('EBITDA: <b>'+dadoDia.ebitda+'%</b>');
+          if(dadoDia.cmv) kpis.push('CMV: <b>'+dadoDia.cmv+'%</b>');
+          if(dadoDia.ven>0) kpis.push('<span style="color:#ff4d4f">Venc.: R$'+Number(dadoDia.ven).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>');
+          if(dadoDia.prob) kpis.push('<span style="color:#ffaa2b">⚠ '+dadoDia.prob.substring(0,40)+'</span>');
+        } else if(gestor==='celio'){
+          if(dadoDia.notas_total) kpis.push('Notas: <b>'+dadoDia.notas_total+'</b>'+(dadoDia.notas_pend?' ('+dadoDia.notas_pend+' pend.)':''));
+          if(dadoDia.avar_val>0) kpis.push('<span style="color:#ff4d4f">Avarias: R$'+Number(dadoDia.avar_val).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>');
+          if(dadoDia.estoque&&dadoDia.estoque.length>0) kpis.push('<a href="javascript:void(0)" onclick="chkEstHistAbrir(\\"'+dStr+'\\")" style="color:#a07cf6;font-weight:700">📦 '+dadoDia.estoque.length+' parado(s)</a>');
+          if(dadoDia.pend) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend.substring(0,40)+'</span>');
+         } else if(gestor==='cris'){
+          if(dadoDia.ped_sol) kpis.push('Pedidos: <b>'+dadoDia.ped_rec+'/'+dadoDia.ped_sol+'</b>');
+          if(dadoDia.pend_itens>0) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend_itens+' pend.</span>');
+          if(dadoDia.negociacoes&&dadoDia.negociacoes.length>0) kpis.push('<span style="color:#a07cf6">🤝 '+dadoDia.negociacoes.length+' neg.</span>');
+        }
+        resumoHtml = kpis.length
+          ? '<div style="font-size:.72rem;color:var(--tx);margin-top:3px;line-height:1.7">'+kpis.join(' · ')+'</div>'
+          : '<div style="font-size:.72rem;color:#36cfa0">✓ Enviado às '+dadoDia.hora+'</div>';
+      } else {
+        resumoHtml = '<div style="font-size:.7rem;color:var(--mu)">⏳ Pendente</div>';
+      }
+
+      diasHtml += '<div style="padding:5px 0;border-bottom:1px solid var(--br)">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<span style="font-size:.75rem;font-weight:600;color:'+(dadoDia?'var(--tx)':'var(--mu)')+'">'+
+            diasNomes[di]+' '+dStr+
+          '</span>'+
+          '<span style="font-size:.68rem;font-weight:700;color:'+(dadoDia?'#36cfa0':'#ffaa2b')+'">'+
+            (dadoDia?'✓ '+dadoDia.hora:'⏳')+
+          '</span>'+
+        '</div>'+
+        resumoHtml+
+      '</div>';
+    }
+
+    var progColor = diasOk===diasTotal&&diasTotal>0?'#36cfa0':diasOk>0?'#ffaa2b':'#ff4d4f';
+    var progTxt = diasOk+'/'+diasTotal+' dias';
+
+    return '<div class="card" style="padding:16px">' +
+      // Header
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<div>'+
+          '<div style="font-size:.68rem;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px">'+label+'</div>'+
+          '<div style="font-size:.8rem;font-weight:700">'+s.ini.toLocaleDateString('pt-BR')+' — '+s.fim.toLocaleDateString('pt-BR')+'</div>'+
+        '</div>'+
+        '<div style="font-size:.75rem;font-weight:700;color:'+progColor+'">'+progTxt+'</div>'+
+      '</div>' +
+      // Dias
+      (diasTotal>0 ? diasHtml : '<div style="font-size:.75rem;color:var(--mu);padding:8px 0">Semana futura</div>') +
+      // Campo obs
+      '<div style="margin-top:12px">' +
+        (gestor==='celio'?'<button onclick="chkEstHistSemana(\''+isoIni+'\')"'+'" style="width:100%;margin-bottom:10px;padding:8px;background:rgba(160,124,246,.12);border:1px solid rgba(160,124,246,.25);border-radius:8px;color:#a07cf6;font-size:.78rem;font-weight:700;cursor:pointer">📦 Ver Estoque Parado desta semana</button>':'')+
+        '<textarea id="chk-obs-sem-'+isoIni+'" placeholder="Observações da semana..." rows="2" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:8px;color:var(--tx);font-size:.78rem;outline:none;resize:vertical">'+(dadoObs&&dadoObs.txt?dadoObs.txt.replace(/"/g,'&quot;'):'')+'</textarea>' +
+        '<button onclick="chkSalvarObsSem(\''+gestor+'\',\''+isoIni+'\')" style="width:100%;margin-top:6px;padding:6px;background:var(--red);border:none;border-radius:6px;color:#fff;font-size:.72rem;font-weight:700;cursor:pointer">💾 Salvar obs da semana</button>' +
+        (dadoObs&&dadoObs.hora?'<div style="font-size:.65rem;color:var(--mu);margin-top:4px;text-align:right">Salvo '+dadoObs.hora+'</div>':'') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SALVAR OBS SEMANAL (genérico - gestor + data isoIni)
+// ═══════════════════════════════════════════════════════════════════
+function chkSalvarObsSem(gestor, isoIni){
+  var ta = document.getElementById('chk-obs-sem-'+isoIni);
+  if(!ta) return;
+  var agora = new Date();
+  var dado = {
+    txt: ta.value.trim(),
+    hora: agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    ts: agora.getTime()
+  };
+  var chave = 'qfood_chk_'+gestor+'_semanal_'+isoIni;
+  try{ localStorage.setItem(chave, JSON.stringify(dado)); }catch(e){}
+  chkMontarSemanas(gestor);
+  chkAtualizarNota(gestor);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NOTA AUTOMÁTICA DO MÊS
+//   Nota = diário(30) + semanal(30) + mensal(25) + obsCEO(15) = 100
+// ═══════════════════════════════════════════════════════════════════
+function chkAtualizarNota(gestor){
+  gestor = gestor||'gustavo';
+  var hoje = new Date();
+  var ano = hoje.getFullYear();
+  var mes = hoje.getMonth()+1;
+  var KEY = 'qfood_chk_'+gestor+'_';
+
+  // ── Diário (30 pts): % de dias úteis do mês com report até hoje
+  var diasUteisMes = 0, diasComReport = 0;
+  var diaLim = mes===hoje.getMonth()+1&&ano===hoje.getFullYear() ? hoje.getDate() : new Date(ano,mes,0).getDate();
+  for(var d=1; d<=diaLim; d++){
+    var dt = new Date(ano, mes-1, d);
+    var wd = dt.getDay();
+    if(wd>=1 && wd<=5){ // seg-sex
+      diasUteisMes++;
+      var dStr = dt.toLocaleDateString('pt-BR');
+      var chaveDia = chkChaveData(dStr, gestor);
+      try{ if(localStorage.getItem(chaveDia)) diasComReport++; }catch(e){}
+    }
+  }
+  var ptsDiario = diasUteisMes>0 ? (diasComReport/diasUteisMes)*30 : 0;
+
+  // ── Semanal (30 pts): % de semanas do mês com obs preenchida
+  var semanasMes = 0, semanasComObs = 0;
+  var segAtual = new Date(hoje); segAtual.setDate(hoje.getDate()-(hoje.getDay()===0?6:hoje.getDay()-1));
+  for(var w=3; w>=0; w--){
+    var ini = new Date(segAtual); ini.setDate(segAtual.getDate()-w*7);
+    // conta se a semana pertence ao mês atual
+    if(ini.getMonth()+1===mes && ini.getFullYear()===ano){
+      semanasMes++;
+      var iso = ini.toISOString().split('T')[0];
+      try{
+        var ds = localStorage.getItem(KEY+'semanal_'+iso);
+        if(ds){
+          var o = JSON.parse(ds);
+          if(o&&o.txt&&o.txt.length>5) semanasComObs++;
+        }
+      }catch(e){}
+    }
+  }
+  var ptsSemanal = semanasMes>0 ? (semanasComObs/semanasMes)*30 : 0;
+
+  // ── Mensal (25 pts): fechamento do mês enviado?
+  var mesStr = mes.toString().padStart(2,'0')+'/'+ano;
+  var chaveMensal = KEY+'mensal_'+mesStr;
+  var ptsMensal = 0;
+  try{ if(localStorage.getItem(chaveMensal)) ptsMensal = 25; }catch(e){}
+
+  // ── Obs CEO (15 pts): tem obs do CEO no mês?
+  var chaveObs = KEY+'obs_ceo_'+mesStr;
+  var ptsObs = 0;
+  try{
+    var oc = localStorage.getItem(chaveObs);
+    if(oc){
+      var oo = JSON.parse(oc);
+      if(oo && Array.isArray(oo) && oo.length>0) ptsObs = 15;
+    }
+  }catch(e){}
+
+  var total = Math.round(ptsDiario + ptsSemanal + ptsMensal + ptsObs);
+  var cor = total>=85?'#36cfa0':total>=70?'#ffaa2b':'#ff4d4f';
+  var label = total>=85?'Excelente':total>=70?'Bom':total>=50?'Atenção':'Crítico';
+
+  // Atualiza badges visíveis no card do gestor
+  var idNota = gestor==='gustavo' ? 'chk-g-nota' : (gestor==='celio' ? 'chk-c-nota' : 'chk-cr-nota');
+  var idStatus = gestor==='gustavo' ? 'chk-g-status' : (gestor==='celio' ? 'chk-c-status' : 'chk-cr-status');
+  var elN = document.getElementById(idNota);
+  var elS = document.getElementById(idStatus);
+  if(elN){
+    elN.textContent = total+'/100';
+    elN.style.color = cor;
+  }
+  if(elS){
+    elS.textContent = label;
+    elS.style.color = cor;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// OBSERVAÇÕES DO CEO (apenas Gustavo neste bloco - gestor padrão)
+// ═══════════════════════════════════════════════════════════════════
+function chkSalvarObs(){ chkSalvarObsGen('gustavo'); }
+
+function chkSalvarObsGen(gestor){
+  var inpId = gestor==='gustavo' ? 'chk-obs-input' : (gestor==='celio' ? 'chk-c-obs-input' : 'chk-cr-obs-input');
+  var listId = gestor==='gustavo' ? 'chk-obs-lista' : (gestor==='celio' ? 'chk-c-obs-lista' : 'chk-cr-obs-lista');
+  var inp = document.getElementById(inpId);
+  if(!inp) return;
+  var txt = inp.value.trim();
+  if(!txt) return;
+
+  var hoje = new Date();
+  var mes = (hoje.getMonth()+1).toString().padStart(2,'0')+'/'+hoje.getFullYear();
+  var chave = 'qfood_chk_'+gestor+'_obs_ceo_'+mes;
+  var lista = [];
+  try{ lista = JSON.parse(localStorage.getItem(chave)||'[]'); }catch(e){ lista = []; }
+  lista.push({
+    txt: txt,
+    autor: (CURRENT_USER&&CURRENT_USER.nome)||'CEO',
+    email: (CURRENT_USER&&CURRENT_USER.email)||'',
+    data: hoje.toLocaleDateString('pt-BR'),
+    hora: hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    ts: hoje.getTime()
+  });
+  try{ localStorage.setItem(chave, JSON.stringify(lista)); }catch(e){}
+  inp.value = '';
+  chkCarregarObsGen(gestor);
+  chkAtualizarNota(gestor);
+}
+
+function chkCarregarObs(){ chkCarregarObsGen('gustavo'); }
+
+function chkCarregarObsGen(gestor){
+  var listId = gestor==='gustavo' ? 'chk-obs-lista' : (gestor==='celio' ? 'chk-c-obs-lista' : 'chk-cr-obs-lista');
+  var el = document.getElementById(listId);
+  if(!el) return;
+  var hoje = new Date();
+  var mes = (hoje.getMonth()+1).toString().padStart(2,'0')+'/'+hoje.getFullYear();
+  var chave = 'qfood_chk_'+gestor+'_obs_ceo_'+mes;
+  var lista = [];
+  try{ lista = JSON.parse(localStorage.getItem(chave)||'[]'); }catch(e){}
+  if(!lista.length){
+    el.innerHTML = '<div style="font-size:.75rem;color:var(--mu);text-align:center;padding:12px">Nenhuma observação registrada neste mês.</div>';
+    return;
+  }
+  el.innerHTML = lista.slice().reverse().map(function(o){
+    return '<div style="padding:10px;background:var(--s2);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--red)">' +
+      '<div style="font-size:.72rem;color:var(--mu);margin-bottom:4px">'+o.autor+' · '+o.data+' '+o.hora+'</div>' +
+      '<div style="font-size:.82rem;color:var(--tx);white-space:pre-wrap">'+o.txt.replace(/</g,'&lt;')+'</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FECHAMENTO MENSAL — GUSTAVO
+// ═══════════════════════════════════════════════════════════════════
+function chkSalvarMensal(){
+  var mes = document.getElementById('chk-m-mes').value;
+  var campos = ['fat','meta','cmv','ebitda','desp','dre','analise'];
+  var dado = { mes: mes };
+  campos.forEach(function(f){
+    var el = document.getElementById('chk-m-'+f);
+    if(el) dado[f] = el.value.trim();
+  });
+  var agora = new Date();
+  dado.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  dado.data = agora.toLocaleDateString('pt-BR');
+  dado.ts = agora.getTime();
+  var chave = 'qfood_chk_gustavo_mensal_'+mes;
+  try{ localStorage.setItem(chave, JSON.stringify(dado)); }catch(e){}
+  var saved = document.getElementById('chk-m-saved');
+  if(saved){ saved.style.display='block'; setTimeout(function(){saved.style.display='none';},3000); }
+  chkAtualizarNota('gustavo');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// HISTÓRICO — GUSTAVO (lista os 12 meses)
+// ═══════════════════════════════════════════════════════════════════
+function chkCarregarHistorico(){ chkCarregarHistoricoGen('gustavo'); }
+
+function chkCarregarHistoricoGen(gestor){
+  var listId = gestor==='gustavo' ? 'chk-hist-lista' : (gestor==='celio' ? 'chk-c-hist-lista' : 'chk-cr-hist-lista');
+  var el = document.getElementById(listId);
+  if(!el) return;
+  var ano = 2026;
+  var meses = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var html = '';
+  for(var m=1;m<=12;m++){
+    var mStr = m.toString().padStart(2,'0')+'/'+ano;
+    var chave = 'qfood_chk_'+gestor+'_mensal_'+mStr;
+    var dado = null;
+    try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+    var bg = dado ? 'rgba(54,207,160,.08)' : 'var(--s2)';
+    var icon = dado ? '✓' : '○';
+    var iconCor = dado ? '#36cfa0' : 'var(--mu)';
+    var status = dado ? 'Fechado em '+dado.data : 'Aguardando fechamento';
+    html += '<div style="padding:10px 14px;background:'+bg+';border-radius:8px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">' +
+      '<div><span style="color:'+iconCor+';font-weight:700;margin-right:8px">'+icon+'</span><strong>'+meses[m-1]+'/'+ano+'</strong></div>' +
+      '<span style="font-size:.72rem;color:var(--mu)">'+status+'</span>' +
+    '</div>';
+  }
+  el.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CÉLIO — SubTab, Diário, Mensal, Obs, Notas% auto-calc
+// ═══════════════════════════════════════════════════════════════════
+function chkCSubTab(tab){
+  ['diario','semanal','mensal','historico'].forEach(function(t){
+    var p = document.getElementById('chk-c-panel-'+t);
+    var b = document.getElementById('chk-sub-c-'+t);
+    if(p) p.style.display = t===tab?'block':'none';
+    if(b){
+      b.style.background = t===tab?'var(--red)':'var(--s2)';
+      b.style.color = t===tab?'#fff':'var(--tx)';
+    }
+  });
+  if(tab==='semanal') chkMontarSemanas('celio');
+  if(tab==='historico') chkCarregarHistoricoGen('celio');
+}
+
+function chkCCalcNotas(){
+  var t = parseFloat(document.getElementById('chk-c-notas-total').value)||0;
+  var p = parseFloat(document.getElementById('chk-c-notas-pend').value)||0;
+  var pctEl = document.getElementById('chk-c-notas-pct');
+  var alerta = document.getElementById('chk-c-notas-alerta');
+  if(t>0){
+    var pct = (p/t)*100;
+    if(pctEl) pctEl.textContent = pct.toFixed(1).replace('.',',')+'%';
+    if(alerta){
+      if(pct>10){ alerta.style.display='block'; alerta.style.color='#ff4d4f'; alerta.textContent='⚠️ Crítico: mais de 10% das NFs pendentes'; }
+      else if(pct>5){ alerta.style.display='block'; alerta.style.color='#ffaa2b'; alerta.textContent='⚡ Atenção: acima de 5% das NFs pendentes'; }
+      else { alerta.style.display='none'; }
+    }
+  } else {
+    if(pctEl) pctEl.textContent = '—';
+    if(alerta) alerta.style.display='none';
+  }
+}
+
+function chkCSalvarDiario(){
+  var d = {
+    notas_total: parseFloat(document.getElementById('chk-c-notas-total').value)||0,
+    notas_pend: parseFloat(document.getElementById('chk-c-notas-pend').value)||0,
+    fin: (document.getElementById('chk-c-fin').value||'').trim(),
+    cmp: (document.getElementById('chk-c-cmp').value||'').trim(),
+    avar_val: parseFloat(document.getElementById('chk-c-avar-val').value)||0,
+    avar_qtd: parseFloat(document.getElementById('chk-c-avar-qtd').value)||0,
+    acoes: (document.getElementById('chk-c-acoes').value||'').trim(),
+    pend: (document.getElementById('chk-c-pend').value||'').trim(),
+    estoque: chkCEstoqueSel || []
+  };
+  var agora = new Date();
+  d.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  d.data = agora.toLocaleDateString('pt-BR');
+  d.ts = agora.getTime();
+
+  var chave = chkChaveData(d.data, 'celio');
+  try{ localStorage.setItem(chave, JSON.stringify(d)); }catch(e){}
+
+  var saved = document.getElementById('chk-c-d-saved');
+  if(saved){ saved.style.display='block'; setTimeout(function(){saved.style.display='none';},3000); }
+
+  var badge = document.getElementById('chk-c-d-badge');
+  if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Salvo '+d.hora; }
+
+  chkCAtualizarSemaforo(d);
+  chkCProgressoSemana();
+  chkAtualizarNota('celio');
+}
+
+function chkCAtualizarSemaforo(d){
+  var el = document.getElementById('chk-c-semaforo');
+  var kpis = document.getElementById('chk-c-kpis');
+  if(!el) return;
+  var score = 100;
+  var alerts = [];
+  if(d.notas_total>0){
+    var pct = (d.notas_pend/d.notas_total)*100;
+    if(pct>10){ score-=25; alerts.push('⚠ NFs pendentes >10%'); }
+    else if(pct>5){ score-=10; alerts.push('⚡ NFs pendentes >5%'); }
+  }
+  if(d.avar_val>0){ score-=15; alerts.push('⚠ Avarias: R$'+chkFmt(d.avar_val)); }
+  if(d.estoque && d.estoque.length>5){ score-=10; alerts.push('⚡ '+d.estoque.length+' itens em estoque parado'); }
+  if(d.pend && d.pend.length>10){ score-=5; }
+
+  var icon = score>=90?'🟢':score>=80?'🟡':'🔴';
+  var label = score>=90?'Controlado':score>=80?'Atenção':'Crítico';
+  el.innerHTML = '<div style="font-size:2.5rem">'+icon+'</div><div style="font-size:.88rem;font-weight:700;margin-top:4px">'+label+'</div><div style="font-size:.72rem;color:var(--mu)">Score: '+score+'</div>';
+  if(kpis) kpis.innerHTML = (alerts.length?alerts.join('<br>'):'<span style="color:#36cfa0">✓ Todos os indicadores normais</span>');
+}
+
+function chkCProgressoSemana(){
+  var el = document.getElementById('chk-c-semana-prog');
+  if(!el) return;
+  var hoje = new Date();
+  var diaSem = hoje.getDay()===0?6:hoje.getDay()-1;
+  var diasNomes = ['Seg','Ter','Qua','Qui','Sex'];
+  var html = '';
+  for(var i=0; i<=Math.min(diaSem,4); i++){
+    var d = new Date(hoje); d.setDate(d.getDate() - diaSem + i);
+    var dStr = d.toLocaleDateString('pt-BR');
+    var chave = chkChaveData(dStr,'celio');
+    var tem = false;
+    try{ tem = !!localStorage.getItem(chave); }catch(e){}
+    html += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--br)">'+
+      '<span>'+diasNomes[i]+' '+dStr+'</span>'+
+      '<span style="color:'+(tem?'#36cfa0':'#ff4d4f')+';font-weight:600">'+(tem?'✓ Enviado':'✗ Pendente')+'</span>'+
+    '</div>';
+  }
+  el.innerHTML = html || '<span style="color:var(--mu)">Início de semana</span>';
+}
+
+function chkCCarregarDiario(){
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  var chave = chkChaveData(hoje,'celio');
+  var d = null;
+  try{ d = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+  var badge = document.getElementById('chk-c-d-badge');
+  if(d){
+    ['notas-total','notas-pend','fin','cmp','avar-val','avar-qtd','acoes','pend'].forEach(function(f){
+      var el = document.getElementById('chk-c-'+f);
+      var key = f.replace('-','_');
+      if(el && d[key]!==undefined) el.value = d[key];
+    });
+    chkCEstoqueSel = d.estoque || [];
+    chkCEstoqueAtualizarResumo();
+    chkCCalcNotas();
+    if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Enviado '+d.hora; }
+    chkCAtualizarSemaforo(d);
+  } else {
+    chkCEstoqueSel = [];
+    chkCEstoqueAtualizarResumo();
+    if(badge){ badge.style.display='inline'; badge.style.background='rgba(255,77,79,.2)'; badge.style.color='#ff4d4f'; badge.textContent='⚠ Pendente'; }
+  }
+  chkCProgressoSemana();
+}
+
+function chkCSalvarMensal(){
+  var mes = document.getElementById('chk-c-m-mes').value;
+  var d = { mes: mes };
+  ['perdas','ocorr','levant','prev'].forEach(function(f){
+    var el = document.getElementById('chk-c-m-'+f);
+    if(el) d[f] = el.value.trim();
+  });
+  var agora = new Date();
+  d.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  d.data = agora.toLocaleDateString('pt-BR');
+  d.ts = agora.getTime();
+  var chave = 'qfood_chk_celio_mensal_'+mes;
+  try{ localStorage.setItem(chave, JSON.stringify(d)); }catch(e){}
+  var saved = document.getElementById('chk-c-m-saved');
+  if(saved){ saved.style.display='block'; setTimeout(function(){saved.style.display='none';},3000); }
+  chkAtualizarNota('celio');
+}
+
+function chkCSalvarObs(){ chkSalvarObsGen('celio'); }
+
+function initCheckpointCelio(){
+  // Popular select mês
+  var sel = document.getElementById('chk-c-m-mes');
+  if(sel && sel.options.length===0){
+    for(var m=1;m<=12;m++){
+      var v = m.toString().padStart(2,'0')+'/2026';
+      var o = document.createElement('option');
+      o.value=v; o.textContent=v; sel.appendChild(o);
+    }
+    var now = new Date();
+    sel.value = (now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear();
+  }
+  // Exibir hoje
+  var hj = document.getElementById('chk-c-hoje');
+  if(hj) hj.textContent = new Date().toLocaleDateString('pt-BR');
+  chkCSubTab('diario');
+  chkCCarregarDiario();
+  chkAtualizarNota('celio');
+  chkCarregarObsGen('celio');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CÉLIO — MODAL ESTOQUE PARADO
+// ═══════════════════════════════════════════════════════════════════
+var chkCEstoqueSel = [];
+var chkCEstoqueProdutos = [];
+
+function chkCEstoqueModal(){
+  var modal = document.getElementById('chk-c-estoque-modal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  chkCEstoqueCarregarProdutos();
+}
+
+function chkCEstoqueFechar(){
+  var modal = document.getElementById('chk-c-estoque-modal');
+  if(modal) modal.style.display='none';
+}
+
+function chkCEstoqueCarregarProdutos(){
+  var lista = document.getElementById('chk-c-est-lista');
+  if(!lista) return;
+  // Usa os dados do módulo DEV (Quebra de Rede) se disponível
+  if(typeof devRows !== 'undefined' && devRows && devRows.length>0){
+    chkCEstoqueProdutos = devRows.map(function(r){
+      return {
+        cod: r.codigo||r.Codigo||'',
+        nome: r.produto||r.Produto||r.nome||r.Nome||'',
+        forn: r.fornecedor||r.Fornecedor||'',
+        ind: r.industria||r.Industria||r.marca||r.Marca||'',
+        sku: r.sku||r.SKU||r.codigo||r.Codigo||''
+      };
+    }).filter(function(p){ return p.nome; });
+  } else {
+    chkCEstoqueProdutos = [];
+  }
+  // Popular selects de filtro
+  var selForn = document.getElementById('chk-c-est-forn');
+  var selInd = document.getElementById('chk-c-est-ind');
+  if(selForn){
+    var forns = [...new Set(chkCEstoqueProdutos.map(function(p){return p.forn;}).filter(Boolean))].sort();
+    selForn.innerHTML = '<option value="">Todos os fornecedores</option>'+forns.map(function(f){return '<option value="'+f.replace(/"/g,'&quot;')+'">'+f+'</option>';}).join('');
+  }
+  if(selInd){
+    var inds = [...new Set(chkCEstoqueProdutos.map(function(p){return p.ind;}).filter(Boolean))].sort();
+    selInd.innerHTML = '<option value="">Todas as indústrias</option>'+inds.map(function(i){return '<option value="'+i.replace(/"/g,'&quot;')+'">'+i+'</option>';}).join('');
+  }
+  chkCEstoqueFiltrar();
+}
+
+function chkCEstoqueFiltrar(){
+  var lista = document.getElementById('chk-c-est-lista');
+  if(!lista) return;
+  var fForn = (document.getElementById('chk-c-est-forn')||{}).value||'';
+  var fInd  = (document.getElementById('chk-c-est-ind')||{}).value||'';
+  var filtrados = chkCEstoqueProdutos.filter(function(p){
+    if(fForn && p.forn!==fForn) return false;
+    if(fInd && p.ind!==fInd) return false;
+    return true;
+  });
+  if(!filtrados.length){
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado. Carregue o módulo "Quebra de Rede" primeiro.</div>';
+    return;
+  }
+  var selSet = new Set(chkCEstoqueSel.map(function(i){return i.sku||i.cod;}));
+  lista.innerHTML = filtrados.slice(0,300).map(function(p,idx){
+    var key = p.sku||p.cod||('idx_'+idx);
+    var checked = selSet.has(key) ? 'checked' : '';
+    return '<label style="display:flex;gap:10px;padding:8px;border-bottom:1px solid var(--br);cursor:pointer;align-items:center">' +
+      '<input type="checkbox" '+checked+' data-sku="'+key.replace(/"/g,'&quot;')+'" data-nome="'+(p.nome||'').replace(/"/g,'&quot;')+'" data-forn="'+(p.forn||'').replace(/"/g,'&quot;')+'" data-ind="'+(p.ind||'').replace(/"/g,'&quot;')+'">' +
+      '<div style="flex:1"><div style="font-weight:600">'+p.nome+'</div>' +
+      '<div style="font-size:.7rem;color:var(--mu)">'+(p.forn||'—')+' · '+(p.ind||'—')+'</div></div>' +
+    '</label>';
+  }).join('') + (filtrados.length>300 ? '<div style="padding:10px;text-align:center;color:var(--mu);font-size:.75rem">Mostrando primeiros 300 de '+filtrados.length+'. Refine os filtros.</div>' : '');
+}
+
+function chkCEstoqueSalvar(){
+  var lista = document.getElementById('chk-c-est-lista');
+  if(!lista) return;
+  var checks = lista.querySelectorAll('input[type="checkbox"]:checked');
+  var selecionados = [];
+  checks.forEach(function(cb){
+    selecionados.push({
+      sku: cb.dataset.sku,
+      nome: cb.dataset.nome,
+      forn: cb.dataset.forn,
+      ind: cb.dataset.ind
+    });
+  });
+  chkCEstoqueSel = selecionados;
+  chkCEstoqueAtualizarResumo();
+  chkCEstoqueFechar();
+}
+
+function chkCEstoqueAtualizarResumo(){
+  var el = document.getElementById('chk-c-estoque-resumo');
+  if(!el) return;
+  if(!chkCEstoqueSel.length){
+    el.innerHTML = '<div style="font-size:.75rem;color:var(--mu);padding:8px">Nenhum item selecionado.</div>';
+    return;
+  }
+  el.innerHTML = chkCEstoqueSel.map(function(i){
+    return '<div style="padding:6px 10px;background:var(--s2);border-radius:6px;margin-bottom:4px;font-size:.78rem">' +
+      '📦 <strong>'+(i.nome||'—')+'</strong>'+
+      '<div style="font-size:.68rem;color:var(--mu)">'+(i.forn||'—')+' · '+(i.ind||'—')+'</div>' +
+    '</div>';
+  }).join('') + '<div style="font-size:.72rem;color:var(--mu);margin-top:6px">Total: '+chkCEstoqueSel.length+' iten(s)</div>';
+}
+
+// Abrir modal pré-populado com itens de um dia específico (a partir do Histórico Semanal)
+function chkEstHistAbrir(dataStr){
+  var chave = chkChaveData(dataStr,'celio');
+  var d = null;
+  try{ d = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+  if(!d || !d.estoque || !d.estoque.length){
+    alert('Nenhum item de estoque parado registrado em '+dataStr);
+    return;
+  }
+  var txt = '📦 Estoque parado em '+dataStr+':\n\n' + d.estoque.map(function(i,n){
+    return (n+1)+'. '+i.nome+' ('+(i.forn||'—')+' / '+(i.ind||'—')+')';
+  }).join('\n');
+  alert(txt);
+}
+
+// Abrir lista consolidada de uma semana inteira
+function chkEstHistSemana(isoIni){
+  var ini = new Date(isoIni);
+  var itens = {};
+  for(var di=0; di<5; di++){
+    var d = new Date(ini); d.setDate(ini.getDate()+di);
+    var dStr = d.toLocaleDateString('pt-BR');
+    var chave = chkChaveData(dStr,'celio');
+    var dado = null;
+    try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+    if(dado && dado.estoque){
+      dado.estoque.forEach(function(it){
+        var k = it.sku||it.nome;
+        if(!itens[k]) itens[k] = {item: it, dias: []};
+        itens[k].dias.push(dStr);
+      });
+    }
+  }
+  var arr = Object.values(itens);
+  if(!arr.length){
+    alert('Nenhum item de estoque parado registrado nesta semana.');
+    return;
+  }
+  var txt = '📦 Estoque parado da semana iniciando '+ini.toLocaleDateString('pt-BR')+':\n\n' +
+    arr.map(function(r,n){
+      return (n+1)+'. '+r.item.nome+' ('+(r.item.forn||'—')+')\n   Aparece em: '+r.dias.join(', ');
+    }).join('\n\n') +
+    '\n\nTotal único: '+arr.length+' item(ns)';
+  alert(txt);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CRISTINA — SubTab, Diário, Mensal, Obs, Ped% auto-calc
+// ═══════════════════════════════════════════════════════════════════
+function chkCrSubTab(tab){
+  ['diario','semanal','mensal','historico'].forEach(function(t){
+    var p = document.getElementById('chk-cr-panel-'+t);
+    var b = document.getElementById('chk-sub-cr-'+t);
+    if(p) p.style.display = t===tab?'block':'none';
+    if(b){
+      b.style.background = t===tab?'var(--red)':'var(--s2)';
+      b.style.color = t===tab?'#fff':'var(--tx)';
+    }
+  });
+  if(tab==='semanal') chkMontarSemanas('cris');
+  if(tab==='historico') chkCarregarHistoricoGen('cris');
+}
+
+function chkCrCalcPed(){
+  var s = parseFloat(document.getElementById('chk-cr-ped-sol').value)||0;
+  var r = parseFloat(document.getElementById('chk-cr-ped-rec').value)||0;
+  var pctEl = document.getElementById('chk-cr-ped-pct');
+  if(pctEl){
+    if(s>0) pctEl.textContent = ((r/s)*100).toFixed(1).replace('.',',')+'%';
+    else pctEl.textContent = '—';
+  }
+}
+
+function chkCrSalvarDiario(){
+  var d = {
+    ped_sol: parseFloat(document.getElementById('chk-cr-ped-sol').value)||0,
+    ped_rec: parseFloat(document.getElementById('chk-cr-ped-rec').value)||0,
+    pend_itens: parseFloat(document.getElementById('chk-cr-pend-itens').value)||0,
+    prev_vol: (document.getElementById('chk-cr-prev-vol').value||'').trim(),
+    prob_forn: (document.getElementById('chk-cr-prob-forn').value||'').trim(),
+    negociacoes: chkCrNegSel || []
+  };
+  var agora = new Date();
+  d.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  d.data = agora.toLocaleDateString('pt-BR');
+  d.ts = agora.getTime();
+
+  var chave = chkChaveData(d.data, 'cris');
+  try{ localStorage.setItem(chave, JSON.stringify(d)); }catch(e){}
+
+  var saved = document.getElementById('chk-cr-d-saved');
+  if(saved){ saved.style.display='block'; setTimeout(function(){saved.style.display='none';},3000); }
+
+  var badge = document.getElementById('chk-cr-d-badge');
+  if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Salvo '+d.hora; }
+
+  chkCrAtualizarSemaforo(d);
+  chkCrProgressoSemana();
+  chkAtualizarNota('cris');
+}
+
+function chkCrAtualizarSemaforo(d){
+  var el = document.getElementById('chk-cr-semaforo');
+  var kpis = document.getElementById('chk-cr-kpis');
+  if(!el) return;
+  var score = 100;
+  var alerts = [];
+  if(d.ped_sol>0){
+    var pct = (d.ped_rec/d.ped_sol)*100;
+    if(pct<70){ score-=25; alerts.push('⚠ Atendimento abaixo de 70%'); }
+    else if(pct<90){ score-=10; alerts.push('⚡ Atendimento abaixo de 90%'); }
+  }
+  if(d.pend_itens>10){ score-=15; alerts.push('⚠ '+d.pend_itens+' itens pendentes'); }
+  else if(d.pend_itens>5){ score-=8; }
+  if(d.prob_forn && d.prob_forn.length>5){ score-=10; alerts.push('⚡ Problemas com fornecedor'); }
+
+  var icon = score>=90?'🟢':score>=80?'🟡':'🔴';
+  var label = score>=90?'Controlado':score>=80?'Atenção':'Crítico';
+  el.innerHTML = '<div style="font-size:2.5rem">'+icon+'</div><div style="font-size:.88rem;font-weight:700;margin-top:4px">'+label+'</div><div style="font-size:.72rem;color:var(--mu)">Score: '+score+'</div>';
+  if(kpis) kpis.innerHTML = (alerts.length?alerts.join('<br>'):'<span style="color:#36cfa0">✓ Tudo normal</span>');
+}
+
+function chkCrProgressoSemana(){
+  var el = document.getElementById('chk-cr-semana-prog');
+  if(!el) return;
+  var hoje = new Date();
+  var diaSem = hoje.getDay()===0?6:hoje.getDay()-1;
+  var diasNomes = ['Seg','Ter','Qua','Qui','Sex'];
+  var html = '';
+  for(var i=0; i<=Math.min(diaSem,4); i++){
+    var d = new Date(hoje); d.setDate(d.getDate() - diaSem + i);
+    var dStr = d.toLocaleDateString('pt-BR');
+    var chave = chkChaveData(dStr,'cris');
+    var tem = false;
+    try{ tem = !!localStorage.getItem(chave); }catch(e){}
+    html += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--br)">'+
+      '<span>'+diasNomes[i]+' '+dStr+'</span>'+
+      '<span style="color:'+(tem?'#36cfa0':'#ff4d4f')+';font-weight:600">'+(tem?'✓ Enviado':'✗ Pendente')+'</span>'+
+    '</div>';
+  }
+  el.innerHTML = html || '<span style="color:var(--mu)">Início de semana</span>';
+}
+
+function chkCrCarregarDiario(){
+  var hoje = new Date().toLocaleDateString('pt-BR');
+  var chave = chkChaveData(hoje,'cris');
+  var d = null;
+  try{ d = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+  var badge = document.getElementById('chk-cr-d-badge');
+  if(d){
+    ['ped-sol','ped-rec','pend-itens','prev-vol','prob-forn'].forEach(function(f){
+      var el = document.getElementById('chk-cr-'+f);
+      var key = f.replace('-','_');
+      if(el && d[key]!==undefined) el.value = d[key];
+    });
+    chkCrNegSel = d.negociacoes || [];
+    chkCrNegAtualizarResumo();
+    chkCrCalcPed();
+    if(badge){ badge.style.display='inline'; badge.style.background='#36cfa0'; badge.style.color='#fff'; badge.textContent='✓ Enviado '+d.hora; }
+    chkCrAtualizarSemaforo(d);
+  } else {
+    chkCrNegSel = [];
+    chkCrNegAtualizarResumo();
+    if(badge){ badge.style.display='inline'; badge.style.background='rgba(255,77,79,.2)'; badge.style.color='#ff4d4f'; badge.textContent='⚠ Pendente'; }
+  }
+  chkCrProgressoSemana();
+}
+
+function chkCrSalvarMensal(){
+  var mes = document.getElementById('chk-cr-m-mes').value;
+  var d = { mes: mes };
+  ['preco-med','total','comp-preco','oport'].forEach(function(f){
+    var el = document.getElementById('chk-cr-m-'+f);
+    var key = f.replace('-','_');
+    if(el) d[key] = el.value.trim();
+  });
+  var agora = new Date();
+  d.hora = agora.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  d.data = agora.toLocaleDateString('pt-BR');
+  d.ts = agora.getTime();
+  var chave = 'qfood_chk_cris_mensal_'+mes;
+  try{ localStorage.setItem(chave, JSON.stringify(d)); }catch(e){}
+  var saved = document.getElementById('chk-cr-m-saved');
+  if(saved){ saved.style.display='block'; setTimeout(function(){saved.style.display='none';},3000); }
+  chkAtualizarNota('cris');
+}
+
+function chkCrSalvarObs(){ chkSalvarObsGen('cris'); }
+
+function initCheckpointCris(){
+  var sel = document.getElementById('chk-cr-m-mes');
+  if(sel && sel.options.length===0){
+    for(var m=1;m<=12;m++){
+      var v = m.toString().padStart(2,'0')+'/2026';
+      var o = document.createElement('option');
+      o.value=v; o.textContent=v; sel.appendChild(o);
+    }
+    var now = new Date();
+    sel.value = (now.getMonth()+1).toString().padStart(2,'0')+'/'+now.getFullYear();
+  }
+  var hj = document.getElementById('chk-cr-hoje');
+  if(hj) hj.textContent = new Date().toLocaleDateString('pt-BR');
+  chkCrSubTab('diario');
+  chkCrCarregarDiario();
+  chkAtualizarNota('cris');
+  chkCarregarObsGen('cris');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CRISTINA — MODAL NEGOCIAÇÕES (estrutura espelha a do Célio)
+// ═══════════════════════════════════════════════════════════════════
+var chkCrNegSel = [];
+var chkCrNegProdutos = [];
+
+function chkCrNegModal(){
+  var modal = document.getElementById('chk-cr-neg-modal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  chkCrNegCarregarProdutos();
+}
+
+function chkCrNegFechar(){
+  var modal = document.getElementById('chk-cr-neg-modal');
+  if(modal) modal.style.display='none';
+}
+
+function chkCrNegCarregarProdutos(){
+  var lista = document.getElementById('chk-cr-neg-lista');
+  if(!lista) return;
+  if(typeof devRows !== 'undefined' && devRows && devRows.length>0){
+    chkCrNegProdutos = devRows.map(function(r){
+      return {
+        cod: r.codigo||r.Codigo||'',
+        nome: r.produto||r.Produto||r.nome||r.Nome||'',
+        forn: r.fornecedor||r.Fornecedor||'',
+        ind: r.industria||r.Industria||r.marca||r.Marca||'',
+        sku: r.sku||r.SKU||r.codigo||r.Codigo||''
+      };
+    }).filter(function(p){ return p.nome; });
+  } else {
+    chkCrNegProdutos = [];
+  }
+  var selForn = document.getElementById('chk-cr-neg-forn');
+  var selInd = document.getElementById('chk-cr-neg-ind');
+  if(selForn){
+    var forns = [...new Set(chkCrNegProdutos.map(function(p){return p.forn;}).filter(Boolean))].sort();
+    selForn.innerHTML = '<option value="">Todos</option>'+forns.map(function(f){return '<option value="'+f.replace(/"/g,'&quot;')+'">'+f+'</option>';}).join('');
+  }
+  if(selInd){
+    var inds = [...new Set(chkCrNegProdutos.map(function(p){return p.ind;}).filter(Boolean))].sort();
+    selInd.innerHTML = '<option value="">Todas</option>'+inds.map(function(i){return '<option value="'+i.replace(/"/g,'&quot;')+'">'+i+'</option>';}).join('');
+  }
+  chkCrNegFiltrar();
+}
+
+function chkCrNegFiltrar(){
+  var lista = document.getElementById('chk-cr-neg-lista');
+  if(!lista) return;
+  var fForn = (document.getElementById('chk-cr-neg-forn')||{}).value||'';
+  var fInd  = (document.getElementById('chk-cr-neg-ind')||{}).value||'';
+  var filtrados = chkCrNegProdutos.filter(function(p){
+    if(fForn && p.forn!==fForn) return false;
+    if(fInd && p.ind!==fInd) return false;
+    return true;
+  });
+  if(!filtrados.length){
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado. Carregue o módulo "Quebra de Rede" primeiro.</div>';
+    return;
+  }
+  var selSet = new Set(chkCrNegSel.map(function(i){return i.sku||i.cod;}));
+  lista.innerHTML = filtrados.slice(0,300).map(function(p,idx){
+    var key = p.sku||p.cod||('idx_'+idx);
+    var checked = selSet.has(key) ? 'checked' : '';
+    return '<label style="display:flex;gap:10px;padding:8px;border-bottom:1px solid var(--br);cursor:pointer;align-items:center">' +
+      '<input type="checkbox" '+checked+' data-sku="'+key.replace(/"/g,'&quot;')+'" data-nome="'+(p.nome||'').replace(/"/g,'&quot;')+'" data-forn="'+(p.forn||'').replace(/"/g,'&quot;')+'" data-ind="'+(p.ind||'').replace(/"/g,'&quot;')+'">' +
+      '<div style="flex:1"><div style="font-weight:600">'+p.nome+'</div>' +
+      '<div style="font-size:.7rem;color:var(--mu)">'+(p.forn||'—')+' · '+(p.ind||'—')+'</div></div>' +
+    '</label>';
+  }).join('') + (filtrados.length>300 ? '<div style="padding:10px;text-align:center;color:var(--mu);font-size:.75rem">Mostrando primeiros 300 de '+filtrados.length+'. Refine os filtros.</div>' : '');
+}
+
+function chkCrNegSalvar(){
+  var lista = document.getElementById('chk-cr-neg-lista');
+  if(!lista) return;
+  var checks = lista.querySelectorAll('input[type="checkbox"]:checked');
+  var selecionados = [];
+  checks.forEach(function(cb){
+    selecionados.push({
+      sku: cb.dataset.sku,
+      nome: cb.dataset.nome,
+      forn: cb.dataset.forn,
+      ind: cb.dataset.ind
+    });
+  });
+  chkCrNegSel = selecionados;
+  chkCrNegAtualizarResumo();
+  chkCrNegFechar();
+}
+
+function chkCrNegAtualizarResumo(){
+  var el = document.getElementById('chk-cr-neg-resumo');
+  if(!el) return;
+  if(!chkCrNegSel.length){
+    el.innerHTML = '<div style="font-size:.75rem;color:var(--mu);padding:8px">Nenhuma negociação em andamento.</div>';
+    return;
+  }
+  el.innerHTML = chkCrNegSel.map(function(i){
+    return '<div style="padding:6px 10px;background:var(--s2);border-radius:6px;margin-bottom:4px;font-size:.78rem">' +
+      '🤝 <strong>'+(i.nome||'—')+'</strong>'+
+      '<div style="font-size:.68rem;color:var(--mu)">'+(i.forn||'—')+' · '+(i.ind||'—')+'</div>' +
+    '</div>';
+  }).join('') + '<div style="font-size:.72rem;color:var(--mu);margin-top:6px">Total: '+chkCrNegSel.length+' neg.</div>';
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+// ORQUESTRAÇÃO FINAL: renderiza tabs, ativa gestor padrão, integra JS original
+// ══════════════════════════════════════════════════════════════════
+
+// Sobrescrever chkShowGestor pra cobrir os 7 gestores (3 originais + 4 novos)
+chkShowGestor = function(gestorId){
+  // Atualiza tabs visualmente
+  GESTORES.forEach(function(g){
+    var tab = document.getElementById("chk-tab-"+g.id);
+    if(!tab) return;
+    if(g.id === gestorId){
+      tab.classList.add("active");
+      tab.style.background = g.cor;
+      tab.style.color = "#fff";
+    } else {
+      tab.classList.remove("active");
+      tab.style.background = "var(--s2)";
+      tab.style.color = "var(--mu)";
+    }
+  });
+
+  // Esconde todos os containers
+  GESTORES.forEach(function(g){
+    var el = document.getElementById("chk-gestor-"+g.id);
+    if(el) el.style.display = "none";
+  });
+
+  // Mostra o gestor escolhido
+  var ativo = document.getElementById("chk-gestor-"+gestorId);
+  if(ativo) ativo.style.display = "block";
+
+  // Renderiza
+  var g = GESTORES.find(function(x){return x.id === gestorId;});
+  if(!g) return;
+
+  if(g.tipo === "simples"){
+    renderGestorSimples(g);
+  } else {
+    // Gestores originais: dispara init do original
+    if(gestorId === "gustavo" && typeof initCheckpoint === "function") initCheckpoint();
+    if(gestorId === "celio"   && typeof initCheckpointCelio === "function") initCheckpointCelio();
+    if(gestorId === "cris"    && typeof initCheckpointCris === "function") initCheckpointCris();
+  }
+};
+
+// ---- INICIALIZAÇÃO ----
+document.addEventListener("DOMContentLoaded", function(){
+  // Label da semana
+  var hoje = new Date();
+  var lbl = document.getElementById("chk-semana-label");
+  if(lbl) lbl.textContent = "Hoje é " + hoje.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
+
+  renderTabs();
+  chkShowGestor("gustavo");
+});
+</script>
+</body>
+</html>
