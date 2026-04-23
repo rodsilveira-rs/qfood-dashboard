@@ -708,9 +708,20 @@ function logShowTab(tab){
   event.target.classList.add("active");
   document.getElementById("log-entregas").style.display = tab==="entregas" ? "block" : "none";
   document.getElementById("log-dev").style.display = tab==="dev" ? "block" : "none";
-  if(tab==="dev" && typeof initDev === "function" && !window._devInited){
-    window._devInited = true;
-    initDev();
+  if(tab==="dev" && typeof initDev === "function"){
+    // Usa dois RAF + timeout pra garantir layout/reflow completo antes do Chart.js medir canvas
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){
+        setTimeout(function(){
+          if(!window._devInited){
+            window._devInited = true;
+            initDev();
+          } else if(typeof devApply === "function"){
+            devApply();
+          }
+        }, 30);
+      });
+    });
   }
 }
 
