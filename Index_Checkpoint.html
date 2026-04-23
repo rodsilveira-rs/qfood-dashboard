@@ -81,7 +81,10 @@ textarea{resize:vertical;min-height:60px;}
     <div class="sec" style="margin:0">🎯 Checkpoint — Painel de Gestores</div>
     <div style="font-size:.75rem;color:var(--mu);margin-top:3px">Rotinas · Metas · Cobranças · Performance</div>
   </div>
-  <div style="font-size:.75rem;color:var(--mu)" id="chk-semana-label"></div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <div style="font-size:.75rem;color:var(--mu)" id="chk-semana-label"></div>
+    <button onclick="chkConsolidadoAbrir()" style="padding:8px 16px;background:#36cfa0;border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:700;cursor:pointer">📱 Consolidado Semanal</button>
+  </div>
 </div>
 
 <!-- TABS DOS 7 GESTORES -->
@@ -748,12 +751,37 @@ textarea{resize:vertical;min-height:60px;}
 <div id="chk-gestor-elizeu"  style="display:none"></div>
 
 
+<!-- MODAL CONSOLIDADO SEMANAL -->
+<div id="chk-consolidado-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:3000;align-items:center;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:var(--bg);border-radius:14px;padding:24px;width:100%;max-width:860px;max-height:92vh;overflow-y:auto;border:1px solid var(--br);margin:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div>
+        <div class="sec" style="margin:0">📱 Consolidado Semanal — Mensagem para Adilson</div>
+        <div style="font-size:.72rem;color:var(--mu);margin-top:3px" id="chk-cons-periodo"></div>
+      </div>
+      <button onclick="chkConsolidadoFechar()" style="background:none;border:none;color:var(--mu);font-size:1.3rem;cursor:pointer">✕</button>
+    </div>
+
+    <div style="background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <button onclick="chkConsolidadoCopiar()" id="chk-cons-copiar-btn" style="padding:10px 20px;background:#36cfa0;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">📋 Copiar mensagem</button>
+        <button onclick="chkConsolidadoAtualizar()" style="padding:10px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-size:.82rem;cursor:pointer">🔄 Atualizar</button>
+        <div style="flex:1;min-width:160px;text-align:right;font-size:.72rem;color:var(--mu)">Copie e cole no WhatsApp do Adilson</div>
+      </div>
+      <textarea id="chk-cons-textarea" readonly style="width:100%;min-height:400px;background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:12px;color:var(--tx);font-size:.82rem;font-family:'Courier New',monospace;line-height:1.5;outline:none;resize:vertical"></textarea>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px">
+      <button onclick="chkConsolidadoFechar()" style="padding:9px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);cursor:pointer">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    Q FOOD — INDEX_CHECKPOINT
    Cópia fiel dos 3 gestores originais (Gustavo, Célio, Cris)
-   + 3 novos gestores simples (Bárbara, Mariana, Elizeu)
-   + 1 novo gestor completoGen (Maiko — Logística)
+   + 4 novos gestores completoGen (Maiko/Logística · Bárbara/Marketing · Mariana/ML · Elizeu/Cozinha)
    ============================================================ */
 
 // ---- GUARDA DE SESSÃO ----
@@ -778,19 +806,17 @@ function logout(){
 
 // ---- CONFIG DOS 7 GESTORES ----
 var GESTORES = [
-  { id:"gustavo",  nome:"Gustavo",  emoji:"💰", cor:"#ff4d4f", tipo:"completo" },
-  { id:"celio",    nome:"Célio",    emoji:"📋", cor:"#ffaa2b", tipo:"completo" },
-  { id:"cris",     nome:"Cristina", emoji:"🛒", cor:"#a07cf6", tipo:"completo" },
+  { id:"gustavo",  nome:"Gustavo",  emoji:"💰", cor:"#ff4d4f", tipo:"completo", area:"Financeiro & RH" },
+  { id:"celio",    nome:"Célio",    emoji:"📋", cor:"#ffaa2b", tipo:"completo", area:"Administrativo" },
+  { id:"cris",     nome:"Cristina", emoji:"🛒", cor:"#a07cf6", tipo:"completo", area:"Compras" },
   { id:"maiko",    nome:"Maiko",    emoji:"🚚", cor:"#4d8ef5", tipo:"completoGen", area:"Logística",  desc:"Saídas · Ocupação · Custo por entrega · Ocorrências" },
   { id:"barbara",  nome:"Bárbara",  emoji:"📣", cor:"#36cfa0", tipo:"completoGen", area:"Marketing",   desc:"Campanhas · Leads · ROI · Ações PDV" },
   { id:"mariana",  nome:"Mariana",  emoji:"🧀", cor:"#00cec9", tipo:"completoGen", area:"Mercearia Liberdade", desc:"Vendas · Perdas · Qualidade · Coord. Elizeu" },
-  { id:"elizeu",   nome:"Elizeu",   emoji:"🍣", cor:"#fd79a8", tipo:"simples", area:"Sushi Trip",  desc:"Cozinha · Insumos · Qualidade" }
+  { id:"elizeu",   nome:"Elizeu",   emoji:"👨‍🍳", cor:"#fd79a8", tipo:"completoGen", area:"Cozinha", desc:"Produção · Estoque · Qualidade · Receitas" }
 ];
 
 var ROTINAS_DEFAULT = {
-  barbara: ["Postar conteúdo planejado","Responder DMs e comentários","Monitorar engajamento","Acompanhar campanhas ativas","Alinhar pauta semanal"],
-  mariana: ["Abertura da loja + conferência","Conferir caixa do dia anterior","Verificar validades e estoque","Organizar gôndolas e promoções","Fechamento do dia"],
-  elizeu:  ["Checar insumos e validades","Mise en place completa","Acompanhar pedidos do dia","Controle de desperdício","Fechamento da cozinha"]
+  // (Bárbara, Mariana e Elizeu foram promovidos a completoGen; este objeto fica vazio mas preservado para fallback)
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -978,6 +1004,57 @@ var CONFIG_COMPLETO_GEN = {
       { sec:"💡 Propostas de Melhoria", cor:"#ffaa2b", textarea:{
         id:"propostas", label:"Ações para o próximo mês",
         placeholder:"Ex: reorganizar área de queijos especiais; testar horário estendido aos sábados; parceria com vinícola local..."
+      }}
+    ]
+  }
+  // ─────────── ELIZEU — Cozinha ───────────
+  ,elizeu: {
+    titulo: "Cozinha",
+    corAccent: "#fd79a8",
+    prazoTxt: "até 20:00 (fechamento da cozinha)",
+    diario: [
+      { sec:"🍳 Produção do Dia", cor:"#fd79a8", campos:[
+        { id:"pratos_prod",    label:"Pratos produzidos",     tipo:"number", placeholder:"0" },
+        { id:"refeicoes",      label:"Volume de refeições",   tipo:"number", placeholder:"0" },
+        { id:"custo_dia",      label:"Custo produção (R$)",   tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" }
+      ]},
+      { sec:"📦 Controle de Estoque", cor:"#a07cf6", campos:[
+        { id:"ingr_usados",    label:"Ingredientes usados (R$)", tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"perdas_val",     label:"Perdas/avarias (R$)",      tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"perdas_qtd",     label:"Itens descartados",        tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"⭐ Qualidade", cor:"#36cfa0", campos:[
+        { id:"feedback_pos",   label:"Feedback positivo",     tipo:"number", placeholder:"0" },
+        { id:"feedback_neg",   label:"Feedback negativo",     tipo:"number", placeholder:"0" }
+      ]},
+      { sec:"🚨 Problemas do Dia", cor:"#ff4d4f", textarea:{
+        id:"prob", label:"Atrasos, equipamentos, faltas",
+        placeholder:"Ex: freezer 2 com temperatura alta; falta de auxiliar; lote de frango chegou próximo da validade..."
+      }}
+    ],
+    semanal: [
+      { sec:"🧪 Testes de Receitas", cor:"#fd79a8", textarea:{
+        id:"testes", label:"Novas receitas testadas esta semana",
+        placeholder:"Ex: testado novo molho para frango — aprovado; tentativa risoto de cogumelos — ajustar ponto do arroz..."
+      }},
+      { sec:"📋 Cardápio", cor:"#a07cf6", textarea:{
+        id:"cardapio", label:"Ajustes no cardápio",
+        placeholder:"Ex: removido prato com baixa saída (peixe grelhado); incluído opção vegetariana no almoço executivo..."
+      }},
+      { sec:"💰 Custos de Pratos (com Mariana)", cor:"#36cfa0", textarea:{
+        id:"custos_pratos", label:"Revisão de ficha técnica e custos",
+        placeholder:"Ex: prato X custava R$12, hoje R$18 — reavaliar preço de venda; prato Y mantido com margem atual..."
+      }}
+    ],
+    mensal: [
+      { sec:"📦 Inventário da Cozinha", cor:"#fd79a8", campos:[
+        { id:"valor_estoque",  label:"Valor do estoque (R$)",   tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"perdas_mes",     label:"Perdas do mês (R$)",      tipo:"number", placeholder:"0,00", step:"0.01", prefixo:"R$" },
+        { id:"pct_perdas",     label:"% perdas vs consumo",     tipo:"number", placeholder:"0", step:"0.1", sufixo:"%" }
+      ]},
+      { sec:"💡 Propostas de Melhoria", cor:"#a07cf6", textarea:{
+        id:"propostas", label:"Mudanças para reduzir custo sem perder qualidade",
+        placeholder:"Ex: trocar fornecedor de óleo (preço 15% menor, qualidade ok); padronizar porcionamento com balança; treinamento mise en place..."
       }}
     ]
   }
@@ -1332,6 +1409,17 @@ function chkAtualizarSemaforoGen(gestorId, d){
     if(d.elogios>0) alerts.push('<span style="color:#36cfa0">⭐ '+d.elogios+' elogio(s)</span>');
     if(!d.coord_elizeu || d.coord_elizeu.length<10){ score-=10; alerts.push('⚠ Coord. Elizeu pendente'); }
     if(d.prob && d.prob.length>5){ score-=5; alerts.push('⚡ Problemas reportados'); }
+  } else if(gestorId==='elizeu'){
+    if(d.pratos_prod>0) alerts.push('🍳 <b>'+d.pratos_prod+'</b> pratos');
+    if(d.refeicoes>0) alerts.push('👥 '+d.refeicoes+' refeições');
+    if(d.perdas_val>0){
+      alerts.push('<span style="color:#ff4d4f">🗑️ R$'+Number(d.perdas_val).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
+      if(d.perdas_val>150) score-=15;
+      else if(d.perdas_val>50) score-=8;
+    }
+    if(d.feedback_neg>0){ score-=8; alerts.push('<span style="color:#ff4d4f">😠 '+d.feedback_neg+' feedback(s) neg.</span>'); }
+    if(d.feedback_pos>0) alerts.push('<span style="color:#36cfa0">⭐ '+d.feedback_pos+'</span>');
+    if(d.prob && d.prob.length>5){ score-=10; alerts.push('⚡ Problemas reportados'); }
   }
 
   var temDados = Object.keys(d).some(function(k){return d[k]&&k!=='hora'&&k!=='data'&&k!=='ts';});
@@ -1761,6 +1849,13 @@ function chkMontarSemanas(gestor){
           if(dadoDia.perdas_valor>0) kpis.push('<span style="color:#ff4d4f">🗑️ R$'+Number(dadoDia.perdas_valor).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
           if(dadoDia.reclamacoes>0) kpis.push('<span style="color:#ff4d4f">😠 '+dadoDia.reclamacoes+'</span>');
           if(dadoDia.elogios>0) kpis.push('<span style="color:#36cfa0">⭐ '+dadoDia.elogios+'</span>');
+        } else if(gestor==='elizeu'){
+          if(dadoDia.pratos_prod>0) kpis.push('🍳 <b>'+dadoDia.pratos_prod+'</b> pratos');
+          if(dadoDia.refeicoes>0) kpis.push('👥 '+dadoDia.refeicoes);
+          if(dadoDia.perdas_val>0) kpis.push('<span style="color:#ff4d4f">🗑️ R$'+Number(dadoDia.perdas_val).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
+          if(dadoDia.feedback_neg>0) kpis.push('<span style="color:#ff4d4f">😠 '+dadoDia.feedback_neg+'</span>');
+          if(dadoDia.feedback_pos>0) kpis.push('<span style="color:#36cfa0">⭐ '+dadoDia.feedback_pos+'</span>');
+          if(dadoDia.prob) kpis.push('<span style="color:#ffaa2b">⚠ '+dadoDia.prob.substring(0,40)+'</span>');
         }
         resumoHtml = kpis.length
           ? '<div style="font-size:.72rem;color:var(--tx);margin-top:3px;line-height:1.7">'+kpis.join(' · ')+'</div>'
@@ -3001,6 +3096,224 @@ chkShowGestor = function(gestorId){
     if(gestorId === "cris"    && typeof initCheckpointCris === "function") initCheckpointCris();
   }
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSOLIDADO SEMANAL — Mensagem pronta para o Adilson (CEO)
+// ═══════════════════════════════════════════════════════════════════
+function chkConsolidadoAbrir(){
+  var modal = document.getElementById('chk-consolidado-modal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  chkConsolidadoAtualizar();
+}
+
+function chkConsolidadoFechar(){
+  var modal = document.getElementById('chk-consolidado-modal');
+  if(modal) modal.style.display='none';
+}
+
+function chkConsolidadoPeriodo(){
+  var hoje = new Date();
+  var diaSem = hoje.getDay()===0?6:hoje.getDay()-1;
+  var seg = new Date(hoje); seg.setDate(hoje.getDate()-diaSem);
+  var sex = new Date(seg); sex.setDate(seg.getDate()+4);
+  return {
+    seg: seg,
+    sex: sex,
+    iso: seg.toISOString().split('T')[0],
+    label: seg.toLocaleDateString('pt-BR')+' a '+sex.toLocaleDateString('pt-BR')
+  };
+}
+
+function chkConsolidadoColetarGestor(g){
+  var per = chkConsolidadoPeriodo();
+  var dadosDiarios = [];
+  var diasPreench = 0;
+  var diasTotal = 0;
+  var hoje = new Date();
+  for(var i=0;i<5;i++){
+    var d = new Date(per.seg); d.setDate(per.seg.getDate()+i);
+    if(d > hoje) continue;
+    diasTotal++;
+    var dStr = d.toLocaleDateString('pt-BR');
+    var chave = chkChaveData(dStr, g.id);
+    try{
+      var raw = localStorage.getItem(chave);
+      if(raw){
+        diasPreench++;
+        dadosDiarios.push({ data:dStr, dow:['Seg','Ter','Qua','Qui','Sex'][i], dado: JSON.parse(raw) });
+      }
+    }catch(e){}
+  }
+  var semForm = loadJSON('qfood_chk_'+g.id+'_semanal_form_'+per.iso);
+  var nota = chkConsolidadoCalcNota(g.id);
+  return { gestor:g, per:per, diasPreench:diasPreench, diasTotal:diasTotal, dadosDiarios:dadosDiarios, semForm:semForm, nota:nota };
+}
+
+function chkConsolidadoCalcNota(gestorId){
+  var hoje = new Date();
+  var ano = hoje.getFullYear();
+  var mes = hoje.getMonth()+1;
+  var KEY = 'qfood_chk_'+gestorId+'_';
+  var diasUteis = 0, diasComReport = 0;
+  var diaLim = hoje.getDate();
+  for(var d=1; d<=diaLim; d++){
+    var dt = new Date(ano, mes-1, d);
+    var wd = dt.getDay();
+    if(wd>=1 && wd<=5){
+      diasUteis++;
+      var dStr = dt.toLocaleDateString('pt-BR');
+      try{ if(localStorage.getItem(chkChaveData(dStr, gestorId))) diasComReport++; }catch(e){}
+    }
+  }
+  var ptsDiario = diasUteis>0 ? (diasComReport/diasUteis)*30 : 0;
+  var mesStr = mes.toString().padStart(2,'0')+'/'+ano;
+  var ptsMensal = 0;
+  try{ if(localStorage.getItem(KEY+'mensal_'+mesStr)) ptsMensal = 25; }catch(e){}
+  var base = Math.round(ptsDiario + ptsMensal);
+  var ptsExtra = diasComReport > 0 ? 25 : 0;
+  var total = Math.min(100, base + ptsExtra);
+  return { total: total, diasComReport: diasComReport, diasUteis: diasUteis };
+}
+
+function chkConsolidadoLinhasGestor(info){
+  var g = info.gestor;
+  var linhas = [];
+  var emojiStatus = info.diasPreench===info.diasTotal && info.diasTotal>0 ? '🟢' :
+                    info.diasPreench>0 ? '🟡' : '🔴';
+  linhas.push(emojiStatus+' *'+g.emoji+' '+g.nome+' — '+(g.area||'')+'*');
+  linhas.push('   Reports: '+info.diasPreench+'/'+info.diasTotal+' dias · Nota mês: '+info.nota.total+'/100');
+  var hl = chkConsolidadoHighlights(g.id, info.dadosDiarios, info.semForm);
+  hl.forEach(function(l){ linhas.push('   '+l); });
+  if(info.diasPreench === 0){
+    linhas.push('   ⚠ _Sem reports na semana_');
+  }
+  linhas.push('');
+  return linhas;
+}
+
+function chkConsolidadoHighlights(gestorId, diarios, semForm){
+  var out = [];
+  if(!diarios.length) return out;
+
+  var sum = function(k){ return diarios.reduce(function(s,d){ return s + (parseFloat(d.dado[k])||0); },0); };
+
+  if(gestorId==='gustavo'){
+    if(sum('fat')>0) out.push('• Faturamento semana: R$'+Number(sum('fat')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    if(sum('ven')>0) out.push('• Contas vencidas: R$'+Number(sum('ven')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    var ebitdaMed = diarios.filter(function(d){return d.dado.ebitda>0;});
+    if(ebitdaMed.length) out.push('• EBITDA médio: '+(ebitdaMed.reduce(function(s,d){return s+d.dado.ebitda;},0)/ebitdaMed.length).toFixed(1)+'%');
+  } else if(gestorId==='celio'){
+    if(sum('notas_total')>0) out.push('• Notas: '+sum('notas_total')+' ('+sum('notas_pend')+' pend.)');
+    if(sum('avar_val')>0) out.push('• Avarias: R$'+Number(sum('avar_val')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+  } else if(gestorId==='cris'){
+    var pedSol = sum('ped_sol'), pedRec = sum('ped_rec');
+    if(pedSol>0) out.push('• Atendimento: '+pedRec+'/'+pedSol+' pedidos ('+((pedRec/pedSol)*100).toFixed(0)+'%)');
+    if(sum('avarias')>0) out.push('• Avarias no recebimento: R$'+Number(sum('avarias')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    if(sum('est_parado')>0) out.push('• Estoque parado reportado: R$'+Number(sum('est_parado')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    var totalNeg = diarios.reduce(function(s,d){ return s + ((d.dado.negociacoes||[]).length); },0);
+    if(totalNeg>0) out.push('• Negociações registradas: '+totalNeg);
+  } else if(gestorId==='maiko'){
+    if(sum('entregas_real')>0) out.push('• Entregas realizadas: '+sum('entregas_real'));
+    var ocups = diarios.filter(function(d){return d.dado.ocupacao_media>0;});
+    if(ocups.length){
+      var ocupMed = ocups.reduce(function(s,d){return s+d.dado.ocupacao_media;},0)/ocups.length;
+      var corOc = ocupMed>=90?'✓':ocupMed>=70?'⚠':'🔴';
+      out.push('• Ocupação média: '+ocupMed.toFixed(0)+'% '+corOc+' (meta 90%)');
+    }
+    if(sum('reentregas')>0) out.push('• Reentregas/erros: '+sum('reentregas'));
+    if(sum('devolucoes')>0) out.push('• Devoluções: '+sum('devolucoes'));
+  } else if(gestorId==='barbara'){
+    if(sum('posts_feitos')>0) out.push('• Posts publicados: '+sum('posts_feitos'));
+    if(sum('leads_gerados')>0) out.push('• Leads: '+sum('leads_gerados'));
+    if(sum('conversoes')>0) out.push('• Conversões: '+sum('conversoes'));
+    if(sum('investimento')>0) out.push('• Investimento: R$'+Number(sum('investimento')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+  } else if(gestorId==='mariana'){
+    if(sum('faturamento')>0) out.push('• Faturamento ML: R$'+Number(sum('faturamento')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    if(sum('clientes_dia')>0) out.push('• Clientes atendidos: '+sum('clientes_dia'));
+    if(sum('perdas_valor')>0) out.push('• Perdas/desperdício: R$'+Number(sum('perdas_valor')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    if(sum('reclamacoes')>0) out.push('• Reclamações: '+sum('reclamacoes'));
+    if(sum('elogios')>0) out.push('• Elogios: '+sum('elogios'));
+  } else if(gestorId==='elizeu'){
+    if(sum('pratos_prod')>0) out.push('• Pratos produzidos: '+sum('pratos_prod'));
+    if(sum('refeicoes')>0) out.push('• Refeições servidas: '+sum('refeicoes'));
+    if(sum('perdas_val')>0) out.push('• Perdas na cozinha: R$'+Number(sum('perdas_val')).toLocaleString('pt-BR',{maximumFractionDigits:0}));
+    if(sum('feedback_pos')>0) out.push('• Feedbacks positivos: '+sum('feedback_pos'));
+    if(sum('feedback_neg')>0) out.push('• Feedbacks negativos: '+sum('feedback_neg'));
+  }
+
+  // Problemas reportados na semana
+  var problemas = [];
+  diarios.forEach(function(d){
+    if(d.dado.prob && d.dado.prob.length>5) problemas.push(d.dow+': '+d.dado.prob.substring(0,80));
+    if(d.dado.prob_forn && d.dado.prob_forn.length>5) problemas.push(d.dow+' (forn.): '+d.dado.prob_forn.substring(0,80));
+    if(d.dado.prob_oport && d.dado.prob_oport.length>5) problemas.push(d.dow+': '+d.dado.prob_oport.substring(0,80));
+  });
+  if(problemas.length){
+    out.push('⚠ _Problemas reportados_:');
+    problemas.slice(0,3).forEach(function(p){ out.push('  '+p); });
+    if(problemas.length>3) out.push('  (+'+(problemas.length-3)+' outros)');
+  }
+
+  return out;
+}
+
+function chkConsolidadoAtualizar(){
+  var per = chkConsolidadoPeriodo();
+  var pEl = document.getElementById('chk-cons-periodo');
+  if(pEl) pEl.textContent = 'Semana '+per.label;
+
+  var hoje = new Date();
+  var linhas = [];
+  linhas.push('📊 *CHECKPOINT SEMANAL — Q FOOD COMPANY*');
+  linhas.push('📅 Período: '+per.label);
+  linhas.push('👤 Enviado por: '+((window.CURRENT_USER||{}).nome||'—')+' · '+hoje.toLocaleDateString('pt-BR')+' '+hoje.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
+  linhas.push('━━━━━━━━━━━━━━━━━━━━━');
+  linhas.push('');
+
+  var infos = GESTORES.map(function(g){ return chkConsolidadoColetarGestor(g); });
+
+  var totalDias = 0, totalPreench = 0;
+  infos.forEach(function(i){ totalDias += i.diasTotal; totalPreench += i.diasPreench; });
+  var pctGeral = totalDias>0 ? Math.round((totalPreench/totalDias)*100) : 0;
+  var corPct = pctGeral>=85?'🟢':pctGeral>=60?'🟡':'🔴';
+  linhas.push('🎯 *Aderência geral da equipe*: '+pctGeral+'% '+corPct+' ('+totalPreench+'/'+totalDias+' reports)');
+  linhas.push('');
+
+  infos.forEach(function(info){
+    chkConsolidadoLinhasGestor(info).forEach(function(l){ linhas.push(l); });
+  });
+
+  linhas.push('━━━━━━━━━━━━━━━━━━━━━');
+  linhas.push('_Gerado via Checkpoint — Q Food Dashboard_');
+
+  var texto = linhas.join('\n');
+  var ta = document.getElementById('chk-cons-textarea');
+  if(ta) ta.value = texto;
+}
+
+function chkConsolidadoCopiar(){
+  var ta = document.getElementById('chk-cons-textarea');
+  if(!ta) return;
+  var texto = ta.value;
+  var btn = document.getElementById('chk-cons-copiar-btn');
+  var feedback = function(ok){
+    if(!btn) return;
+    var txtOrig = btn.innerHTML, bgOrig = btn.style.background;
+    btn.innerHTML = ok ? '✓ Copiado!' : '❌ Falhou';
+    btn.style.background = ok ? '#2ba87d' : '#ff4d4f';
+    setTimeout(function(){ btn.innerHTML = txtOrig; btn.style.background = bgOrig; }, 2000);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(function(){ feedback(true); }, function(){ fallback(); });
+  } else { fallback(); }
+  function fallback(){
+    try { ta.select(); ta.setSelectionRange(0, texto.length);
+      var ok = document.execCommand('copy');
+      feedback(!!ok);
+    } catch(e){ feedback(false); }
+  }
+}
 
 // ---- INICIALIZAÇÃO ----
 document.addEventListener("DOMContentLoaded", function(){
