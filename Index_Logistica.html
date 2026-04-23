@@ -378,6 +378,64 @@ tbody tr:hover td{background:var(--s2);}
   <div class="kpis" id="ent-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
 
   <!-- ═══════════════════════════════════════════════════════════════
+       PAINEL SAÍDA DE CARROS (frota e ocupação)
+       Fonte: SAIDA_CARROS (gid=950734094)
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="sai-section" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:.72rem;color:#4d8ef5;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px">
+          <span style="display:inline-block;width:3px;height:14px;background:#4d8ef5;border-radius:2px"></span>
+          🚛 Saída de Carros · Frota & Ocupação
+        </div>
+        <div id="sai-periodo-label" style="font-size:.7rem;color:var(--mu);margin-top:3px">Carregando...</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:.68rem;color:var(--mu);font-weight:600;text-transform:uppercase;letter-spacing:.4px">Período:</label>
+        <select id="sai-periodo" onchange="saiApply()" style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:6px 10px;color:var(--tx);font-size:.76rem;outline:none">
+          <option value="entregas">Mesmo filtro das Entregas</option>
+          <option value="mes_corrente">Mês corrente</option>
+          <option value="mes_especifico">Mês específico...</option>
+        </select>
+        <select id="sai-mes" onchange="saiApply()" style="display:none;background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:6px 10px;color:var(--tx);font-size:.76rem;outline:none"></select>
+      </div>
+    </div>
+
+    <!-- KPIs consolidados -->
+    <div class="kpis" id="sai-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
+
+    <!-- Grids lado a lado: Região + Ocupação -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div style="background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px 16px">
+        <div style="font-size:.68rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📍 Rotas por Região</div>
+        <div id="sai-regioes"></div>
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px 16px">
+        <div style="font-size:.68rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">📊 Ocupação dos Carros</div>
+        <div id="sai-ocupacao"></div>
+      </div>
+    </div>
+
+    <!-- Ranking cruzado: motorista × ocupação média × regiões -->
+    <div style="background:var(--s2);border:1px solid var(--br);border-radius:10px;overflow:hidden">
+      <div style="padding:12px 16px;font-size:.68rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--br);background:var(--s3)">🏆 Ranking por Motorista · Saídas × Ocupação × Região Principal</div>
+      <table style="width:100%;border-collapse:collapse;font-size:.8rem">
+        <thead style="background:var(--s3)">
+          <tr style="text-align:left">
+            <th style="padding:8px 12px;font-weight:600;color:var(--mu);text-transform:uppercase;font-size:.65rem;letter-spacing:.4px">Motorista</th>
+            <th style="padding:8px 12px;font-weight:600;color:var(--mu);text-transform:uppercase;font-size:.65rem;letter-spacing:.4px;text-align:center">Saídas</th>
+            <th style="padding:8px 12px;font-weight:600;color:var(--mu);text-transform:uppercase;font-size:.65rem;letter-spacing:.4px;text-align:center">Ocup. Média</th>
+            <th style="padding:8px 12px;font-weight:600;color:var(--mu);text-transform:uppercase;font-size:.65rem;letter-spacing:.4px">Região principal</th>
+            <th style="padding:8px 12px;font-weight:600;color:var(--mu);text-transform:uppercase;font-size:.65rem;letter-spacing:.4px;text-align:center">Ocup. ≥70%</th>
+          </tr>
+        </thead>
+        <tbody id="sai-ranking-tbody"></tbody>
+      </table>
+    </div>
+    <div style="font-size:.66rem;color:var(--mu);margin-top:8px;line-height:1.5">Ocupação calculada pela média das faixas: <b>Até 50%</b>=40% · <b>Entre 60% e 90%</b>=75% · <b>Acima de 90%</b>=95%. Saídas ≥70% indicam alta eficiência no uso da frota.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════
        PAINEL DE CUSTO DE MOTORISTAS
        Edição restrita: rodrigo@ / maiko@qfoodcompany.com.br
        ═══════════════════════════════════════════════════════════════ -->
@@ -967,6 +1025,7 @@ function entSearch(){
 
   entSortData();
   entKPIs();
+  saiApply();
   custoRender();
   entRankings();
   entRender();
@@ -1055,6 +1114,259 @@ function makeLegend(legEl, chartInst, datasets){
     };
     legEl.appendChild(span);
   });
+}
+
+// ════════════════════════════════════════════════════════════════
+// PAINEL SAÍDA DE CARROS (gid=950734094)
+// Colunas: ID | DATA SAIDA | RESPONSAVEL | VEÍCULO | MOTORISTA | ROTA REGIAO | OCUPACAO
+// ════════════════════════════════════════════════════════════════
+var SAI_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=950734094&single=true&output=csv";
+var saiAllRows = [];
+var saiLoaded  = false;
+
+// Faixas de ocupação → % médio para cálculos numéricos
+function saiOcupPct(txt){
+  var s = (txt||"").toLowerCase().trim();
+  if(!s) return 0;
+  if(s.indexOf("até 50")>-1 || s.indexOf("ate 50")>-1) return 40;
+  if(s.indexOf("50") > -1 && s.indexOf("60") > -1) return 55;
+  if(s.indexOf("60") > -1 && s.indexOf("90") > -1) return 75;
+  if(s.indexOf("acima de 90")>-1 || s.indexOf("mais de 90")>-1 || s.indexOf("100") > -1) return 95;
+  if(s.indexOf("90") > -1) return 90;
+  // Tenta extrair número direto
+  var m = s.match(/(\d+)/);
+  return m ? parseInt(m[1]) : 0;
+}
+
+function saiParseData(v){
+  // Formato esperado: "14/01/2026 07:16:22" ou "14/01/2026"
+  if(!v) return null;
+  var s = String(v).trim();
+  // Primeiro tenta DD/MM/YYYY
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){ return new Date(parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1])); }
+  // Fallback
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function saiMesKey(d){
+  if(!d) return "";
+  return String(d.getMonth()+1).padStart(2,"0")+"/"+d.getFullYear();
+}
+
+async function saiLoad(){
+  if(saiLoaded) return;
+  try{
+    var r = await fetch(SAI_URL + "&t=" + Date.now());
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt = await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV");
+    saiAllRows = csv(txt);
+    saiLoaded = true;
+    saiPopulateMesSelect();
+    saiApply();
+  }catch(e){
+    console.warn("[SAIDA] erro:", e.message);
+    var lbl = document.getElementById("sai-periodo-label");
+    if(lbl) lbl.innerHTML = "<span style='color:var(--red)'>Erro ao carregar: "+e.message+"</span>";
+  }
+}
+
+function saiPopulateMesSelect(){
+  var sel = document.getElementById("sai-mes");
+  if(!sel) return;
+  var mesesSet = {};
+  saiAllRows.forEach(function(r){
+    var d = saiParseData(r["DATA SAIDA"] || r["DATA"] || "");
+    if(d) mesesSet[saiMesKey(d)] = true;
+  });
+  var meses = Object.keys(mesesSet).sort(function(a,b){
+    var pa=a.split("/"), pb=b.split("/");
+    return (parseInt(pb[1])*100+parseInt(pb[0])) - (parseInt(pa[1])*100+parseInt(pa[0]));
+  });
+  sel.innerHTML = meses.map(function(m){ return "<option value='"+m+"'>"+m+"</option>"; }).join("");
+}
+
+// Filtra as linhas conforme a opção de período escolhida
+function saiFilterRows(){
+  var modo = (document.getElementById("sai-periodo")||{}).value || "entregas";
+  // Mostra/esconde o select de mês específico
+  var selMes = document.getElementById("sai-mes");
+  if(selMes) selMes.style.display = (modo === "mes_especifico") ? "inline-block" : "none";
+
+  if(modo === "mes_corrente"){
+    var hoje = new Date();
+    var mCor = saiMesKey(hoje);
+    return saiAllRows.filter(function(r){
+      var d = saiParseData(r["DATA SAIDA"] || r["DATA"] || "");
+      return d && saiMesKey(d) === mCor;
+    });
+  }
+
+  if(modo === "mes_especifico"){
+    var mSel = (selMes && selMes.value) || "";
+    if(!mSel) return saiAllRows.slice();
+    return saiAllRows.filter(function(r){
+      var d = saiParseData(r["DATA SAIDA"] || r["DATA"] || "");
+      return d && saiMesKey(d) === mSel;
+    });
+  }
+
+  // modo "entregas" (default): usa as datas de/até da aba entregas
+  var dtFrom = document.getElementById("ent-date-from");
+  var dtTo   = document.getElementById("ent-date-to");
+  var from = dtFrom && dtFrom.value ? new Date(dtFrom.value+"T00:00:00") : null;
+  var to   = dtTo   && dtTo.value   ? new Date(dtTo.value  +"T23:59:59") : null;
+  if(!from && !to) return saiAllRows.slice();
+  return saiAllRows.filter(function(r){
+    var d = saiParseData(r["DATA SAIDA"] || r["DATA"] || "");
+    if(!d) return false;
+    if(from && d < from) return false;
+    if(to   && d > to)   return false;
+    return true;
+  });
+}
+
+function saiApply(){
+  if(!saiLoaded){ saiLoad(); return; }
+  var rows = saiFilterRows();
+  saiRender(rows);
+}
+
+function saiRender(rows){
+  var lbl = document.getElementById("sai-periodo-label");
+  var n   = rows.length;
+
+  if(!n){
+    if(lbl) lbl.textContent = "Sem saídas no período selecionado";
+    document.getElementById("sai-kpis").innerHTML = "";
+    document.getElementById("sai-regioes").innerHTML = "<div style='color:var(--mu);font-size:.78rem;padding:20px;text-align:center'>Sem dados</div>";
+    document.getElementById("sai-ocupacao").innerHTML = "<div style='color:var(--mu);font-size:.78rem;padding:20px;text-align:center'>Sem dados</div>";
+    document.getElementById("sai-ranking-tbody").innerHTML = "<tr><td colspan='5' style='padding:20px;text-align:center;color:var(--mu);font-size:.78rem'>Sem dados</td></tr>";
+    return;
+  }
+
+  if(lbl) lbl.textContent = n + " saída(s) no período";
+
+  // Agregações
+  var byRegiao = {}, byOcup = {}, byMot = {}, veics = {}, totPct = 0, cntPct = 0, altaOcup = 0;
+
+  rows.forEach(function(r){
+    var reg = (r["ROTA REGIAO"]||r["ROTA"]||"—").trim().toUpperCase();
+    var ocp = (r["OCUPACAO"]||r["OCUPAÇÃO"]||"—").trim();
+    var mot = (r["MOTORISTA"]||"—").trim().toUpperCase();
+    var vei = (r["VEÍCULO"]||r["VEICULO"]||"").trim();
+    var pct = saiOcupPct(ocp);
+
+    byRegiao[reg] = (byRegiao[reg]||0) + 1;
+    byOcup[ocp]   = (byOcup[ocp]||0) + 1;
+    if(vei) veics[vei] = true;
+
+    if(!byMot[mot]) byMot[mot] = { saidas:0, pctSum:0, pctN:0, regioes:{}, altaOcup:0 };
+    byMot[mot].saidas++;
+    if(pct > 0){
+      byMot[mot].pctSum += pct;
+      byMot[mot].pctN++;
+      totPct += pct;
+      cntPct++;
+      if(pct >= 70){ byMot[mot].altaOcup++; altaOcup++; }
+    }
+    byMot[mot].regioes[reg] = (byMot[mot].regioes[reg]||0) + 1;
+  });
+
+  var ocupMedia = cntPct>0 ? totPct/cntPct : 0;
+  var pctAltaOcup = cntPct>0 ? (altaOcup/cntPct*100) : 0;
+  var qtMot = Object.keys(byMot).filter(function(m){return m!=="—";}).length;
+  var qtVei = Object.keys(veics).length;
+
+  // KPIs
+  var kWrap = document.getElementById("sai-kpis");
+  if(kWrap) kWrap.innerHTML =
+    kpi("b","Total de Saídas","<b>"+n+"</b>", qtMot+" motorista(s) · "+qtVei+" veículo(s)")+
+    kpi("g","Ocupação Média","<b>"+ocupMedia.toFixed(1).replace(".",",")+"%</b>", "média ponderada das saídas")+
+    kpi("w","Saídas ≥70%","<b>"+pctAltaOcup.toFixed(0)+"%</b>", altaOcup+" de "+cntPct+" com alta ocupação")+
+    kpi("p","Regiões atendidas","<b>"+Object.keys(byRegiao).filter(function(r){return r!=="—";}).length+"</b>","destinos distintos");
+
+  // Barras horizontais de região
+  var regArr = Object.keys(byRegiao).sort(function(a,b){return byRegiao[b]-byRegiao[a];});
+  var maxReg = Math.max.apply(null, regArr.map(function(r){return byRegiao[r];})) || 1;
+  var REG_COL = ["#4d8ef5","#36cfa0","#ffaa2b","#a07cf6","#ff4d4f","#00cec9","#fd79a8"];
+  var elReg = document.getElementById("sai-regioes");
+  if(elReg) elReg.innerHTML = regArr.map(function(r,i){
+    var pct = byRegiao[r]/maxReg*100;
+    var pctTot = (byRegiao[r]/n*100).toFixed(1).replace(".",",");
+    var cor = REG_COL[i%REG_COL.length];
+    return "<div style='margin-bottom:9px'>"+
+      "<div style='display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:3px'>"+
+        "<span style='font-weight:600'>"+r+"</span>"+
+        "<span style='color:"+cor+";font-weight:700'>"+byRegiao[r]+" <span style=\"color:var(--mu);font-weight:400;font-size:.68rem\">("+pctTot+"%)</span></span>"+
+      "</div>"+
+      "<div style='background:var(--br);border-radius:4px;height:8px;overflow:hidden'>"+
+        "<div style='height:100%;border-radius:4px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
+      "</div>"+
+    "</div>";
+  }).join("");
+
+  // Barras de ocupação
+  var ocupArr = Object.keys(byOcup).sort(function(a,b){
+    // Ordena por %
+    return saiOcupPct(a) - saiOcupPct(b);
+  });
+  var maxOcup = Math.max.apply(null, ocupArr.map(function(o){return byOcup[o];})) || 1;
+  var elOc = document.getElementById("sai-ocupacao");
+  if(elOc) elOc.innerHTML = ocupArr.map(function(o){
+    var pct = byOcup[o]/maxOcup*100;
+    var pctTot = (byOcup[o]/n*100).toFixed(1).replace(".",",");
+    var p = saiOcupPct(o);
+    var cor = p>=70 ? "#36cfa0" : (p>=50 ? "#ffaa2b" : "#ff4d4f");
+    return "<div style='margin-bottom:9px'>"+
+      "<div style='display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:3px'>"+
+        "<span style='font-weight:600'>"+o+"</span>"+
+        "<span style='color:"+cor+";font-weight:700'>"+byOcup[o]+" <span style=\"color:var(--mu);font-weight:400;font-size:.68rem\">("+pctTot+"%)</span></span>"+
+      "</div>"+
+      "<div style='background:var(--br);border-radius:4px;height:8px;overflow:hidden'>"+
+        "<div style='height:100%;border-radius:4px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
+      "</div>"+
+    "</div>";
+  }).join("");
+
+  // Ranking cruzado
+  var motList = Object.keys(byMot)
+    .filter(function(m){ return m && m !== "—"; })
+    .map(function(m){
+      var info = byMot[m];
+      var media = info.pctN>0 ? info.pctSum/info.pctN : 0;
+      // Região principal (mais frequente)
+      var regMain = "—", regCount = 0;
+      Object.keys(info.regioes).forEach(function(r){
+        if(info.regioes[r] > regCount){ regCount = info.regioes[r]; regMain = r; }
+      });
+      var pctAlta = info.pctN>0 ? (info.altaOcup/info.pctN*100) : 0;
+      return { nome:m, saidas:info.saidas, ocupMedia:media, regMain:regMain, regCount:regCount, pctAlta:pctAlta };
+    })
+    .sort(function(a,b){ return b.saidas - a.saidas; });
+
+  var tbody = document.getElementById("sai-ranking-tbody");
+  if(tbody){
+    if(motList.length === 0){
+      tbody.innerHTML = "<tr><td colspan='5' style='padding:20px;text-align:center;color:var(--mu);font-size:.78rem'>Sem motoristas identificados</td></tr>";
+    } else {
+      tbody.innerHTML = motList.map(function(m, idx){
+        var bg = idx%2 === 0 ? "var(--s2)" : "var(--sf)";
+        var corOcup = m.ocupMedia>=70 ? "#36cfa0" : (m.ocupMedia>=50 ? "#ffaa2b" : "#ff4d4f");
+        var corAlta = m.pctAlta>=60 ? "#36cfa0" : (m.pctAlta>=30 ? "#ffaa2b" : "#ff4d4f");
+        var medal = idx===0?"🥇":(idx===1?"🥈":(idx===2?"🥉":""));
+        return "<tr style='background:"+bg+";border-top:1px solid var(--br)'>"+
+          "<td style='padding:9px 12px;font-weight:600'>"+medal+" "+m.nome+"</td>"+
+          "<td style='padding:9px 12px;text-align:center;color:#4d8ef5;font-weight:700'>"+m.saidas+"</td>"+
+          "<td style='padding:9px 12px;text-align:center;color:"+corOcup+";font-weight:700'>"+m.ocupMedia.toFixed(1).replace(".",",")+"%</td>"+
+          "<td style='padding:9px 12px'>"+m.regMain+" <span style='color:var(--mu);font-size:.7rem'>("+m.regCount+")</span></td>"+
+          "<td style='padding:9px 12px;text-align:center;color:"+corAlta+";font-weight:700'>"+m.pctAlta.toFixed(0)+"%</td>"+
+          "</tr>";
+      }).join("");
+    }
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
