@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gestão de Tarefas - Q Food Company</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+/* Header */
+.page-hdr{display:flex;align-items:center;gap:16px;background:var(--sf);border-bottom:1px solid var(--br);padding:14px 24px;margin-bottom:24px}
+.page-hdr .logo-wrap{background:#fff;border-radius:10px;padding:6px;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
+.page-hdr .logo-wrap img{width:100%;height:100%;object-fit:contain}
+.page-hdr .title-wrap{flex:1}
+.page-hdr .title-wrap h1{font-family:var(--fh);font-size:1.5rem;margin:0;color:var(--tx);font-weight:700}
+.page-hdr .title-wrap .sub{font-size:.82rem;color:var(--mu);margin-top:2px}
+.page-hdr .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.page-hdr .user-name{font-size:.85rem;color:var(--mu);padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px}
+.page-hdr button{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s}
+.page-hdr button:hover{background:var(--br);transform:translateY(-1px)}
+.page-hdr button.primary{background:#e63329;border-color:#e63329;color:#fff}
+.page-hdr button.primary:hover{background:#c42a22}
+
+.page-container{max-width:1600px;margin:0 auto;padding:0 24px 40px}
+
+/* Tela acesso negado */
+.blocked{max-width:500px;margin:60px auto;padding:40px;text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:16px}
+.blocked h2{color:#e63329;margin-bottom:12px}
+
+/* KPIs do topo */
+.kpi-row{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s}
+.kpi:hover{border-color:var(--b2);transform:translateY(-2px)}
+.kpi.active{border-color:var(--red)}
+.kpi .lbl{font-size:.68rem;color:var(--mu);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.kpi .val{font-family:var(--fh);font-size:1.4rem;font-weight:800;line-height:1}
+.kpi.g .val{color:var(--ok)}
+.kpi.y .val{color:var(--warn)}
+.kpi.r .val{color:var(--red)}
+.kpi.gray .val{color:var(--mu)}
+.kpi.blk .val{color:#b45309}
+.kpi.done .val{color:var(--blue)}
+
+/* Toolbar */
+.toolbar{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toolbar .search{flex:1;min-width:220px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb)}
+.toolbar .search:focus{border-color:var(--red)}
+.toolbar select{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:.82rem;outline:none;cursor:pointer;font-family:var(--fb)}
+.toolbar .btn-add{background:#e63329;border:none;color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-weight:700;font-size:.88rem}
+.toolbar .btn-add:hover{background:#c42a22}
+.toolbar .btn-sec{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:9px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600}
+.toolbar .btn-sec:hover{background:var(--s3)}
+
+/* Tabela */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden}
+.ttable{width:100%;border-collapse:collapse;font-size:.86rem}
+.ttable th{font-size:.68rem;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;padding:12px 10px;text-align:left;border-bottom:1px solid var(--br);background:var(--s2);position:sticky;top:0;cursor:pointer;user-select:none}
+.ttable th:hover{color:var(--tx)}
+.ttable th .sort-ind{font-size:.6rem;opacity:.6;margin-left:4px}
+.ttable td{padding:11px 10px;border-bottom:1px solid var(--br);vertical-align:top}
+.ttable tr:hover td{background:rgba(255,255,255,.02)}
+.ttable tr.done td{opacity:.55}
+.ttable tr.done td .acao{text-decoration:line-through}
+
+/* Farol indicador (primeira coluna) */
+.farol{width:12px;height:12px;border-radius:50%;display:inline-block;vertical-align:middle;box-shadow:0 0 0 2px rgba(255,255,255,.05)}
+.farol.g{background:var(--ok);box-shadow:0 0 8px rgba(54,207,160,.5)}
+.farol.y{background:var(--warn);box-shadow:0 0 8px rgba(255,170,43,.5)}
+.farol.r{background:var(--red);box-shadow:0 0 8px rgba(255,77,79,.6)}
+.farol.gray{background:var(--mu2)}
+.farol.done{background:var(--blue)}
+.farol.blk{background:#222;border:2px solid #b45309}
+
+/* Tags/badges */
+.tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:.68rem;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.tag-status-pendente{background:rgba(143,160,192,.15);color:#9aabc9;border:1px solid rgba(143,160,192,.3)}
+.tag-status-em_andamento{background:rgba(255,170,43,.15);color:var(--warn);border:1px solid rgba(255,170,43,.3)}
+.tag-status-concluido{background:rgba(77,142,245,.15);color:var(--blue);border:1px solid rgba(77,142,245,.3)}
+.tag-status-cancelado{background:rgba(94,113,142,.15);color:var(--mu2);border:1px solid rgba(94,113,142,.3)}
+.tag-status-bloqueado{background:rgba(180,83,9,.15);color:#d97706;border:1px solid rgba(180,83,9,.3)}
+
+.tag-prior-alta{background:rgba(255,77,79,.15);color:var(--red);border:1px solid rgba(255,77,79,.3)}
+.tag-prior-media{background:rgba(255,170,43,.15);color:var(--warn);border:1px solid rgba(255,170,43,.3)}
+.tag-prior-baixa{background:rgba(54,207,160,.15);color:var(--ok);border:1px solid rgba(54,207,160,.3)}
+
+.tag-area{background:rgba(160,124,246,.12);color:#b798f8;border:1px solid rgba(160,124,246,.25)}
+
+.acao{font-weight:500;color:var(--tx);line-height:1.4}
+.muted{color:var(--mu);font-size:.78rem;line-height:1.4}
+.prazo-box{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.prazo-box .hist-ind{cursor:help;font-size:.78rem}
+.prazo-txt{font-family:var(--fh);font-weight:600;font-size:.85rem}
+.prazo-txt.r{color:var(--red)}
+.prazo-txt.y{color:var(--warn)}
+.prazo-txt.g{color:var(--ok)}
+.prazo-txt.gray{color:var(--mu)}
+
+.acoes-cell{white-space:nowrap;display:flex;gap:4px}
+.mini-btn{background:transparent;border:1px solid var(--br);color:var(--mu);padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.72rem;transition:all .15s}
+.mini-btn:hover{background:var(--s2);color:var(--tx);border-color:var(--b2)}
+.mini-btn.del:hover{color:var(--red);border-color:var(--red)}
+
+.empty{text-align:center;padding:40px 20px;color:var(--mu)}
+.empty .em-icon{font-size:3rem;margin-bottom:10px;opacity:.4}
+
+/* Modal */
+.modal-ov{position:fixed;inset:0;background:rgba(10,12,20,.78);backdrop-filter:blur(4px);z-index:2000;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:24px;width:100%;max-width:680px;box-shadow:0 24px 80px rgba(0,0,0,.7);margin:auto}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-family:var(--fh);font-size:1.15rem;font-weight:700;color:var(--tx)}
+.modal-close{background:none;border:none;color:var(--mu);font-size:1.5rem;cursor:pointer;padding:4px 10px;border-radius:8px;line-height:1}
+.modal-close:hover{background:var(--s2);color:var(--tx)}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:.72rem;color:var(--mu);margin-bottom:5px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.fld input, .fld select, .fld textarea{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 12px;color:var(--tx);font-size:.88rem;outline:none;font-family:var(--fb);resize:vertical}
+.fld input:focus, .fld select:focus, .fld textarea:focus{border-color:var(--red)}
+.fld textarea{min-height:70px}
+.fld .hint{font-size:.7rem;color:var(--mu);margin-top:4px}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fld-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;padding-top:16px;border-top:1px solid var(--br)}
+.modal-footer button{padding:10px 22px;border-radius:8px;cursor:pointer;font-weight:700;font-size:.88rem;border:none}
+.modal-footer .btn-cancel{background:var(--s2);border:1px solid var(--br);color:var(--mu)}
+.modal-footer .btn-save{background:#e63329;color:#fff}
+.modal-footer .btn-save:hover{background:#c42a22}
+
+/* Histórico de prazos no modal */
+.prazo-hist{background:var(--s2);border-radius:8px;padding:10px 12px;margin-top:6px;font-size:.75rem}
+.prazo-hist .ph-title{color:var(--warn);font-weight:700;margin-bottom:5px}
+.prazo-hist .ph-item{color:var(--mu);margin-bottom:3px;padding-left:8px;border-left:2px solid var(--warn)}
+
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .ttable{font-size:.78rem}
+  .ttable th, .ttable td{padding:8px 6px}
+  .fld-row, .fld-row-3{grid-template-columns:1fr}
+  .page-hdr{flex-wrap:wrap}
+  .page-hdr .actions{width:100%;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="page-hdr">
+  <div class="logo-wrap"><img src="logo.png" alt="Q Food"></div>
+  <div class="title-wrap">
+    <h1>📋 Gestão de Tarefas</h1>
+    <div class="sub">Plano de Ação dos Gestores · Q Food Company</div>
+  </div>
+  <div class="actions">
+    <span id="user-name" class="user-name">-</span>
+    <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
+    <button class="primary" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="page-container">
+
+  <!-- Acesso negado -->
+  <div id="access-denied" class="blocked" style="display:none">
+    <h2>🔒 Acesso Restrito</h2>
+    <p>O módulo Gestão de Tarefas está disponível apenas para gestores autorizados.</p>
+    <button onclick="window.location.href='Index_Menu.html'" style="margin-top:16px;background:#e63329;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600">Voltar ao Menu</button>
+  </div>
+
+  <!-- Conteúdo -->
+  <div id="main-content" style="display:none">
+
+    <!-- KPIs Farol -->
+    <div class="kpi-row" id="kpi-row">
+      <div class="kpi" data-filter="" onclick="setKPIFilter('')">
+        <div class="lbl">Total</div><div class="val" id="kpi-total">0</div>
+      </div>
+      <div class="kpi gray" data-filter="gray" onclick="setKPIFilter('gray')">
+        <div class="lbl">⚪ A definir</div><div class="val" id="kpi-gray">0</div>
+      </div>
+      <div class="kpi g" data-filter="g" onclick="setKPIFilter('g')">
+        <div class="lbl">🟢 Em dia</div><div class="val" id="kpi-g">0</div>
+      </div>
+      <div class="kpi y" data-filter="y" onclick="setKPIFilter('y')">
+        <div class="lbl">🟡 Vence ≤3d</div><div class="val" id="kpi-y">0</div>
+      </div>
+      <div class="kpi r" data-filter="r" onclick="setKPIFilter('r')">
+        <div class="lbl">🔴 Vencidas</div><div class="val" id="kpi-r">0</div>
+      </div>
+      <div class="kpi done" data-filter="done" onclick="setKPIFilter('done')">
+        <div class="lbl">✅ Concluídas</div><div class="val" id="kpi-done">0</div>
+      </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input type="text" id="search-input" class="search" placeholder="🔍 Buscar por ação, responsável, observação..." oninput="renderTable()">
+
+      <!-- Seletor de gestor (só para admins) -->
+      <select id="gestor-filter" style="display:none" onchange="onGestorChange()">
+        <option value="__all__">👥 Todos os gestores</option>
+      </select>
+
+      <select id="area-filter" onchange="renderTable()">
+        <option value="">Todas as áreas</option>
+        <option value="Comercial">Comercial</option>
+        <option value="Logística">Logística</option>
+        <option value="RH">RH</option>
+        <option value="Administrativo">Administrativo</option>
+        <option value="Financeiro">Financeiro</option>
+        <option value="Compras">Compras</option>
+        <option value="TI">TI</option>
+        <option value="Outros">Outros</option>
+      </select>
+
+      <select id="status-filter" onchange="renderTable()">
+        <option value="">Todos os status</option>
+        <option value="pendente">Pendente</option>
+        <option value="em_andamento">Em andamento</option>
+        <option value="concluido">Concluído</option>
+        <option value="cancelado">Cancelado</option>
+        <option value="bloqueado">Bloqueado</option>
+      </select>
+
+      <select id="prior-filter" onchange="renderTable()">
+        <option value="">Todas prioridades</option>
+        <option value="alta">🔴 Alta</option>
+        <option value="media">🟡 Média</option>
+        <option value="baixa">🟢 Baixa</option>
+      </select>
+
+      <button class="btn-add" onclick="openModalNova()">+ Nova Tarefa</button>
+      <button class="btn-sec" onclick="exportCSV()">⬇ Exportar</button>
+      <button class="btn-sec" onclick="document.getElementById('file-import').click()">⬆ Importar</button>
+      <input type="file" id="file-import" accept=".csv" style="display:none" onchange="importCSV(event)">
+    </div>
+
+    <!-- Tabela -->
+    <div class="twrap">
+      <table class="ttable" id="ttable">
+        <thead>
+          <tr>
+            <th style="width:30px"></th>
+            <th style="width:30%" onclick="setSort('acao')">Ação <span class="sort-ind" id="sort-acao"></span></th>
+            <th style="width:14%" onclick="setSort('comprar')">O que comprar/contratar <span class="sort-ind" id="sort-comprar"></span></th>
+            <th style="width:11%" onclick="setSort('responsavel')">Responsável <span class="sort-ind" id="sort-responsavel"></span></th>
+            <th style="width:8%" onclick="setSort('area')">Área <span class="sort-ind" id="sort-area"></span></th>
+            <th style="width:9%" onclick="setSort('prioridade')">Prioridade <span class="sort-ind" id="sort-prioridade"></span></th>
+            <th style="width:10%" onclick="setSort('status')">Status <span class="sort-ind" id="sort-status"></span></th>
+            <th style="width:9%" onclick="setSort('prazo')">Prazo <span class="sort-ind" id="sort-prazo">▼</span></th>
+            <th style="width:9%">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="empty" id="empty-state" style="display:none">
+        <div class="em-icon">📋</div>
+        <div>Nenhuma tarefa encontrada.</div>
+        <div style="font-size:.8rem;margin-top:6px">Clique em "+ Nova Tarefa" para começar.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Criar/Editar Tarefa -->
+<div class="modal-ov" id="modal-task" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modal-title">+ Nova Tarefa</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="fld">
+      <label>O que precisa ser resolvido (Ação) *</label>
+      <textarea id="fld-acao" placeholder="Descreva a ação a ser executada..."></textarea>
+    </div>
+
+    <div class="fld">
+      <label>O que comprar / Contratar</label>
+      <input type="text" id="fld-comprar" placeholder="Ferramenta, serviço, item... (opcional)">
+    </div>
+
+    <div class="fld-row">
+      <div class="fld">
+        <label>Responsável Sugerido</label>
+        <input type="text" id="fld-responsavel" placeholder="Ex: Gestão (Nome), Consultoria...">
+      </div>
+      <div class="fld">
+        <label>Área</label>
+        <select id="fld-area">
+          <option value="">—</option>
+          <option value="Comercial">Comercial</option>
+          <option value="Logística">Logística</option>
+          <option value="RH">RH</option>
+          <option value="Administrativo">Administrativo</option>
+          <option value="Financeiro">Financeiro</option>
+          <option value="Compras">Compras</option>
+          <option value="TI">TI</option>
+          <option value="Outros">Outros</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fld-row-3">
+      <div class="fld">
+        <label>Status</label>
+        <select id="fld-status">
+          <option value="pendente">Pendente</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="concluido">Concluído</option>
+          <option value="cancelado">Cancelado</option>
+          <option value="bloqueado">Bloqueado</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>Prioridade</label>
+        <select id="fld-prioridade">
+          <option value="media">🟡 Média</option>
+          <option value="alta">🔴 Alta</option>
+          <option value="baixa">🟢 Baixa</option>
+        </select>
+      </div>
+      <div class="fld">
+        <label>Prazo</label>
+        <input type="date" id="fld-prazo">
+        <div class="hint">Deixe vazio para "A definir"</div>
+      </div>
+    </div>
+
+    <div class="fld">
+      <label>Custo Estimado (R$)</label>
+      <input type="number" id="fld-custo" step="0.01" min="0" placeholder="0,00 (opcional)">
+    </div>
+
+    <div class="fld">
+      <label>Observações / Notas</label>
+      <textarea id="fld-obs" placeholder="Notas, contexto, decisões..."></textarea>
+    </div>
+
+    <div id="prazo-hist-wrap"></div>
+
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-save" id="btn-save" onclick="saveTask()">✅ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Q FOOD COMPANY — GESTÃO DE TAREFAS
+   Armazenamento: localStorage, isolado por gestor
+   Chave: qfood_tarefas_<email>
+   ============================================================ */
+
+var CURRENT_USER = null;
+var ADMINS = ["rodrigo@qfoodcompany.com.br", "adilson@qfoodcompany.com.br"];
+var ALL_USERS_CACHE = null;    // preenchido via UUSR para admins (lista de gestores)
+var UUSR_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+
+var SELECTED_GESTOR = null;    // email do gestor cujas tarefas estão sendo exibidas
+var TAREFAS = [];              // lista de tarefas do gestor selecionado
+var EDITING_ID = null;         // id da tarefa em edição (null = nova)
+var SORT_FIELD = "prazo";
+var SORT_DIR = "asc";
+var KPI_FILTER = "";           // "", "g", "y", "r", "gray", "done", "blk"
+
+// ─────────────────────────────────────────────────────
+// Guard de sessão + controle de acesso
+// ─────────────────────────────────────────────────────
+(function checkAuth(){
+  var sess = localStorage.getItem("qfood_session");
+  if(!sess){
+    alert("Sessão expirada. Faça login novamente.");
+    window.location.href = "Index_Menu.html";
+    return;
+  }
+  var s;
+  try{ s = JSON.parse(sess); }catch(e){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+    return;
+  }
+  if(!s.email || !s.ts || (Date.now() - s.ts > 8*60*60*1000)){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+    return;
+  }
+
+  // Verifica se tem permissão pra Tarefas
+  var abas = (s.abas || "").split(",").map(function(x){return x.trim();});
+  var isAdmin = ADMINS.indexOf(s.email) >= 0;
+
+  if(!isAdmin && abas.indexOf("tarefas") < 0){
+    document.getElementById("access-denied").style.display = "block";
+    document.getElementById("user-name").textContent = s.nome || s.email;
+    return;
+  }
+
+  CURRENT_USER = s;
+  CURRENT_USER.isAdmin = isAdmin;
+  document.getElementById("user-name").textContent = s.nome || s.email;
+  document.getElementById("main-content").style.display = "block";
+
+  SELECTED_GESTOR = s.email;  // por padrão, vê as próprias
+
+  if(isAdmin){
+    setupAdminGestorSelector();
+  }
+
+  loadTarefas();
+  renderTable();
+})();
+
+function logout(){
+  if(confirm("Sair do sistema?")){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Setup do seletor de gestor (só admins)
+// ─────────────────────────────────────────────────────
+function setupAdminGestorSelector(){
+  var sel = document.getElementById("gestor-filter");
+  sel.style.display = "inline-block";
+
+  // Carrega lista de gestores via UUSR
+  fetch(UUSR_URL + "&t=" + Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      if(txt.trim().startsWith('<')) throw new Error("CSV indisponível");
+      var users = parseUsersCSV(txt);
+      ALL_USERS_CACHE = users;
+      populateGestorSelector(users);
+    })
+    .catch(function(e){
+      // Fallback: descobrir gestores pelas chaves localStorage
+      var users = discoverGestoresFromLocalStorage();
+      populateGestorSelector(users);
+    });
+}
+
+function parseUsersCSV(txt){
+  var rows = [], cur = [], field = "", inQ = false;
+  for(var i = 0; i < txt.length; i++){
+    var c = txt[i];
+    if(inQ){
+      if(c === '"' && txt[i+1] === '"'){ field += '"'; i++; }
+      else if(c === '"'){ inQ = false; }
+      else field += c;
+    } else {
+      if(c === '"'){ inQ = true; }
+      else if(c === ','){ cur.push(field); field = ""; }
+      else if(c === '\r'){ /* skip */ }
+      else if(c === '\n'){ cur.push(field); rows.push(cur); cur = []; field = ""; }
+      else field += c;
+    }
+  }
+  if(field.length || cur.length){ cur.push(field); rows.push(cur); }
+
+  if(rows.length < 2) return [];
+  var hdr = rows[0].map(function(h){return h.trim();});
+  var iE = hdr.findIndex(function(h){return h.toLowerCase()==="email";});
+  var iN = hdr.findIndex(function(h){return h.toLowerCase()==="nome";});
+  var iT = hdr.findIndex(function(h){return h.toLowerCase()==="tarefas";});
+  if(iE < 0) return [];
+
+  var out = [];
+  for(var r = 1; r < rows.length; r++){
+    var email = (rows[r][iE]||"").trim().toLowerCase();
+    if(!email) continue;
+    // Se tem coluna Tarefas, só incluir quem tem X nela
+    if(iT >= 0){
+      var v = (rows[r][iT]||"").trim().toLowerCase();
+      if(!v || v.indexOf("x") !== 0) continue;
+    }
+    out.push({
+      email: email,
+      nome: iN >= 0 ? (rows[r][iN]||"").trim() : email
+    });
+  }
+  return out;
+}
+
+function discoverGestoresFromLocalStorage(){
+  // Fallback: varre localStorage por chaves qfood_tarefas_*
+  var out = [];
+  for(var i = 0; i < localStorage.length; i++){
+    var k = localStorage.key(i);
+    if(k && k.indexOf("qfood_tarefas_") === 0){
+      var email = k.substring("qfood_tarefas_".length);
+      out.push({email: email, nome: email.split("@")[0]});
+    }
+  }
+  if(out.findIndex(function(u){return u.email === CURRENT_USER.email;}) < 0){
+    out.unshift({email: CURRENT_USER.email, nome: CURRENT_USER.nome});
+  }
+  return out;
+}
+
+function populateGestorSelector(users){
+  var sel = document.getElementById("gestor-filter");
+  // Remove opções antigas (exceto a de "Todos")
+  while(sel.options.length > 1) sel.remove(1);
+
+  users.sort(function(a,b){ return (a.nome||a.email).localeCompare(b.nome||b.email); });
+  users.forEach(function(u){
+    var o = document.createElement("option");
+    o.value = u.email;
+    o.textContent = "👤 " + (u.nome || u.email);
+    sel.appendChild(o);
+  });
+  sel.value = CURRENT_USER.email;  // começa vendo as próprias
+}
+
+function onGestorChange(){
+  var val = document.getElementById("gestor-filter").value;
+  if(val === "__all__"){
+    // Agrega tarefas de todos os gestores no localStorage
+    loadTarefasTodos();
+  } else {
+    SELECTED_GESTOR = val;
+    loadTarefas();
+  }
+  renderTable();
+}
+
+// ─────────────────────────────────────────────────────
+// Storage
+// ─────────────────────────────────────────────────────
+function storageKey(email){ return "qfood_tarefas_" + (email||CURRENT_USER.email); }
+
+function loadTarefas(){
+  try{
+    var raw = localStorage.getItem(storageKey(SELECTED_GESTOR)) || "[]";
+    TAREFAS = JSON.parse(raw);
+    if(!Array.isArray(TAREFAS)) TAREFAS = [];
+  } catch(e){ TAREFAS = []; }
+  // Injeta __owner em cada tarefa (pra modo "Todos")
+  TAREFAS.forEach(function(t){ t.__owner = SELECTED_GESTOR; });
+}
+
+function loadTarefasTodos(){
+  TAREFAS = [];
+  SELECTED_GESTOR = "__all__";
+  for(var i = 0; i < localStorage.length; i++){
+    var k = localStorage.key(i);
+    if(k && k.indexOf("qfood_tarefas_") === 0){
+      var owner = k.substring("qfood_tarefas_".length);
+      try{
+        var arr = JSON.parse(localStorage.getItem(k)||"[]");
+        if(Array.isArray(arr)){
+          arr.forEach(function(t){ t.__owner = owner; TAREFAS.push(t); });
+        }
+      }catch(e){}
+    }
+  }
+}
+
+function saveTarefas(){
+  if(SELECTED_GESTOR === "__all__"){
+    // Agrupa por __owner e salva de volta em cada chave
+    var byOwner = {};
+    TAREFAS.forEach(function(t){
+      var o = t.__owner || CURRENT_USER.email;
+      if(!byOwner[o]) byOwner[o] = [];
+      var copy = Object.assign({}, t);
+      delete copy.__owner;
+      byOwner[o].push(copy);
+    });
+    Object.keys(byOwner).forEach(function(o){
+      localStorage.setItem(storageKey(o), JSON.stringify(byOwner[o]));
+    });
+  } else {
+    var clean = TAREFAS.map(function(t){
+      var c = Object.assign({}, t); delete c.__owner; return c;
+    });
+    localStorage.setItem(storageKey(SELECTED_GESTOR), JSON.stringify(clean));
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Farol & cálculos
+// ─────────────────────────────────────────────────────
+function diasAte(prazoISO){
+  if(!prazoISO) return null;
+  var hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  var p = new Date(prazoISO + "T00:00:00");
+  return Math.round((p - hoje) / (1000*60*60*24));
+}
+
+function farolDaTarefa(t){
+  if(t.status === "concluido") return "done";
+  if(t.status === "cancelado") return "done";  // trata como "fora do farol ativo"
+  if(t.status === "bloqueado") return "blk";
+  if(!t.prazo) return "gray";
+  var d = diasAte(t.prazo);
+  if(d == null) return "gray";
+  if(d < 0) return "r";
+  if(d <= 3) return "y";
+  return "g";
+}
+
+function formatPrazo(prazoISO){
+  if(!prazoISO) return "A definir";
+  var p = new Date(prazoISO + "T00:00:00");
+  return p.toLocaleDateString("pt-BR");
+}
+
+// ─────────────────────────────────────────────────────
+// KPIs
+// ─────────────────────────────────────────────────────
+function computeKPIs(){
+  var kpis = {total:0, g:0, y:0, r:0, gray:0, done:0, blk:0};
+  TAREFAS.forEach(function(t){
+    kpis.total++;
+    var f = farolDaTarefa(t);
+    if(t.status === "concluido"){ kpis.done++; return; }
+    if(t.status === "cancelado"){ return; }  // cancelado não entra nos contadores ativos
+    if(f === "blk"){ kpis.blk++; return; }
+    if(f === "r") kpis.r++;
+    else if(f === "y") kpis.y++;
+    else if(f === "g") kpis.g++;
+    else if(f === "gray") kpis.gray++;
+  });
+  return kpis;
+}
+
+function renderKPIs(){
+  var k = computeKPIs();
+  document.getElementById("kpi-total").textContent = k.total;
+  document.getElementById("kpi-g").textContent = k.g;
+  document.getElementById("kpi-y").textContent = k.y;
+  document.getElementById("kpi-r").textContent = k.r;
+  document.getElementById("kpi-gray").textContent = k.gray;
+  document.getElementById("kpi-done").textContent = k.done;
+
+  // highlight no filtro ativo
+  document.querySelectorAll(".kpi").forEach(function(el){
+    el.classList.toggle("active", el.dataset.filter === KPI_FILTER);
+  });
+}
+
+function setKPIFilter(f){
+  KPI_FILTER = (KPI_FILTER === f) ? "" : f;
+  renderTable();
+}
+
+// ─────────────────────────────────────────────────────
+// Render tabela
+// ─────────────────────────────────────────────────────
+function applyFilters(list){
+  var q = (document.getElementById("search-input").value||"").toLowerCase().trim();
+  var area = document.getElementById("area-filter").value;
+  var status = document.getElementById("status-filter").value;
+  var prior = document.getElementById("prior-filter").value;
+
+  return list.filter(function(t){
+    if(area && t.area !== area) return false;
+    if(status && t.status !== status) return false;
+    if(prior && t.prioridade !== prior) return false;
+    if(KPI_FILTER && farolDaTarefa(t) !== KPI_FILTER) return false;
+    if(q){
+      var haystack = [t.acao, t.comprar, t.responsavel, t.obs].join(" ").toLowerCase();
+      if(haystack.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function applySort(list){
+  var f = SORT_FIELD, dir = SORT_DIR === "asc" ? 1 : -1;
+  return list.slice().sort(function(a, b){
+    var va = a[f], vb = b[f];
+    // Prazo: sem prazo vai pro final
+    if(f === "prazo"){
+      if(!va && !vb) return 0;
+      if(!va) return 1;
+      if(!vb) return -1;
+    }
+    // Prioridade: alta > media > baixa
+    if(f === "prioridade"){
+      var order = {"alta":0, "media":1, "baixa":2, "":3};
+      va = order[va||""]||3; vb = order[vb||""]||3;
+    }
+    va = (va||"").toString().toLowerCase();
+    vb = (vb||"").toString().toLowerCase();
+    if(va < vb) return -1*dir;
+    if(va > vb) return 1*dir;
+    return 0;
+  });
+}
+
+function setSort(field){
+  if(SORT_FIELD === field){
+    SORT_DIR = SORT_DIR === "asc" ? "desc" : "asc";
+  } else {
+    SORT_FIELD = field;
+    SORT_DIR = "asc";
+  }
+  renderTable();
+}
+
+function renderTable(){
+  renderKPIs();
+
+  var tbody = document.getElementById("tbody");
+  var filtered = applySort(applyFilters(TAREFAS));
+
+  if(!filtered.length){
+    tbody.innerHTML = "";
+    document.getElementById("empty-state").style.display = "block";
+    // Ajusta indicadores de ordenação
+    updateSortIndicators();
+    return;
+  }
+  document.getElementById("empty-state").style.display = "none";
+
+  var isAllMode = (SELECTED_GESTOR === "__all__");
+  tbody.innerHTML = filtered.map(function(t){
+    var farol = farolDaTarefa(t);
+    var rowClass = (t.status === "concluido" || t.status === "cancelado") ? "done" : "";
+    var prazoClass = (farol === "r") ? "r" : (farol === "y") ? "y" : (farol === "g") ? "g" : "gray";
+    var histIcon = (t.prazoHist && t.prazoHist.length) ?
+      '<span class="hist-ind" title="'+(t.prazoHist.length)+' remarcação(ões) — clique para editar e ver histórico">🔁</span>' : '';
+
+    var ownerBadge = "";
+    if(isAllMode && t.__owner){
+      var nome = getNomeByEmail(t.__owner);
+      ownerBadge = '<div class="muted" style="margin-top:3px;font-size:.7rem">👤 '+escapeHtml(nome)+'</div>';
+    }
+
+    return '<tr class="'+rowClass+'" data-id="'+t.id+'">' +
+      '<td><span class="farol '+farol+'" title="'+farolLabel(farol)+'"></span></td>' +
+      '<td><div class="acao">'+escapeHtml(t.acao||"—")+'</div>'+ownerBadge+'</td>' +
+      '<td><div class="muted">'+escapeHtml(t.comprar||"—")+'</div></td>' +
+      '<td><div class="muted">'+escapeHtml(t.responsavel||"—")+'</div></td>' +
+      '<td>'+(t.area ? '<span class="tag tag-area">'+escapeHtml(t.area)+'</span>' : '<span class="muted">—</span>')+'</td>' +
+      '<td>'+priorTag(t.prioridade)+'</td>' +
+      '<td>'+statusTag(t.status)+'</td>' +
+      '<td><div class="prazo-box"><span class="prazo-txt '+prazoClass+'">'+formatPrazo(t.prazo)+'</span>'+histIcon+'</div></td>' +
+      '<td><div class="acoes-cell">' +
+        '<button class="mini-btn" onclick="openModalEditar(\''+t.id+'\')" title="Editar">✏️</button>' +
+        '<button class="mini-btn del" onclick="removerTarefa(\''+t.id+'\')" title="Excluir">🗑️</button>' +
+      '</div></td>' +
+    '</tr>';
+  }).join("");
+
+  updateSortIndicators();
+}
+
+function updateSortIndicators(){
+  ["acao","comprar","responsavel","area","prioridade","status","prazo"].forEach(function(f){
+    var el = document.getElementById("sort-"+f);
+    if(!el) return;
+    el.textContent = (SORT_FIELD === f) ? (SORT_DIR === "asc" ? "▼" : "▲") : "";
+  });
+}
+
+function getNomeByEmail(email){
+  if(ALL_USERS_CACHE){
+    var u = ALL_USERS_CACHE.find(function(x){return x.email === email;});
+    if(u) return u.nome || email;
+  }
+  return email.split("@")[0];
+}
+
+function farolLabel(f){
+  return {g:"Em dia", y:"Vence em ≤ 3 dias", r:"Vencida", gray:"A definir", done:"Concluída/Cancelada", blk:"Bloqueada"}[f] || "";
+}
+
+function statusTag(s){
+  var label = {pendente:"Pendente", em_andamento:"Em andamento", concluido:"Concluído", cancelado:"Cancelado", bloqueado:"Bloqueado"}[s] || s;
+  return '<span class="tag tag-status-'+s+'">'+label+'</span>';
+}
+
+function priorTag(p){
+  if(!p) return '<span class="muted">—</span>';
+  var label = {alta:"🔴 Alta", media:"🟡 Média", baixa:"🟢 Baixa"}[p] || p;
+  return '<span class="tag tag-prior-'+p+'">'+label+'</span>';
+}
+
+function escapeHtml(s){
+  if(s == null) return "";
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Modal Nova/Editar
+// ─────────────────────────────────────────────────────
+function openModalNova(){
+  EDITING_ID = null;
+  document.getElementById("modal-title").textContent = "+ Nova Tarefa";
+  document.getElementById("fld-acao").value = "";
+  document.getElementById("fld-comprar").value = "";
+  document.getElementById("fld-responsavel").value = "";
+  document.getElementById("fld-area").value = "";
+  document.getElementById("fld-status").value = "pendente";
+  document.getElementById("fld-prioridade").value = "media";
+  document.getElementById("fld-prazo").value = "";
+  document.getElementById("fld-custo").value = "";
+  document.getElementById("fld-obs").value = "";
+  document.getElementById("prazo-hist-wrap").innerHTML = "";
+  document.getElementById("modal-task").classList.add("open");
+  setTimeout(function(){ document.getElementById("fld-acao").focus(); }, 50);
+}
+
+function openModalEditar(id){
+  var t = TAREFAS.find(function(x){return x.id === id;});
+  if(!t) return;
+  EDITING_ID = id;
+  document.getElementById("modal-title").textContent = "✏️ Editar Tarefa";
+  document.getElementById("fld-acao").value = t.acao || "";
+  document.getElementById("fld-comprar").value = t.comprar || "";
+  document.getElementById("fld-responsavel").value = t.responsavel || "";
+  document.getElementById("fld-area").value = t.area || "";
+  document.getElementById("fld-status").value = t.status || "pendente";
+  document.getElementById("fld-prioridade").value = t.prioridade || "media";
+  document.getElementById("fld-prazo").value = t.prazo || "";
+  document.getElementById("fld-custo").value = (t.custo != null) ? t.custo : "";
+  document.getElementById("fld-obs").value = t.obs || "";
+
+  // Mostra histórico de prazo se tiver
+  var wrap = document.getElementById("prazo-hist-wrap");
+  if(t.prazoHist && t.prazoHist.length){
+    wrap.innerHTML = '<div class="prazo-hist"><div class="ph-title">🔁 Histórico de Remarcações</div>' +
+      t.prazoHist.map(function(h){
+        var d = new Date(h.ts);
+        var dStr = d.toLocaleDateString("pt-BR")+" "+d.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+        return '<div class="ph-item">'+dStr+' · '+(h.de ? formatPrazo(h.de) : "—")+' → '+(h.para ? formatPrazo(h.para) : "A definir")+'</div>';
+      }).join("") + '</div>';
+  } else {
+    wrap.innerHTML = "";
+  }
+
+  document.getElementById("modal-task").classList.add("open");
+}
+
+function closeModal(){
+  document.getElementById("modal-task").classList.remove("open");
+  EDITING_ID = null;
+}
+
+document.addEventListener("keydown", function(e){
+  if(e.key === "Escape") closeModal();
+});
+
+function saveTask(){
+  var acao = document.getElementById("fld-acao").value.trim();
+  if(!acao){ alert("O campo 'Ação' é obrigatório."); return; }
+
+  var newPrazo = document.getElementById("fld-prazo").value || "";
+  var custoRaw = document.getElementById("fld-custo").value;
+  var custo = custoRaw === "" ? null : parseFloat(custoRaw);
+  if(custo != null && isNaN(custo)) custo = null;
+
+  if(EDITING_ID){
+    var t = TAREFAS.find(function(x){return x.id === EDITING_ID;});
+    if(!t) return;
+    // Detecta mudança de prazo
+    var oldPrazo = t.prazo || "";
+    if(oldPrazo !== newPrazo){
+      t.prazoHist = t.prazoHist || [];
+      t.prazoHist.push({de: oldPrazo || null, para: newPrazo || null, ts: new Date().toISOString()});
+    }
+    t.acao = acao;
+    t.comprar = document.getElementById("fld-comprar").value.trim();
+    t.responsavel = document.getElementById("fld-responsavel").value.trim();
+    t.area = document.getElementById("fld-area").value;
+    t.status = document.getElementById("fld-status").value;
+    t.prioridade = document.getElementById("fld-prioridade").value;
+    t.prazo = newPrazo || null;
+    t.custo = custo;
+    t.obs = document.getElementById("fld-obs").value.trim();
+    t.updatedAt = new Date().toISOString();
+    if(t.status === "concluido" && !t.completedAt) t.completedAt = new Date().toISOString();
+    if(t.status !== "concluido") t.completedAt = null;
+  } else {
+    var nova = {
+      id: "t_" + Date.now() + "_" + Math.random().toString(36).substring(2,7),
+      acao: acao,
+      comprar: document.getElementById("fld-comprar").value.trim(),
+      responsavel: document.getElementById("fld-responsavel").value.trim(),
+      area: document.getElementById("fld-area").value,
+      status: document.getElementById("fld-status").value,
+      prioridade: document.getElementById("fld-prioridade").value,
+      prazo: newPrazo || null,
+      custo: custo,
+      obs: document.getElementById("fld-obs").value.trim(),
+      prazoHist: [],
+      createdAt: new Date().toISOString(),
+      createdBy: CURRENT_USER.email,
+      __owner: (SELECTED_GESTOR === "__all__" ? CURRENT_USER.email : SELECTED_GESTOR)
+    };
+    if(nova.status === "concluido") nova.completedAt = new Date().toISOString();
+    TAREFAS.push(nova);
+  }
+
+  saveTarefas();
+  closeModal();
+  renderTable();
+}
+
+function removerTarefa(id){
+  if(!confirm("Excluir esta tarefa?")) return;
+  TAREFAS = TAREFAS.filter(function(t){return t.id !== id;});
+  saveTarefas();
+  renderTable();
+}
+
+// ─────────────────────────────────────────────────────
+// Export / Import CSV
+// ─────────────────────────────────────────────────────
+function exportCSV(){
+  var rows = [["Ação","O que comprar/contratar","Responsável","Área","Status","Prioridade","Prazo","Custo Estimado","Observações","Criado em","Remarcações"]];
+  TAREFAS.forEach(function(t){
+    rows.push([
+      t.acao||"",
+      t.comprar||"",
+      t.responsavel||"",
+      t.area||"",
+      statusLabel(t.status),
+      priorLabel(t.prioridade),
+      formatPrazo(t.prazo),
+      t.custo != null ? t.custo.toFixed(2).replace(".",",") : "",
+      t.obs||"",
+      t.createdAt ? new Date(t.createdAt).toLocaleDateString("pt-BR") : "",
+      (t.prazoHist && t.prazoHist.length) || 0
+    ]);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(c){
+      var s = String(c||"");
+      if(s.indexOf(",")>=0 || s.indexOf("\n")>=0 || s.indexOf("\"")>=0){
+        return '"'+s.replace(/"/g,'""')+'"';
+      }
+      return s;
+    }).join(",");
+  }).join("\n");
+
+  var bom = "\uFEFF";
+  var blob = new Blob([bom + csv], {type:"text/csv;charset=utf-8"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  var dt = new Date().toISOString().substring(0,10);
+  var prefix = (SELECTED_GESTOR === "__all__") ? "todos" : (CURRENT_USER.nome||CURRENT_USER.email).replace(/[^a-z0-9]/gi,"_").toLowerCase();
+  a.download = "tarefas_"+prefix+"_"+dt+".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function statusLabel(s){
+  return {pendente:"Pendente", em_andamento:"Em andamento", concluido:"Concluído", cancelado:"Cancelado", bloqueado:"Bloqueado"}[s] || s;
+}
+function priorLabel(p){
+  return {alta:"Alta", media:"Média", baixa:"Baixa"}[p] || p || "";
+}
+
+function importCSV(evt){
+  var file = evt.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var txt = e.target.result;
+      if(txt.charCodeAt(0) === 0xFEFF) txt = txt.substring(1);  // BOM
+      var rows = parseCSVRows(txt);
+      if(rows.length < 2){ alert("CSV vazio ou inválido."); return; }
+      var hdr = rows[0].map(function(h){return h.trim().toLowerCase();});
+
+      // Mapeamento tolerante de nomes de coluna
+      function findCol(){
+        for(var i = 0; i < arguments.length; i++){
+          var candidate = arguments[i].toLowerCase();
+          var idx = hdr.findIndex(function(h){return h === candidate || h.indexOf(candidate) === 0;});
+          if(idx >= 0) return idx;
+        }
+        return -1;
+      }
+      var iAcao = findCol("ação","acao","o que precisa ser resolvido","o que precisa");
+      var iComprar = findCol("o que comprar","comprar","contratar","comprar/contratar");
+      var iResp = findCol("responsável","responsavel");
+      var iArea = findCol("área","area");
+      var iStatus = findCol("status");
+      var iPrior = findCol("prioridade");
+      var iPrazo = findCol("prazo");
+      var iCusto = findCol("custo","valor");
+      var iObs = findCol("observações","observacoes","obs","notas");
+
+      if(iAcao < 0){ alert("Coluna 'Ação' não encontrada no CSV."); return; }
+
+      var imported = 0;
+      for(var r = 1; r < rows.length; r++){
+        var row = rows[r];
+        var acao = (row[iAcao]||"").trim();
+        if(!acao) continue;
+
+        var custoRaw = iCusto >= 0 ? (row[iCusto]||"").trim().replace(".","").replace(",",".") : "";
+        var custoNum = custoRaw ? parseFloat(custoRaw) : null;
+        if(custoNum != null && isNaN(custoNum)) custoNum = null;
+
+        TAREFAS.push({
+          id: "t_" + Date.now() + "_" + r + "_" + Math.random().toString(36).substring(2,7),
+          acao: acao,
+          comprar: iComprar >= 0 ? (row[iComprar]||"").trim() : "",
+          responsavel: iResp >= 0 ? (row[iResp]||"").trim() : "",
+          area: iArea >= 0 ? normalizeArea((row[iArea]||"").trim()) : "",
+          status: iStatus >= 0 ? normalizeStatus((row[iStatus]||"").trim()) : "pendente",
+          prioridade: iPrior >= 0 ? normalizePrior((row[iPrior]||"").trim()) : "media",
+          prazo: iPrazo >= 0 ? normalizePrazo((row[iPrazo]||"").trim()) : null,
+          custo: custoNum,
+          obs: iObs >= 0 ? (row[iObs]||"").trim() : "",
+          prazoHist: [],
+          createdAt: new Date().toISOString(),
+          createdBy: CURRENT_USER.email,
+          __owner: (SELECTED_GESTOR === "__all__" ? CURRENT_USER.email : SELECTED_GESTOR)
+        });
+        imported++;
+      }
+
+      saveTarefas();
+      renderTable();
+      alert("✅ "+imported+" tarefa(s) importada(s) com sucesso.");
+      evt.target.value = "";
+    }catch(err){
+      alert("Erro ao importar: "+err.message);
+    }
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+function parseCSVRows(txt){
+  var rows = [], cur = [], field = "", inQ = false;
+  for(var i = 0; i < txt.length; i++){
+    var c = txt[i];
+    if(inQ){
+      if(c === '"' && txt[i+1] === '"'){ field += '"'; i++; }
+      else if(c === '"'){ inQ = false; }
+      else field += c;
+    } else {
+      if(c === '"'){ inQ = true; }
+      else if(c === ','){ cur.push(field); field = ""; }
+      else if(c === '\r'){ /* skip */ }
+      else if(c === '\n'){ cur.push(field); rows.push(cur); cur = []; field = ""; }
+      else field += c;
+    }
+  }
+  if(field.length || cur.length){ cur.push(field); rows.push(cur); }
+  return rows.filter(function(r){ return r.some(function(c){return c && c.trim();}); });
+}
+
+function normalizeStatus(s){
+  s = (s||"").toLowerCase().trim();
+  if(s.indexOf("pend") === 0) return "pendente";
+  if(s.indexOf("andam") >= 0 || s.indexOf("em and") >= 0) return "em_andamento";
+  if(s.indexOf("concl") === 0) return "concluido";
+  if(s.indexOf("cancel") === 0) return "cancelado";
+  if(s.indexOf("bloq") === 0) return "bloqueado";
+  return "pendente";
+}
+
+function normalizePrior(p){
+  p = (p||"").toLowerCase().trim();
+  if(p.indexOf("alta") >= 0 || p.indexOf("alto") >= 0) return "alta";
+  if(p.indexOf("baixa") >= 0 || p.indexOf("baixo") >= 0) return "baixa";
+  return "media";
+}
+
+function normalizeArea(a){
+  a = (a||"").trim();
+  if(!a) return "";
+  var lower = a.toLowerCase();
+  var map = {
+    "comercial":"Comercial","logistica":"Logística","logística":"Logística",
+    "rh":"RH","administrativo":"Administrativo","adm":"Administrativo",
+    "financeiro":"Financeiro","compras":"Compras","ti":"TI","outros":"Outros"
+  };
+  return map[lower] || a;
+}
+
+function normalizePrazo(p){
+  p = (p||"").trim();
+  if(!p || /a definir/i.test(p)) return null;
+  // dd/mm/yyyy → yyyy-mm-dd
+  var m = p.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m){
+    var dd = m[1].padStart(2,"0"), mm = m[2].padStart(2,"0"), yy = m[3];
+    return yy+"-"+mm+"-"+dd;
+  }
+  // Já em ISO?
+  if(/^\d{4}-\d{2}-\d{2}$/.test(p)) return p;
+  return null;
+}
+</script>
+</body>
+</html>
