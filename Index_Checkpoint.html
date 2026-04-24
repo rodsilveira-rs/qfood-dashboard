@@ -1456,12 +1456,47 @@ function chkProgressoSemanaGen(gestorId){
 }
 
 
+// ---- FILTRO DE ACESSO POR GESTOR ----
+// Emails que veem TODOS os gestores (admins totais do Checkpoint)
+var CHK_ADMIN_EMAILS = [
+  "rodrigo@qfoodcompany.com.br",
+  "adilson@qfoodcompany.com.br"
+];
+// Mapeamento email -> id do gestor correspondente
+var CHK_EMAIL_TO_GESTOR = {
+  "gustavo@qfoodcompany.com.br":        "gustavo",
+  "celio@qfoodcompany.com.br":          "celio",
+  "compras@qfoodcompany.com.br":        "cris",
+  "maiko@qfoodcompany.com.br":          "maiko",
+  "barbara@qfoodcompany.com.br":        "barbara",
+  "mariana@mercearialiberdade.com.br":  "mariana",
+  "elizeu@mercearialiberdade.com.br":   "elizeu"
+};
+
+function chkGestoresPermitidos(){
+  var u = window.CURRENT_USER || {};
+  var email = (u.email||"").toLowerCase();
+  if(CHK_ADMIN_EMAILS.indexOf(email) >= 0) return GESTORES.slice();
+  var meuId = CHK_EMAIL_TO_GESTOR[email];
+  if(meuId){
+    return GESTORES.filter(function(g){ return g.id === meuId; });
+  }
+  return [];
+}
+
 // ---- RENDERIZAR TABS ----
 function renderTabs(){
   var wrap = document.getElementById("chk-tabs-wrap");
-  wrap.innerHTML = GESTORES.map(function(g){
-    var active = g.id === "gustavo" ? " active" : "";
-    var style = g.id === "gustavo" ? "background:"+g.cor+";color:#fff" : "";
+  if(!wrap) return;
+  var permitidos = chkGestoresPermitidos();
+  if(!permitidos.length){
+    wrap.innerHTML = '<div style="padding:20px;color:var(--mu);font-size:.85rem">Você não tem acesso a nenhum painel de gestor no Checkpoint.</div>';
+    return;
+  }
+  var primeiroId = permitidos[0].id;
+  wrap.innerHTML = permitidos.map(function(g){
+    var active = g.id === primeiroId ? " active" : "";
+    var style = g.id === primeiroId ? "background:"+g.cor+";color:#fff" : "";
     return '<div class="chk-tab'+active+'" id="chk-tab-'+g.id+'" onclick="chkShowGestor(\''+g.id+'\')" style="'+style+'">'+g.emoji+' '+g.nome+'</div>';
   }).join("");
 }
@@ -3056,6 +3091,14 @@ function chkCrNegCopiarResumo(){
 
 // Sobrescrever chkShowGestor pra cobrir os 7 gestores (3 originais + 4 novos)
 chkShowGestor = function(gestorId){
+  // GUARDA: bloqueia acesso a gestor não permitido para o usuário logado
+  var permit = chkGestoresPermitidos();
+  var idsOK = permit.map(function(g){return g.id;});
+  if(idsOK.indexOf(gestorId) < 0){
+    console.warn("[Checkpoint] Acesso bloqueado ao gestor:", gestorId);
+    if(idsOK.length) gestorId = idsOK[0]; else return;
+  }
+
   // Atualiza tabs visualmente
   GESTORES.forEach(function(g){
     var tab = document.getElementById("chk-tab-"+g.id);
@@ -3322,8 +3365,20 @@ document.addEventListener("DOMContentLoaded", function(){
   var lbl = document.getElementById("chk-semana-label");
   if(lbl) lbl.textContent = "Hoje é " + hoje.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"});
 
+  // Aplica filtro de acesso: esconde divs dos gestores não permitidos
+  var permitidos = chkGestoresPermitidos();
+  var idsPermit = permitidos.map(function(g){return g.id;});
+  GESTORES.forEach(function(g){
+    if(idsPermit.indexOf(g.id) < 0){
+      var div = document.getElementById("chk-gestor-"+g.id);
+      if(div){ div.style.display = "none"; div.dataset.bloqueado = "1"; }
+    }
+  });
+
   renderTabs();
-  chkShowGestor("gustavo");
+
+  // Abre o primeiro gestor permitido
+  if(permitidos.length) chkShowGestor(permitidos[0].id);
 });
 </script>
 </body>
