@@ -2329,14 +2329,23 @@ function initCheckpointCelio(){
 // ═══════════════════════════════════════════════════════════════════
 // CÉLIO — MODAL ESTOQUE PARADO
 // ═══════════════════════════════════════════════════════════════════
-var chkCEstoqueSel = [];
-var chkCEstoqueProdutos = [];
+// ── ESTOQUE PARADO — CÉLIO ──
+// Base: mesma planilha de Compras da Cristina (gid=429598287)
+var CHK_C_EST_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+var chkCEstoqueSel = [];           // [{sku, nome, forn, ind, qtd}]
+var chkCEstoqueProdutos = [];      // produtos da base carregada
+var chkCEstoqueLoaded = false;     // cache de carregamento
 
 function chkCEstoqueModal(){
   var modal = document.getElementById('chk-c-estoque-modal');
   if(!modal) return;
   modal.style.display = 'flex';
-  chkCEstoqueCarregarProdutos();
+  if(!chkCEstoqueLoaded){
+    chkCEstoqueCarregarBase();
+  } else {
+    chkCEstoquePopularFiltros();
+    chkCEstoqueFiltrar();
+  }
 }
 
 function chkCEstoqueFechar(){
@@ -2344,26 +2353,35 @@ function chkCEstoqueFechar(){
   if(modal) modal.style.display='none';
 }
 
-function chkCEstoqueCarregarProdutos(){
+// Busca CSV da base (igual a Cristina, reutiliza parser dela)
+function chkCEstoqueCarregarBase(){
   var lista = document.getElementById('chk-c-est-lista');
-  if(!lista) return;
-  // Usa os dados do módulo DEV (Quebra de Rede) se disponível
-  if(typeof devRows !== 'undefined' && devRows && devRows.length>0){
-    chkCEstoqueProdutos = devRows.map(function(r){
-      return {
-        cod: r.codigo||r.Codigo||'',
-        nome: r.produto||r.Produto||r.nome||r.Nome||'',
-        forn: r.fornecedor||r.Fornecedor||'',
-        ind: r.industria||r.Industria||r.marca||r.Marca||'',
-        sku: r.sku||r.SKU||r.codigo||r.Codigo||''
-      };
-    }).filter(function(p){ return p.nome; });
-  } else {
-    chkCEstoqueProdutos = [];
-  }
-  // Popular selects de filtro
+  if(lista) lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">⏳ Carregando base de produtos...</div>';
+
+  fetch(CHK_C_EST_URL + "&t=" + Date.now())
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+    .then(function(txt){
+      if(txt.trim().startsWith('<')) throw new Error('Planilha não publicada como CSV.');
+      var rows = chkCrNegParseCSV(txt); // reutiliza parser CSV da Cristina
+      chkCEstoqueProdutos = rows.map(function(r){
+        var cod  = String(r["Código"]||r["CODIGO"]||r["Codigo"]||r["COD"]||r["codigo"]||"").trim();
+        var desc = String(r["Descrição"]||r["Descricao"]||r["DESCRICAO"]||r["PRODUTO"]||r["Produto"]||r["produto"]||"").trim();
+        var forn = String(r["Fornecedor"]||r["FORNECEDOR"]||r["fornecedor"]||"").trim();
+        var ind  = String(r["Indústria"]||r["Industria"]||r["INDUSTRIA"]||r["industria"]||r["Marca"]||r["MARCA"]||r["marca"]||"").trim();
+        return { cod: cod, nome: desc || cod, forn: forn, ind: ind, sku: cod || desc };
+      }).filter(function(p){ return p.nome; });
+      chkCEstoqueLoaded = true;
+      chkCEstoquePopularFiltros();
+      chkCEstoqueFiltrar();
+    })
+    .catch(function(e){
+      if(lista) lista.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444">Erro ao carregar base: '+e.message+'<br><button onclick="chkCEstoqueCarregarBase()" style="margin-top:10px;padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);cursor:pointer">🔄 Tentar novamente</button></div>';
+    });
+}
+
+function chkCEstoquePopularFiltros(){
   var selForn = document.getElementById('chk-c-est-forn');
-  var selInd = document.getElementById('chk-c-est-ind');
+  var selInd  = document.getElementById('chk-c-est-ind');
   if(selForn){
     var forns = [...new Set(chkCEstoqueProdutos.map(function(p){return p.forn;}).filter(Boolean))].sort();
     selForn.innerHTML = '<option value="">Todos os fornecedores</option>'+forns.map(function(f){return '<option value="'+f.replace(/"/g,'&quot;')+'">'+f+'</option>';}).join('');
@@ -2372,12 +2390,12 @@ function chkCEstoqueCarregarProdutos(){
     var inds = [...new Set(chkCEstoqueProdutos.map(function(p){return p.ind;}).filter(Boolean))].sort();
     selInd.innerHTML = '<option value="">Todas as indústrias</option>'+inds.map(function(i){return '<option value="'+i.replace(/"/g,'&quot;')+'">'+i+'</option>';}).join('');
   }
-  chkCEstoqueFiltrar();
 }
 
 function chkCEstoqueFiltrar(){
   var lista = document.getElementById('chk-c-est-lista');
   if(!lista) return;
+  if(!chkCEstoqueLoaded){ return; } // espera carregar
   var fForn = (document.getElementById('chk-c-est-forn')||{}).value||'';
   var fInd  = (document.getElementById('chk-c-est-ind')||{}).value||'';
   var filtrados = chkCEstoqueProdutos.filter(function(p){
@@ -2386,35 +2404,76 @@ function chkCEstoqueFiltrar(){
     return true;
   });
   if(!filtrados.length){
-    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado. Carregue o módulo "Quebra de Rede" primeiro.</div>';
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado com esses filtros.</div>';
     return;
   }
-  var selSet = new Set(chkCEstoqueSel.map(function(i){return i.sku||i.cod;}));
+  // Mapa sku -> qtd dos selecionados anteriormente
+  var selMap = {};
+  chkCEstoqueSel.forEach(function(i){ selMap[i.sku||i.cod] = i.qtd || ''; });
+
   lista.innerHTML = filtrados.slice(0,300).map(function(p,idx){
     var key = p.sku||p.cod||('idx_'+idx);
-    var checked = selSet.has(key) ? 'checked' : '';
+    var isSel = selMap.hasOwnProperty(key);
+    var checked = isSel ? 'checked' : '';
+    var qtdVal = isSel ? selMap[key] : '';
+    var qtdDisplay = isSel ? 'inline-block' : 'none';
     return '<label style="display:flex;gap:10px;padding:8px;border-bottom:1px solid var(--br);cursor:pointer;align-items:center">' +
-      '<input type="checkbox" '+checked+' data-sku="'+key.replace(/"/g,'&quot;')+'" data-nome="'+(p.nome||'').replace(/"/g,'&quot;')+'" data-forn="'+(p.forn||'').replace(/"/g,'&quot;')+'" data-ind="'+(p.ind||'').replace(/"/g,'&quot;')+'">' +
+      '<input type="checkbox" '+checked+' class="chk-c-est-cb" onchange="chkCEstoqueToggleQtd(this)" data-sku="'+key.replace(/"/g,'&quot;')+'" data-nome="'+(p.nome||'').replace(/"/g,'&quot;')+'" data-forn="'+(p.forn||'').replace(/"/g,'&quot;')+'" data-ind="'+(p.ind||'').replace(/"/g,'&quot;')+'">' +
       '<div style="flex:1"><div style="font-weight:600">'+p.nome+'</div>' +
       '<div style="font-size:.7rem;color:var(--mu)">'+(p.forn||'—')+' · '+(p.ind||'—')+'</div></div>' +
+      '<input type="number" min="0" step="1" value="'+qtdVal+'" placeholder="Qtd" class="chk-c-est-qtd" onclick="event.preventDefault();event.stopPropagation();" style="display:'+qtdDisplay+';width:70px;padding:5px 8px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--tx);font-size:.78rem;outline:none;text-align:center">' +
     '</label>';
   }).join('') + (filtrados.length>300 ? '<div style="padding:10px;text-align:center;color:var(--mu);font-size:.75rem">Mostrando primeiros 300 de '+filtrados.length+'. Refine os filtros.</div>' : '');
+}
+
+// Mostra/esconde o input de quantidade quando o checkbox é marcado/desmarcado
+function chkCEstoqueToggleQtd(cb){
+  var label = cb.closest('label');
+  if(!label) return;
+  var qtd = label.querySelector('.chk-c-est-qtd');
+  if(!qtd) return;
+  if(cb.checked){
+    qtd.style.display = 'inline-block';
+    if(!qtd.value) qtd.focus();
+  } else {
+    qtd.style.display = 'none';
+    qtd.value = '';
+  }
 }
 
 function chkCEstoqueSalvar(){
   var lista = document.getElementById('chk-c-est-lista');
   if(!lista) return;
-  var checks = lista.querySelectorAll('input[type="checkbox"]:checked');
+  var checks = lista.querySelectorAll('input.chk-c-est-cb:checked');
+  var faltaQtd = [];
   var selecionados = [];
   checks.forEach(function(cb){
+    var label = cb.closest('label');
+    var qtdEl = label ? label.querySelector('.chk-c-est-qtd') : null;
+    var qtdRaw = qtdEl ? qtdEl.value.trim() : '';
+    var qtdNum = parseFloat((qtdRaw||'').replace(',','.'));
+    if(!qtdRaw || isNaN(qtdNum) || qtdNum <= 0){
+      faltaQtd.push(cb.dataset.nome);
+    }
     selecionados.push({
       sku: cb.dataset.sku,
       nome: cb.dataset.nome,
       forn: cb.dataset.forn,
-      ind: cb.dataset.ind
+      ind: cb.dataset.ind,
+      qtd: (!isNaN(qtdNum) && qtdNum>0) ? qtdNum : null
     });
   });
-  chkCEstoqueSel = selecionados;
+  if(faltaQtd.length){
+    alert('⚠️ Informe a quantidade para:\n\n• ' + faltaQtd.slice(0,10).join('\n• ') + (faltaQtd.length>10 ? '\n... (+'+(faltaQtd.length-10)+')' : ''));
+    return;
+  }
+  // Preserva seleções que estão fora do slice de 300 atual (caso user tenha filtrado)
+  var keysAtual = new Set(selecionados.map(function(i){return i.sku;}));
+  var extras = chkCEstoqueSel.filter(function(i){
+    // mantém se o item não está visível na lista atual (fora do filtro)
+    return !keysAtual.has(i.sku) && !lista.querySelector('input[data-sku="'+(i.sku||'').replace(/"/g,'\\"')+'"]');
+  });
+  chkCEstoqueSel = selecionados.concat(extras);
   chkCEstoqueAtualizarResumo();
   chkCEstoqueFechar();
 }
@@ -2427,8 +2486,9 @@ function chkCEstoqueAtualizarResumo(){
     return;
   }
   el.innerHTML = chkCEstoqueSel.map(function(i){
+    var qtdTxt = (i.qtd!=null) ? ' · <strong style="color:#a07cf6">'+i.qtd+' un</strong>' : '';
     return '<div style="padding:6px 10px;background:var(--s2);border-radius:6px;margin-bottom:4px;font-size:.78rem">' +
-      '📦 <strong>'+(i.nome||'—')+'</strong>'+
+      '📦 <strong>'+(i.nome||'—')+'</strong>'+qtdTxt+
       '<div style="font-size:.68rem;color:var(--mu)">'+(i.forn||'—')+' · '+(i.ind||'—')+'</div>' +
     '</div>';
   }).join('') + '<div style="font-size:.72rem;color:var(--mu);margin-top:6px">Total: '+chkCEstoqueSel.length+' iten(s)</div>';
@@ -2444,7 +2504,8 @@ function chkEstHistAbrir(dataStr){
     return;
   }
   var txt = '📦 Estoque parado em '+dataStr+':\n\n' + d.estoque.map(function(i,n){
-    return (n+1)+'. '+i.nome+' ('+(i.forn||'—')+' / '+(i.ind||'—')+')';
+    var q = (i.qtd!=null) ? ' — '+i.qtd+' un' : '';
+    return (n+1)+'. '+i.nome+q+' ('+(i.forn||'—')+' / '+(i.ind||'—')+')';
   }).join('\n');
   alert(txt);
 }
@@ -2462,8 +2523,9 @@ function chkEstHistSemana(isoIni){
     if(dado && dado.estoque){
       dado.estoque.forEach(function(it){
         var k = it.sku||it.nome;
-        if(!itens[k]) itens[k] = {item: it, dias: []};
+        if(!itens[k]) itens[k] = {item: it, dias: [], qtdTotal: 0};
         itens[k].dias.push(dStr);
+        if(it.qtd!=null) itens[k].qtdTotal += Number(it.qtd)||0;
       });
     }
   }
@@ -2474,7 +2536,8 @@ function chkEstHistSemana(isoIni){
   }
   var txt = '📦 Estoque parado da semana iniciando '+ini.toLocaleDateString('pt-BR')+':\n\n' +
     arr.map(function(r,n){
-      return (n+1)+'. '+r.item.nome+' ('+(r.item.forn||'—')+')\n   Aparece em: '+r.dias.join(', ');
+      var qt = r.qtdTotal>0 ? ' — '+r.qtdTotal+' un (soma)' : '';
+      return (n+1)+'. '+r.item.nome+qt+' ('+(r.item.forn||'—')+')\n   Aparece em: '+r.dias.join(', ');
     }).join('\n\n') +
     '\n\nTotal único: '+arr.length+' item(ns)';
   alert(txt);
