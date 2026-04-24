@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Financeiro · Sushi Trip</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+/* ---- HEADER ---- */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;}
+.logo{height:52px;object-fit:contain;}
+.hdr-c h1{font-family:var(--fh);font-size:1.15rem;font-weight:700;text-align:center;}
+.hdr-c p{font-size:0.72rem;color:var(--mu);text-align:center;margin-top:2px;}
+.dbadge{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 14px;text-align:right;min-width:150px;}
+.dbadge strong{display:block;font-family:var(--fh);font-size:0.9rem;}
+.dbadge span{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABS ---- */
+.tabs{display:flex;gap:2px;padding:0 28px;background:var(--sf);border-bottom:1px solid var(--br);}
+.tab{padding:13px 20px;font-size:0.84rem;font-weight:500;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.tab:hover{color:var(--tx);}
+.tab.active{color:var(--tx);border-bottom-color:var(--red);font-weight:600;}
+
+/* ---- MAIN ---- */
+.page{display:none;padding:28px;max-width:1000px;margin:0 auto;}
+.page.active{display:block;}
+
+/* ---- SECTION ---- */
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+
+/* ---- KPI GRID ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.kpi .lbl{font-size:0.74rem;color:var(--mu);margin-bottom:8px;letter-spacing:0.3px;}
+.kpi .val{font-family:var(--fh);font-size:1.5rem;font-weight:700;line-height:1;}
+.kpi .sub{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.kpi .delta{font-size:0.7rem;margin-top:4px;font-weight:500;}
+.kpi.r{border-color:var(--red);}.kpi.r .val{color:var(--red);}
+.kpi.g{border-color:var(--ok);}.kpi.g .val{color:var(--ok);}
+.kpi.w{border-color:var(--warn);}.kpi.w .val{color:var(--warn);}
+.kpi.b{border-color:var(--blue);}.kpi.b .val{color:var(--blue);}
+.kpi.p{border-color:var(--pur);}.kpi.p .val{color:var(--pur);}
+
+/* ---- CHART WRAP ---- */
+.cwrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:24px;}
+.cwrap .ctitle{font-family:var(--fh);font-size:0.78rem;font-weight:600;margin-bottom:16px;color:var(--tx);}
+.cleg{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:0.68rem;color:var(--mu);}
+.cleg span{display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 7px;border-radius:5px;transition:all .15s;user-select:none;border:1px solid transparent;}
+.cleg span:hover{background:var(--s2);border-color:var(--br);}
+.cleg span.off{opacity:.3;text-decoration:line-through;}
+.cleg i{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0;}
+
+/* ---- RANKING ---- */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.rcard{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;}
+.rnum{font-family:var(--fh);font-size:1.4rem;font-weight:800;color:var(--b2);width:24px;flex-shrink:0;line-height:1;}
+.rnum.t1{color:#f59e0b;}.rnum.t2{color:#94a3b8;}.rnum.t3{color:#b45309;}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.ri .rn{font-size:0.8rem;font-weight:500;}
+.ri .rp{font-size:0.95rem;font-family:var(--fh);font-weight:700;}
+.ri .rv{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABLE ---- */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.7rem;font-weight:500;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--br);}
+th:not(:first-child){text-align:right;}
+td{padding:11px 14px;font-size:0.85rem;border-bottom:1px solid var(--br);vertical-align:middle;}
+td:not(:first-child){text-align:right;}
+tbody tr{cursor:pointer;transition:background 0.12s;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--s2);}
+.vc{display:flex;align-items:center;gap:10px;}
+.mav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;}
+.bm{height:4px;border-radius:2px;background:var(--br);overflow:hidden;margin-top:4px;}
+.bmf{height:100%;border-radius:2px;}
+.pv{font-family:var(--fh);font-weight:700;font-size:0.85rem;}
+.tag{display:inline-block;font-size:0.62rem;padding:2px 6px;border-radius:20px;font-weight:500;}
+.tg{background:rgba(54,207,160,0.18);color:#36cfa0;}
+.tr{background:rgba(255,77,79,0.18);color:#ff7875;}
+.ty{background:rgba(255,170,43,0.18);color:#ffaa2b;}
+.tb{background:rgba(77,142,245,0.18);color:#74a9ff;}
+.ch{font-size:0.62rem;color:var(--mu);margin-top:1px;}
+
+/* ---- CEO SECTION ---- */
+.ceo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px;}
+.ceo-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.ceo-card .cc-title{font-size:0.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600;}
+
+/* ---- SOP TABLE ---- */
+.sop-table-wrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.generic-row{display:grid;gap:8px;padding:10px 16px;border-bottom:1px solid var(--br);font-size:0.8rem;align-items:center;}
+.generic-row:last-child{border-bottom:none;}
+.generic-row.hdr-row{font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;font-weight:500;background:var(--s2);}
+
+/* ---- LOADING / ERROR ---- */
+.spin-wrap{text-align:center;padding:80px 20px;color:var(--mu);}
+.spin{width:28px;height:28px;border:2px solid var(--b2);border-top-color:var(--red);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 14px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.errmsg{background:rgba(230,51,41,0.08);border:1px solid rgba(230,51,41,0.25);border-radius:8px;padding:12px 16px;color:#ef4444;font-size:0.8rem;margin:16px 28px;display:none;}
+
+/* ---- MODAL ---- */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.ov.open{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--b2);border-radius:16px;width:100%;max-width:680px;padding:24px;position:relative;margin:auto;}
+.mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{color:var(--tx);border-color:var(--b2);}
+.mhdr{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--br);}
+.mav2{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;}
+.mn{font-family:var(--fh);font-size:1.2rem;font-weight:700;}
+.ms{font-size:0.75rem;color:var(--mu);margin-top:2px;}
+.msec{margin-bottom:18px;}
+.msect{font-size:0.65rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.msect::after{content:'';flex:1;height:1px;background:var(--br);}
+.mg3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.mc{background:var(--bg);border-radius:10px;padding:11px 13px;}
+.mc .ml{font-size:0.65rem;color:var(--mu);margin-bottom:3px;}
+.mc .mv{font-family:var(--fh);font-size:1rem;font-weight:700;}
+.tr2{background:var(--bg);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.tr2 .tl{font-size:0.72rem;color:var(--mu);}
+.tr2 .tv{font-family:var(--fh);font-size:0.95rem;font-weight:700;}
+.pbw{background:var(--bg);border-radius:10px;padding:13px;}
+.pbl{display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:7px;}
+.pbb{height:10px;background:var(--br);border-radius:5px;overflow:hidden;margin-bottom:10px;}
+.pbf{height:100%;border-radius:5px;}
+.pg4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.ps{background:var(--bg);border-radius:8px;padding:9px 11px;}
+.ps .psl{font-size:0.62rem;color:var(--mu);margin-bottom:2px;}
+.ps .psv{font-size:0.9rem;font-weight:700;font-family:var(--fh);}
+.sp2{background:var(--bg);border-radius:10px;padding:13px;margin-bottom:8px;}
+.sp2t{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+.sp2b{height:7px;background:var(--b2);border-radius:4px;overflow:hidden;margin-bottom:7px;}
+.sp2f{height:100%;border-radius:4px;}
+.sp2v{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--mu);}
+
+/* ---- AVATAR COLORS ---- */
+.avLB{background:rgba(59,130,246,0.2);color:#60a5fa;}
+.avVS{background:rgba(6,214,160,0.2);color:#06d6a0;}
+.avDN{background:rgba(245,158,11,0.2);color:#f59e0b;}
+.avEM{background:rgba(167,139,250,0.2);color:#a78bfa;}
+.avED{background:rgba(249,115,22,0.2);color:#fb923c;}
+.avCG{background:rgba(230,51,41,0.2);color:#ef4444;}
+.avCC{background:rgba(16,185,129,0.2);color:#10b981;}
+.avKE{background:rgba(99,102,241,0.2);color:#818cf8;}
+.avDE{background:rgba(20,184,166,0.2);color:#2dd4bf;}
+
+/* ---- FOOTER ---- */
+.ftr{text-align:center;font-size:0.68rem;color:var(--mu2);padding:20px 28px;border-top:1px solid var(--br);}
+.home-overlay{position:fixed;inset:0;background:var(--bg);z-index:8000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.home-overlay.open{display:flex;}
+.home-welcome{font-family:var(--fh);font-size:1.5rem;font-weight:700;color:var(--tx);margin-bottom:6px;text-align:center;}
+.home-sub{font-size:0.85rem;color:var(--mu);margin-bottom:40px;text-align:center;}
+.home-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;width:100%;max-width:1100px;}
+.home-btn{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:28px 20px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.home-btn:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.home-btn .hb-icon{font-size:2rem;line-height:1;}
+.home-btn .hb-title{font-family:var(--fh);font-size:0.95rem;font-weight:700;color:var(--tx);}
+.home-btn .hb-sub{font-size:0.7rem;color:var(--mu);line-height:1.5;}
+.home-btn.hb-com{border-top:3px solid #4d8ef5;}
+.home-btn.hb-fin{border-top:3px solid #36cfa0;}
+.home-btn.hb-log{border-top:3px solid #ffaa2b;}
+.home-btn.hb-adm{border-top:3px solid #ff4d4f;}
+.home-btn.hb-cmp{border-top:3px solid #a07cf6;}
+.cmp-qty{width:70px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:5px 8px;color:var(--tx);font-size:.82rem;text-align:center;outline:none;}
+.cmp-qty:focus{border-color:#a07cf6;}
+.val-sel{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;outline:none;}
+.val-sel:focus{border-color:#a07cf6;}
+.giro-tag{padding:2px 7px;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.giro-alto{background:rgba(54,207,160,.15);color:#36cfa0;border:1px solid rgba(54,207,160,.3);}
+.giro-normal{background:rgba(143,160,192,.1);color:#8fa0c0;border:1px solid rgba(143,160,192,.2);}
+.admin-overlay{position:fixed;inset:0;background:var(--bg);z-index:7000;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px;overflow-y:auto;}
+.admin-overlay.open{display:flex;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:900px;margin-bottom:28px;}
+.admin-back{background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:0.82rem;}
+.lal-act-btn{padding:3px 9px;border:1px solid var(--br);border-radius:6px;font-size:.7rem;cursor:pointer;font-weight:500;white-space:nowrap;background:var(--s2);color:var(--mu);margin-left:4px;}
+.lal-act-btn:hover{border-color:var(--b2);color:var(--tx);}
+.lal-act-btn.ai{border-color:rgba(160,124,246,.4);color:#a07cf6;background:rgba(160,124,246,.08);}
+.lal-act-btn.chart{border-color:rgba(77,142,245,.4);color:#4d8ef5;background:rgba(77,142,245,.08);}
+.lal-ai-box{background:rgba(160,124,246,.08);border:1px solid rgba(160,124,246,.25);border-radius:8px;padding:12px 16px;margin:8px 0;font-size:.82rem;}
+@media(max-width:900px){.home-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.home-grid{grid-template-columns:repeat(2,1fr);}}
+
+
+/* Readable font for large numbers */
+.kpi .val,.kpi .sub,.kpi .lbl,
+#tend-card *,
+.rp,.rv,.ri .rp,
+.mc .mv,
+.tr2 .tv,
+.sp2t span,
+#tend-meta-dia,#tend-media-atual,#tend-projecao,#tend-ritmo{
+  font-family:var(--fb) !important;
+  letter-spacing:-0.3px;
+}
+.kpi .val{font-size:1.6rem !important; font-weight:600 !important;}
+@media(max-width:680px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .rgrid{grid-template-columns:1fr 1fr;}
+  .ceo-grid{grid-template-columns:1fr;}
+  .pg4{grid-template-columns:repeat(2,1fr);}
+  .tabs{overflow-x:auto;}
+  .tab{font-size:0.72rem;padding:10px 14px;}
+  .hdr{padding:14px 16px;}
+  .page{padding:16px;}
+}
+
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#151929,#1e2438);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-box{background:#242938;border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,0.5);}
+.login-logo{display:flex;justify-content:center;margin-bottom:28px;}
+.login-logo img{height:60px;object-fit:contain;}
+.login-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;text-align:center;color:#f0f4ff;margin-bottom:6px;}
+.login-sub{font-size:0.78rem;color:#6b7ea8;text-align:center;margin-bottom:28px;}
+.login-label{font-size:0.72rem;color:#6b7ea8;margin-bottom:6px;display:block;letter-spacing:0.3px;}
+.login-input{width:100%;background:#1a1f2e;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;color:#eef1f8;font-size:0.95rem;font-size:0.88rem;margin-bottom:14px;font-family:'DM Sans',sans-serif;outline:none;}
+.login-input:focus{border-color:#e63329;}
+.login-btn{width:100%;background:#e63329;border:none;border-radius:10px;padding:12px;color:#fff;font-size:0.9rem;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.3px;margin-top:4px;}
+.login-btn:hover{background:#c42820;}
+.login-err{font-size:0.78rem;color:#ef4444;text-align:center;margin-top:10px;min-height:20px;}
+.login-footer{font-size:0.68rem;color:#6b7ea8;text-align:center;margin-top:20px;}
+
+
+/* Header proprio da pagina */
+.page-hdr{
+  display:flex;align-items:center;gap:16px;
+  background:var(--sf);border-bottom:1px solid var(--br);
+  padding:14px 24px;margin-bottom:24px
+}
+.page-hdr .logo-wrap{
+  background:#fff;border-radius:10px;padding:6px;
+  width:60px;height:60px;display:flex;align-items:center;justify-content:center
+}
+.page-hdr .logo-wrap img{width:100%;height:100%;object-fit:contain}
+.page-hdr .title-wrap{flex:1}
+.page-hdr .title-wrap h1{
+  font-family:var(--fh);font-size:1.5rem;margin:0;
+  color:var(--tx);font-weight:700
+}
+.page-hdr .title-wrap .sub{font-size:.82rem;color:var(--mu);margin-top:2px}
+.page-hdr .actions{display:flex;gap:10px;align-items:center}
+.page-hdr .user-name{
+  font-size:.85rem;color:var(--mu);padding:8px 12px;
+  background:var(--s2);border:1px solid var(--br);border-radius:8px
+}
+.page-hdr button{
+  background:var(--s2);border:1px solid var(--br);color:var(--tx);
+  padding:8px 16px;border-radius:8px;cursor:pointer;
+  font-size:.85rem;font-weight:600;transition:all .15s
+}
+.page-hdr button:hover{background:var(--br);transform:translateY(-1px)}
+.page-hdr button.primary{background:#e63329;border-color:#e63329;color:#fff}
+.page-hdr button.primary:hover{background:#c42a22}
+
+.page-container{max-width:1400px;margin:0 auto;padding:0 24px 40px}
+
+/* Tabs internas */
+.fin-tabs{
+  display:flex;gap:8px;margin-bottom:24px;
+  background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:6px
+}
+.fin-tab{
+  flex:1;padding:12px 20px;cursor:pointer;border-radius:8px;
+  font-weight:600;font-size:.9rem;text-align:center;
+  color:var(--mu);transition:all .15s
+}
+.fin-tab:hover{background:var(--s2);color:var(--tx)}
+.fin-tab.active{background:#e63329;color:#fff}
+
+/* Tela de acesso negado */
+.blocked{
+  max-width:500px;margin:60px auto;padding:40px;text-align:center;
+  background:var(--sf);border:1px solid var(--br);border-radius:16px
+}
+.blocked h2{color:#e63329;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="page-hdr">
+  <div class="logo-wrap"><img src="data:image/jpeg;base64,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" alt="Sushi Trip" style="max-height:56px;border-radius:8px;background:#000;padding:2px"></div>
+  <div class="title-wrap">
+    <h1>🍣 Financeiro Sushi Trip</h1>
+    <div class="sub">Sushi Trip · DRE e Análise Linha a Linha</div>
+  </div>
+  <div class="actions">
+    <span id="user-name" class="user-name">-</span>
+    <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
+    <button class="primary" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="page-container">
+
+  <!-- Tela mostrada se usuario sem permissao -->
+  <div id="access-denied" class="blocked" style="display:none">
+    <h2>🔒 Acesso Restrito</h2>
+    <p>O módulo Financeiro Sushi Trip está disponível apenas para gestores autorizados.</p>
+    <button onclick="window.location.href='Index_Menu.html'" style="margin-top:16px;background:#e63329;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600">Voltar ao Menu</button>
+  </div>
+
+  <!-- Conteudo principal -->
+  <div id="fin-content" style="display:none">
+
+    <!-- Tabs internas -->
+    <div class="fin-tabs">
+      <div class="fin-tab active" data-tab="dre" onclick="finShowTab('dre')">📊 DRE</div>
+      
+      <div class="fin-tab" data-tab="lal" onclick="finShowTab('lal')">📈 Linha a Linha</div>
+    </div>
+
+    <!-- DRE -->
+    <div id="fin-dre" style="display:block">
+<div id="tab-dre" class="page" style="display:block">
+  <div class="sec">DRE — Painel de Diagnóstico Linha a Linha</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:flex-end">
+    <div style="flex:1;min-width:140px">
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período de</div>
+      <select id="dre-from" style="width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.85rem;outline:none"></select>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período até</div>
+      <select id="dre-to" style="width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.85rem;outline:none"></select>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Exibir como</div>
+      <select id="dre-view" style="width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.85rem;outline:none">
+        <option value="valor">Valor (R$)</option>
+        <option value="av">Análise Vertical (%)</option>
+      </select>
+    </div>
+    <button onclick="buildDRE()" style="padding:10px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer">Atualizar</button>
+  </div>
+  <div class="kpis" id="dre-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+  <div class="cwrap">
+    <div class="ctitle">Evolução de Despesas por Categoria</div>
+    <div style="position:relative;height:320px"><canvas id="dre-c1"></canvas></div>
+    <div class="cleg" id="dre-c1-leg"></div>
+  </div>
+  <div class="cwrap">
+    <div class="ctitle">Composição % — Barras Empilhadas 100%</div>
+    <div style="position:relative;height:290px"><canvas id="dre-c2"></canvas></div>
+    <div class="cleg" id="dre-c2-leg"></div>
+  </div>
+  <div class="cwrap">
+    <div class="ctitle">Cascata de Custos — Waterfall (Período Selecionado)</div>
+    <div style="position:relative;height:250px"><canvas id="dre-c3"></canvas></div>
+  </div>
+  <div class="sec" style="margin-top:4px">Farol de Variação por Categoria</div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Categoria</th>
+        <th>Mês Ant.</th><th>Mês Atual</th><th>Var. R$</th><th>Var. %</th>
+        <th>Status</th><th>Tendência</th><th>Responsável</th>
+      </tr></thead>
+      <tbody id="dre-farol"></tbody>
+    </table>
+  </div>
+  <div class="sec">Análise Vertical — % sobre Total</div>
+  <div class="cwrap"><div style="position:relative;height:210px"><canvas id="dre-c4"></canvas></div></div>
+  <div class="sec">Detalhe por Categoria</div>
+  <div id="dre-cat-btns" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Subconta</th>
+        <th id="dre-h1">—</th><th id="dre-h2">—</th>
+        <th>Total Período</th><th>% Cat.</th><th>Var. %</th>
+      </tr></thead>
+      <tbody id="dre-detail"></tbody>
+    </table>
+  </div>
+  <div class="sec">Plano de Ação — Gestão por Exceção</div>
+  <div class="cwrap" id="dre-action">
+    <div style="font-size:0.85rem;color:var(--mu);text-align:center;padding:20px 0">Clique em uma linha do Farol para ver o plano de ação.</div>
+  </div>
+</div>
+
+<!-- ══════════════ LINHA A LINHA ══════════════ -->
+
+    </div>
+
+    <!-- Faturamento -->
+    <div id="fin-fat" style="display:none">
+<div id="tab-fat" class="page" style="display:block">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div class="sec" style="margin:0">&#128640; Faturamento Dinâmico</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="fat-vend" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Vendedores</option>
+      </select>
+      <select id="fat-regiao" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todas as Regiões</option>
+      </select>
+      <select id="fat-seg" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Segmentos</option>
+      </select>
+      <button onclick="fatLoad(true)" style="padding:7px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">&#128260; Atualizar</button>
+    </div>
+  </div>
+
+  <div id="fat-loading" class="spin-wrap" style="display:none"><div class="spin"></div>Carregando dados...</div>
+  <div id="fat-last-update" style="font-size:.7rem;color:var(--mu);margin-bottom:14px;text-align:right"></div>
+
+  <!-- KPI ROW 1 -->
+  <div class="kpis" id="fat-kpis1" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+  <!-- KPI ROW 2 -->
+  <div class="kpis" id="fat-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+  <!-- CHARTS ROW -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Faturamento por Vendedor</div>
+      <div style="position:relative;height:240px"><canvas id="fat-c1"></canvas></div>
+      <div class="cleg" id="fat-c1-leg"></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Margem por Segmento</div>
+      <div style="position:relative;height:240px"><canvas id="fat-c2"></canvas></div>
+      <div class="cleg" id="fat-c2-leg"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Top 10 Clientes por Faturamento</div>
+      <div style="position:relative;height:280px"><canvas id="fat-c3"></canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Distribuição por Região</div>
+      <div style="position:relative;height:280px"><canvas id="fat-c4"></canvas></div>
+      <div class="cleg" id="fat-c4-leg"></div>
+    </div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#129351; Top Clientes — Receita</div>
+      <div id="fat-rank-clientes"></div>
+    </div>
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#129351; Top Produtos — Faturamento</div>
+      <div id="fat-rank-produtos"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#128679; Clientes em Risco (sem compra)</div>
+      <div id="fat-risco"></div>
+    </div>
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#128200; Margem por Vendedor</div>
+      <div id="fat-rank-margem"></div>
+    </div>
+  </div>
+
+  <!-- TABELA DETALHADA -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="sec" style="margin:0">Tabela Detalhada</div>
+    <input id="fat-search" type="text" placeholder="Buscar cliente, produto, vendedor..."
+      style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none;width:280px">
+  </div>
+  <div class="twrap" id="fat-table-wrap" style="display:none;overflow-x:auto">
+    <table>
+      <thead><tr id="fat-thead">
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(0)">Vendedor <span id="fso0"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(1)">Cliente <span id="fso1"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(2)">Produto <span id="fso2"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(3)">Segmento <span id="fso3"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(4)">Região <span id="fso4"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(5)">Qtde <span id="fso5"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(6)">Total <span id="fso6"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(7)">Margem % <span id="fso7"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(8)">Dias s/ Compra <span id="fso8"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(9)">Status <span id="fso9"></span></th>
+      </tr></thead>
+      <tbody id="fat-tbody"></tbody>
+    </table>
+  </div>
+  <div id="fat-count" style="font-size:.72rem;color:var(--mu);text-align:right;margin-top:6px;padding-right:4px"></div>
+</div>
+
+
+
+    </div>
+
+    <!-- Lucro a Lucro -->
+    <div id="fin-lal" style="display:none">
+<div id="tab-lal" class="page" style="display:block">
+  <div class="sec">Linha a Linha — Análise Comparativa</div>
+
+  <!-- FILTROS COMPARAÇÃO -->
+  <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:flex-end;margin-bottom:10px">
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período A (Base)</div>
+        <select id="lal-a" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:0.88rem;outline:none"></select>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Comparar com</div>
+        <select id="lal-b" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:0.88rem;outline:none"></select>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Atalhos</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px">
+          <span style="font-size:.68rem;color:var(--mu);font-weight:700;white-space:nowrap;flex-shrink:0">◀ Ant.</span>
+          <button onclick="lalPreset('prev')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Mês</button>
+          <button onclick="lalPreset('trim')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+          <button onclick="lalPreset('sem')"    style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
+          <button onclick="lalPreset('year')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+          <span style="font-size:.68rem;color:#4d8ef5;font-weight:700;white-space:nowrap;flex-shrink:0;margin-left:4px">▶ Próx.</span>
+          <button onclick="lalPreset('nextprev')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Mês</button>
+          <button onclick="lalPreset('nexttrim')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+          <button onclick="lalPreset('nextsem')"   style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
+          <button onclick="lalPreset('nextyear')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+          <button onclick="buildLAL()" style="padding:8px 20px;background:var(--red);border:none;border-radius:7px;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;margin-left:8px;flex-shrink:0">Comparar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs COMPARATIVOS -->
+  <div class="kpis" id="lal-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+  <!-- GRÁFICO BARRAS LADO A LADO -->
+  <div class="cwrap">
+    <div class="ctitle" id="lal-chart-title">Comparativo por Categoria</div>
+    <div style="position:relative;height:220px"><canvas id="lal-c1"></canvas></div>
+  </div>
+
+  <!-- TABELA LINHA A LINHA PRINCIPAL -->
+  <div class="sec" style="margin-top:4px">Tabela Linha a Linha — Todas as Categorias</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button onclick="lalExpandAll(true)"  style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">+ Expandir tudo</button>
+    <button onclick="lalExpandAll(false)" style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">- Recolher tudo</button>
+    <button onclick="lalCopyWhatsapp()"   style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">&#128205; Copiar Resumo</button>
+    <button id="lal-tv-btn" onclick="lalToggleTV()" style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">&#128250; Modo TV</button>
+  </div>
+  <div class="twrap" id="lal-table-wrap">
+    <table id="lal-table">
+      <thead><tr id="lal-thead"></tr></thead>
+      <tbody id="lal-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- DRILL-DOWN SUBCONTA -->
+  <div id="lal-drill" style="display:none">
+    <div class="sec" id="lal-drill-title">Detalhamento</div>
+    <div class="cwrap">
+      <div style="position:relative;height:240px"><canvas id="lal-c2"></canvas></div>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead><tr id="lal-drill-head"></tr></thead>
+        <tbody id="lal-drill-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// GUARD DE SESSAO + CONTROLE DE ACESSO
+// ════════════════════════════════════════════════════════════════
+// Usuarios autorizados ao modulo Financeiro
+var FINANCEIRO_ALLOWED = [
+  "rodrigo@qfoodcompany.com.br",
+  "adilson@qfoodcompany.com.br",
+  "gustavo@qfoodcompany.com.br",
+  "samara@sushitrip.com.br"
+];
+
+(function(){
+  var sess = localStorage.getItem("qfood_session");
+  if(!sess){ window.location.href = "Index_Menu.html"; return; }
+  try {
+    var s = JSON.parse(sess);
+    var now = Date.now();
+    if(now - s.ts > 8*60*60*1000){
+      localStorage.removeItem("qfood_session");
+      window.location.href = "Index_Menu.html";
+      return;
+    }
+    window.CURRENT_USER = s;
+    var un = document.getElementById("user-name");
+    if(un) un.textContent = s.nome || "";
+
+    // Checa permissao
+    var email = (s.email || "").toLowerCase();
+    if(FINANCEIRO_ALLOWED.indexOf(email) < 0){
+      document.getElementById("access-denied").style.display = "block";
+      document.getElementById("fin-content").style.display = "none";
+      return;
+    }
+    document.getElementById("access-denied").style.display = "none";
+    document.getElementById("fin-content").style.display = "block";
+  } catch(e){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+  }
+})();
+
+function logout(){
+  localStorage.removeItem("qfood_session");
+  window.location.href = "Index_Menu.html";
+}
+
+// Controla trocas de abas internas
+function finShowTab(tab){
+  document.querySelectorAll(".fin-tab").forEach(function(t){t.classList.remove("active");});
+  var activeEl = document.querySelector(".fin-tab[data-tab='"+tab+"']");
+  if(activeEl) activeEl.classList.add("active");
+
+  document.getElementById("fin-dre").style.display = tab==="dre" ? "block" : "none";
+  document.getElementById("fin-fat").style.display = tab==="fat" ? "block" : "none";
+  document.getElementById("fin-lal").style.display = tab==="lal" ? "block" : "none";
+
+  // Inicializa sob demanda
+  if(tab==="fat" && typeof initFat === "function" && !window._fatInited){
+    window._fatInited = true;
+    initFat();
+  }
+  if(tab==="lal" && typeof initLAL === "function" && !window._lalInited){
+    window._lalInited = true;
+    initLAL();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PARSER CSV ROBUSTO (RFC 4180)
+// ════════════════════════════════════════════════════════════════
+function csv(txt){
+  txt = txt.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  var rows = [];
+  var curRow = [];
+  var curField = "";
+  var inQuotes = false;
+
+  for(var i = 0; i < txt.length; i++){
+    var c = txt[i];
+    var next = txt[i+1];
+
+    if(inQuotes){
+      if(c === '"'){
+        if(next === '"'){ curField += '"'; i++; }
+        else { inQuotes = false; }
+      } else { curField += c; }
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === ','){ curRow.push(curField); curField = ""; }
+      else if(c === '\n'){ curRow.push(curField); rows.push(curRow); curRow = []; curField = ""; }
+      else { curField += c; }
+    }
+  }
+  if(curField.length > 0 || curRow.length > 0){
+    curRow.push(curField);
+    rows.push(curRow);
+  }
+  if(rows.length === 0) return [];
+  var hdr = rows[0].map(function(h){ return String(h).trim(); });
+  return rows.slice(1).map(function(row){
+    var o = {};
+    hdr.forEach(function(h, i){
+      o[h] = (row[i] !== undefined) ? String(row[i]).trim() : "";
+    });
+    return o;
+  }).filter(function(r){
+    return Object.values(r).some(function(v){ return v !== ""; });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULO DRE + LINHA A LINHA (copia fiel do original)
+// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// DRE + LINHA A LINHA MODULE
+// ════════════════════════════════════════════════════════════════════
+var UDRE="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=964938598&single=true&output=csv";
+// URL do formulário de cotação hospedado no GitHub Pages
+// CONFIGURE AQUI com seu usuário e repositório
+var COTACAO_FORM_URL="https://rodsilveira-rs.github.io/qfood-dashboard/cotacao.html";
+
+var UDEV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=543400305&single=true&output=csv";
+var UGIRO="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+var UFAT="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=493739923&single=true&output=csv";
+var UUSR="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+var DRE={"months": ["01/2024", "02/2024", "03/2024", "04/2024", "05/2024", "06/2024", "07/2024", "08/2024", "09/2024", "10/2024", "11/2024", "12/2024", "01/2025", "02/2025", "03/2025", "04/2025", "05/2025", "06/2025", "07/2025", "08/2025", "09/2025", "10/2025", "11/2025", "12/2025", "01/2026", "02/2026", "03/2026"], "categories": {"DEDUCOES DA RECEITA": {"TOTAL DEDUÇÕES DA RECEITA BRUTA": {"01/2024": 22106.24, "02/2024": 19114.18, "03/2024": 26556.81, "04/2024": 24598.07, "05/2024": 31575.74, "06/2024": 24670.96, "07/2024": 23808.45, "08/2024": 23913.17, "09/2024": 28622.59, "10/2024": 22983.59, "11/2024": 29306.99, "12/2024": 25115.32, "01/2025": 34428.75, "02/2025": 26190.64, "03/2025": 29206.87, "04/2025": 31745.9, "05/2025": 37574.79, "06/2025": 29036.98, "07/2025": 30704.61, "08/2025": 33865.53, "09/2025": 27102.55, "10/2025": 25651.79, "11/2025": 30588.85, "12/2025": 34377.83, "01/2026": 35415.03, "02/2026": 32232.03, "03/2026": 31702.0}, "CONSUMO ADILSON": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 2617.57, "10/2024": 1023.07, "11/2024": 2249.08, "12/2024": 720.39, "01/2025": 4117.96, "02/2025": 547.7, "03/2025": 192.7, "04/2025": 1152.13, "05/2025": 1562.99, "06/2025": 1527.05, "07/2025": 2875.61, "08/2025": 981.86, "09/2025": 1458.07, "10/2025": 542.85, "11/2025": 703.56, "12/2025": 2116.35, "01/2026": 343.39, "02/2026": 0.0, "03/2026": 0.0}, "DESCONTOS INCONDICIONAIS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 625.0, "04/2024": 0.0, "05/2024": 5145.07, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "DEVOLUÇÕES DE VENDAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 6053.72, "06/2025": 1.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "ROYALTIES": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 2277.0, "02/2025": 2277.0, "03/2025": 2277.0, "04/2025": 2277.0, "05/2025": 2277.0, "06/2025": 2277.0, "07/2025": 2277.0, "08/2025": 2277.0, "09/2025": 2277.0, "10/2025": 2277.0, "11/2025": 2277.0, "12/2025": 2277.0, "01/2026": 2277.0, "02/2026": 2277.0, "03/2026": 2277.0}, "SIMPLES NACIONAL (DAS)": {"01/2024": 2517.19, "02/2024": 3028.04, "03/2024": 3500.0, "04/2024": 3571.6, "05/2024": 3571.6, "06/2024": 3025.0, "07/2024": 2147.82, "08/2024": 3429.41, "09/2024": 9055.64, "10/2024": 4831.9, "11/2024": 4994.53, "12/2024": 4714.5, "01/2025": 4389.66, "02/2025": 5540.45, "03/2025": 4745.16, "04/2025": 4778.65, "05/2025": 4704.09, "06/2025": 4573.12, "07/2025": 4643.54, "08/2025": 8524.62, "09/2025": 5594.32, "10/2025": 4094.16, "11/2025": 4315.71, "12/2025": 4953.62, "01/2026": 5633.58, "02/2026": 6073.07, "03/2026": 5170.7}, "TARIFAS ADM. CARTÃO": {"01/2024": 1716.76, "02/2024": 1103.43, "03/2024": 1559.4, "04/2024": 1497.55, "05/2024": 1512.88, "06/2024": 1601.4, "07/2024": 1205.99, "08/2024": 1370.52, "09/2024": 1300.3, "10/2024": 1531.55, "11/2024": 1511.06, "12/2024": 1716.56, "01/2025": 2153.26, "02/2025": 1023.68, "03/2025": 2178.86, "04/2025": 2101.75, "05/2025": 2684.83, "06/2025": 2153.09, "07/2025": 1944.98, "08/2025": 2323.89, "09/2025": 1552.99, "10/2025": 1694.54, "11/2025": 1413.02, "12/2025": 2121.29, "01/2026": 2522.3, "02/2026": 1972.01, "03/2026": 1907.88}, "TAXAS E COMISSÕES IFOOD": {"01/2024": 17872.29, "02/2024": 14650.72, "03/2024": 20231.12, "04/2024": 19041.59, "05/2024": 20746.67, "06/2024": 19493.31, "07/2024": 20014.17, "08/2024": 18700.39, "09/2024": 15029.2, "10/2024": 14919.58, "11/2024": 19745.05, "12/2024": 17308.83, "01/2025": 20640.75, "02/2025": 16150.43, "03/2025": 19129.45, "04/2025": 20695.58, "05/2025": 19552.57, "06/2025": 17818.46, "07/2025": 18138.24, "08/2025": 18709.23, "09/2025": 15272.62, "10/2025": 16001.32, "11/2025": 19555.24, "12/2025": 20589.27, "01/2026": 23631.26, "02/2026": 20978.75, "03/2026": 21337.06}, "TAXAS PICPAY E VINDI": {"01/2024": 0.0, "02/2024": 331.99, "03/2024": 641.29, "04/2024": 487.33, "05/2024": 599.52, "06/2024": 551.25, "07/2024": 440.47, "08/2024": 412.85, "09/2024": 619.88, "10/2024": 677.49, "11/2024": 807.27, "12/2024": 655.04, "01/2025": 850.12, "02/2025": 651.38, "03/2025": 683.7, "04/2025": 740.79, "05/2025": 739.59, "06/2025": 687.26, "07/2025": 825.24, "08/2025": 1048.93, "09/2025": 947.55, "10/2025": 1041.92, "11/2025": 2324.32, "12/2025": 2320.3, "01/2026": 1007.5, "02/2026": 931.2, "03/2026": 1009.36}}, "CUSTOS OPERACIONAIS": {"TOTAL CUSTOS OPERACIONAIS": {"01/2024": 90208.0, "02/2024": 78450.9, "03/2024": 99687.37, "04/2024": 79506.05, "05/2024": 98987.68, "06/2024": 92171.55, "07/2024": 82956.11, "08/2024": 79464.97, "09/2024": 70444.49, "10/2024": 84857.01, "11/2024": 80290.97, "12/2024": 69812.29, "01/2025": 102983.11, "02/2025": 72364.44, "03/2025": 69481.39, "04/2025": 83075.18, "05/2025": 71792.63, "06/2025": 70780.09, "07/2025": 76034.01, "08/2025": 74243.25, "09/2025": 67577.67, "10/2025": 70457.88, "11/2025": 75235.98, "12/2025": 93939.81, "01/2026": 108331.2, "02/2026": 87114.32, "03/2026": 85365.78}, "COMPRA DE MERC. P/ REVENDA": {"01/2024": 91267.93, "02/2024": 82194.69, "03/2024": 86972.33, "04/2024": 84376.96, "05/2024": 95199.42, "06/2024": 99879.51, "07/2024": 81698.45, "08/2024": 71064.61, "09/2024": 69631.52, "10/2024": 92219.9, "11/2024": 72120.89, "12/2024": 79076.0, "01/2025": 96608.54, "02/2025": 74100.59, "03/2025": 60717.3, "04/2025": 90546.71, "05/2025": 67061.66, "06/2025": 68871.62, "07/2025": 82421.05, "08/2025": 67869.29, "09/2025": 66210.81, "10/2025": 74230.61, "11/2025": 71401.58, "12/2025": 99734.34, "01/2026": 100926.01, "02/2026": 85845.37, "03/2026": 86077.24}, "EMBALAGENS": {"01/2024": 3153.37, "02/2024": 2917.91, "03/2024": 2481.63, "04/2024": 951.94, "05/2024": 2900.53, "06/2024": 3329.52, "07/2024": 2946.11, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 3405.84, "01/2025": 1702.92, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 3219.18, "06/2025": 1.0, "07/2025": 3226.65, "08/2025": 1.0, "09/2025": 1.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 435.86, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "ESTOQUE FINAL": {"01/2024": 14511.23, "02/2024": 21468.9, "03/2024": 11519.16, "04/2024": 17635.72, "05/2024": 16747.99, "06/2024": 28130.57, "07/2024": 30155.33, "08/2024": 22000.0, "09/2024": 21494.11, "10/2024": 29165.87, "11/2024": 21088.38, "12/2024": 33921.59, "01/2025": 29342.53, "02/2025": 31190.98, "03/2025": 22538.91, "04/2025": 30103.03, "05/2025": 28683.83, "06/2025": 26868.95, "07/2025": 36575.23, "08/2025": 30294.86, "09/2025": 29013.77, "10/2025": 32845.58, "11/2025": 29070.26, "12/2025": 35359.73, "01/2026": 28013.62, "02/2026": 26803.75, "03/2026": 27574.29}, "ESTOQUE INICIAL": {"01/2024": 10000.0, "02/2024": 14511.23, "03/2024": 21468.9, "04/2024": 11519.16, "05/2024": 17635.72, "06/2024": 16747.99, "07/2024": 28130.57, "08/2024": 30155.33, "09/2024": 22000.0, "10/2024": 21494.11, "11/2024": 29165.87, "12/2024": 21088.38, "01/2025": 33921.59, "02/2025": 29342.53, "03/2025": 31190.98, "04/2025": 22538.91, "05/2025": 30103.03, "06/2025": 28683.83, "07/2025": 26868.95, "08/2025": 36575.23, "09/2025": 30294.86, "10/2025": 29013.77, "11/2025": 32845.58, "12/2025": 29070.26, "01/2026": 35359.73, "02/2026": 28013.62, "03/2026": 26803.75}, "GAS DE COZINHA": {"01/2024": 297.93, "02/2024": 295.97, "03/2024": 283.67, "04/2024": 293.71, "05/2024": 0.0, "06/2024": 345.1, "07/2024": 336.31, "08/2024": 245.03, "09/2024": 307.08, "10/2024": 308.87, "11/2024": 92.59, "12/2024": 163.66, "01/2025": 92.59, "02/2025": 112.3, "03/2025": 112.02, "04/2025": 92.59, "05/2025": 92.59, "06/2025": 92.59, "07/2025": 92.59, "08/2025": 92.59, "09/2025": 84.77, "10/2025": 59.08, "11/2025": 59.08, "12/2025": 59.08, "01/2026": 59.08, "02/2026": 59.08, "03/2026": 59.08}}, "DESPESAS COM PESSOAL": {"TOTAL DESPESAS COM PESSOAL": {"01/2024": 49646.65, "02/2024": 44124.97, "03/2024": 46801.9, "04/2024": 53111.26, "05/2024": 45412.42, "06/2024": 47347.76, "07/2024": 47068.43, "08/2024": 43816.46, "09/2024": 51126.99, "10/2024": 41599.79, "11/2024": 45350.61, "12/2024": 44163.03, "01/2025": 49895.12, "02/2025": 48547.55, "03/2025": 47803.91, "04/2025": 47688.43, "05/2025": 47579.73, "06/2025": 41993.43, "07/2025": 50837.31, "08/2025": 43737.69, "09/2025": 43395.98, "10/2025": 45382.35, "11/2025": 52444.81, "12/2025": 56809.97, "01/2026": 65887.03, "02/2026": 55102.2, "03/2026": 58100.6}, "AJUDA DE CUSTO": {"01/2024": 150.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "BONIFICAÇÃO": {"01/2024": 349.5, "02/2024": 410.0, "03/2024": 146.96, "04/2024": 2000.0, "05/2024": 0.0, "06/2024": 481.5, "07/2024": 779.34, "08/2024": 987.34, "09/2024": 395.84, "10/2024": 716.84, "11/2024": 703.84, "12/2024": 2134.84, "01/2025": 747.19, "02/2025": 2924.0, "03/2025": 947.0, "04/2025": 1574.0, "05/2025": 1021.0, "06/2025": 421.0, "07/2025": 3504.0, "08/2025": 921.0, "09/2025": 3203.0, "10/2025": 995.0, "11/2025": 2071.61, "12/2025": 4591.92, "01/2026": 2679.06, "02/2026": 49.55, "03/2026": 1727.17}, "CONFRATERNIZAÇÃO": {"01/2024": 177.0, "02/2024": 0.0, "03/2024": 159.6, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 50.0, "10/2024": 115.0, "11/2024": 0.0, "12/2024": 40.2, "01/2025": 180.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 120.0, "05/2025": 900.0, "06/2025": 0.0, "07/2025": 180.0, "08/2025": 338.0, "09/2025": 70.0, "10/2025": 198.0, "11/2025": 1500.0, "12/2025": 220.0, "01/2026": 1410.0, "02/2026": 0.0, "03/2026": 0.0}, "CONTRIBUIÇÃO SINDICAL": {"01/2024": 0.0, "02/2024": 762.35, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 1068.16, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 350.77, "06/2025": 400.11, "07/2025": 400.11, "08/2025": 330.24, "09/2025": 295.56, "10/2025": 281.49, "11/2025": 295.56, "12/2025": 295.56, "01/2026": 295.56, "02/2026": 333.42, "03/2026": 283.98}, "EPI": {"01/2024": 66.92, "02/2024": 88.5, "03/2024": 0.0, "04/2024": 815.34, "05/2024": 293.0, "06/2024": 164.7, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 752.49, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 170.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 936.74, "11/2025": 506.95, "12/2025": 0.0, "01/2026": 1395.25, "02/2026": 0.0, "03/2026": 1295.8}, "EXAMES": {"01/2024": 1905.0, "02/2024": 1945.0, "03/2024": 428.0, "04/2024": 480.0, "05/2024": 0.0, "06/2024": 131.0, "07/2024": 40.0, "08/2024": 103.0, "09/2024": 0.0, "10/2024": 91.0, "11/2024": 40.0, "12/2024": 191.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 875.0, "04/2025": 91.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 865.0, "08/2025": 103.0, "09/2025": 0.0, "10/2025": 331.0, "11/2025": 103.0, "12/2025": 155.15, "01/2026": 646.07, "02/2026": 121.0, "03/2026": 179.78}, "FGTS": {"01/2024": 3054.77, "02/2024": 2027.8, "03/2024": 1685.34, "04/2024": 2030.2, "05/2024": 2228.58, "06/2024": 1834.03, "07/2024": 1918.95, "08/2024": 1899.99, "09/2024": 1711.18, "10/2024": 1694.71, "11/2024": 1686.87, "12/2024": 2493.73, "01/2025": 2297.72, "02/2025": 1969.87, "03/2025": 1709.23, "04/2025": 1838.7, "05/2025": 1946.82, "06/2025": 2335.35, "07/2025": 1698.01, "08/2025": 1628.41, "09/2025": 1789.47, "10/2025": 2316.16, "11/2025": 2326.71, "12/2025": 3364.14, "01/2026": 3691.57, "02/2026": 2337.08, "03/2026": 2058.93}, "FREELANCER ATENDENTE": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 190.0, "01/2025": 1360.0, "02/2025": 1390.0, "03/2025": 1590.0, "04/2025": 1320.0, "05/2025": 1311.6, "06/2025": 1640.0, "07/2025": 3613.0, "08/2025": 3343.81, "09/2025": 1886.0, "10/2025": 2463.5, "11/2025": 2068.0, "12/2025": 3511.0, "01/2026": 3780.0, "02/2026": 3732.0, "03/2026": 3855.0}, "FREELANCER COZINHA": {"01/2024": 990.0, "02/2024": 990.0, "03/2024": 1740.0, "04/2024": 4510.0, "05/2024": 5870.0, "06/2024": 4720.0, "07/2024": 3520.0, "08/2024": 2970.0, "09/2024": 4805.0, "10/2024": 4540.0, "11/2024": 6690.0, "12/2024": 6100.0, "01/2025": 7439.0, "02/2025": 7223.0, "03/2025": 6850.0, "04/2025": 5370.0, "05/2025": 2090.0, "06/2025": 3750.0, "07/2025": 2830.0, "08/2025": 2500.0, "09/2025": 4160.0, "10/2025": 4680.0, "11/2025": 4559.22, "12/2025": 5525.0, "01/2026": 5460.0, "02/2026": 4740.0, "03/2026": 4423.0}, "FREELANCER GERAL": {"01/2024": 3158.88, "02/2024": 2435.0, "03/2024": 3550.0, "04/2024": 4030.0, "05/2024": 4460.0, "06/2024": 6430.0, "07/2024": 4060.0, "08/2024": 7130.0, "09/2024": 4215.0, "10/2024": 4080.0, "11/2024": 2730.0, "12/2024": 2240.0, "01/2025": 800.0, "02/2025": 400.0, "03/2025": 1000.0, "04/2025": 1320.0, "05/2025": 835.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "FREELANCER SUSHIMAN": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 600.0, "01/2025": 900.0, "02/2025": 0.0, "03/2025": 760.0, "04/2025": 300.0, "05/2025": 0.0, "06/2025": 900.0, "07/2025": 3160.0, "08/2025": 3820.0, "09/2025": 1243.0, "10/2025": 860.0, "11/2025": 2496.0, "12/2025": 3382.0, "01/2026": 7983.0, "02/2026": 8144.0, "03/2026": 11396.96}, "GRATIFICAÇÃO CNPJ": {"01/2024": 750.0, "02/2024": 750.0, "03/2024": 750.0, "04/2024": 750.0, "05/2024": 750.0, "06/2024": 750.0, "07/2024": 750.0, "08/2024": 750.0, "09/2024": 750.0, "10/2024": 750.0, "11/2024": 750.0, "12/2024": 750.0, "01/2025": 750.0, "02/2025": 750.0, "03/2025": 750.0, "04/2025": 750.0, "05/2025": 750.0, "06/2025": 750.0, "07/2025": 750.0, "08/2025": 750.0, "09/2025": 750.0, "10/2025": 750.0, "11/2025": 750.0, "12/2025": 750.0, "01/2026": 750.0, "02/2026": 750.0, "03/2026": 750.0}, "MULTA FGTS": {"01/2024": 1913.74, "02/2024": 0.0, "03/2024": 1407.66, "04/2024": 2030.48, "05/2024": 310.02, "06/2024": 1312.98, "07/2024": 2401.32, "08/2024": 0.0, "09/2024": 6901.95, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 5586.02, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "PROVISAO BONIFICACAO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 3180.0, "02/2026": 2673.33, "03/2026": 0.0}, "PROVISAO FGTS 13º + FERIAS": {"01/2024": 442.45, "02/2024": 340.39, "03/2024": 440.6, "04/2024": 438.24, "05/2024": 361.71, "06/2024": 309.39, "07/2024": 321.02, "08/2024": 290.71, "09/2024": 156.17, "10/2024": 278.28, "11/2024": 309.03, "12/2024": 269.05, "01/2025": 333.44, "02/2025": 298.24, "03/2025": 307.94, "04/2025": 324.48, "05/2025": 351.74, "06/2025": 286.75, "07/2025": 248.49, "08/2025": 272.72, "09/2025": 291.02, "10/2025": 277.51, "11/2025": 3750.04, "12/2025": 3738.46, "01/2026": 3703.99, "02/2026": 3661.35, "03/2026": 3645.54}, "PROVISÃO 13º SALÁRIO": {"01/2024": 2304.42, "02/2024": 2127.42, "03/2024": 2299.58, "04/2024": 2290.75, "05/2024": 1937.72, "06/2024": 1933.7, "07/2024": 2006.35, "08/2024": 1816.97, "09/2024": 1952.1, "10/2024": 1739.25, "11/2024": 1931.43, "12/2024": 1681.58, "01/2025": 2084.01, "02/2025": 1864.02, "03/2025": 1924.63, "04/2025": 2027.97, "05/2025": 2198.36, "06/2025": 1792.21, "07/2025": 1553.07, "08/2025": 1704.48, "09/2025": 1818.88, "10/2025": 1734.43, "11/2025": 2046.5, "12/2025": 2011.77, "01/2026": 1908.36, "02/2026": 1780.43, "03/2026": 1733.0}, "PROVISÃO FGTS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 327.44, "12/2025": 321.88, "01/2026": 305.34, "02/2026": 284.87, "03/2026": 277.28}, "PROVISÃO FÉRIAS + 1/3 FÉRIAS": {"01/2024": 3072.56, "02/2024": 2836.56, "03/2024": 3066.11, "04/2024": 3054.33, "05/2024": 2583.63, "06/2024": 2577.55, "07/2024": 3736.65, "08/2024": 3673.53, "09/2024": 3718.57, "10/2024": 3647.62, "11/2024": 3711.68, "12/2024": 3628.4, "01/2025": 3762.54, "02/2025": 3689.21, "03/2025": 3709.41, "04/2025": 3743.86, "05/2025": 3800.66, "06/2025": 3665.27, "07/2025": 3585.56, "08/2025": 3636.03, "09/2025": 3674.16, "10/2025": 3646.01, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "SALÁRIOS": {"01/2024": 27653.06, "02/2024": 25529.01, "03/2024": 27596.65, "04/2024": 27489.01, "05/2024": 23252.69, "06/2024": 23204.36, "07/2024": 24076.22, "08/2024": 21803.62, "09/2024": 23425.16, "10/2024": 20871.04, "11/2024": 23723.16, "12/2024": 20178.92, "01/2025": 25008.09, "02/2025": 22368.25, "03/2025": 23095.54, "04/2025": 24335.68, "05/2025": 26380.34, "06/2025": 21506.55, "07/2025": 18636.85, "08/2025": 20453.74, "09/2025": 21826.55, "10/2025": 20813.19, "11/2025": 24558.03, "12/2025": 24121.19, "01/2026": 22900.27, "02/2026": 21365.21, "03/2026": 20796.0}, "SEGURO DE VIDA": {"01/2024": 138.84, "02/2024": 127.27, "03/2024": 115.7, "04/2024": 124.5, "05/2024": 124.5, "06/2024": 112.05, "07/2024": 124.5, "08/2024": 112.05, "09/2024": 112.05, "10/2024": 99.6, "11/2024": 99.6, "12/2024": 226.87, "01/2025": 99.6, "02/2025": 99.6, "03/2025": 99.6, "04/2025": 104.64, "05/2025": 104.64, "06/2025": 104.64, "07/2025": 104.64, "08/2025": 91.56, "09/2025": 91.56, "10/2025": 91.56, "11/2025": 91.56, "12/2025": 91.56, "01/2026": 91.56, "02/2026": 91.56, "03/2026": 91.56}, "VALE REFEIÇÃO": {"01/2024": 1240.51, "02/2024": 1177.07, "03/2024": 1244.12, "04/2024": 1074.21, "05/2024": 1317.17, "06/2024": 1138.5, "07/2024": 1010.88, "08/2024": 1109.05, "09/2024": 1127.77, "10/2024": 1151.45, "11/2024": 1150.0, "12/2024": 1224.44, "01/2025": 1306.64, "02/2025": 2496.0, "03/2025": 2535.96, "04/2025": 2287.3, "05/2025": 3120.0, "06/2025": 1972.35, "07/2025": 1943.76, "08/2025": 1912.67, "09/2025": 159.66, "10/2025": 2808.96, "11/2025": 2629.69, "12/2025": 2610.34, "01/2026": 2730.0, "02/2026": 3450.0, "03/2026": 3848.5}, "VALE TRANSPORTE": {"01/2024": 2279.0, "02/2024": 2578.6, "03/2024": 2171.58, "04/2024": 1994.2, "05/2024": 1923.4, "06/2024": 2248.0, "07/2024": 2323.2, "08/2024": 1170.2, "09/2024": 1806.2, "10/2024": 1825.0, "11/2024": 1825.0, "12/2024": 2214.0, "01/2025": 2074.4, "02/2025": 2007.2, "03/2025": 1649.6, "04/2025": 2180.8, "05/2025": 2418.8, "06/2025": 2299.2, "07/2025": 2178.8, "08/2025": 1932.03, "09/2025": 2137.12, "10/2025": 2198.8, "11/2025": 2364.5, "12/2025": 2120.0, "01/2026": 2977.0, "02/2026": 1588.4, "03/2026": 1738.1}}, "DESPESAS COMERCIAIS": {"TOTAL DESPESAS COMERCIAIS": {"01/2024": 9850.55, "02/2024": 7840.68, "03/2024": 8119.0, "04/2024": 6120.0, "05/2024": 7061.0, "06/2024": 9562.0, "07/2024": 6642.5, "08/2024": 6080.67, "09/2024": 9107.8, "10/2024": 8945.17, "11/2024": 8552.49, "12/2024": 9594.35, "01/2025": 12641.55, "02/2025": 8225.0, "03/2025": 8887.0, "04/2025": 9422.0, "05/2025": 10790.0, "06/2025": 10223.0, "07/2025": 14041.33, "08/2025": 9553.6, "09/2025": 11188.1, "10/2025": 12490.0, "11/2025": 8853.81, "12/2025": 9844.0, "01/2026": 10129.0, "02/2026": 7929.45, "03/2026": 10743.96}, "ALUGUEL DE MOTO": {"01/2024": 2550.0, "02/2024": 1700.0, "03/2024": 2550.0, "04/2024": 2550.0, "05/2024": 2097.0, "06/2024": 2550.0, "07/2024": 2550.0, "08/2024": 1700.0, "09/2024": 1700.0, "10/2024": 1700.0, "11/2024": 1700.0, "12/2024": 1700.0, "01/2025": 1161.66, "02/2025": 1700.0, "03/2025": 1700.0, "04/2025": 1700.0, "05/2025": 1700.0, "06/2025": 850.0, "07/2025": 1048.33, "08/2025": 850.0, "09/2025": 850.0, "10/2025": 850.0, "11/2025": 1501.66, "12/2025": 1700.0, "01/2026": 1700.0, "02/2026": 1700.0, "03/2026": 1700.0}, "DESPESAS C/ VIAGENS": {"01/2024": 226.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 466.97}, "FREELANCER MOTOBOY": {"01/2024": 3130.0, "02/2024": 3416.0, "03/2024": 2830.0, "04/2024": 3570.0, "05/2024": 3964.0, "06/2024": 2370.0, "07/2024": 2992.5, "08/2024": 2950.0, "09/2024": 2928.8, "10/2024": 3275.0, "11/2024": 3364.98, "12/2024": 4351.0, "01/2025": 6621.42, "02/2025": 3328.0, "03/2025": 3990.0, "04/2025": 3825.0, "05/2025": 3143.0, "06/2025": 6176.0, "07/2025": 6296.0, "08/2025": 6706.6, "09/2025": 6238.1, "10/2025": 6233.0, "11/2025": 4324.0, "12/2025": 5044.0, "01/2026": 5329.0, "02/2026": 3944.0, "03/2026": 5187.0}, "INCENTIVOS IFOOD": {"01/2024": 3170.75, "02/2024": 2724.68, "03/2024": 1739.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 2392.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "PUBLICIDADE / PROPAGANDA": {"01/2024": 773.8, "02/2024": 0.0, "03/2024": 1000.0, "04/2024": 0.0, "05/2024": 1000.0, "06/2024": 2250.0, "07/2024": 1100.0, "08/2024": 1430.67, "09/2024": 4479.0, "10/2024": 3970.17, "11/2024": 3487.51, "12/2024": 3543.35, "01/2025": 4858.47, "02/2025": 3197.0, "03/2025": 3197.0, "04/2025": 3897.0, "05/2025": 5947.0, "06/2025": 3197.0, "07/2025": 6697.0, "08/2025": 1997.0, "09/2025": 4100.0, "10/2025": 5407.0, "11/2025": 3028.15, "12/2025": 3100.0, "01/2026": 3100.0, "02/2026": 2285.45, "03/2026": 3389.99}}, "DESPESAS GERAIS E ADMINISTRATIVAS": {"TOTAL DESPESAS GERAIS E ADMINISTRATIVAS": {"01/2024": 21151.85, "02/2024": 19940.65, "03/2024": 18648.05, "04/2024": 21864.06, "05/2024": 20685.32, "06/2024": 19959.94, "07/2024": 22048.1, "08/2024": 17562.3, "09/2024": 15963.78, "10/2024": 17372.86, "11/2024": 19799.75, "12/2024": 16649.24, "01/2025": 22889.66, "02/2025": 21676.38, "03/2025": 22932.73, "04/2025": 29533.86, "05/2025": 24018.97, "06/2025": 24440.06, "07/2025": 22537.14, "08/2025": 23581.26, "09/2025": 26344.13, "10/2025": 26700.26, "11/2025": 23599.81, "12/2025": 24945.54, "01/2026": 27550.54, "02/2026": 32745.09, "03/2026": 26644.98}, "ALARME E MONITORAMENTO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 200.0, "09/2024": 0.0, "10/2024": 200.0, "11/2024": 200.0, "12/2024": 200.0, "01/2025": 200.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "ALUGUEL": {"01/2024": 3000.0, "02/2024": 3000.0, "03/2024": 3000.0, "04/2024": 3000.0, "05/2024": 3000.0, "06/2024": 3000.0, "07/2024": 3000.0, "08/2024": 3000.0, "09/2024": 3000.0, "10/2024": 3000.0, "11/2024": 3000.0, "12/2024": 3000.0, "01/2025": 3000.0, "02/2025": 3000.0, "03/2025": 3000.0, "04/2025": 3000.0, "05/2025": 3000.0, "06/2025": 3000.0, "07/2025": 3000.0, "08/2025": 3000.0, "09/2025": 3000.0, "10/2025": 3000.0, "11/2025": 3000.0, "12/2025": 3000.0, "01/2026": 4000.0, "02/2026": 4000.0, "03/2026": 4000.0}, "COMBUSTÍVEL": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 694.19, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "CONDOMÍNIO": {"01/2024": 315.0, "02/2024": 315.0, "03/2024": 350.0, "04/2024": 350.0, "05/2024": 350.0, "06/2024": 350.0, "07/2024": 350.0, "08/2024": 415.0, "09/2024": 335.0, "10/2024": 335.0, "11/2024": 350.0, "12/2024": 350.0, "01/2025": 350.4, "02/2025": 350.0, "03/2025": 350.0, "04/2025": 350.0, "05/2025": 350.0, "06/2025": 350.0, "07/2025": 399.2, "08/2025": 399.27, "09/2025": 350.0, "10/2025": 399.25, "11/2025": 380.0, "12/2025": 378.44, "01/2026": 378.0, "02/2026": 466.01, "03/2026": 425.0}, "COPA E COZINHA": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 1189.79, "01/2026": 0.0, "02/2026": 774.5, "03/2026": 0.0}, "ENERGIA ELÉTRICA": {"01/2024": 2752.22, "02/2024": 2341.27, "03/2024": 2341.25, "04/2024": 3035.75, "05/2024": 781.42, "06/2024": 3000.88, "07/2024": 3143.23, "08/2024": 3548.16, "09/2024": 2439.05, "10/2024": 3985.0, "11/2024": 2729.7, "12/2024": 2690.35, "01/2025": 3632.9, "02/2025": 2208.19, "03/2025": 3981.13, "04/2025": 3585.59, "05/2025": 4185.54, "06/2025": 3069.94, "07/2025": 3098.26, "08/2025": 2875.81, "09/2025": 3269.02, "10/2025": 3536.2, "11/2025": 3465.61, "12/2025": 3710.44, "01/2026": 4433.76, "02/2026": 4515.67, "03/2026": 3872.5}, "HONORÁRIO CONTÁBIL": {"01/2024": 660.0, "02/2024": 710.0, "03/2024": 710.0, "04/2024": 710.0, "05/2024": 710.0, "06/2024": 555.0, "07/2024": 710.0, "08/2024": 1000.0, "09/2024": 1000.0, "10/2024": 1000.0, "11/2024": 1000.0, "12/2024": 1000.0, "01/2025": 1000.0, "02/2025": 1000.0, "03/2025": 1000.0, "04/2025": 1000.0, "05/2025": 1000.0, "06/2025": 1000.0, "07/2025": 1000.0, "08/2025": 1000.0, "09/2025": 1050.0, "10/2025": 1050.0, "11/2025": 1050.0, "12/2025": 1050.0, "01/2026": 1050.0, "02/2026": 1050.0, "03/2026": 1050.0}, "LIMPEZA/HIGIENE": {"01/2024": 507.8, "02/2024": 609.78, "03/2024": 467.51, "04/2024": 368.6, "05/2024": 100.0, "06/2024": 0.0, "07/2024": 243.61, "08/2024": 477.97, "09/2024": 180.0, "10/2024": 36.0, "11/2024": 160.0, "12/2024": 189.55, "01/2025": 101.78, "02/2025": 0.0, "03/2025": 83.73, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 500.0, "09/2025": 300.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "MANUTENÇÃO EQUIPAMENTOS": {"01/2024": 4239.91, "02/2024": 3766.0, "03/2024": 923.3, "04/2024": 1070.0, "05/2024": 4015.39, "06/2024": 350.0, "07/2024": 2330.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 3503.3, "12/2024": 150.0, "01/2025": 0.0, "02/2025": 1381.4, "03/2025": 280.0, "04/2025": 3650.9, "05/2025": 1516.11, "06/2025": 2434.01, "07/2025": 357.24, "08/2025": 1190.0, "09/2025": 1080.0, "10/2025": 3838.28, "11/2025": 1150.0, "12/2025": 699.0, "01/2026": 1094.0, "02/2026": 5812.0, "03/2026": 1423.2}, "OUTRAS DESPESAS": {"01/2024": 0.0, "02/2024": 351.9, "03/2024": 966.08, "04/2024": 1484.98, "05/2024": 1131.2, "06/2024": 430.0, "07/2024": 780.0, "08/2024": 450.0, "09/2024": 789.8, "10/2024": 580.0, "11/2024": 744.8, "12/2024": 752.9, "01/2025": 772.45, "02/2025": 598.2, "03/2025": 658.2, "04/2025": 360.0, "05/2025": 658.2, "06/2025": 1687.53, "07/2025": 764.27, "08/2025": 1228.07, "09/2025": 1200.5, "10/2025": 1513.7, "11/2025": 1198.2, "12/2025": 2164.59, "01/2026": 4170.71, "02/2026": 2498.98, "03/2026": 2271.78}, "PRO-LABORE": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 4677.7, "02/2025": 4677.7, "03/2025": 4677.7, "04/2025": 4677.7, "05/2025": 4677.7, "06/2025": 4677.7, "07/2025": 4677.7, "08/2025": 4677.7, "09/2025": 4677.7, "10/2025": 4677.7, "11/2025": 4677.7, "12/2025": 4677.7, "01/2026": 4677.7, "02/2026": 4677.7, "03/2026": 4677.7}, "REFORMAS/BENFEITORIAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 557.0, "05/2024": 288.71, "06/2024": 1854.0, "07/2024": 1387.8, "08/2024": 328.85, "09/2024": 0.0, "10/2024": 113.75, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 334.9, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 519.8, "07/2025": 258.72, "08/2025": 490.0, "09/2025": 2599.2, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 87.2}, "SEGUROS": {"01/2024": 609.25, "02/2024": 609.26, "03/2024": 609.26, "04/2024": 609.23, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 910.81, "02/2025": 0.0, "03/2025": 455.41, "04/2025": 455.41, "05/2025": 455.41, "06/2025": 455.41, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 341.14, "03/2026": 341.11}, "SERVIÇO DE TERCEIRIZAÇÃO DE GESTÃO": {"01/2024": 5000.0, "02/2024": 5000.0, "03/2024": 5000.0, "04/2024": 5000.0, "05/2024": 5000.0, "06/2024": 5000.0, "07/2024": 5000.0, "08/2024": 5000.0, "09/2024": 5000.0, "10/2024": 5000.0, "11/2024": 5000.0, "12/2024": 5000.0, "01/2025": 5000.0, "02/2025": 5000.0, "03/2025": 5000.0, "04/2025": 5000.0, "05/2025": 5000.0, "06/2025": 5000.0, "07/2025": 5000.0, "08/2025": 5000.0, "09/2025": 5000.0, "10/2025": 5000.0, "11/2025": 5000.0, "12/2025": 5000.0, "01/2026": 5000.0, "02/2026": 5000.0, "03/2026": 5000.0}, "SERVIÇOS DE AUDITORIA FINANCEIRA": {"01/2024": 606.0, "02/2024": 606.0, "03/2024": 606.0, "04/2024": 606.0, "05/2024": 606.0, "06/2024": 606.0, "07/2024": 710.0, "08/2024": 710.0, "09/2024": 710.0, "10/2024": 710.0, "11/2024": 710.0, "12/2024": 710.0, "01/2025": 710.0, "02/2025": 710.0, "03/2025": 710.0, "04/2025": 710.0, "05/2025": 710.0, "06/2025": 1.0, "07/2025": 751.0, "08/2025": 750.0, "09/2025": 750.0, "10/2025": 750.0, "11/2025": 750.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "SERVIÇOS PRESTADOS PJ": {"01/2024": 600.0, "02/2024": 600.0, "03/2024": 660.0, "04/2024": 660.0, "05/2024": 2959.33, "06/2024": 3093.33, "07/2024": 2493.33, "08/2024": 660.0, "09/2024": 660.0, "10/2024": 660.0, "11/2024": 660.0, "12/2024": 550.0, "01/2025": 660.0, "02/2025": 660.0, "03/2025": 726.0, "04/2025": 4009.29, "05/2025": 726.0, "06/2025": 726.0, "07/2025": 726.0, "08/2025": 726.0, "09/2025": 726.0, "10/2025": 726.0, "11/2025": 726.0, "12/2025": 726.0, "01/2026": 726.0, "02/2026": 726.0, "03/2026": 726.0}, "SOFTWARES": {"01/2024": 1405.22, "02/2024": 1392.39, "03/2024": 1392.39, "04/2024": 995.49, "05/2024": 1085.21, "06/2024": 1056.41, "07/2024": 1216.5, "08/2024": 1058.57, "09/2024": 1186.51, "10/2024": 1076.51, "11/2024": 1076.51, "12/2024": 1332.38, "01/2025": 1340.36, "02/2025": 1340.36, "03/2025": 972.41, "04/2025": 843.41, "05/2025": 843.41, "06/2025": 843.41, "07/2025": 1143.41, "08/2025": 1143.41, "09/2025": 1482.41, "10/2025": 1503.41, "11/2025": 1237.66, "12/2025": 1237.66, "01/2026": 1237.66, "02/2026": 1407.36, "03/2026": 1954.48}, "TAXAS": {"01/2024": 876.81, "02/2024": 0.0, "03/2024": 907.19, "04/2024": 2837.2, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 1277.46, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 417.88, "01/2026": 19.55, "02/2026": 536.6, "03/2026": 0.0}, "TELEFONIA/INTERNET": {"01/2024": 183.22, "02/2024": 180.69, "03/2024": 180.69, "04/2024": 199.82, "05/2024": 179.38, "06/2024": 230.4, "07/2024": 283.5, "08/2024": 253.55, "09/2024": 260.2, "10/2024": 261.79, "11/2024": 262.49, "12/2024": 262.66, "01/2025": 209.79, "02/2025": 316.24, "03/2025": 209.78, "04/2025": 222.76, "05/2025": 381.34, "06/2025": 278.84, "07/2025": 275.63, "08/2025": 222.76, "09/2025": 328.89, "10/2025": 277.21, "11/2025": 278.31, "12/2025": 223.87, "01/2026": 279.4, "02/2026": 334.13, "03/2026": 279.13}, "ÁGUA": {"01/2024": 396.42, "02/2024": 458.36, "03/2024": 534.38, "04/2024": 379.99, "05/2024": 478.68, "06/2024": 433.92, "07/2024": 400.13, "08/2024": 460.2, "09/2024": 403.22, "10/2024": 414.81, "11/2024": 402.95, "12/2024": 461.4, "01/2025": 323.47, "02/2025": 434.29, "03/2025": 493.47, "04/2025": 391.34, "05/2025": 515.26, "06/2025": 396.42, "07/2025": 391.52, "08/2025": 378.24, "09/2025": 530.41, "10/2025": 428.51, "11/2025": 686.33, "12/2025": 470.17, "01/2026": 483.76, "02/2026": 605.0, "03/2026": 536.88}}, "DESPESAS FINANCEIRAS": {"TOTAL DESPESAS FINANCEIRAS": {"01/2024": 2254.95, "02/2024": 2360.72, "03/2024": 2254.47, "04/2024": 2028.67, "05/2024": 1908.51, "06/2024": 1797.24, "07/2024": 1562.66, "08/2024": 1573.32, "09/2024": 1657.27, "10/2024": 1589.39, "11/2024": 1556.14, "12/2024": 1377.93, "01/2025": 1524.97, "02/2025": 1488.31, "03/2025": 1421.28, "04/2025": 1423.31, "05/2025": 1301.67, "06/2025": 1325.55, "07/2025": 66.7, "08/2025": 1312.1, "09/2025": 1217.93, "10/2025": 1128.59, "11/2025": 1029.0, "12/2025": 943.8, "01/2026": 1606.19, "02/2026": 796.28, "03/2026": 648.2}, "JUROS E MULTAS": {"01/2024": 2145.25, "02/2024": 2251.02, "03/2024": 2144.77, "04/2024": 1918.97, "05/2024": 1798.81, "06/2024": 1687.54, "07/2024": 1452.96, "08/2024": 1463.62, "09/2024": 1547.57, "10/2024": 1479.69, "11/2024": 1446.44, "12/2024": 1268.23, "01/2025": 1401.27, "02/2025": 1364.61, "03/2025": 1311.58, "04/2025": 1299.61, "05/2025": 1177.97, "06/2025": 1201.85, "07/2025": 1.0, "08/2025": 1222.4, "09/2025": 1142.23, "10/2025": 1052.89, "11/2025": 953.3, "12/2025": 868.1, "01/2026": 1516.49, "02/2026": 720.58, "03/2026": 572.5}, "TARIFA CARTÃO DE CRÉDITO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 14.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 14.0, "05/2025": 14.0, "06/2025": 14.0, "07/2025": 14.0, "08/2025": 14.0, "09/2025": 14.0, "10/2025": 14.0, "11/2025": 14.0, "12/2025": 14.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "TARIFAS ADM. CARTÃO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 28.0, "02/2026": 14.0, "03/2026": 14.0}, "TARIFAS BANCÁRIAS": {"01/2024": 109.7, "02/2024": 109.7, "03/2024": 109.7, "04/2024": 109.7, "05/2024": 109.7, "06/2024": 109.7, "07/2024": 109.7, "08/2024": 109.7, "09/2024": 109.7, "10/2024": 109.7, "11/2024": 109.7, "12/2024": 109.7, "01/2025": 109.7, "02/2025": 123.7, "03/2025": 109.7, "04/2025": 109.7, "05/2025": 109.7, "06/2025": 109.7, "07/2025": 51.7, "08/2025": 75.7, "09/2025": 61.7, "10/2025": 61.7, "11/2025": 61.7, "12/2025": 61.7, "01/2026": 61.7, "02/2026": 61.7, "03/2026": 61.7}}, "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS": {"TOTAL DESPESAS COM INVESTIMENTOS E EMPRÉSTIMOS": {"01/2024": 5389.21, "02/2024": 5389.21, "03/2024": 5389.21, "04/2024": 4869.53, "05/2024": 4636.58, "06/2024": 4636.58, "07/2024": 4636.58, "08/2024": 5036.58, "09/2024": 5036.58, "10/2024": 5077.7, "11/2024": 5477.7, "12/2024": 5477.7, "01/2025": 5436.58, "02/2025": 5436.58, "03/2025": 5436.58, "04/2025": 5436.58, "05/2025": 5436.58, "06/2025": 5436.58, "07/2025": 6517.58, "08/2025": 5379.38, "09/2025": 5379.38, "10/2025": 5379.38, "11/2025": 5379.38, "12/2025": 5379.38, "01/2026": 5379.38, "02/2026": 5379.38, "03/2026": 5379.38}, "CURSOS E TREINAMENTOS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 1081.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "EMPRÉSTIMO - INCÊNDIO": {"01/2024": 4636.58, "02/2024": 4636.58, "03/2024": 4636.58, "04/2024": 4636.58, "05/2024": 4636.58, "06/2024": 4636.58, "07/2024": 4636.58, "08/2024": 4636.58, "09/2024": 4636.58, "10/2024": 4677.7, "11/2024": 4677.7, "12/2024": 4677.7, "01/2025": 4636.58, "02/2025": 4636.58, "03/2025": 4636.58, "04/2025": 4636.58, "05/2025": 4636.58, "06/2025": 4636.58, "07/2025": 4636.58, "08/2025": 4536.58, "09/2025": 4536.58, "10/2025": 4536.58, "11/2025": 4536.58, "12/2025": 4536.58, "01/2026": 4536.58, "02/2026": 4536.58, "03/2026": 4536.58}, "TITULO DE CAPITALIZAÇÃO": {"01/2024": 752.63, "02/2024": 752.63, "03/2024": 752.63, "04/2024": 232.95, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 400.0, "09/2024": 400.0, "10/2024": 400.0, "11/2024": 800.0, "12/2024": 800.0, "01/2025": 800.0, "02/2025": 800.0, "03/2025": 800.0, "04/2025": 800.0, "05/2025": 800.0, "06/2025": 800.0, "07/2025": 800.0, "08/2025": 842.8, "09/2025": 842.8, "10/2025": 842.8, "11/2025": 842.8, "12/2025": 842.8, "01/2026": 842.8, "02/2026": 842.8, "03/2026": 842.8}}, "DESPESAS NAO OPERACIONAIS": {"TOTAL DESPESAS NÃO OPERACIONAIS": {"01/2024": 9060.8, "02/2024": 10057.57, "03/2024": 13226.32, "04/2024": 13832.6, "05/2024": 11037.69, "06/2024": 9961.04, "07/2024": 8712.3, "08/2024": 6756.79, "09/2024": 6480.34, "10/2024": 6598.43, "11/2024": 7011.55, "12/2024": 9902.61, "01/2025": 5237.69, "02/2025": 5251.56, "03/2025": 2865.74, "04/2025": 9584.81, "05/2025": 3591.79, "06/2025": 14869.61, "07/2025": 9582.62, "08/2025": 3754.25, "09/2025": 18723.32, "10/2025": 7511.32, "11/2025": 10573.71, "12/2025": 11397.22, "01/2026": 14153.29, "02/2026": 18281.32, "03/2026": 12787.2}, "ADIANTAMENTO DE LUCROS": {"01/2024": 4677.7, "02/2024": 5944.66, "03/2024": 9877.7, "04/2024": 11544.38, "05/2024": 7677.7, "06/2024": 6677.7, "07/2024": 4677.7, "08/2024": 4677.7, "09/2024": 4677.7, "10/2024": 4504.43, "11/2024": 4614.17, "12/2024": 7677.7, "01/2025": 3000.0, "02/2025": 3000.0, "03/2025": 0.0, "04/2025": 7177.47, "05/2025": 2020.0, "06/2025": 4206.4, "07/2025": 6382.3, "08/2025": 1761.15, "09/2025": 16732.22, "10/2025": 5496.74, "11/2025": 8534.49, "12/2025": 9337.79, "01/2026": 12038.67, "02/2026": 16176.07, "03/2026": 10662.7}, "BENS DE PEQUENO VALOR": {"01/2024": 763.1, "02/2024": 2725.59, "03/2024": 1950.31, "04/2024": 878.51, "05/2024": 1935.05, "06/2024": 1850.0, "07/2024": 2590.41, "08/2024": 622.4, "09/2024": 334.0, "10/2024": 613.82, "11/2024": 904.43, "12/2024": 721.11, "01/2025": 721.11, "02/2025": 721.11, "03/2025": 1321.69, "04/2025": 850.11, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 1256.19, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "MULTAS FISCAIS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 8719.08, "07/2025": 0.0, "08/2025": 1.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "PARCELAMENTOS SIMPLES NACIONAL": {"01/2024": 1373.59, "02/2024": 1387.32, "03/2024": 1398.31, "04/2024": 1409.71, "05/2024": 1424.94, "06/2024": 1433.34, "07/2024": 1444.19, "08/2024": 1456.69, "09/2024": 1468.64, "10/2024": 1480.18, "11/2024": 1492.95, "12/2024": 1503.8, "01/2025": 1516.58, "02/2025": 1530.45, "03/2025": 1544.05, "04/2025": 1557.23, "05/2025": 1571.79, "06/2025": 1944.13, "07/2025": 1944.13, "08/2025": 1992.1, "09/2025": 1991.1, "10/2025": 2014.58, "11/2025": 2039.22, "12/2025": 2059.43, "01/2026": 2114.62, "02/2026": 2105.25, "03/2026": 2124.5}, "REFORMAS INCÊNDIO": {"01/2024": 2246.41, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}}}, "cat_totals": {"DEDUCOES DA RECEITA": {"01/2024": 44212.479999999996, "02/2024": 38228.36, "03/2024": 53113.62, "04/2024": 49196.14, "05/2024": 63151.47999999999, "06/2024": 49341.92, "07/2024": 47616.9, "08/2024": 47826.34, "09/2024": 57245.18, "10/2024": 45967.17999999999, "11/2024": 58613.97999999999, "12/2024": 50230.64000000001, "01/2025": 68857.5, "02/2025": 52381.28, "03/2025": 58413.73999999999, "04/2025": 63491.8, "05/2025": 75149.57999999999, "06/2025": 58073.96000000001, "07/2025": 61409.22000000001, "08/2025": 67731.06, "09/2025": 54205.100000000006, "10/2025": 51303.579999999994, "11/2025": 61177.700000000004, "12/2025": 68755.66, "01/2026": 70830.06, "02/2026": 64464.06, "03/2026": 63404.0}, "CUSTOS OPERACIONAIS": {"01/2024": 209438.46, "02/2024": 199839.6, "03/2024": 222413.06000000003, "04/2024": 194283.54, "05/2024": 231471.33999999997, "06/2024": 240604.24, "07/2024": 226222.88, "08/2024": 202929.94000000003, "09/2024": 183877.19999999998, "10/2024": 228045.75999999995, "11/2024": 202758.69999999998, "12/2024": 207467.75999999998, "01/2025": 264651.28, "02/2025": 207110.84, "03/2025": 184040.6, "04/2025": 226356.42, "05/2025": 200952.91999999998, "06/2025": 195298.08, "07/2025": 225218.48, "08/2025": 209076.21999999997, "09/2025": 193182.87999999998, "10/2025": 206606.91999999998, "11/2025": 208612.48, "12/2025": 258599.08, "01/2026": 272689.64, "02/2026": 227836.13999999998, "03/2026": 225880.14}, "DESPESAS COM PESSOAL": {"01/2024": 99293.29999999997, "02/2024": 88249.94000000002, "03/2024": 93603.79999999999, "04/2024": 106222.51999999999, "05/2024": 90824.83999999998, "06/2024": 94695.52, "07/2024": 94136.85999999999, "08/2024": 87632.92, "09/2024": 102253.98000000001, "10/2024": 83199.58, "11/2024": 90701.22, "12/2024": 88326.06, "01/2025": 99790.23999999999, "02/2025": 97095.10000000002, "03/2025": 95607.82000000002, "04/2025": 95376.86, "05/2025": 95159.45999999999, "06/2025": 83986.86, "07/2025": 101674.62000000001, "08/2025": 87475.38, "09/2025": 86791.95999999999, "10/2025": 90764.7, "11/2025": 104889.61999999998, "12/2025": 113619.94, "01/2026": 131774.06, "02/2026": 110204.4, "03/2026": 116201.2}, "DESPESAS COMERCIAIS": {"01/2024": 19701.1, "02/2024": 15681.36, "03/2024": 16238.0, "04/2024": 12240.0, "05/2024": 14122.0, "06/2024": 19124.0, "07/2024": 13285.0, "08/2024": 12161.34, "09/2024": 18215.6, "10/2024": 17890.34, "11/2024": 17104.98, "12/2024": 19188.7, "01/2025": 25283.1, "02/2025": 16450.0, "03/2025": 17774.0, "04/2025": 18844.0, "05/2025": 21580.0, "06/2025": 20446.0, "07/2025": 28082.66, "08/2025": 19107.2, "09/2025": 22376.2, "10/2025": 24980.0, "11/2025": 17707.62, "12/2025": 19688.0, "01/2026": 20258.0, "02/2026": 15858.900000000001, "03/2026": 21487.92}, "DESPESAS GERAIS E ADMINISTRATIVAS": {"01/2024": 42303.7, "02/2024": 39881.3, "03/2024": 37296.1, "04/2024": 43728.119999999995, "05/2024": 41370.63999999999, "06/2024": 39919.880000000005, "07/2024": 44096.2, "08/2024": 35124.6, "09/2024": 31927.559999999998, "10/2024": 34745.72, "11/2024": 39599.5, "12/2024": 33298.48, "01/2025": 45779.32, "02/2025": 43352.76, "03/2025": 45865.46000000001, "04/2025": 59067.72, "05/2025": 48037.94, "06/2025": 48880.12, "07/2025": 45074.28, "08/2025": 47162.520000000004, "09/2025": 52688.26, "10/2025": 53400.52, "11/2025": 47199.62, "12/2025": 49891.08, "01/2026": 55101.08000000001, "02/2026": 65490.17999999999, "03/2026": 53289.959999999985}, "DESPESAS FINANCEIRAS": {"01/2024": 4509.9, "02/2024": 4721.44, "03/2024": 4508.94, "04/2024": 4057.34, "05/2024": 3817.0199999999995, "06/2024": 3594.4799999999996, "07/2024": 3125.3199999999997, "08/2024": 3146.6399999999994, "09/2024": 3314.54, "10/2024": 3178.7799999999997, "11/2024": 3112.2799999999997, "12/2024": 2755.8599999999997, "01/2025": 3049.9399999999996, "02/2025": 2976.62, "03/2025": 2842.5599999999995, "04/2025": 2846.62, "05/2025": 2603.34, "06/2025": 2651.0999999999995, "07/2025": 133.4, "08/2025": 2624.2, "09/2025": 2435.8599999999997, "10/2025": 2257.18, "11/2025": 2058.0, "12/2025": 1887.6000000000001, "01/2026": 3212.38, "02/2026": 1592.5600000000002, "03/2026": 1296.4}, "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS": {"01/2024": 10778.42, "02/2024": 10778.42, "03/2024": 10778.42, "04/2024": 9739.060000000001, "05/2024": 9273.16, "06/2024": 9273.16, "07/2024": 9273.16, "08/2024": 10073.16, "09/2024": 10073.16, "10/2024": 10155.4, "11/2024": 10955.4, "12/2024": 10955.4, "01/2025": 10873.16, "02/2025": 10873.16, "03/2025": 10873.16, "04/2025": 10873.16, "05/2025": 10873.16, "06/2025": 10873.16, "07/2025": 13035.16, "08/2025": 10758.759999999998, "09/2025": 10758.759999999998, "10/2025": 10758.759999999998, "11/2025": 10758.759999999998, "12/2025": 10758.759999999998, "01/2026": 10758.759999999998, "02/2026": 10758.759999999998, "03/2026": 10758.759999999998}, "DESPESAS NAO OPERACIONAIS": {"01/2024": 18121.6, "02/2024": 20115.14, "03/2024": 26452.640000000003, "04/2024": 27665.199999999997, "05/2024": 22075.379999999997, "06/2024": 19922.08, "07/2024": 17424.6, "08/2024": 13513.58, "09/2024": 12960.68, "10/2024": 13196.86, "11/2024": 14023.100000000002, "12/2024": 19805.22, "01/2025": 10475.38, "02/2025": 10503.120000000003, "03/2025": 5731.4800000000005, "04/2025": 19169.62, "05/2025": 7183.58, "06/2025": 29739.220000000005, "07/2025": 19165.24, "08/2025": 7508.5, "09/2025": 37446.64, "10/2025": 15022.64, "11/2025": 21147.42, "12/2025": 22794.440000000002, "01/2026": 28306.579999999998, "02/2026": 36562.64, "03/2026": 25574.4}}, "grand_total": {"01/2024": 448358.95999999996, "02/2024": 417495.56, "03/2024": 464404.58, "04/2024": 447131.92, "05/2024": 476105.8599999999, "06/2024": 476475.28, "07/2024": 455180.92, "08/2024": 412408.52, "09/2024": 419867.89999999997, "10/2024": 436379.61999999994, "11/2024": 436869.16, "12/2024": 432028.12, "01/2025": 528759.92, "02/2025": 440742.88, "03/2025": 421148.82, "04/2025": 496026.2, "05/2025": 461539.98, "06/2025": 449948.5, "07/2025": 493793.06000000006, "08/2025": 451443.83999999997, "09/2025": 459885.66, "10/2025": 455094.3, "11/2025": 473551.22, "12/2025": 545994.5599999999, "01/2026": 592930.56, "02/2026": 532767.64, "03/2026": 517892.77999999997}};
+var DRE_COLORS=["#ff4d4f","#4d8ef5","#36cfa0","#ffaa2b","#a07cf6","#00cec9","#fd79a8","#e17055","#55efc4"];
+var DRE_RESP={
+  "DEDUCOES DA RECEITA":"Financeiro/Vendas",
+  "CUSTOS OPERACIONAIS":"Gestor Operacional",
+  "DESPESAS COM PESSOAL":"Gestor RH",
+  "DESPESAS COMERCIAIS":"Gestor Comercial",
+  "DESPESAS GERAIS E ADMINISTRATIVAS":"Gestor Adm/Fin",
+  "DESPESAS FINANCEIRAS":"Gestor Financeiro",
+  "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS":"Diretoria",
+  "DESPESAS NAO OPERACIONAIS":"Diretoria"
+};
+var DRE_ACTIONS={
+  "DEDUCOES DA RECEITA":{causa:"Taxas iFood/PicPay, royalties ou devoluções acima do planejado",acao:"Revisar política de descontos e negociar taxas."},
+  "CUSTOS OPERACIONAIS":{causa:"CMV elevado, compras ou embalagens fora do padrão",acao:"Revisar mix, controlar estoque, negociar fornecedores."},
+  "DESPESAS COM PESSOAL":{causa:"Freelancers (sushiman/atendente/cozinha) ou provisões acima do orçado",acao:"Analisar escala, substituir freelancer por CLT se recorrente."},
+  "DESPESAS COMERCIAIS":{causa:"Motoboys, incentivos iFood, publicidade ou aluguel de moto acima do planejado",acao:"Otimizar entregas e revisar campanhas."},
+  "DESPESAS GERAIS E ADMINISTRATIVAS":{causa:"Aluguel, condomínio, pro-labore ou serviços acima do planejado",acao:"Negociar contratos e avaliar softwares."},
+  "DESPESAS FINANCEIRAS":{causa:"Juros, multas ou tarifas bancárias acima do normal",acao:"Renegociar taxas, reduzir uso de capital externo."},
+  "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS":{causa:"Empréstimo incêndio, cursos ou título de capitalização",acao:"Avaliar ROI, renegociar prazos."},
+  "DESPESAS NAO OPERACIONAIS":{causa:"Adiantamento de lucros, multas fiscais ou reformas pós-incêndio",acao:"Identificar causa raiz e avaliar recorrência."}
+};
+var dreSelCat=Object.keys(DRE.categories)[1]||"CUSTOS OPERACIONAIS";
+var dreC1=null,dreC2=null,dreC3=null,dreC4=null;
+
+// ── helpers ──────────────────────────────────────────────────────────
+function dreIdx(m){return DRE.months.indexOf(m);}
+function dreRange(from,to){var a=dreIdx(from),b=dreIdx(to);if(a<0)a=0;if(b<0)b=DRE.months.length-1;return DRE.months.slice(a,b+1);}
+function dreCatSum(cat,ms){var t=0;ms.forEach(function(m){t+=((DRE.cat_totals[cat]&&DRE.cat_totals[cat][m])||0);});return t;}
+function dreGrandSum(ms){var t=0;ms.forEach(function(m){t+=(DRE.grand_total[m]||0);});return t;}
+function dreFmt(v){if(v===null||v===undefined||isNaN(v))return"—";return"R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function drePct(v){return v.toFixed(1).replace(".",",")+"%";}
+function dreCompact(v){
+  if(!v||isNaN(v)) return "R$ 0";
+  if(v>=1000000) return "R$ "+(v/1000000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" M";
+  if(v>=1000)    return "R$ "+(v/1000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" k";
+  return dreFmt(v);
+}
+function dreKill(ch){if(ch){try{ch.destroy();}catch(e){}}return null;}
+function dreEl(id){return document.getElementById(id);}
+
+// ── selectors ────────────────────────────────────────────────────────
+function initDRESelectors(){
+  var f=dreEl("dre-from"),t=dreEl("dre-to");
+  if(!f||!t)return;
+  f.innerHTML="";t.innerHTML="";
+  DRE.months.forEach(function(m){
+    f.innerHTML+='<option value="'+m+'">'+m+'</option>';
+    t.innerHTML+='<option value="'+m+'">'+m+'</option>';
+  });
+  var n=DRE.months.length;
+  f.value=DRE.months[Math.max(0,n-12)];
+  t.value=DRE.months[n-1];
+}
+
+// ── DRE main ─────────────────────────────────────────────────────────
+function buildDRE(){
+  var f=dreEl("dre-from"),t=dreEl("dre-to"),v=dreEl("dre-view");
+  if(!f)return;
+  var ms=dreRange(f.value,t.value);
+  if(!ms.length)return;
+  dreKPIs(ms);dreChart1(ms);dreChart2(ms);dreChart3(ms);dreFarol(ms);dreChart4(ms);dreCatBtns(ms,v.value);
+}
+
+function dreKPIs(ms){
+  var el=dreEl("dre-kpis");if(!el)return;
+  var total=dreGrandSum(ms);
+  var lm=ms[ms.length-1],pm=ms[ms.length-2]||"";
+  var lv=DRE.grand_total[lm]||0,pv=pm?(DRE.grand_total[pm]||0):0;
+  var vp=pv>0?((lv-pv)/pv*100):0;
+  var cmv=dreCatSum("CUSTOS OPERACIONAIS",ms),rh=dreCatSum("DESPESAS COM PESSOAL",ms);
+  var vc=vp>5?"r":vp>0?"w":"g";
+  el.innerHTML=
+    '<div class="kpi b"><div class="lbl">Total Período</div><div class="val">'+dreCompact(total)+'</div><div class="sub">'+ms.length+' meses</div></div>'+
+    '<div class="kpi '+vc+'"><div class="lbl">Var. Último Mês</div><div class="val">'+(vp>0?"+":"")+drePct(vp)+'</div><div class="sub">'+dreFmt(lv)+'</div></div>'+
+    '<div class="kpi r"><div class="lbl">Custos Operacionais</div><div class="val">'+drePct(total>0?cmv/total*100:0)+'</div><div class="sub">'+dreCompact(cmv)+'</div></div>'+
+    '<div class="kpi w"><div class="lbl">Desp. com Pessoal</div><div class="val">'+drePct(total>0?rh/total*100:0)+'</div><div class="sub">'+dreCompact(rh)+'</div></div>';
+}
+
+function dreChart1(ms){
+  dreC1=dreKill(dreC1);
+  var ctx=dreEl("dre-c1");if(!ctx)return;
+
+  // Separar TOTAL das categorias — escalas muito diferentes
+  var cats=["CUSTOS OPERACIONAIS","DESPESAS COM PESSOAL","DESPESAS GERAIS E ADMINISTRATIVAS","DESPESAS FINANCEIRAS","DESPESAS COMERCIAIS","DESPESAS COM VEICULOS"];
+  var labels=["Custos Operac.","Com Pessoal","Gerais e Adm.","Financeiras","Comerciais","Com Veiculos"];
+
+  // Dataset TOTAL — eixo y (esquerdo)
+  var dsTotal={
+    label:"TOTAL",
+    data:ms.map(function(m){return DRE.grand_total[m]||0;}),
+    borderColor:DRE_COLORS[0],backgroundColor:"transparent",
+    tension:.35,fill:false,pointRadius:4,borderWidth:3,
+    borderDash:[7,3],yAxisID:"yLeft",order:0
+  };
+
+  // Datasets categorias — eixo y2 (direito)
+  var dsCats=cats.map(function(cat,i){
+    return{
+      label:labels[i],
+      data:ms.map(function(m){return(DRE.cat_totals[cat]&&DRE.cat_totals[cat][m])||0;}),
+      borderColor:DRE_COLORS[i+1],backgroundColor:DRE_COLORS[i+1]+"18",
+      tension:.35,fill:false,
+      pointRadius:3,pointHoverRadius:6,
+      borderWidth:2,yAxisID:"yRight",order:i+1
+    };
+  });
+
+  var ds=[dsTotal].concat(dsCats);
+
+  dreC1=new Chart(ctx,{type:"line",data:{labels:ms,datasets:ds},options:{
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:"index",intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        callbacks:{
+          label:function(x){
+            return " "+x.dataset.label+": "+dreFmt(x.parsed.y);
+          }
+        }
+      }
+    },
+    scales:{
+      yLeft:{
+        type:"linear",position:"left",
+        ticks:{color:"#ff7875",callback:function(v){return"R$"+(v/1000000).toFixed(1).replace(".",",")+"M";}},
+        grid:{color:"rgba(255,255,255,0.05)"},
+        title:{display:true,text:"Total",color:"#ff7875",font:{size:10}}
+      },
+      yRight:{
+        type:"linear",position:"right",
+        ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},
+        grid:{drawOnChartArea:false},
+        title:{display:true,text:"Categorias",color:"#8fa0c0",font:{size:10}}
+      },
+      x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:45},grid:{color:"rgba(255,255,255,0.03)"}}
+    }
+  }});
+  makeLegend(dreEl("dre-c1-leg"), dreC1, ds);
+}
+
+function dreChart2(ms){
+  dreC2=dreKill(dreC2);var ctx=dreEl("dre-c2");if(!ctx)return;
+  var cats=Object.keys(DRE.cat_totals);
+  var ds=cats.map(function(cat,i){return{
+    label:cat.length>28?cat.substring(0,26)+"…":cat,
+    data:ms.map(function(m){var g=DRE.grand_total[m]||1;return g>0?((DRE.cat_totals[cat]&&DRE.cat_totals[cat][m])||0)/g*100:0;}),
+    backgroundColor:DRE_COLORS[i%DRE_COLORS.length]+"cc",borderColor:DRE_COLORS[i%DRE_COLORS.length],borderWidth:1};});
+  dreC2=new Chart(ctx,{type:"bar",data:{labels:ms,datasets:ds},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:"index",intersect:false,callbacks:{label:function(x){return x.dataset.label+": "+x.parsed.y.toFixed(1)+"%";}}}},
+    scales:{x:{stacked:true,ticks:{color:"#8fa0c0",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"}},
+            y:{stacked:true,max:100,ticks:{color:"#8fa0c0",callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+  }});
+  makeLegend(dreEl("dre-c2-leg"), dreC2, ds);
+}
+
+function dreChart3(ms){
+  dreC3=dreKill(dreC3);var ctx=dreEl("dre-c3");if(!ctx)return;
+  var cats=Object.keys(DRE.cat_totals);
+  var vals=cats.map(function(cat){return dreCatSum(cat,ms);});
+  var run=0,floats=vals.map(function(v){var s=run;run+=v;return s;});
+  dreC3=new Chart(ctx,{type:"bar",data:{labels:cats.map(function(c){return c.length>20?c.substring(0,18)+"…":c;}),datasets:[
+    {label:"_base",data:floats,backgroundColor:"rgba(0,0,0,0)",borderColor:"rgba(0,0,0,0)",borderWidth:0,stack:"s"},
+    {label:"Valor",data:vals,backgroundColor:vals.map(function(v,i){return DRE_COLORS[i%DRE_COLORS.length]+"bb";}),
+     borderColor:vals.map(function(v,i){return DRE_COLORS[i%DRE_COLORS.length];}),borderWidth:1,stack:"s"}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{filter:function(i){return i.datasetIndex===1;},callbacks:{label:function(x){return dreFmt(x.parsed.y);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",font:{size:9}},grid:{color:"rgba(255,255,255,0.04)"}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+  }});
+}
+
+function dreFarol(ms){
+  var tb=dreEl("dre-farol");if(!tb)return;
+  var lm=ms[ms.length-1],pm=ms[ms.length-2]||"";
+  var rows="";
+  Object.keys(DRE.cat_totals).forEach(function(cat){
+    var cur=DRE.cat_totals[cat][lm]||0,prev=pm?(DRE.cat_totals[cat][pm]||0):0;
+    var dv=cur-prev,dp=prev>0?(dv/prev*100):0;
+    var st=dp>10?"&#128308; Crítico":dp>5?"&#128993; Alerta":dp>=-2?"&#128994; Ok":"&#128309; Queda";
+    var tr=dp>5?"&#128200; Subindo":dp<-5?"&#128201; Caindo":"&#10145; Estável";
+    var cls=dp>10?"tr":dp>5?"ty":"tg";
+    var resp=DRE_RESP[cat]||"—";
+    rows+="<tr onclick=\"dreAction('"+cat.replace(/'/g,"\\'")+"')\">" +
+      "<td><b>"+cat+"</b></td>" +
+      "<td>"+dreFmt(prev)+"</td><td>"+dreFmt(cur)+"</td>" +
+      "<td>"+(dv>=0?"+":"")+dreFmt(Math.abs(dv))+"</td>" +
+      "<td><span class=\"tag "+cls+"\">"+(dp>0?"+":"")+drePct(dp)+"</span></td>" +
+      "<td>"+st+"</td><td>"+tr+"</td>" +
+      "<td style=\"font-size:.78rem;color:var(--mu)\">"+resp+"</td></tr>";
+  });
+  tb.innerHTML=rows;
+}
+
+function dreChart4(ms){
+  dreC4=dreKill(dreC4);var ctx=dreEl("dre-c4");if(!ctx)return;
+  var cats=Object.keys(DRE.cat_totals),total=dreGrandSum(ms);
+  dreC4=new Chart(ctx,{type:"bar",data:{
+    labels:cats.map(function(c){return c.length>26?c.substring(0,24)+"…":c;}),
+    datasets:[{data:cats.map(function(cat){return total>0?(dreCatSum(cat,ms)/total*100):0;}),
+      backgroundColor:cats.map(function(c,i){return DRE_COLORS[i%DRE_COLORS.length]+"bb";}),
+      borderColor:cats.map(function(c,i){return DRE_COLORS[i%DRE_COLORS.length];}),borderWidth:1}]
+  },options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return drePct(x.parsed.x);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",callback:function(v){return v.toFixed(0)+"%";}},grid:{color:"rgba(255,255,255,0.06)"}},
+            y:{ticks:{color:"#8fa0c0",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"}}}
+  }});
+}
+
+function dreCatBtns(ms,view){
+  var el=dreEl("dre-cat-btns");if(!el)return;
+  el.innerHTML="";
+  Object.keys(DRE.categories).forEach(function(cat,i){
+    var isA=cat===dreSelCat,col=DRE_COLORS[i%DRE_COLORS.length];
+    var btn=document.createElement("button");
+    btn.textContent=cat;btn.dataset.cat=cat;
+    btn.style.cssText="padding:6px 14px;border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:500;"+
+      "border:1px solid "+(isA?col:"var(--br)")+";background:"+(isA?col:"var(--sf)")+";color:"+(isA?"#fff":"var(--mu)")+";";
+    el.appendChild(btn);
+  });
+  el.onclick=function(e){
+    var btn=e.target;if(btn.tagName!=="BUTTON")return;
+    dreSelCat=btn.dataset.cat;
+    var f=dreEl("dre-from"),t=dreEl("dre-to"),v=dreEl("dre-view");
+    if(f&&t&&v)dreCatBtns(dreRange(f.value,t.value),v.value);
+  };
+  dreDetail(ms,view);
+}
+
+function dreDetail(ms,view){
+  var tb=dreEl("dre-detail"),h1=dreEl("dre-h1"),h2=dreEl("dre-h2");if(!tb)return;
+  var items=DRE.categories[dreSelCat];
+  if(!items){tb.innerHTML="<tr><td colspan='6' style='color:var(--mu);text-align:center'>Sem dados</td></tr>";return;}
+  var pm=ms[ms.length-2]||"",lm=ms[ms.length-1];
+  if(h1)h1.textContent=pm||"—";if(h2)h2.textContent=lm||"—";
+  var catTotal=dreCatSum(dreSelCat,ms);
+  var rows=Object.keys(items).map(function(item){
+    var md=items[item];
+    var tot=ms.reduce(function(a,m){return a+(md[m]||0);},0);
+    var pv=pm?(md[pm]||0):0,lv=md[lm]||0,vp=pv>0?((lv-pv)/pv*100):0;
+    return{item:item,tot:tot,pv:pv,lv:lv,vp:vp,pct:catTotal>0?tot/catTotal*100:0};
+  }).filter(function(r){return r.tot>0;}).sort(function(a,b){return b.tot-a.tot;});
+  var fv=view==="av"?drePct:dreFmt;
+  tb.innerHTML=rows.map(function(r){
+    var cls=r.vp>10?"tr":r.vp>5?"ty":"tg";
+    return"<tr><td>"+r.item+"</td><td>"+fv(r.pv)+"</td><td>"+fv(r.lv)+"</td>"+
+      "<td style='font-weight:600'>"+dreFmt(r.tot)+"</td>"+
+      "<td style='color:var(--mu)'>"+r.pct.toFixed(1).replace(".",",")+"%</td>"+
+      "<td><span class='tag "+cls+"'>"+(r.vp>0?"+":"")+drePct(r.vp)+"</span></td></tr>";
+  }).join("");
+}
+
+function dreAction(cat){
+  var el=dreEl("dre-action");if(!el)return;
+  var a=DRE_ACTIONS[cat]||{causa:"Verificar com o gestor.",acao:"Revisar linha a linha."};
+  var resp=DRE_RESP[cat]||"Gestor";
+  el.innerHTML="";
+  var g=document.createElement("div");
+  g.style.cssText="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px";
+  [{bg:"rgba(255,77,79,.1)",bd:"rgba(255,77,79,.25)",tit:"Causa Raiz",val:a.causa},
+   {bg:"rgba(77,142,245,.1)",bd:"rgba(77,142,245,.25)",tit:"Ação Sugerida",val:a.acao},
+   {bg:"rgba(54,207,160,.1)",bd:"rgba(54,207,160,.25)",tit:"Responsável",val:resp}
+  ].forEach(function(it){
+    var d=document.createElement("div");
+    d.style.cssText="background:"+it.bg+";border:1px solid "+it.bd+";border-radius:10px;padding:16px";
+    var t=document.createElement("div");t.style.cssText="font-size:.7rem;color:var(--mu);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px;font-weight:600";t.textContent=it.tit;
+    var v=document.createElement("div");v.style.cssText="font-size:.88rem;color:var(--tx);line-height:1.5";v.textContent=it.val;
+    d.appendChild(t);d.appendChild(v);g.appendChild(d);
+  });
+  el.appendChild(g);
+}
+
+function initDRE(){initDRESelectors();buildDRE();}
+
+// ════════════════════════════════════════════════════════════════════
+// LINHA A LINHA MODULE
+// ════════════════════════════════════════════════════════════════════
+var lalC1=null,lalC2=null,lalExpanded={};
+
+function initLALSelectors(){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  a.innerHTML="";b.innerHTML="";
+  DRE.months.forEach(function(m){
+    a.innerHTML+='<option value="'+m+'">'+m+'</option>';
+    b.innerHTML+='<option value="'+m+'">'+m+'</option>';
+  });
+  var n=DRE.months.length;
+  a.value=DRE.months[n-1];
+  b.value=DRE.months[n-2]||DRE.months[0];
+}
+
+function lalPreset(type){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  var mA=a.value, idxA=dreIdx(mA), idxB=-1;
+  // Backwards (B earlier than A) — offset = n-1 porque range inclui ambos endpoints
+  if(type==="prev")     idxB=idxA-1;  // 2 meses
+  if(type==="trim")     idxB=idxA-2;  // 3 meses
+  if(type==="sem")      idxB=idxA-5;  // 6 meses
+  if(type==="year")     idxB=idxA-11; // 12 meses
+  // Forwards (B later than A)
+  if(type==="nextprev") idxB=idxA+1;
+  if(type==="nexttrim") idxB=idxA+2;
+  if(type==="nextsem")  idxB=idxA+5;
+  if(type==="nextyear") idxB=idxA+11;
+  if(idxB>=0&&idxB<DRE.months.length){
+    b.value=DRE.months[idxB];
+    buildLAL();
+  } else if(idxB>=DRE.months.length){
+    alert("Período futuro ainda não disponível nos dados.");
+  }
+}
+
+function buildLAL(){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  var mA=a.value,mB=b.value;
+  if(mA===mB){alert("Selecione períodos diferentes.");return;}
+  lalKPIs(mA,mB);lalChart1(mA,mB);lalTable(mA,mB);dreEl("lal-drill").style.display="none";
+}
+
+function lalGetRange(mA,mB){
+  var iA=dreIdx(mA),iB=dreIdx(mB);
+  var from=Math.min(iA,iB),to=Math.max(iA,iB);
+  return DRE.months.slice(from,to+1);
+}
+
+function lalKPIs(mA,mB){
+  var el=dreEl("lal-kpis");if(!el)return;
+  var range=lalGetRange(mA,mB);
+  var nMeses=range.length;
+  var totA=DRE.grand_total[mA]||0,totB=DRE.grand_total[mB]||0;
+  var totRange=dreGrandSum(range);
+  var dv=totA-totB,dp=totB>0?(dv/totB*100):0;
+  var cats=Object.keys(DRE.cat_totals);
+  var bigCat="",bigVal=0;
+  cats.forEach(function(cat){
+    var va=DRE.cat_totals[cat][mA]||0,vb=DRE.cat_totals[cat][mB]||0;
+    if(Math.abs(va-vb)>bigVal){bigVal=Math.abs(va-vb);bigCat=cat;}
+  });
+  var vc=dp>5?"r":dp>0?"w":dp<-5?"g":"b";
+  el.innerHTML=
+    '<div class="kpi b"><div class="lbl">'+mA+' (Período A)</div><div class="val">'+dreCompact(totA)+'</div><div class="sub">'+dreFmt(totA)+'</div></div>'+
+    '<div class="kpi p"><div class="lbl">'+mB+' (Período B)</div><div class="val">'+dreCompact(totB)+'</div><div class="sub">'+dreFmt(totB)+'</div></div>'+
+    '<div class="kpi '+vc+'"><div class="lbl">Variação A vs B</div><div class="val">'+(dv>=0?"+":"")+dreCompact(dv)+'</div><div class="sub">'+(dp>=0?"+":"")+drePct(dp)+'</div></div>'+
+    (nMeses>1?
+      '<div class="kpi g"><div class="lbl">Total '+nMeses+' meses</div><div class="val">'+dreCompact(totRange)+'</div><div class="sub">média: '+dreCompact(totRange/nMeses)+'/mês</div></div>':
+      '<div class="kpi w"><div class="lbl">Maior Variação</div><div class="val" style="font-size:.9rem">'+bigCat+'</div><div class="sub">'+(dv>=0?"↑":"↓")+' '+dreCompact(bigVal)+'</div></div>');
+}
+
+function lalChart1(mA,mB){
+  lalC1=dreKill(lalC1);
+  var ctx=dreEl("lal-c1");if(!ctx)return;
+  var range=lalGetRange(mA,mB);
+  var nM=range.length;
+  var cats=Object.keys(DRE.cat_totals);
+  var tit=dreEl("lal-chart-title");
+  var lalLeg=dreEl("lal-c1-leg");
+  var COLORS=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4","#f8c291","#6c5ce7"];
+
+  if(nM<=2){
+    // 2 months: classic side-by-side bar
+    var valsA=cats.map(function(k){return DRE.cat_totals[k][mA]||0;});
+    var valsB=cats.map(function(k){return DRE.cat_totals[k][mB]||0;});
+    if(tit) tit.textContent="Comparativo por Categoria — "+mB+" vs "+mA;
+    lalC1=new Chart(ctx,{type:"bar",data:{
+      labels:cats.map(function(k){return k.length>22?k.substring(0,20)+"…":k;}),
+      datasets:[
+        {label:mB,data:valsB,backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1},
+        {label:mA,data:valsA,backgroundColor:"rgba(77,142,245,.75)",borderColor:"#4d8ef5",borderWidth:1}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){
+        var ds=x.chart.data.datasets,i=x.dataIndex;
+        var ref=x.datasetIndex===0?(ds[1]?ds[1].data[i]||0:0):(ds[0]?ds[0].data[i]||0:0);
+        var pct=ref>0?((x.parsed.y-ref)/ref*100):0;
+        return x.dataset.label+": "+dreFmt(x.parsed.y)+" ("+(pct>=0?"+":"")+pct.toFixed(1).replace(".",",")+"%)";}}}},
+      scales:{x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+              y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+    }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,[{label:mB,borderColor:"#36cfa0"},{label:mA,borderColor:"#4d8ef5"}]);
+  } else {
+    // 3+ months: X-axis = categories, one dataset per month
+    // This way you see ALL categories side-by-side per month
+    // User wants: for each category, see bars for each month
+    // → X = categories, datasets = months (each month is a color)
+    var topCats=cats.map(function(k){
+      return{k:k,v:range.reduce(function(s,m){return s+(DRE.cat_totals[k][m]||0);},0)};
+    }).sort(function(a,b){return b.v-a.v;}).slice(0,10).map(function(x){return x.k;});
+
+    var MONTH_COLORS=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4","#f8c291","#6c5ce7"];
+    var datasets=range.map(function(m,mi){
+      return{
+        label:m,
+        data:topCats.map(function(k){return DRE.cat_totals[k][m]||0;}),
+        backgroundColor:MONTH_COLORS[mi%MONTH_COLORS.length]+"bb",
+        borderColor:MONTH_COLORS[mi%MONTH_COLORS.length],
+        borderWidth:1,
+        borderRadius:3
+      };
+    });
+    if(tit) tit.textContent="Categorias × Período — "+range[0]+" → "+range[range.length-1]+" ("+nM+" meses)";
+    lalC1=new Chart(ctx,{type:"bar",data:{
+      labels:topCats.map(function(k){return k.length>20?k.substring(0,18)+"…":k;}),
+      datasets:datasets
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:function(x){return x.dataset.label+": "+dreFmt(x.parsed.y);}
+      }}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:9},maxRotation:0,minRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      },
+      layout:{padding:{bottom:2,left:0,right:0,top:4}}
+    }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,range.map(function(m,i){return{label:m,borderColor:MONTH_COLORS[i%MONTH_COLORS.length],backgroundColor:MONTH_COLORS[i%MONTH_COLORS.length]};}));
+  }
+}
+
+function lalTable(mA,mB){
+  var th=dreEl("lal-thead"),tb=dreEl("lal-tbody");if(!th||!tb)return;
+  th.innerHTML="<th style='text-align:left;width:34%'>Categoria / Subconta</th>"+
+    "<th>"+mB+"</th><th>"+mA+"</th>"+
+    "<th>Var. R$</th><th>Var. %</th><th style='text-align:left'>Status</th>";
+  var rows="";
+  var cats=Object.keys(DRE.cat_totals);
+  cats.forEach(function(cat,ci){
+    var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
+    var dv=vA-vB,dp=vB>0?(dv/vB*100):0;
+    var cls=dp>10?"tr":dp>5?"ty":dp<-10?"tg":"tb";
+    var col=DRE_COLORS[ci%DRE_COLORS.length];
+    var isExp=lalExpanded[cat];
+    rows+="<tr style='cursor:pointer;background:var(--s2)' onclick=\"lalToggleCat('"+cat.replace(/'/g,"\\'")+"','"+mA+"','"+mB+"')\">" +
+      "<td style='padding-left:14px;position:relative'>" +
+      "<span style='display:inline-block;width:10px;height:10px;border-radius:2px;background:"+col+";margin-right:8px;flex-shrink:0'></span>" +
+      "<b style='font-size:.88rem'>"+cat+"</b>" +
+      "<span style='margin-left:8px;font-size:.72rem;color:var(--mu)'>"+(isExp?"▲ recolher":"▼ expandir")+"</span>" +
+      "<span style='float:right;display:inline-flex;gap:4px'>" +
+      "<button class='lal-act-btn ai' data-cat='"+encodeURIComponent(cat)+"' data-ma='"+mA+"' data-mb='"+mB+"' data-action='ai' onclick='event.stopPropagation();lalBtnClick(this)'>🤖 Alerta IA</button>" +
+      "<button class='lal-act-btn chart' data-cat='"+encodeURIComponent(cat)+"' data-ma='"+mA+"' data-mb='"+mB+"' data-action='chart' onclick='event.stopPropagation();lalBtnClick(this)'>📊 Gráfico</button>" +
+      "</span>" +
+      "</td>" +
+      "<td>"+dreFmt(vB)+"</td>" +
+      "<td style='font-weight:600'>"+dreFmt(vA)+"</td>" +
+      "<td>"+(dv>0?"<span style='color:#ff7875'>+":"<span style='color:#36cfa0'>")+dreFmt(Math.abs(dv))+"</span></td>" +
+      "<td><span class='tag "+cls+"'>"+(dp>0?"+":"")+drePct(dp)+"</span></td>" +
+      "<td style='font-size:.78rem;color:var(--mu)'>"+DRE_RESP[cat]+"</td>" +
+      "</tr>";
+    if(isExp){
+      var items=DRE.categories[cat]||{};
+      var catTot=vA||1;
+      var itemArr=Object.keys(items).map(function(item){
+        var iA=items[item][mA]||0,iB=items[item][mB]||0;
+        return{item:item,iA:iA,iB:iB,dv:iA-iB,dp:iB>0?((iA-iB)/iB*100):0,pct:catTot>0?iA/catTot*100:0};
+      }).filter(function(r){return r.iA>0||r.iB>0;}).sort(function(a,b){return b.iA-a.iA;});
+      itemArr.forEach(function(r){
+        var ic=r.dp>10?"tr":r.dp>5?"ty":r.dp<-10?"tg":"tb";
+        rows+="<tr style='background:var(--bg)'>" +
+          "<td style='padding-left:36px;font-size:.83rem;color:var(--mu)'>"+r.item+" <span style='font-size:.7rem;color:var(--mu2)'>"+r.pct.toFixed(1).replace(".",",")+"%</span></td>" +
+          "<td style='font-size:.83rem'>"+dreFmt(r.iB)+"</td>" +
+          "<td style='font-size:.83rem;font-weight:600'>"+dreFmt(r.iA)+"</td>" +
+          "<td style='font-size:.83rem'>"+(r.dv>0?"<span style='color:#ff7875'>+":"<span style='color:#36cfa0'>")+dreFmt(Math.abs(r.dv))+"</span></td>" +
+          "<td><span class='tag "+ic+"'>"+(r.dp>0?"+":"")+drePct(r.dp)+"</span></td>" +
+          "<td></td></tr>";
+      });
+    }
+  });
+  tb.innerHTML=rows;
+}
+
+function lalToggleCat(cat,mA,mB){
+  // Save scroll position before rebuilding table
+  var wrap=document.getElementById("lal-table-wrap");
+  var scrollY=window.scrollY||window.pageYOffset;
+
+  lalExpanded[cat]=!lalExpanded[cat];
+  lalTable(mA,mB);
+
+  // After rebuild, scroll back to where the user was
+  requestAnimationFrame(function(){
+    window.scrollTo({top:scrollY,behavior:"instant"});
+    // Find and scroll the expanded row into view if it's below viewport
+    var tb=document.getElementById("lal-tbody");
+    if(!tb) return;
+    tb.querySelectorAll("tr").forEach(function(tr){
+      var b=tr.querySelector("b");
+      if(b&&b.textContent.trim()===cat){
+        var rect=tr.getBoundingClientRect();
+        if(rect.top<0||rect.top>window.innerHeight*0.7){
+          tr.scrollIntoView({behavior:"smooth",block:"center"});
+        }
+      }
+    });
+  });
+
+  // drill-down chart
+  if(lalExpanded[cat]){lalDrill(cat,mA,mB);}
+  else{dreEl("lal-drill").style.display="none";}
+}
+
+function lalDrill(cat,mA,mB){
+  var drill=dreEl("lal-drill");if(!drill)return;
+  drill.style.display="block";
+  var tit=dreEl("lal-drill-title");if(tit)tit.textContent="Detalhamento — "+cat;
+  lalC2=dreKill(lalC2);
+  var ctx=dreEl("lal-c2");if(!ctx)return;
+  var items=DRE.categories[cat]||{};
+  var arr=Object.keys(items).map(function(item){
+    return{item:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
+  }).filter(function(r){return r.vA>0||r.vB>0;}).sort(function(a,b){return b.vA-a.vA;}).slice(0,12);
+  lalC2=new Chart(ctx,{type:"bar",data:{
+    labels:arr.map(function(r){return r.item.length>20?r.item.substring(0,18)+"…":r.item;}),
+    datasets:[
+      {label:mA,data:arr.map(function(r){return r.vA;}),backgroundColor:"rgba(77,142,245,.75)",borderColor:"#4d8ef5",borderWidth:1},
+      {label:mB,data:arr.map(function(r){return r.vB;}),backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:"#8fa0c0",font:{size:12}}},tooltip:{callbacks:{label:function(x){var ds=x.chart.data.datasets,i=x.dataIndex;var vA=ds[0]?ds[0].data[i]||0:0,vB=ds[1]?ds[1].data[i]||0:0;var ref=x.datasetIndex===0?vB:vA;var pct=ref>0?((x.parsed.y-ref)/ref*100):0;return x.dataset.label+": "+dreFmt(x.parsed.y)+" ("+(pct>=0?"+":"")+pct.toFixed(1).replace(".",",")+"%)";}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+  }});
+  // drill table
+  var dh=dreEl("lal-drill-head"),db=dreEl("lal-drill-body");if(!dh||!db)return;
+  dh.innerHTML="<th style='text-align:left'>Subconta</th><th>"+mB+"</th><th>"+mA+"</th><th>Var. R$</th><th>Var. %</th><th>% Cat.</th>";
+  var catTot=arr.reduce(function(s,r){return s+r.vA;},0)||1;
+  db.innerHTML=arr.map(function(r){
+    var dv=r.vA-r.vB,dp=r.vB>0?((r.vA-r.vB)/r.vB*100):0;
+    var cls=dp>10?"tr":dp>5?"ty":dp<-10?"tg":"tb";
+    return"<tr><td style='font-size:.85rem'>"+r.item+"</td><td>"+dreFmt(r.vB)+"</td>"+
+      "<td style='font-weight:600'>"+dreFmt(r.vA)+"</td>"+
+      "<td>"+(dv>0?"<span style='color:#ff7875'>+":"<span style='color:#36cfa0'>")+dreFmt(Math.abs(dv))+"</span></td>"+
+      "<td><span class='tag "+cls+"'>"+(dp>0?"+":"")+drePct(dp)+"</span></td>"+
+      "<td style='color:var(--mu)'>"+((r.vA/catTot)*100).toFixed(1).replace(".",",")+"% </td></tr>";
+  }).join("");
+  drill.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function lalExpandAll(expand){
+  Object.keys(DRE.cat_totals).forEach(function(cat){lalExpanded[cat]=expand;});
+  var a=dreEl("lal-a"),b=dreEl("lal-b");
+  if(a&&b)lalTable(a.value,b.value);
+}
+
+function lalCopyWhatsapp(){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  var mA=a.value,mB=b.value;
+  var totA=DRE.grand_total[mA]||0,totB=DRE.grand_total[mB]||0;
+  var dv=totA-totB,dp=totB>0?(dv/totB*100):0;
+  var lines=["*Comparativo DRE — "+mA+" vs "+mB+"*",""];
+  lines.push("Total "+mA+": "+dreFmt(totA));
+  lines.push("Total "+mB+": "+dreFmt(totB));
+  lines.push("Variação: "+(dp>0?"+":"")+dp.toFixed(1).replace(".",",")+"% ("+dreFmt(Math.abs(dv))+")");
+  lines.push("");
+  Object.keys(DRE.cat_totals).forEach(function(cat){
+    var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
+    var p=vB>0?((vA-vB)/vB*100):0;
+    var icon=p>10?"🔴":p>5?"🟡":p<-5?"🟢":"⚪";
+    lines.push(icon+" "+cat+": "+dreFmt(vA)+" ("+(p>0?"+":"")+p.toFixed(1).replace(".",",")+"%)");
+  });
+  lines.push(""); lines.push("_Gerado pelo Painel Q Food_");
+  try{
+    navigator.clipboard.writeText(lines.join("\n")).then(function(){
+      var btn=dreEl("lal-tv-btn");
+      var old=dreEl("lal-tv-btn").previousElementSibling;
+      old.textContent="✓ Copiado!";
+      setTimeout(function(){old.textContent="📋 Copiar Resumo";},2500);
+    });
+  }catch(e){alert(lines.join("\n"));}
+}
+
+var lalTVMode=false;
+function lalToggleTV(){
+  lalTVMode=!lalTVMode;
+  var page=dreEl("tab-lal");
+  var btn=dreEl("lal-tv-btn");
+  if(lalTVMode){
+    page.style.cssText="display:block;position:fixed;inset:0;z-index:500;overflow-y:auto;padding:24px 32px;background:var(--bg)";
+    document.querySelector(".hdr").style.display="none";
+    document.querySelector(".tabs").style.display="none";
+    if(btn)btn.textContent="✕ Sair TV";
+    document.documentElement.style.fontSize="19px";
+  }else{
+    page.style.cssText="display:block;padding:28px;max-width:1000px;margin:0 auto";
+    document.querySelector(".hdr").style.display="";
+    document.querySelector(".tabs").style.display="";
+    if(btn)btn.textContent="📺 Modo TV";
+    document.documentElement.style.fontSize="16px";
+  }
+}
+
+function initLAL(){initLALSelectors();buildLAL();}
+
+
+// ════════════════════════════════════════════════════════════════
+// FUNCOES LAL EXTRAS (lalAIAlert, lalCatChart, lalBtnClick)
+// ════════════════════════════════════════════════════════════════
+function lalAIAlert(cat,mA,mB){
+  var rowId="lal-ai-"+btoa(cat).replace(/[^a-z0-9]/gi,"");
+  var existing=document.getElementById(rowId);
+  if(existing){existing.remove();return;}
+  var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
+  var dv=vA-vB,dp=vB>0?(dv/vB*100):0;
+  var range=lalGetRange(mA,mB),nMeses=range.length;
+  var vRange=dreCatSum(cat,range),vMedia=nMeses>0?vRange/nMeses:0;
+  var resp=DRE_RESP[cat]||"Gestor";
+  var nivel=dp>15?"🔴 CRÍTICO":dp>5?"🟡 ATENÇÃO":dp<-10?"🟢 QUEDA POSITIVA":"⚪ ESTÁVEL";
+  var msg="";
+  if(dp>15) msg="Aumento expressivo de "+drePct(dp)+" em relação ao período anterior. Verificação urgente com "+resp+".";
+  else if(dp>5) msg="Alta de "+drePct(dp)+" acima do normal. Recomenda-se análise com "+resp+".";
+  else if(dp<-10) msg="Redução de "+drePct(Math.abs(dp))+" — resultado positivo. "+resp+" avalia sustentabilidade.";
+  else msg="Variação dentro do esperado ("+drePct(dp)+"). Sem ação imediata necessária para "+resp+".";
+  var items=DRE.categories[cat]||{};
+  var topItems=Object.keys(items).map(function(item){
+    var vIA=items[item][mA]||0,vIB=items[item][mB]||0;
+    return{item:item,dv:vIA-vIB,dp:vIB>0?((vIA-vIB)/vIB*100):0,vA:vIA};
+  }).filter(function(r){return Math.abs(r.dp)>5&&(r.vA>0);})
+    .sort(function(a,b){return Math.abs(b.dv)-Math.abs(a.dv);}).slice(0,3);
+  var topHTML=topItems.length>0?
+    "<div style='margin-top:8px;font-size:.78rem;color:var(--mu)'>Subcontas de maior impacto:</div>"+
+    topItems.map(function(r){
+      var cor=r.dp>0?"#ff7875":"#36cfa0";
+      return "<div style='font-size:.8rem;padding:2px 0'>"+
+        "<span style='color:"+cor+";font-weight:600'>"+(r.dp>0?"+":"")+drePct(r.dp)+"</span> "+
+        r.item+" <span style='color:var(--mu)'>("+dreFmt(Math.abs(r.dv))+")</span></div>";
+    }).join(""):"";
+  var tb=document.getElementById("lal-tbody");
+  if(!tb) return;
+  var targetRow=null;
+  tb.querySelectorAll("tr").forEach(function(tr){
+    var b=tr.querySelector("b");
+    if(b&&b.textContent.trim()===cat) targetRow=tr;
+  });
+  var alertRow=document.createElement("tr");
+  alertRow.id=rowId;
+  alertRow.innerHTML="<td colspan='6' style='padding:0 14px 10px'><div class='lal-ai-box'>"+
+    "<div style='font-weight:700;margin-bottom:6px'>"+nivel+" — "+cat+"</div>"+
+    "<div style='font-size:.82rem;line-height:1.6'>"+msg+"</div>"+topHTML+
+    "<div style='font-size:.72rem;color:var(--mu);margin-top:8px'>Responsável: "+resp+" | "+mA+" vs "+mB+"</div>"+
+    "</div></td>";
+  if(targetRow) tb.insertBefore(alertRow,targetRow.nextSibling);
+}
+
+// LAL CAT CHART
+function lalCatChart(cat,mA,mB){
+  var chartId="lal-ch-"+btoa(cat).replace(/[^a-z0-9]/gi,"");
+  var existing=document.getElementById(chartId);
+  if(existing){existing.remove();return;}
+  var range=lalGetRange(mA,mB);
+  var nM=range.length;
+  var items=DRE.categories[cat]||{};
+  var col=DRE_COLORS[Object.keys(DRE.cat_totals).indexOf(cat)%DRE_COLORS.length]||"#4d8ef5";
+  var tb=document.getElementById("lal-tbody");if(!tb)return;
+  var targetRow=null;
+  tb.querySelectorAll("tr").forEach(function(tr){
+    var b=tr.querySelector("b");
+    if(b&&b.textContent.trim()===cat)targetRow=tr;
+  });
+  var chartRow=document.createElement("tr");
+  chartRow.id=chartId;
+  
+  var td=document.createElement("td");
+  td.colSpan=6;
+  td.style.cssText="padding:4px 10px 12px;max-width:100%;width:100%";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px 4px;height:200px;position:relative";
+
+  if(nM<=2){
+    // Classic 2-period SVG bars
+    var arr=Object.keys(items).map(function(item){
+      return{n:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
+    }).filter(function(r){return r.vA>0||r.vB>0;})
+      .sort(function(a,b){return b.vA-a.vA;}).slice(0,6);
+    if(!arr.length){td.innerHTML="<span style='color:var(--mu);font-size:.8rem'>Sem dados</span>";chartRow.appendChild(td);if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);return;}
+    var maxV=Math.max.apply(null,arr.map(function(d){return Math.max(d.vA,d.vB);}));
+    if(maxV===0)maxV=1;
+    var W=720,barH=16,gap=4,left=130,right=20,topPad=6;
+    var svgH=arr.length*(barH*2+gap+12)+topPad*2+24;
+    var aW=W-left-right;
+    // Wrap in scrollable container if tall
+    var maxH=Math.min(svgH,340);
+    var sh="";
+    arr.forEach(function(d,i){
+      var y=topPad+24+i*(barH*2+gap+14);
+      var wA=(d.vA/maxV)*aW,wB=(d.vB/maxV)*aW;
+      var nm=d.n.length>17?d.n.substring(0,16)+"…":d.n;
+      var dl=(i*.08).toFixed(2)+"s";
+      sh+="<text x='"+(left-6)+"' y='"+(y+barH/2+4)+"' text-anchor='end' font-size='10' fill='#8fa0c0'>"+nm+"</text>";
+      sh+="<rect x='"+left+"' y='"+y+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
+      sh+="<rect x='"+left+"' y='"+y+"' width='0' height='"+barH+"' rx='3' fill='"+col+"' opacity='0.85'><animate attributeName='width' from='0' to='"+wA.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
+      sh+="<text x='"+(left+wA+4)+"' y='"+(y+barH/2+4)+"' font-size='10' fill='"+col+"'>"+dreFmt(d.vA)+"</text>";
+      sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
+      sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='0' height='"+barH+"' rx='3' fill='#36cfa0' opacity='0.6'><animate attributeName='width' from='0' to='"+wB.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
+      sh+="<text x='"+(left+wB+4)+"' y='"+(y+barH*2+4)+"' font-size='10' fill='#36cfa0'>"+dreFmt(d.vB)+"</text>";
+    });
+    var leg="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
+    var svgEl="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
+    wrap.innerHTML="<div style='max-height:240px;overflow-y:auto;overflow-x:hidden;border-radius:8px'>"+svgEl+"</div>";
+  } else {
+    // 3+ months: Canvas bar chart showing monthly totals for this category
+    var cvs=document.createElement("canvas");
+    cvs.style.cssText="position:absolute;top:28px;left:0;right:0;bottom:0;width:100%";
+    var monthTotals=range.map(function(m){
+      return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
+    });
+    wrap.appendChild(cvs);
+    var titleEl=document.createElement("div");
+    titleEl.style.cssText="font-size:.72rem;color:var(--mu);font-weight:600;position:absolute;top:0;left:12px";
+    titleEl.textContent=cat+" — "+nM+" meses ("+range[0]+" → "+range[range.length-1]+")";
+    wrap.insertBefore(titleEl,cvs);
+    new Chart(cvs,{type:"bar",data:{
+      labels:range,
+      datasets:[{
+        label:cat,
+        data:monthTotals,
+        backgroundColor:col+"bb",
+        borderColor:col,
+        borderWidth:1,
+        borderRadius:4
+      }]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return dreFmt(x.parsed.y);}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:0,minRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      },
+      layout:{padding:{bottom:2,left:0,right:0,top:4}}
+    }});
+  }
+
+  td.appendChild(wrap);
+  chartRow.appendChild(td);
+  if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);
+}
+
+
+function lalBtnClick(btn){
+  var cat=decodeURIComponent(btn.dataset.cat);
+  var mA=btn.dataset.ma;
+  var mB=btn.dataset.mb;
+  var action=btn.dataset.action;
+  if(action==="ai") lalAIAlert(cat,mA,mB);
+  else if(action==="chart") lalCatChart(cat,mA,mB);
+}
+
+
+// ── LEGEND TOGGLE — helper global ────────────────────────────
+function makeLegend(legEl, chartInst, datasets){
+  if(!legEl||!chartInst) return;
+  legEl.innerHTML="";
+  datasets.forEach(function(d,i){
+    var span=document.createElement("span");
+    var dot=document.createElement("i");
+    dot.style.background=d.borderColor||d.backgroundColor||"#888";
+    span.appendChild(dot);
+    span.appendChild(document.createTextNode(" "+d.label));
+    span.dataset.idx=i;
+    span.onclick=function(){
+      var idx=parseInt(this.dataset.idx);
+      var meta=chartInst.getDatasetMeta(idx);
+      meta.hidden=!meta.hidden;
+      this.classList.toggle("off", meta.hidden);
+      chartInst.update();
+    };
+    legEl.appendChild(span);
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+// MÓDULO FATURAMENTO DINÂMICO
+// ════════════════════════════════════════════════════════════════════
+var fatAllRows=[];
+var fatLoaded=false;
+
+
+// ════════════════════════════════════════════════════════════════
+// MODULO FATURAMENTO (copia fiel do original)
+// ════════════════════════════════════════════════════════════════
+var fatAllRows=[];
+var fatLoaded=false;
+var fatC1=null,fatC2=null,fatC3=null,fatC4=null;
+
+function fatNum(v){
+  var s=String(v||0).replace(/R\$\s*/g,"").trim();
+  if(s.indexOf(",")>-1&&s.indexOf(".")>-1) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.indexOf(",")>-1) s=s.replace(",",".");
+  var n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function fatFmt(v){
+  var n=fatNum(v);
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fatFmtK(v){
+  var n=fatNum(v);
+  if(n>=1000000) return "R$ "+(n/1000000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" M";
+  if(n>=1000)    return "R$ "+(n/1000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" k";
+  return fatFmt(n);
+}
+function fatPct(v){
+  return fatNum(v).toFixed(1).replace(".",",")+"%";
+}
+function fatExcelDate(v){
+  if(!v) return "—";
+  // CSV exports dates as text "dd/mm/yyyy" - parse directly
+  var s=String(v).trim();
+  if(s.indexOf("/")>-1) return s; // already formatted
+  // fallback: Excel serial
+  var n=parseFloat(s);
+  if(!isNaN(n)&&n>40000&&n<60000){
+    var d=new Date(Math.round((n-25569)*86400*1000));
+    return d.toLocaleDateString("pt-BR");
+  }
+  return s||"—";
+}
+
+async function initFat(){
+  if(fatLoaded){ fatApplyFilters(); return; }
+  fatLoad(false);
+}
+
+async function fatLoad(force){
+  if(force) fatLoaded=false;
+  var ldg=document.getElementById("fat-loading");
+  var upd=document.getElementById("fat-last-update");
+  if(ldg) ldg.style.display="flex";
+  try{
+    var r=await fetch(UFAT+"&t="+Date.now());
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt=await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV");
+    fatAllRows=csv(txt);
+    fatLoaded=true;
+    if(upd) upd.textContent="Atualizado em "+new Date().toLocaleString("pt-BR")+" — "+fatAllRows.length+" registros";
+    fatPopulateFilters();
+    fatApplyFilters();
+    if(ldg) ldg.style.display="none";
+  }catch(e){
+    if(ldg) ldg.innerHTML="<div style='color:var(--red)'>Erro: "+e.message+"</div>";
+  }
+}
+
+function fatPopulateFilters(){
+  var vends=[...new Set(fatAllRows.map(function(r){return(r["VENDEDOR:"]||r["VENDEDOR"]||"").trim();}))].filter(Boolean).sort();
+  var regs=[...new Set(fatAllRows.map(function(r){return(r["REGIAO:"]||r["REGIAO"]||"").trim();}))].filter(Boolean).sort();
+  var segs=[...new Set(fatAllRows.map(function(r){return(r["SEGMENTO:"]||r["SEGMENTO"]||"").trim();}))].filter(Boolean).sort();
+
+  function populateSel(id, opts){
+    var sel=document.getElementById(id);
+    if(!sel) return;
+    var cur=sel.value;
+    sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+    opts.forEach(function(v){
+      var o=document.createElement("option");
+      o.value=v; o.textContent=v; sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+  }
+  populateSel("fat-vend", vends);
+  populateSel("fat-regiao", regs);
+  populateSel("fat-seg", segs);
+}
+
+function fatGetField(r, keys){
+  for(var i=0;i<keys.length;i++){
+    if(r[keys[i]]!==undefined&&r[keys[i]]!=="") return r[keys[i]];
+  }
+  return "";
+}
+
+function fatApplyFilters(){
+  var vend=(document.getElementById("fat-vend").value||"").trim();
+  var reg=(document.getElementById("fat-regiao").value||"").trim();
+  var seg=(document.getElementById("fat-seg").value||"").trim();
+  var search=(document.getElementById("fat-search").value||"").toLowerCase().trim();
+
+  var rows=fatAllRows.filter(function(r){
+    if(vend&&(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim()!==vend) return false;
+    if(reg&&(fatGetField(r,["REGIAO:","REGIAO"])||"").trim()!==reg) return false;
+    if(seg&&(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"").trim()!==seg) return false;
+    if(search){
+      var hay=[
+        fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"]),
+        fatGetField(r,["DESCRICAO:","DESCRICAO"]),
+        fatGetField(r,["VENDEDOR:","VENDEDOR"]),
+        fatGetField(r,["MUNICIPIO:","MUNICIPIO"])
+      ].join(" ").toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  var ldg=document.getElementById("fat-loading");
+  if(ldg) ldg.style.display="none";
+
+  fatKPIs(rows);
+  fatCharts(rows);
+  fatRankings(rows);
+  fatTable(rows);
+}
+
+function fatKPIs(rows){
+  var n=rows.length;
+  var totFat=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["TOTAL:","TOTAL"]));},0);
+  var totCusto=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["CUSTO:","CUSTO"]));},0);
+  var totMargem=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["MARGEM:","MARGEM"]));},0);
+  var avgMargem=n>0?totMargem/n:0;
+  var avgMarkup=0;
+  var mkupCount=0;
+  rows.forEach(function(r){
+    var m=fatNum(fatGetField(r,["MARCKUP:","MARCKUP"]));
+    if(m>0){avgMarkup+=m;mkupCount++;}
+  });
+  avgMarkup=mkupCount>0?avgMarkup/mkupCount:0;
+
+  // Unique clients
+  var clientes=new Set(rows.map(function(r){return fatGetField(r,["CNPJ/CPF","CNPJ"]);})).size;
+
+  // Churn risk: dias sem compra > 30
+  var churnRisk=rows.filter(function(r){
+    return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]))>30;
+  }).length;
+  var clientesChurn=new Set(rows.filter(function(r){
+    return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]))>30;
+  }).map(function(r){return fatGetField(r,["CNPJ/CPF","CNPJ"]);})).size;
+
+  // Ticket médio por cliente
+  var byClient={};
+  rows.forEach(function(r){
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    if(!byClient[cli]) byClient[cli]=0;
+    byClient[cli]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var clienteVals=Object.values(byClient);
+  var ticketMedio=clienteVals.length>0?clienteVals.reduce(function(a,b){return a+b;},0)/clienteVals.length:0;
+
+  // Concentracao: top cliente %
+  var topClienteFat=Math.max.apply(null,clienteVals);
+  var concPct=totFat>0?(topClienteFat/totFat*100):0;
+  var topClienteNome="—";
+  rows.forEach(function(r){
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    if(byClient[cli]===topClienteFat) topClienteNome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"—";
+  });
+  // shorten name
+  var parts=topClienteNome.split(" ");
+  topClienteNome=parts.slice(0,2).join(" ");
+
+  var k1=document.getElementById("fat-kpis1");
+  var k2=document.getElementById("fat-kpis2");
+  if(k1) k1.innerHTML=
+    '<div class="kpi b"><div class="lbl">Faturamento Total</div><div class="val">'+fatFmtK(totFat)+'</div><div class="sub">'+n+' registros</div></div>'+
+    '<div class="kpi g"><div class="lbl">Margem Média</div><div class="val">'+fatPct(avgMargem)+'</div><div class="sub">Markup médio: '+avgMarkup.toFixed(1).replace(".",",")+'%</div></div>'+
+    '<div class="kpi p"><div class="lbl">Clientes Ativos</div><div class="val">'+clientes+'</div><div class="sub">na seleção atual</div></div>'+
+    '<div class="kpi r"><div class="lbl">Risco de Churn</div><div class="val">'+clientesChurn+'</div><div class="sub">clientes +30 dias s/ compra</div></div>';
+
+  if(k2) k2.innerHTML=
+    '<div class="kpi w"><div class="lbl">Ticket Médio / Cliente</div><div class="val">'+fatFmtK(ticketMedio)+'</div><div class="sub">faturamento médio por conta</div></div>'+
+    '<div class="kpi b"><div class="lbl">Custo Total</div><div class="val">'+fatFmtK(totCusto)+'</div><div class="sub">base de custo</div></div>'+
+    '<div class="kpi g"><div class="lbl">Concentração Top 1</div><div class="val">'+concPct.toFixed(1).replace(".",",")+"%"+'</div><div class="sub">'+topClienteNome+'</div></div>'+
+    '<div class="kpi p"><div class="lbl">Produtos Distintos</div><div class="val">'+new Set(rows.map(function(r){return fatGetField(r,["CODIGO:","CODIGO"]);})).size+'</div><div class="sub">SKUs na seleção</div></div>';
+}
+
+function fatCharts(rows){
+  // ── C1: Faturamento por Vendedor (barras) ────────────────────
+  var byVend={};
+  rows.forEach(function(r){
+    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    if(!byVend[v]) byVend[v]=0;
+    byVend[v]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var vNames=Object.keys(byVend).sort(function(a,b){return byVend[b]-byVend[a];});
+  var vColors=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055"];
+
+  if(fatC1){fatC1.destroy();fatC1=null;}
+  var ctx1=document.getElementById("fat-c1");
+  if(ctx1){
+    fatC1=new Chart(ctx1,{type:"bar",data:{
+      labels:vNames,
+      datasets:[{
+        label:"Faturamento",
+        data:vNames.map(function(v){return byVend[v];}),
+        backgroundColor:vNames.map(function(v,i){return vColors[i%vColors.length]+"bb";}),
+        borderColor:vNames.map(function(v,i){return vColors[i%vColors.length];}),
+        borderWidth:1,borderRadius:5
+      }]
+    },options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return fatFmtK(x.parsed.y);}}}},
+      scales:{
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return fatFmtK(v);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        x:{ticks:{color:"#8fa0c0"},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C2: Margem por Segmento (barras horizontais) ─────────────
+  var bySeg={};
+  rows.forEach(function(r){
+    var s=(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"Outros").trim();
+    if(!bySeg[s]) bySeg[s]={sum:0,cnt:0};
+    bySeg[s].sum+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    bySeg[s].cnt++;
+  });
+  var segNames=Object.keys(bySeg).sort(function(a,b){
+    return (bySeg[b].sum/bySeg[b].cnt)-(bySeg[a].sum/bySeg[a].cnt);
+  });
+
+  if(fatC2){fatC2.destroy();fatC2=null;}
+  var ctx2=document.getElementById("fat-c2");
+  if(ctx2){
+    var segColors=["#36cfa0","#4d8ef5","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8"];
+    fatC2=new Chart(ctx2,{type:"bar",data:{
+      labels:segNames,
+      datasets:[{
+        label:"Margem Média %",
+        data:segNames.map(function(s){return bySeg[s].sum/bySeg[s].cnt;}),
+        backgroundColor:segNames.map(function(s,i){return segColors[i%segColors.length]+"bb";}),
+        borderColor:segNames.map(function(s,i){return segColors[i%segColors.length];}),
+        borderWidth:1,borderRadius:5
+      }]
+    },options:{
+      indexAxis:"y",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.parsed.x.toFixed(1).replace(".",",")+"%";}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",callback:function(v){return v.toFixed(0)+"%";}},grid:{color:"rgba(255,255,255,0.05)"}},
+        y:{ticks:{color:"#8fa0c0"},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C3: Top 10 Clientes (barras horizontais) ─────────────────
+  var byCliF={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"S/N";
+    var short=k.split(" ").slice(0,2).join(" ");
+    if(!byCliF[short]) byCliF[short]=0;
+    byCliF[short]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var top10=Object.keys(byCliF).sort(function(a,b){return byCliF[b]-byCliF[a];}).slice(0,10);
+
+  if(fatC3){fatC3.destroy();fatC3=null;}
+  var ctx3=document.getElementById("fat-c3");
+  if(ctx3){
+    fatC3=new Chart(ctx3,{type:"bar",data:{
+      labels:top10,
+      datasets:[{
+        label:"Faturamento",
+        data:top10.map(function(c){return byCliF[c];}),
+        backgroundColor:"rgba(77,142,245,.75)",
+        borderColor:"#4d8ef5",borderWidth:1,borderRadius:4
+      }]
+    },options:{
+      indexAxis:"y",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return fatFmtK(x.parsed.x);}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",callback:function(v){return fatFmtK(v);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        y:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C4: Distribuição por Região (doughnut) ────────────────────
+  var byReg={};
+  rows.forEach(function(r){
+    var reg=(fatGetField(r,["REGIAO:","REGIAO"])||"Outros").trim();
+    if(!byReg[reg]) byReg[reg]=0;
+    byReg[reg]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var regNames=Object.keys(byReg).sort(function(a,b){return byReg[b]-byReg[a];});
+  var regColors=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9"];
+
+  if(fatC4){fatC4.destroy();fatC4=null;}
+  var ctx4=document.getElementById("fat-c4");
+  if(ctx4){
+    var ds4=[{
+      data:regNames.map(function(r){return byReg[r];}),
+      backgroundColor:regNames.map(function(r,i){return regColors[i%regColors.length]+"cc";}),
+      borderColor:regNames.map(function(r,i){return regColors[i%regColors.length];}),
+      borderWidth:2
+    }];
+    fatC4=new Chart(ctx4,{type:"doughnut",data:{labels:regNames,datasets:ds4},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(x){
+          var tot=x.dataset.data.reduce(function(a,b){return a+b;},0);
+          return x.label+": "+fatFmtK(x.parsed)+" ("+((x.parsed/tot)*100).toFixed(1)+"%)";}}}
+      },
+      cutout:"60%"
+    }});
+    makeLegend(document.getElementById("fat-c4-leg"),fatC4,ds4[0].backgroundColor.map(function(c,i){
+      return{label:regNames[i],borderColor:regColors[i%regColors.length],backgroundColor:regColors[i%regColors.length]};
+    }));
+  }
+}
+
+function fatRankings(rows){
+  var totFat=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["TOTAL:","TOTAL"]));},0);
+
+  // ── Top Clientes ─────────────────────────────────────────────
+  var byCliObj={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    var nome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||k;
+    if(!byCliObj[k]) byCliObj[k]={nome:nome,fat:0,qtd:0,margem:0,cnt:0};
+    byCliObj[k].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byCliObj[k].qtd+=fatNum(fatGetField(r,["QTDE:","QTDE"]));
+    byCliObj[k].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byCliObj[k].cnt++;
+  });
+  var topCli=Object.values(byCliObj).sort(function(a,b){return b.fat-a.fat;}).slice(0,8);
+  var maxCliFat=topCli[0]?topCli[0].fat:1;
+
+  var rCli=document.getElementById("fat-rank-clientes");
+  if(rCli){
+    rCli.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      topCli.map(function(d,i){
+        var pct=maxCliFat>0?(d.fat/maxCliFat*100):0;
+        var share=totFat>0?(d.fat/totFat*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var nome=d.nome.split(" ").slice(0,3).join(" ");
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+nome+"</span>"+
+            "<span style='font-weight:700;color:#4d8ef5'>"+fatFmtK(d.fat)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:#4d8ef5;width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>Share: "+share.toFixed(1).replace(".",",")+"%&nbsp;·&nbsp;Margem avg: "+(d.cnt>0?d.margem/d.cnt:0).toFixed(1).replace(".",",")+"% &nbsp;·&nbsp; Dias s/compra: veja tabela</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+
+  // ── Top Produtos ─────────────────────────────────────────────
+  var byProd={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["CODIGO:","CODIGO"]);
+    var desc=fatGetField(r,["DESCRICAO:","DESCRICAO"])||k;
+    if(!byProd[k]) byProd[k]={desc:desc,fat:0,qtd:0,margem:0,cnt:0};
+    byProd[k].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byProd[k].qtd+=fatNum(fatGetField(r,["QTDE:","QTDE"]));
+    byProd[k].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byProd[k].cnt++;
+  });
+  var topProd=Object.values(byProd).sort(function(a,b){return b.fat-a.fat;}).slice(0,8);
+  var maxProdFat=topProd[0]?topProd[0].fat:1;
+
+  var rProd=document.getElementById("fat-rank-produtos");
+  if(rProd){
+    rProd.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      topProd.map(function(d,i){
+        var pct=maxProdFat>0?(d.fat/maxProdFat*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var desc=d.desc.length>30?d.desc.substring(0,28)+"…":d.desc;
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+desc+"</span>"+
+            "<span style='font-weight:700;color:#36cfa0'>"+fatFmtK(d.fat)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:#36cfa0;width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>"+d.qtd+" un &nbsp;·&nbsp; Margem avg: "+(d.cnt>0?d.margem/d.cnt:0).toFixed(1).replace(".",",")+"% &nbsp;·&nbsp; Clientes: "+d.cnt+"</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+
+  // ── Risco de Churn ───────────────────────────────────────────
+  var ricoMap={};
+  rows.forEach(function(r){
+    var dias=fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    if(dias<30) return;
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    var nome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||cli;
+    var ult=fatGetField(r,["ULTIMA NF","ULTIMA_NF"]);
+    if(!ricoMap[cli]||ricoMap[cli].dias<dias)
+      ricoMap[cli]={nome:nome,dias:dias,ult:ult,fat:0};
+    ricoMap[cli].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var riscoList=Object.values(ricoMap).sort(function(a,b){return b.dias-a.dias;}).slice(0,8);
+
+  var rRisco=document.getElementById("fat-risco");
+  if(rRisco){
+    if(!riscoList.length){
+      rRisco.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;text-align:center;color:var(--mu);font-size:.85rem'>Nenhum cliente com +30 dias sem compra ✓</div>";
+    } else {
+      rRisco.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+        riscoList.map(function(d){
+          var cls=d.dias>60?"tr":d.dias>45?"ty":"tw";
+          var nome=d.nome.split(" ").slice(0,3).join(" ");
+          return "<div style='display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--br)'>"+
+            "<div><div style='font-size:.82rem;font-weight:600'>"+nome+"</div>"+
+            "<div style='font-size:.7rem;color:var(--mu)'>Últ. NF: "+fatExcelDate(d.ult)+" &nbsp;·&nbsp; Fat: "+fatFmtK(d.fat)+"</div></div>"+
+            "<span class='tag "+cls+"'>"+d.dias+" dias</span>"+
+          "</div>";
+        }).join("")+"</div>";
+    }
+  }
+
+  // ── Margem por Vendedor ───────────────────────────────────────
+  var byVendM={};
+  rows.forEach(function(r){
+    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    if(!byVendM[v]) byVendM[v]={fat:0,margem:0,cnt:0};
+    byVendM[v].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byVendM[v].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byVendM[v].cnt++;
+  });
+  var vendList=Object.values(byVendM).map(function(d){
+    return{nome:d.nome||"",fat:d.fat,avgMargem:d.cnt>0?d.margem/d.cnt:0,cnt:d.cnt};
+  });
+  Object.keys(byVendM).forEach(function(k,i){vendList[i].nome=k;});
+  vendList.sort(function(a,b){return b.avgMargem-a.avgMargem;});
+  var maxMarg=vendList[0]?vendList[0].avgMargem:1;
+
+  var rMarg=document.getElementById("fat-rank-margem");
+  if(rMarg){
+    rMarg.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      vendList.map(function(d,i){
+        var pct=maxMarg>0?(d.avgMargem/maxMarg*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var cor=d.avgMargem>=35?"#36cfa0":d.avgMargem>=25?"#ffaa2b":"#ff4d4f";
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+d.nome+"</span>"+
+            "<span style='font-weight:700;color:"+cor+"'>"+d.avgMargem.toFixed(1).replace(".",",")+"% margem</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>Fat: "+fatFmtK(d.fat)+" &nbsp;·&nbsp; "+d.cnt+" registros</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+}
+
+var fatSortCol=-1, fatSortAsc=true;
+var fatLastRows=[];
+
+function fatSort(col){
+  if(fatSortCol===col) fatSortAsc=!fatSortAsc;
+  else { fatSortCol=col; fatSortAsc=true; }
+  // Update indicators
+  for(var i=0;i<10;i++){
+    var el=document.getElementById("fso"+i);
+    if(el) el.textContent=i===fatSortCol?(fatSortAsc?" ▲":" ▼"):"";
+  }
+  var rows=fatLastRows.slice();
+  rows.sort(function(a,b){
+    var getVal=function(r,c){
+      switch(c){
+        case 0: return (fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").replace("."," ").split(" ")[0];
+        case 1: return (fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"").split(" ").slice(0,3).join(" ");
+        case 2: return (fatGetField(r,["DESCRICAO:","DESCRICAO"])||"").substring(0,30);
+        case 3: return fatGetField(r,["SEGMENTO:","SEGMENTO"])||"";
+        case 4: return fatGetField(r,["REGIAO:","REGIAO"])||"";
+        case 5: return fatNum(fatGetField(r,["QTDE:","QTDE"]));
+        case 6: return fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+        case 7: return fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+        case 8: return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+        case 9: return fatGetField(r,["STATUS:","STATUS"])||"";
+        default: return "";
+      }
+    };
+    var va=getVal(a,fatSortCol), vb=getVal(b,fatSortCol);
+    if(typeof va==="number") return fatSortAsc?va-vb:vb-va;
+    return fatSortAsc?String(va).localeCompare(String(vb),"pt-BR"):String(vb).localeCompare(String(va),"pt-BR");
+  });
+  fatTable(rows);
+}
+
+function fatTable(rows){
+  fatLastRows=rows; // save for sort
+  var wrap=document.getElementById("fat-table-wrap");
+  var tbody=document.getElementById("fat-tbody");
+  var count=document.getElementById("fat-count");
+  if(!tbody) return;
+  if(!rows.length){
+    if(wrap) wrap.style.display="none";
+    if(count) count.textContent="";
+    return;
+  }
+  if(wrap) wrap.style.display="block";
+  if(count) count.textContent=rows.length+" registro(s)";
+
+  tbody.innerHTML=rows.map(function(r){
+    var dias=fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    var margem=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    var diasCls=dias>60?"tr":dias>30?"ty":"tg";
+    var margCls=margem>=35?"tg":margem>=20?"tb":"tr";
+    var vend=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").replace("."," ").split(" ")[0];
+    return "<tr>"+
+      "<td style='font-size:.8rem'>"+vend+"</td>"+
+      "<td style='font-size:.82rem;font-weight:500'>"+(fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"—").split(" ").slice(0,3).join(" ")+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["DESCRICAO:","DESCRICAO"])||"—").substring(0,30)+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"—")+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["REGIAO:","REGIAO"])||"—")+"</td>"+
+      "<td style='text-align:center'>"+(fatGetField(r,["QTDE:","QTDE"])||"—")+"</td>"+
+      "<td style='text-align:right;font-weight:600'>"+fatFmt(fatGetField(r,["TOTAL:","TOTAL"]))+"</td>"+
+      "<td style='text-align:center'><span class='tag "+margCls+"'>"+margem.toFixed(1).replace(".",",")+"% </span></td>"+
+      "<td style='text-align:center'><span class='tag "+diasCls+"'>"+dias+"d</span></td>"+
+      "<td style='font-size:.78rem;text-align:center'>"+(fatGetField(r,["STATUS:","STATUS"])||"—")+"</td>"+
+      "</tr>";
+  }).join("");
+}
+
+// Search real-time
+document.addEventListener("DOMContentLoaded",function(){
+  var s=document.getElementById("fat-search");
+  if(s) s.addEventListener("input",function(){if(fatLoaded)fatApplyFilters();});
+  var sels=["fat-vend","fat-regiao","fat-seg"];
+  sels.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener("change",function(){if(fatLoaded)fatApplyFilters();});
+  });
+});
+
+
+
+
+// ════════════════════════════════════════════════════════════════
+// INIT AO CARREGAR
+// ════════════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", function(){
+  // Se o usuario tem acesso, inicia DRE por padrao (tab ativa)
+  var content = document.getElementById("fin-content");
+  if(content && content.style.display !== "none"){
+    if(typeof initDRE === "function"){
+      initDRE();
+    }
+  }
+});
+</script>
+
+</body>
+</html>
