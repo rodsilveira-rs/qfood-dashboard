@@ -203,7 +203,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
    ============================================================ */
 
 var UUSR_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
-var USERS_CACHE_KEY = "qfood_users_cache_v2";
+var USERS_CACHE_KEY = "qfood_users_cache_v3";  // v3: inclui tarefas
 var USERS_CACHE_TTL_MIN = 15;  // atualiza a cada 15 min
 
 // Fallback: snapshot embutido (usado se o CSV falhar)
@@ -391,15 +391,32 @@ function doLogin(){
 function checkSession(){
   var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
   if(sess && (Date.now() - sess.ts < 8*60*60*1000)){
-    // Se USERS já carregou, prefere dados frescos (pra pegar mudança de permissão)
-    var u = USERS[sess.email] || {};
-    CURRENT_USER = {
-      email: sess.email,
-      role:  u.role  || sess.role,
-      nome:  u.nome  || sess.nome,
-      sigla: u.sigla || sess.sigla,
-      abas:  u.abas  || sess.abas || ""
-    };
+    // Sempre prefere dados frescos do USERS (CSV ou fallback)
+    var u = USERS[sess.email];
+    if(u){
+      CURRENT_USER = {
+        email: sess.email,
+        role:  u.role,
+        nome:  u.nome,
+        sigla: u.sigla,
+        abas:  u.abas || ""
+      };
+      // Re-hidrata a sessão com abas atualizadas (importante após deploy de novos cards)
+      sess.abas = u.abas;
+      sess.role = u.role;
+      sess.nome = u.nome;
+      sess.sigla = u.sigla;
+      localStorage.setItem("qfood_session", JSON.stringify(sess));
+    } else {
+      // USERS ainda não carregou ou o email sumiu da planilha — usa snapshot da sessão
+      CURRENT_USER = {
+        email: sess.email,
+        role:  sess.role,
+        nome:  sess.nome,
+        sigla: sess.sigla,
+        abas:  sess.abas || ""
+      };
+    }
     showMenu();
     return true;
   }
