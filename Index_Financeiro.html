@@ -316,12 +316,13 @@ tbody tr:hover td{background:var(--s2);}
     <!-- Tabs internas -->
     <div class="fin-tabs">
       <div class="fin-tab active" data-tab="dre" onclick="finShowTab('dre')">📊 DRE</div>
+      <div class="fin-tab" data-tab="fat" onclick="finShowTab('fat')">💰 Faturamento</div>
       <div class="fin-tab" data-tab="lal" onclick="finShowTab('lal')">📈 Linha a Linha</div>
     </div>
 
     <!-- DRE -->
     <div id="fin-dre" style="display:block">
-<div id="tab-dre" style="display:block">
+<div id="tab-dre" class="page" style="display:block">
   <div class="sec">DRE — Painel de Diagnóstico Linha a Linha</div>
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:flex-end">
     <div style="flex:1;min-width:140px">
@@ -389,9 +390,117 @@ tbody tr:hover td{background:var(--s2);}
 
 <!-- ══════════════ LINHA A LINHA ══════════════ -->
 
+    </div>
+
+    <!-- Faturamento -->
+    <div id="fin-fat" style="display:none">
+<div id="tab-fat" class="page" style="display:block">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div class="sec" style="margin:0">&#128640; Faturamento Dinâmico</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="fat-vend" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Vendedores</option>
+      </select>
+      <select id="fat-regiao" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todas as Regiões</option>
+      </select>
+      <select id="fat-seg" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Segmentos</option>
+      </select>
+      <button onclick="fatLoad(true)" style="padding:7px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">&#128260; Atualizar</button>
+    </div>
+  </div>
+
+  <div id="fat-loading" class="spin-wrap" style="display:none"><div class="spin"></div>Carregando dados...</div>
+  <div id="fat-last-update" style="font-size:.7rem;color:var(--mu);margin-bottom:14px;text-align:right"></div>
+
+  <!-- KPI ROW 1 -->
+  <div class="kpis" id="fat-kpis1" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+  <!-- KPI ROW 2 -->
+  <div class="kpis" id="fat-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+  <!-- CHARTS ROW -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Faturamento por Vendedor</div>
+      <div style="position:relative;height:240px"><canvas id="fat-c1"></canvas></div>
+      <div class="cleg" id="fat-c1-leg"></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Margem por Segmento</div>
+      <div style="position:relative;height:240px"><canvas id="fat-c2"></canvas></div>
+      <div class="cleg" id="fat-c2-leg"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Top 10 Clientes por Faturamento</div>
+      <div style="position:relative;height:280px"><canvas id="fat-c3"></canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Distribuição por Região</div>
+      <div style="position:relative;height:280px"><canvas id="fat-c4"></canvas></div>
+      <div class="cleg" id="fat-c4-leg"></div>
+    </div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#129351; Top Clientes — Receita</div>
+      <div id="fat-rank-clientes"></div>
+    </div>
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#129351; Top Produtos — Faturamento</div>
+      <div id="fat-rank-produtos"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#128679; Clientes em Risco (sem compra)</div>
+      <div id="fat-risco"></div>
+    </div>
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#128200; Margem por Vendedor</div>
+      <div id="fat-rank-margem"></div>
+    </div>
+  </div>
+
+  <!-- TABELA DETALHADA -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="sec" style="margin:0">Tabela Detalhada</div>
+    <input id="fat-search" type="text" placeholder="Buscar cliente, produto, vendedor..."
+      style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none;width:280px">
+  </div>
+  <div class="twrap" id="fat-table-wrap" style="display:none;overflow-x:auto">
+    <table>
+      <thead><tr id="fat-thead">
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(0)">Vendedor <span id="fso0"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(1)">Cliente <span id="fso1"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(2)">Produto <span id="fso2"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(3)">Segmento <span id="fso3"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(4)">Região <span id="fso4"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(5)">Qtde <span id="fso5"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(6)">Total <span id="fso6"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(7)">Margem % <span id="fso7"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(8)">Dias s/ Compra <span id="fso8"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(9)">Status <span id="fso9"></span></th>
+      </tr></thead>
+      <tbody id="fat-tbody"></tbody>
+    </table>
+  </div>
+  <div id="fat-count" style="font-size:.72rem;color:var(--mu);text-align:right;margin-top:6px;padding-right:4px"></div>
+</div>
+
+
+
+    </div>
+
     <!-- Lucro a Lucro -->
     <div id="fin-lal" style="display:none">
-<div id="tab-lal" style="display:block">
+<div id="tab-lal" class="page" style="display:block">
   <div class="sec">Linha a Linha — Análise Comparativa</div>
 
   <!-- FILTROS COMPARAÇÃO -->
@@ -526,9 +635,14 @@ function finShowTab(tab){
   if(activeEl) activeEl.classList.add("active");
 
   document.getElementById("fin-dre").style.display = tab==="dre" ? "block" : "none";
+  document.getElementById("fin-fat").style.display = tab==="fat" ? "block" : "none";
   document.getElementById("fin-lal").style.display = tab==="lal" ? "block" : "none";
 
   // Inicializa sob demanda
+  if(tab==="fat" && typeof initFat === "function" && !window._fatInited){
+    window._fatInited = true;
+    initFat();
+  }
   if(tab==="lal" && typeof initLAL === "function" && !window._lalInited){
     window._lalInited = true;
     initLAL();
@@ -1361,6 +1475,564 @@ function makeLegend(legEl, chartInst, datasets){
     legEl.appendChild(span);
   });
 }
+
+
+// ════════════════════════════════════════════════════════════════════
+// MÓDULO FATURAMENTO DINÂMICO
+// ════════════════════════════════════════════════════════════════════
+var fatAllRows=[];
+var fatLoaded=false;
+
+
+// ════════════════════════════════════════════════════════════════
+// MODULO FATURAMENTO (copia fiel do original)
+// ════════════════════════════════════════════════════════════════
+var fatAllRows=[];
+var fatLoaded=false;
+var fatC1=null,fatC2=null,fatC3=null,fatC4=null;
+
+function fatNum(v){
+  var s=String(v||0).replace(/R\$\s*/g,"").trim();
+  if(s.indexOf(",")>-1&&s.indexOf(".")>-1) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.indexOf(",")>-1) s=s.replace(",",".");
+  var n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function fatFmt(v){
+  var n=fatNum(v);
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fatFmtK(v){
+  var n=fatNum(v);
+  if(n>=1000000) return "R$ "+(n/1000000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" M";
+  if(n>=1000)    return "R$ "+(n/1000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" k";
+  return fatFmt(n);
+}
+function fatPct(v){
+  return fatNum(v).toFixed(1).replace(".",",")+"%";
+}
+function fatExcelDate(v){
+  if(!v) return "—";
+  // CSV exports dates as text "dd/mm/yyyy" - parse directly
+  var s=String(v).trim();
+  if(s.indexOf("/")>-1) return s; // already formatted
+  // fallback: Excel serial
+  var n=parseFloat(s);
+  if(!isNaN(n)&&n>40000&&n<60000){
+    var d=new Date(Math.round((n-25569)*86400*1000));
+    return d.toLocaleDateString("pt-BR");
+  }
+  return s||"—";
+}
+
+async function initFat(){
+  if(fatLoaded){ fatApplyFilters(); return; }
+  fatLoad(false);
+}
+
+async function fatLoad(force){
+  if(force) fatLoaded=false;
+  var ldg=document.getElementById("fat-loading");
+  var upd=document.getElementById("fat-last-update");
+  if(ldg) ldg.style.display="flex";
+  try{
+    var r=await fetch(UFAT+"&t="+Date.now());
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt=await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV");
+    fatAllRows=csv(txt);
+    fatLoaded=true;
+    if(upd) upd.textContent="Atualizado em "+new Date().toLocaleString("pt-BR")+" — "+fatAllRows.length+" registros";
+    fatPopulateFilters();
+    fatApplyFilters();
+    if(ldg) ldg.style.display="none";
+  }catch(e){
+    if(ldg) ldg.innerHTML="<div style='color:var(--red)'>Erro: "+e.message+"</div>";
+  }
+}
+
+function fatPopulateFilters(){
+  var vends=[...new Set(fatAllRows.map(function(r){return(r["VENDEDOR:"]||r["VENDEDOR"]||"").trim();}))].filter(Boolean).sort();
+  var regs=[...new Set(fatAllRows.map(function(r){return(r["REGIAO:"]||r["REGIAO"]||"").trim();}))].filter(Boolean).sort();
+  var segs=[...new Set(fatAllRows.map(function(r){return(r["SEGMENTO:"]||r["SEGMENTO"]||"").trim();}))].filter(Boolean).sort();
+
+  function populateSel(id, opts){
+    var sel=document.getElementById(id);
+    if(!sel) return;
+    var cur=sel.value;
+    sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+    opts.forEach(function(v){
+      var o=document.createElement("option");
+      o.value=v; o.textContent=v; sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+  }
+  populateSel("fat-vend", vends);
+  populateSel("fat-regiao", regs);
+  populateSel("fat-seg", segs);
+}
+
+function fatGetField(r, keys){
+  for(var i=0;i<keys.length;i++){
+    if(r[keys[i]]!==undefined&&r[keys[i]]!=="") return r[keys[i]];
+  }
+  return "";
+}
+
+function fatApplyFilters(){
+  var vend=(document.getElementById("fat-vend").value||"").trim();
+  var reg=(document.getElementById("fat-regiao").value||"").trim();
+  var seg=(document.getElementById("fat-seg").value||"").trim();
+  var search=(document.getElementById("fat-search").value||"").toLowerCase().trim();
+
+  var rows=fatAllRows.filter(function(r){
+    if(vend&&(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim()!==vend) return false;
+    if(reg&&(fatGetField(r,["REGIAO:","REGIAO"])||"").trim()!==reg) return false;
+    if(seg&&(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"").trim()!==seg) return false;
+    if(search){
+      var hay=[
+        fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"]),
+        fatGetField(r,["DESCRICAO:","DESCRICAO"]),
+        fatGetField(r,["VENDEDOR:","VENDEDOR"]),
+        fatGetField(r,["MUNICIPIO:","MUNICIPIO"])
+      ].join(" ").toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  var ldg=document.getElementById("fat-loading");
+  if(ldg) ldg.style.display="none";
+
+  fatKPIs(rows);
+  fatCharts(rows);
+  fatRankings(rows);
+  fatTable(rows);
+}
+
+function fatKPIs(rows){
+  var n=rows.length;
+  var totFat=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["TOTAL:","TOTAL"]));},0);
+  var totCusto=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["CUSTO:","CUSTO"]));},0);
+  var totMargem=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["MARGEM:","MARGEM"]));},0);
+  var avgMargem=n>0?totMargem/n:0;
+  var avgMarkup=0;
+  var mkupCount=0;
+  rows.forEach(function(r){
+    var m=fatNum(fatGetField(r,["MARCKUP:","MARCKUP"]));
+    if(m>0){avgMarkup+=m;mkupCount++;}
+  });
+  avgMarkup=mkupCount>0?avgMarkup/mkupCount:0;
+
+  // Unique clients
+  var clientes=new Set(rows.map(function(r){return fatGetField(r,["CNPJ/CPF","CNPJ"]);})).size;
+
+  // Churn risk: dias sem compra > 30
+  var churnRisk=rows.filter(function(r){
+    return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]))>30;
+  }).length;
+  var clientesChurn=new Set(rows.filter(function(r){
+    return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]))>30;
+  }).map(function(r){return fatGetField(r,["CNPJ/CPF","CNPJ"]);})).size;
+
+  // Ticket médio por cliente
+  var byClient={};
+  rows.forEach(function(r){
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    if(!byClient[cli]) byClient[cli]=0;
+    byClient[cli]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var clienteVals=Object.values(byClient);
+  var ticketMedio=clienteVals.length>0?clienteVals.reduce(function(a,b){return a+b;},0)/clienteVals.length:0;
+
+  // Concentracao: top cliente %
+  var topClienteFat=Math.max.apply(null,clienteVals);
+  var concPct=totFat>0?(topClienteFat/totFat*100):0;
+  var topClienteNome="—";
+  rows.forEach(function(r){
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    if(byClient[cli]===topClienteFat) topClienteNome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"—";
+  });
+  // shorten name
+  var parts=topClienteNome.split(" ");
+  topClienteNome=parts.slice(0,2).join(" ");
+
+  var k1=document.getElementById("fat-kpis1");
+  var k2=document.getElementById("fat-kpis2");
+  if(k1) k1.innerHTML=
+    '<div class="kpi b"><div class="lbl">Faturamento Total</div><div class="val">'+fatFmtK(totFat)+'</div><div class="sub">'+n+' registros</div></div>'+
+    '<div class="kpi g"><div class="lbl">Margem Média</div><div class="val">'+fatPct(avgMargem)+'</div><div class="sub">Markup médio: '+avgMarkup.toFixed(1).replace(".",",")+'%</div></div>'+
+    '<div class="kpi p"><div class="lbl">Clientes Ativos</div><div class="val">'+clientes+'</div><div class="sub">na seleção atual</div></div>'+
+    '<div class="kpi r"><div class="lbl">Risco de Churn</div><div class="val">'+clientesChurn+'</div><div class="sub">clientes +30 dias s/ compra</div></div>';
+
+  if(k2) k2.innerHTML=
+    '<div class="kpi w"><div class="lbl">Ticket Médio / Cliente</div><div class="val">'+fatFmtK(ticketMedio)+'</div><div class="sub">faturamento médio por conta</div></div>'+
+    '<div class="kpi b"><div class="lbl">Custo Total</div><div class="val">'+fatFmtK(totCusto)+'</div><div class="sub">base de custo</div></div>'+
+    '<div class="kpi g"><div class="lbl">Concentração Top 1</div><div class="val">'+concPct.toFixed(1).replace(".",",")+"%"+'</div><div class="sub">'+topClienteNome+'</div></div>'+
+    '<div class="kpi p"><div class="lbl">Produtos Distintos</div><div class="val">'+new Set(rows.map(function(r){return fatGetField(r,["CODIGO:","CODIGO"]);})).size+'</div><div class="sub">SKUs na seleção</div></div>';
+}
+
+function fatCharts(rows){
+  // ── C1: Faturamento por Vendedor (barras) ────────────────────
+  var byVend={};
+  rows.forEach(function(r){
+    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    if(!byVend[v]) byVend[v]=0;
+    byVend[v]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var vNames=Object.keys(byVend).sort(function(a,b){return byVend[b]-byVend[a];});
+  var vColors=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055"];
+
+  if(fatC1){fatC1.destroy();fatC1=null;}
+  var ctx1=document.getElementById("fat-c1");
+  if(ctx1){
+    fatC1=new Chart(ctx1,{type:"bar",data:{
+      labels:vNames,
+      datasets:[{
+        label:"Faturamento",
+        data:vNames.map(function(v){return byVend[v];}),
+        backgroundColor:vNames.map(function(v,i){return vColors[i%vColors.length]+"bb";}),
+        borderColor:vNames.map(function(v,i){return vColors[i%vColors.length];}),
+        borderWidth:1,borderRadius:5
+      }]
+    },options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return fatFmtK(x.parsed.y);}}}},
+      scales:{
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return fatFmtK(v);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        x:{ticks:{color:"#8fa0c0"},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C2: Margem por Segmento (barras horizontais) ─────────────
+  var bySeg={};
+  rows.forEach(function(r){
+    var s=(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"Outros").trim();
+    if(!bySeg[s]) bySeg[s]={sum:0,cnt:0};
+    bySeg[s].sum+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    bySeg[s].cnt++;
+  });
+  var segNames=Object.keys(bySeg).sort(function(a,b){
+    return (bySeg[b].sum/bySeg[b].cnt)-(bySeg[a].sum/bySeg[a].cnt);
+  });
+
+  if(fatC2){fatC2.destroy();fatC2=null;}
+  var ctx2=document.getElementById("fat-c2");
+  if(ctx2){
+    var segColors=["#36cfa0","#4d8ef5","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8"];
+    fatC2=new Chart(ctx2,{type:"bar",data:{
+      labels:segNames,
+      datasets:[{
+        label:"Margem Média %",
+        data:segNames.map(function(s){return bySeg[s].sum/bySeg[s].cnt;}),
+        backgroundColor:segNames.map(function(s,i){return segColors[i%segColors.length]+"bb";}),
+        borderColor:segNames.map(function(s,i){return segColors[i%segColors.length];}),
+        borderWidth:1,borderRadius:5
+      }]
+    },options:{
+      indexAxis:"y",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.parsed.x.toFixed(1).replace(".",",")+"%";}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",callback:function(v){return v.toFixed(0)+"%";}},grid:{color:"rgba(255,255,255,0.05)"}},
+        y:{ticks:{color:"#8fa0c0"},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C3: Top 10 Clientes (barras horizontais) ─────────────────
+  var byCliF={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"S/N";
+    var short=k.split(" ").slice(0,2).join(" ");
+    if(!byCliF[short]) byCliF[short]=0;
+    byCliF[short]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var top10=Object.keys(byCliF).sort(function(a,b){return byCliF[b]-byCliF[a];}).slice(0,10);
+
+  if(fatC3){fatC3.destroy();fatC3=null;}
+  var ctx3=document.getElementById("fat-c3");
+  if(ctx3){
+    fatC3=new Chart(ctx3,{type:"bar",data:{
+      labels:top10,
+      datasets:[{
+        label:"Faturamento",
+        data:top10.map(function(c){return byCliF[c];}),
+        backgroundColor:"rgba(77,142,245,.75)",
+        borderColor:"#4d8ef5",borderWidth:1,borderRadius:4
+      }]
+    },options:{
+      indexAxis:"y",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return fatFmtK(x.parsed.x);}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",callback:function(v){return fatFmtK(v);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        y:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C4: Distribuição por Região (doughnut) ────────────────────
+  var byReg={};
+  rows.forEach(function(r){
+    var reg=(fatGetField(r,["REGIAO:","REGIAO"])||"Outros").trim();
+    if(!byReg[reg]) byReg[reg]=0;
+    byReg[reg]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var regNames=Object.keys(byReg).sort(function(a,b){return byReg[b]-byReg[a];});
+  var regColors=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9"];
+
+  if(fatC4){fatC4.destroy();fatC4=null;}
+  var ctx4=document.getElementById("fat-c4");
+  if(ctx4){
+    var ds4=[{
+      data:regNames.map(function(r){return byReg[r];}),
+      backgroundColor:regNames.map(function(r,i){return regColors[i%regColors.length]+"cc";}),
+      borderColor:regNames.map(function(r,i){return regColors[i%regColors.length];}),
+      borderWidth:2
+    }];
+    fatC4=new Chart(ctx4,{type:"doughnut",data:{labels:regNames,datasets:ds4},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(x){
+          var tot=x.dataset.data.reduce(function(a,b){return a+b;},0);
+          return x.label+": "+fatFmtK(x.parsed)+" ("+((x.parsed/tot)*100).toFixed(1)+"%)";}}}
+      },
+      cutout:"60%"
+    }});
+    makeLegend(document.getElementById("fat-c4-leg"),fatC4,ds4[0].backgroundColor.map(function(c,i){
+      return{label:regNames[i],borderColor:regColors[i%regColors.length],backgroundColor:regColors[i%regColors.length]};
+    }));
+  }
+}
+
+function fatRankings(rows){
+  var totFat=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["TOTAL:","TOTAL"]));},0);
+
+  // ── Top Clientes ─────────────────────────────────────────────
+  var byCliObj={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    var nome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||k;
+    if(!byCliObj[k]) byCliObj[k]={nome:nome,fat:0,qtd:0,margem:0,cnt:0};
+    byCliObj[k].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byCliObj[k].qtd+=fatNum(fatGetField(r,["QTDE:","QTDE"]));
+    byCliObj[k].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byCliObj[k].cnt++;
+  });
+  var topCli=Object.values(byCliObj).sort(function(a,b){return b.fat-a.fat;}).slice(0,8);
+  var maxCliFat=topCli[0]?topCli[0].fat:1;
+
+  var rCli=document.getElementById("fat-rank-clientes");
+  if(rCli){
+    rCli.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      topCli.map(function(d,i){
+        var pct=maxCliFat>0?(d.fat/maxCliFat*100):0;
+        var share=totFat>0?(d.fat/totFat*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var nome=d.nome.split(" ").slice(0,3).join(" ");
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+nome+"</span>"+
+            "<span style='font-weight:700;color:#4d8ef5'>"+fatFmtK(d.fat)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:#4d8ef5;width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>Share: "+share.toFixed(1).replace(".",",")+"%&nbsp;·&nbsp;Margem avg: "+(d.cnt>0?d.margem/d.cnt:0).toFixed(1).replace(".",",")+"% &nbsp;·&nbsp; Dias s/compra: veja tabela</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+
+  // ── Top Produtos ─────────────────────────────────────────────
+  var byProd={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["CODIGO:","CODIGO"]);
+    var desc=fatGetField(r,["DESCRICAO:","DESCRICAO"])||k;
+    if(!byProd[k]) byProd[k]={desc:desc,fat:0,qtd:0,margem:0,cnt:0};
+    byProd[k].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byProd[k].qtd+=fatNum(fatGetField(r,["QTDE:","QTDE"]));
+    byProd[k].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byProd[k].cnt++;
+  });
+  var topProd=Object.values(byProd).sort(function(a,b){return b.fat-a.fat;}).slice(0,8);
+  var maxProdFat=topProd[0]?topProd[0].fat:1;
+
+  var rProd=document.getElementById("fat-rank-produtos");
+  if(rProd){
+    rProd.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      topProd.map(function(d,i){
+        var pct=maxProdFat>0?(d.fat/maxProdFat*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var desc=d.desc.length>30?d.desc.substring(0,28)+"…":d.desc;
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+desc+"</span>"+
+            "<span style='font-weight:700;color:#36cfa0'>"+fatFmtK(d.fat)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:#36cfa0;width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>"+d.qtd+" un &nbsp;·&nbsp; Margem avg: "+(d.cnt>0?d.margem/d.cnt:0).toFixed(1).replace(".",",")+"% &nbsp;·&nbsp; Clientes: "+d.cnt+"</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+
+  // ── Risco de Churn ───────────────────────────────────────────
+  var ricoMap={};
+  rows.forEach(function(r){
+    var dias=fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    if(dias<30) return;
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    var nome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||cli;
+    var ult=fatGetField(r,["ULTIMA NF","ULTIMA_NF"]);
+    if(!ricoMap[cli]||ricoMap[cli].dias<dias)
+      ricoMap[cli]={nome:nome,dias:dias,ult:ult,fat:0};
+    ricoMap[cli].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var riscoList=Object.values(ricoMap).sort(function(a,b){return b.dias-a.dias;}).slice(0,8);
+
+  var rRisco=document.getElementById("fat-risco");
+  if(rRisco){
+    if(!riscoList.length){
+      rRisco.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;text-align:center;color:var(--mu);font-size:.85rem'>Nenhum cliente com +30 dias sem compra ✓</div>";
+    } else {
+      rRisco.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+        riscoList.map(function(d){
+          var cls=d.dias>60?"tr":d.dias>45?"ty":"tw";
+          var nome=d.nome.split(" ").slice(0,3).join(" ");
+          return "<div style='display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--br)'>"+
+            "<div><div style='font-size:.82rem;font-weight:600'>"+nome+"</div>"+
+            "<div style='font-size:.7rem;color:var(--mu)'>Últ. NF: "+fatExcelDate(d.ult)+" &nbsp;·&nbsp; Fat: "+fatFmtK(d.fat)+"</div></div>"+
+            "<span class='tag "+cls+"'>"+d.dias+" dias</span>"+
+          "</div>";
+        }).join("")+"</div>";
+    }
+  }
+
+  // ── Margem por Vendedor ───────────────────────────────────────
+  var byVendM={};
+  rows.forEach(function(r){
+    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    if(!byVendM[v]) byVendM[v]={fat:0,margem:0,cnt:0};
+    byVendM[v].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byVendM[v].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byVendM[v].cnt++;
+  });
+  var vendList=Object.values(byVendM).map(function(d){
+    return{nome:d.nome||"",fat:d.fat,avgMargem:d.cnt>0?d.margem/d.cnt:0,cnt:d.cnt};
+  });
+  Object.keys(byVendM).forEach(function(k,i){vendList[i].nome=k;});
+  vendList.sort(function(a,b){return b.avgMargem-a.avgMargem;});
+  var maxMarg=vendList[0]?vendList[0].avgMargem:1;
+
+  var rMarg=document.getElementById("fat-rank-margem");
+  if(rMarg){
+    rMarg.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      vendList.map(function(d,i){
+        var pct=maxMarg>0?(d.avgMargem/maxMarg*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var cor=d.avgMargem>=35?"#36cfa0":d.avgMargem>=25?"#ffaa2b":"#ff4d4f";
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+d.nome+"</span>"+
+            "<span style='font-weight:700;color:"+cor+"'>"+d.avgMargem.toFixed(1).replace(".",",")+"% margem</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>Fat: "+fatFmtK(d.fat)+" &nbsp;·&nbsp; "+d.cnt+" registros</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+}
+
+var fatSortCol=-1, fatSortAsc=true;
+var fatLastRows=[];
+
+function fatSort(col){
+  if(fatSortCol===col) fatSortAsc=!fatSortAsc;
+  else { fatSortCol=col; fatSortAsc=true; }
+  // Update indicators
+  for(var i=0;i<10;i++){
+    var el=document.getElementById("fso"+i);
+    if(el) el.textContent=i===fatSortCol?(fatSortAsc?" ▲":" ▼"):"";
+  }
+  var rows=fatLastRows.slice();
+  rows.sort(function(a,b){
+    var getVal=function(r,c){
+      switch(c){
+        case 0: return (fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").replace("."," ").split(" ")[0];
+        case 1: return (fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"").split(" ").slice(0,3).join(" ");
+        case 2: return (fatGetField(r,["DESCRICAO:","DESCRICAO"])||"").substring(0,30);
+        case 3: return fatGetField(r,["SEGMENTO:","SEGMENTO"])||"";
+        case 4: return fatGetField(r,["REGIAO:","REGIAO"])||"";
+        case 5: return fatNum(fatGetField(r,["QTDE:","QTDE"]));
+        case 6: return fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+        case 7: return fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+        case 8: return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+        case 9: return fatGetField(r,["STATUS:","STATUS"])||"";
+        default: return "";
+      }
+    };
+    var va=getVal(a,fatSortCol), vb=getVal(b,fatSortCol);
+    if(typeof va==="number") return fatSortAsc?va-vb:vb-va;
+    return fatSortAsc?String(va).localeCompare(String(vb),"pt-BR"):String(vb).localeCompare(String(va),"pt-BR");
+  });
+  fatTable(rows);
+}
+
+function fatTable(rows){
+  fatLastRows=rows; // save for sort
+  var wrap=document.getElementById("fat-table-wrap");
+  var tbody=document.getElementById("fat-tbody");
+  var count=document.getElementById("fat-count");
+  if(!tbody) return;
+  if(!rows.length){
+    if(wrap) wrap.style.display="none";
+    if(count) count.textContent="";
+    return;
+  }
+  if(wrap) wrap.style.display="block";
+  if(count) count.textContent=rows.length+" registro(s)";
+
+  tbody.innerHTML=rows.map(function(r){
+    var dias=fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    var margem=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    var diasCls=dias>60?"tr":dias>30?"ty":"tg";
+    var margCls=margem>=35?"tg":margem>=20?"tb":"tr";
+    var vend=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").replace("."," ").split(" ")[0];
+    return "<tr>"+
+      "<td style='font-size:.8rem'>"+vend+"</td>"+
+      "<td style='font-size:.82rem;font-weight:500'>"+(fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"—").split(" ").slice(0,3).join(" ")+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["DESCRICAO:","DESCRICAO"])||"—").substring(0,30)+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"—")+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["REGIAO:","REGIAO"])||"—")+"</td>"+
+      "<td style='text-align:center'>"+(fatGetField(r,["QTDE:","QTDE"])||"—")+"</td>"+
+      "<td style='text-align:right;font-weight:600'>"+fatFmt(fatGetField(r,["TOTAL:","TOTAL"]))+"</td>"+
+      "<td style='text-align:center'><span class='tag "+margCls+"'>"+margem.toFixed(1).replace(".",",")+"% </span></td>"+
+      "<td style='text-align:center'><span class='tag "+diasCls+"'>"+dias+"d</span></td>"+
+      "<td style='font-size:.78rem;text-align:center'>"+(fatGetField(r,["STATUS:","STATUS"])||"—")+"</td>"+
+      "</tr>";
+  }).join("");
+}
+
+// Search real-time
+document.addEventListener("DOMContentLoaded",function(){
+  var s=document.getElementById("fat-search");
+  if(s) s.addEventListener("input",function(){if(fatLoaded)fatApplyFilters();});
+  var sels=["fat-vend","fat-regiao","fat-seg"];
+  sels.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener("change",function(){if(fatLoaded)fatApplyFilters();});
+  });
+});
+
 
 
 
