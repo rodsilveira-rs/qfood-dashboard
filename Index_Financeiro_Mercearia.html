@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Financeiro · Mercearia Liberdade</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+/* ---- HEADER ---- */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;}
+.logo{height:52px;object-fit:contain;}
+.hdr-c h1{font-family:var(--fh);font-size:1.15rem;font-weight:700;text-align:center;}
+.hdr-c p{font-size:0.72rem;color:var(--mu);text-align:center;margin-top:2px;}
+.dbadge{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 14px;text-align:right;min-width:150px;}
+.dbadge strong{display:block;font-family:var(--fh);font-size:0.9rem;}
+.dbadge span{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABS ---- */
+.tabs{display:flex;gap:2px;padding:0 28px;background:var(--sf);border-bottom:1px solid var(--br);}
+.tab{padding:13px 20px;font-size:0.84rem;font-weight:500;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.tab:hover{color:var(--tx);}
+.tab.active{color:var(--tx);border-bottom-color:var(--red);font-weight:600;}
+
+/* ---- MAIN ---- */
+.page{display:none;padding:28px;max-width:1000px;margin:0 auto;}
+.page.active{display:block;}
+
+/* ---- SECTION ---- */
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+
+/* ---- KPI GRID ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:28px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.kpi .lbl{font-size:0.74rem;color:var(--mu);margin-bottom:8px;letter-spacing:0.3px;}
+.kpi .val{font-family:var(--fh);font-size:1.5rem;font-weight:700;line-height:1;}
+.kpi .sub{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.kpi .delta{font-size:0.7rem;margin-top:4px;font-weight:500;}
+.kpi.r{border-color:var(--red);}.kpi.r .val{color:var(--red);}
+.kpi.g{border-color:var(--ok);}.kpi.g .val{color:var(--ok);}
+.kpi.w{border-color:var(--warn);}.kpi.w .val{color:var(--warn);}
+.kpi.b{border-color:var(--blue);}.kpi.b .val{color:var(--blue);}
+.kpi.p{border-color:var(--pur);}.kpi.p .val{color:var(--pur);}
+
+/* ---- CHART WRAP ---- */
+.cwrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:24px;}
+.cwrap .ctitle{font-family:var(--fh);font-size:0.78rem;font-weight:600;margin-bottom:16px;color:var(--tx);}
+.cleg{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:12px;font-size:0.68rem;color:var(--mu);}
+.cleg span{display:flex;align-items:center;gap:5px;cursor:pointer;padding:3px 7px;border-radius:5px;transition:all .15s;user-select:none;border:1px solid transparent;}
+.cleg span:hover{background:var(--s2);border-color:var(--br);}
+.cleg span.off{opacity:.3;text-decoration:line-through;}
+.cleg i{width:10px;height:10px;border-radius:2px;display:inline-block;flex-shrink:0;}
+
+/* ---- RANKING ---- */
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:24px;}
+.rcard{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;}
+.rnum{font-family:var(--fh);font-size:1.4rem;font-weight:800;color:var(--b2);width:24px;flex-shrink:0;line-height:1;}
+.rnum.t1{color:#f59e0b;}.rnum.t2{color:#94a3b8;}.rnum.t3{color:#b45309;}
+.av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0;}
+.ri .rn{font-size:0.8rem;font-weight:500;}
+.ri .rp{font-size:0.95rem;font-family:var(--fh);font-weight:700;}
+.ri .rv{font-size:0.68rem;color:var(--mu);}
+
+/* ---- TABLE ---- */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:0.7rem;font-weight:500;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--br);}
+th:not(:first-child){text-align:right;}
+td{padding:11px 14px;font-size:0.85rem;border-bottom:1px solid var(--br);vertical-align:middle;}
+td:not(:first-child){text-align:right;}
+tbody tr{cursor:pointer;transition:background 0.12s;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--s2);}
+.vc{display:flex;align-items:center;gap:10px;}
+.mav{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;flex-shrink:0;}
+.bm{height:4px;border-radius:2px;background:var(--br);overflow:hidden;margin-top:4px;}
+.bmf{height:100%;border-radius:2px;}
+.pv{font-family:var(--fh);font-weight:700;font-size:0.85rem;}
+.tag{display:inline-block;font-size:0.62rem;padding:2px 6px;border-radius:20px;font-weight:500;}
+.tg{background:rgba(54,207,160,0.18);color:#36cfa0;}
+.tr{background:rgba(255,77,79,0.18);color:#ff7875;}
+.ty{background:rgba(255,170,43,0.18);color:#ffaa2b;}
+.tb{background:rgba(77,142,245,0.18);color:#74a9ff;}
+.ch{font-size:0.62rem;color:var(--mu);margin-top:1px;}
+
+/* ---- CEO SECTION ---- */
+.ceo-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px;}
+.ceo-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.ceo-card .cc-title{font-size:0.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:600;}
+
+/* ---- SOP TABLE ---- */
+.sop-table-wrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.generic-row{display:grid;gap:8px;padding:10px 16px;border-bottom:1px solid var(--br);font-size:0.8rem;align-items:center;}
+.generic-row:last-child{border-bottom:none;}
+.generic-row.hdr-row{font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.8px;font-weight:500;background:var(--s2);}
+
+/* ---- LOADING / ERROR ---- */
+.spin-wrap{text-align:center;padding:80px 20px;color:var(--mu);}
+.spin{width:28px;height:28px;border:2px solid var(--b2);border-top-color:var(--red);border-radius:50%;animation:sp 0.8s linear infinite;margin:0 auto 14px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.errmsg{background:rgba(230,51,41,0.08);border:1px solid rgba(230,51,41,0.25);border-radius:8px;padding:12px 16px;color:#ef4444;font-size:0.8rem;margin:16px 28px;display:none;}
+
+/* ---- MODAL ---- */
+.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.ov.open{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--b2);border-radius:16px;width:100%;max-width:680px;padding:24px;position:relative;margin:auto;}
+.mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;}
+.mclose:hover{color:var(--tx);border-color:var(--b2);}
+.mhdr{display:flex;align-items:center;gap:14px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--br);}
+.mav2{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;}
+.mn{font-family:var(--fh);font-size:1.2rem;font-weight:700;}
+.ms{font-size:0.75rem;color:var(--mu);margin-top:2px;}
+.msec{margin-bottom:18px;}
+.msect{font-size:0.65rem;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--mu);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.msect::after{content:'';flex:1;height:1px;background:var(--br);}
+.mg3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.mc{background:var(--bg);border-radius:10px;padding:11px 13px;}
+.mc .ml{font-size:0.65rem;color:var(--mu);margin-bottom:3px;}
+.mc .mv{font-family:var(--fh);font-size:1rem;font-weight:700;}
+.tr2{background:var(--bg);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.tr2 .tl{font-size:0.72rem;color:var(--mu);}
+.tr2 .tv{font-family:var(--fh);font-size:0.95rem;font-weight:700;}
+.pbw{background:var(--bg);border-radius:10px;padding:13px;}
+.pbl{display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:7px;}
+.pbb{height:10px;background:var(--br);border-radius:5px;overflow:hidden;margin-bottom:10px;}
+.pbf{height:100%;border-radius:5px;}
+.pg4{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;}
+.ps{background:var(--bg);border-radius:8px;padding:9px 11px;}
+.ps .psl{font-size:0.62rem;color:var(--mu);margin-bottom:2px;}
+.ps .psv{font-size:0.9rem;font-weight:700;font-family:var(--fh);}
+.sp2{background:var(--bg);border-radius:10px;padding:13px;margin-bottom:8px;}
+.sp2t{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;}
+.sp2b{height:7px;background:var(--b2);border-radius:4px;overflow:hidden;margin-bottom:7px;}
+.sp2f{height:100%;border-radius:4px;}
+.sp2v{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--mu);}
+
+/* ---- AVATAR COLORS ---- */
+.avLB{background:rgba(59,130,246,0.2);color:#60a5fa;}
+.avVS{background:rgba(6,214,160,0.2);color:#06d6a0;}
+.avDN{background:rgba(245,158,11,0.2);color:#f59e0b;}
+.avEM{background:rgba(167,139,250,0.2);color:#a78bfa;}
+.avED{background:rgba(249,115,22,0.2);color:#fb923c;}
+.avCG{background:rgba(230,51,41,0.2);color:#ef4444;}
+.avCC{background:rgba(16,185,129,0.2);color:#10b981;}
+.avKE{background:rgba(99,102,241,0.2);color:#818cf8;}
+.avDE{background:rgba(20,184,166,0.2);color:#2dd4bf;}
+
+/* ---- FOOTER ---- */
+.ftr{text-align:center;font-size:0.68rem;color:var(--mu2);padding:20px 28px;border-top:1px solid var(--br);}
+.home-overlay{position:fixed;inset:0;background:var(--bg);z-index:8000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.home-overlay.open{display:flex;}
+.home-welcome{font-family:var(--fh);font-size:1.5rem;font-weight:700;color:var(--tx);margin-bottom:6px;text-align:center;}
+.home-sub{font-size:0.85rem;color:var(--mu);margin-bottom:40px;text-align:center;}
+.home-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;width:100%;max-width:1100px;}
+.home-btn{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:28px 20px;cursor:pointer;text-align:center;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:10px;}
+.home-btn:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.25);}
+.home-btn .hb-icon{font-size:2rem;line-height:1;}
+.home-btn .hb-title{font-family:var(--fh);font-size:0.95rem;font-weight:700;color:var(--tx);}
+.home-btn .hb-sub{font-size:0.7rem;color:var(--mu);line-height:1.5;}
+.home-btn.hb-com{border-top:3px solid #4d8ef5;}
+.home-btn.hb-fin{border-top:3px solid #36cfa0;}
+.home-btn.hb-log{border-top:3px solid #ffaa2b;}
+.home-btn.hb-adm{border-top:3px solid #ff4d4f;}
+.home-btn.hb-cmp{border-top:3px solid #a07cf6;}
+.cmp-qty{width:70px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:5px 8px;color:var(--tx);font-size:.82rem;text-align:center;outline:none;}
+.cmp-qty:focus{border-color:#a07cf6;}
+.val-sel{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;outline:none;}
+.val-sel:focus{border-color:#a07cf6;}
+.giro-tag{padding:2px 7px;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.giro-alto{background:rgba(54,207,160,.15);color:#36cfa0;border:1px solid rgba(54,207,160,.3);}
+.giro-normal{background:rgba(143,160,192,.1);color:#8fa0c0;border:1px solid rgba(143,160,192,.2);}
+.admin-overlay{position:fixed;inset:0;background:var(--bg);z-index:7000;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px;overflow-y:auto;}
+.admin-overlay.open{display:flex;}
+.admin-header{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:900px;margin-bottom:28px;}
+.admin-back{background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:7px 16px;border-radius:8px;cursor:pointer;font-size:0.82rem;}
+.lal-act-btn{padding:3px 9px;border:1px solid var(--br);border-radius:6px;font-size:.7rem;cursor:pointer;font-weight:500;white-space:nowrap;background:var(--s2);color:var(--mu);margin-left:4px;}
+.lal-act-btn:hover{border-color:var(--b2);color:var(--tx);}
+.lal-act-btn.ai{border-color:rgba(160,124,246,.4);color:#a07cf6;background:rgba(160,124,246,.08);}
+.lal-act-btn.chart{border-color:rgba(77,142,245,.4);color:#4d8ef5;background:rgba(77,142,245,.08);}
+.lal-ai-box{background:rgba(160,124,246,.08);border:1px solid rgba(160,124,246,.25);border-radius:8px;padding:12px 16px;margin:8px 0;font-size:.82rem;}
+@media(max-width:900px){.home-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:600px){.home-grid{grid-template-columns:repeat(2,1fr);}}
+
+
+/* Readable font for large numbers */
+.kpi .val,.kpi .sub,.kpi .lbl,
+#tend-card *,
+.rp,.rv,.ri .rp,
+.mc .mv,
+.tr2 .tv,
+.sp2t span,
+#tend-meta-dia,#tend-media-atual,#tend-projecao,#tend-ritmo{
+  font-family:var(--fb) !important;
+  letter-spacing:-0.3px;
+}
+.kpi .val{font-size:1.6rem !important; font-weight:600 !important;}
+@media(max-width:680px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .rgrid{grid-template-columns:1fr 1fr;}
+  .ceo-grid{grid-template-columns:1fr;}
+  .pg4{grid-template-columns:repeat(2,1fr);}
+  .tabs{overflow-x:auto;}
+  .tab{font-size:0.72rem;padding:10px 14px;}
+  .hdr{padding:14px 16px;}
+  .page{padding:16px;}
+}
+
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#151929,#1e2438);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-box{background:#242938;border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,0.5);}
+.login-logo{display:flex;justify-content:center;margin-bottom:28px;}
+.login-logo img{height:60px;object-fit:contain;}
+.login-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:700;text-align:center;color:#f0f4ff;margin-bottom:6px;}
+.login-sub{font-size:0.78rem;color:#6b7ea8;text-align:center;margin-bottom:28px;}
+.login-label{font-size:0.72rem;color:#6b7ea8;margin-bottom:6px;display:block;letter-spacing:0.3px;}
+.login-input{width:100%;background:#1a1f2e;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;color:#eef1f8;font-size:0.95rem;font-size:0.88rem;margin-bottom:14px;font-family:'DM Sans',sans-serif;outline:none;}
+.login-input:focus{border-color:#e63329;}
+.login-btn{width:100%;background:#e63329;border:none;border-radius:10px;padding:12px;color:#fff;font-size:0.9rem;font-weight:600;font-family:'Syne',sans-serif;cursor:pointer;letter-spacing:0.3px;margin-top:4px;}
+.login-btn:hover{background:#c42820;}
+.login-err{font-size:0.78rem;color:#ef4444;text-align:center;margin-top:10px;min-height:20px;}
+.login-footer{font-size:0.68rem;color:#6b7ea8;text-align:center;margin-top:20px;}
+
+
+/* Header proprio da pagina */
+.page-hdr{
+  display:flex;align-items:center;gap:16px;
+  background:var(--sf);border-bottom:1px solid var(--br);
+  padding:14px 24px;margin-bottom:24px
+}
+.page-hdr .logo-wrap{
+  background:#fff;border-radius:10px;padding:6px;
+  width:60px;height:60px;display:flex;align-items:center;justify-content:center
+}
+.page-hdr .logo-wrap img{width:100%;height:100%;object-fit:contain}
+.page-hdr .title-wrap{flex:1}
+.page-hdr .title-wrap h1{
+  font-family:var(--fh);font-size:1.5rem;margin:0;
+  color:var(--tx);font-weight:700
+}
+.page-hdr .title-wrap .sub{font-size:.82rem;color:var(--mu);margin-top:2px}
+.page-hdr .actions{display:flex;gap:10px;align-items:center}
+.page-hdr .user-name{
+  font-size:.85rem;color:var(--mu);padding:8px 12px;
+  background:var(--s2);border:1px solid var(--br);border-radius:8px
+}
+.page-hdr button{
+  background:var(--s2);border:1px solid var(--br);color:var(--tx);
+  padding:8px 16px;border-radius:8px;cursor:pointer;
+  font-size:.85rem;font-weight:600;transition:all .15s
+}
+.page-hdr button:hover{background:var(--br);transform:translateY(-1px)}
+.page-hdr button.primary{background:#e63329;border-color:#e63329;color:#fff}
+.page-hdr button.primary:hover{background:#c42a22}
+
+.page-container{max-width:1400px;margin:0 auto;padding:0 24px 40px}
+
+/* Tabs internas */
+.fin-tabs{
+  display:flex;gap:8px;margin-bottom:24px;
+  background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:6px
+}
+.fin-tab{
+  flex:1;padding:12px 20px;cursor:pointer;border-radius:8px;
+  font-weight:600;font-size:.9rem;text-align:center;
+  color:var(--mu);transition:all .15s
+}
+.fin-tab:hover{background:var(--s2);color:var(--tx)}
+.fin-tab.active{background:#e63329;color:#fff}
+
+/* Tela de acesso negado */
+.blocked{
+  max-width:500px;margin:60px auto;padding:40px;text-align:center;
+  background:var(--sf);border:1px solid var(--br);border-radius:16px
+}
+.blocked h2{color:#e63329;margin-bottom:12px}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="page-hdr">
+  <div class="logo-wrap"><img src="data:image/jpeg;base64,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" alt="Mercearia Liberdade" style="max-height:56px;border-radius:8px"></div>
+  <div class="title-wrap">
+    <h1>🍜 Financeiro Mercearia Liberdade</h1>
+    <div class="sub">Mercearia Liberdade · DRE e Análise Linha a Linha</div>
+  </div>
+  <div class="actions">
+    <span id="user-name" class="user-name">-</span>
+    <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
+    <button class="primary" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="page-container">
+
+  <!-- Tela mostrada se usuario sem permissao -->
+  <div id="access-denied" class="blocked" style="display:none">
+    <h2>🔒 Acesso Restrito</h2>
+    <p>O módulo Financeiro Mercearia Liberdade está disponível apenas para gestores autorizados.</p>
+    <button onclick="window.location.href='Index_Menu.html'" style="margin-top:16px;background:#e63329;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600">Voltar ao Menu</button>
+  </div>
+
+  <!-- Conteudo principal -->
+  <div id="fin-content" style="display:none">
+
+    <!-- Tabs internas -->
+    <div class="fin-tabs">
+      <div class="fin-tab active" data-tab="dre" onclick="finShowTab('dre')">📊 DRE</div>
+      
+      <div class="fin-tab" data-tab="lal" onclick="finShowTab('lal')">📈 Linha a Linha</div>
+    </div>
+
+    <!-- DRE -->
+    <div id="fin-dre" style="display:block">
+<div id="tab-dre" class="page" style="display:block">
+  <div class="sec">DRE — Painel de Diagnóstico Linha a Linha</div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:flex-end">
+    <div style="flex:1;min-width:140px">
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período de</div>
+      <select id="dre-from" style="width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.85rem;outline:none"></select>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período até</div>
+      <select id="dre-to" style="width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.85rem;outline:none"></select>
+    </div>
+    <div style="flex:1;min-width:140px">
+      <div style="font-size:0.7rem;color:var(--mu);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Exibir como</div>
+      <select id="dre-view" style="width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.85rem;outline:none">
+        <option value="valor">Valor (R$)</option>
+        <option value="av">Análise Vertical (%)</option>
+      </select>
+    </div>
+    <button onclick="buildDRE()" style="padding:10px 24px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:700;font-size:0.85rem;cursor:pointer">Atualizar</button>
+  </div>
+  <div class="kpis" id="dre-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+  <div class="cwrap">
+    <div class="ctitle">Evolução de Despesas por Categoria</div>
+    <div style="position:relative;height:320px"><canvas id="dre-c1"></canvas></div>
+    <div class="cleg" id="dre-c1-leg"></div>
+  </div>
+  <div class="cwrap">
+    <div class="ctitle">Composição % — Barras Empilhadas 100%</div>
+    <div style="position:relative;height:290px"><canvas id="dre-c2"></canvas></div>
+    <div class="cleg" id="dre-c2-leg"></div>
+  </div>
+  <div class="cwrap">
+    <div class="ctitle">Cascata de Custos — Waterfall (Período Selecionado)</div>
+    <div style="position:relative;height:250px"><canvas id="dre-c3"></canvas></div>
+  </div>
+  <div class="sec" style="margin-top:4px">Farol de Variação por Categoria</div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Categoria</th>
+        <th>Mês Ant.</th><th>Mês Atual</th><th>Var. R$</th><th>Var. %</th>
+        <th>Status</th><th>Tendência</th><th>Responsável</th>
+      </tr></thead>
+      <tbody id="dre-farol"></tbody>
+    </table>
+  </div>
+  <div class="sec">Análise Vertical — % sobre Total</div>
+  <div class="cwrap"><div style="position:relative;height:210px"><canvas id="dre-c4"></canvas></div></div>
+  <div class="sec">Detalhe por Categoria</div>
+  <div id="dre-cat-btns" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th style="text-align:left">Subconta</th>
+        <th id="dre-h1">—</th><th id="dre-h2">—</th>
+        <th>Total Período</th><th>% Cat.</th><th>Var. %</th>
+      </tr></thead>
+      <tbody id="dre-detail"></tbody>
+    </table>
+  </div>
+  <div class="sec">Plano de Ação — Gestão por Exceção</div>
+  <div class="cwrap" id="dre-action">
+    <div style="font-size:0.85rem;color:var(--mu);text-align:center;padding:20px 0">Clique em uma linha do Farol para ver o plano de ação.</div>
+  </div>
+</div>
+
+<!-- ══════════════ LINHA A LINHA ══════════════ -->
+
+    </div>
+
+    <!-- Faturamento -->
+    <div id="fin-fat" style="display:none">
+<div id="tab-fat" class="page" style="display:block">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+    <div class="sec" style="margin:0">&#128640; Faturamento Dinâmico</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <select id="fat-vend" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Vendedores</option>
+      </select>
+      <select id="fat-regiao" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todas as Regiões</option>
+      </select>
+      <select id="fat-seg" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none">
+        <option value="">Todos os Segmentos</option>
+      </select>
+      <button onclick="fatLoad(true)" style="padding:7px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">&#128260; Atualizar</button>
+    </div>
+  </div>
+
+  <div id="fat-loading" class="spin-wrap" style="display:none"><div class="spin"></div>Carregando dados...</div>
+  <div id="fat-last-update" style="font-size:.7rem;color:var(--mu);margin-bottom:14px;text-align:right"></div>
+
+  <!-- KPI ROW 1 -->
+  <div class="kpis" id="fat-kpis1" style="grid-template-columns:repeat(4,1fr);margin-bottom:12px"></div>
+  <!-- KPI ROW 2 -->
+  <div class="kpis" id="fat-kpis2" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+  <!-- CHARTS ROW -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Faturamento por Vendedor</div>
+      <div style="position:relative;height:240px"><canvas id="fat-c1"></canvas></div>
+      <div class="cleg" id="fat-c1-leg"></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Margem por Segmento</div>
+      <div style="position:relative;height:240px"><canvas id="fat-c2"></canvas></div>
+      <div class="cleg" id="fat-c2-leg"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div class="cwrap">
+      <div class="ctitle">Top 10 Clientes por Faturamento</div>
+      <div style="position:relative;height:280px"><canvas id="fat-c3"></canvas></div>
+    </div>
+    <div class="cwrap">
+      <div class="ctitle">Distribuição por Região</div>
+      <div style="position:relative;height:280px"><canvas id="fat-c4"></canvas></div>
+      <div class="cleg" id="fat-c4-leg"></div>
+    </div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#129351; Top Clientes — Receita</div>
+      <div id="fat-rank-clientes"></div>
+    </div>
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#129351; Top Produtos — Faturamento</div>
+      <div id="fat-rank-produtos"></div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#128679; Clientes em Risco (sem compra)</div>
+      <div id="fat-risco"></div>
+    </div>
+    <div>
+      <div class="sec" style="margin-bottom:12px">&#128200; Margem por Vendedor</div>
+      <div id="fat-rank-margem"></div>
+    </div>
+  </div>
+
+  <!-- TABELA DETALHADA -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <div class="sec" style="margin:0">Tabela Detalhada</div>
+    <input id="fat-search" type="text" placeholder="Buscar cliente, produto, vendedor..."
+      style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 12px;color:var(--tx);font-size:.82rem;outline:none;width:280px">
+  </div>
+  <div class="twrap" id="fat-table-wrap" style="display:none;overflow-x:auto">
+    <table>
+      <thead><tr id="fat-thead">
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(0)">Vendedor <span id="fso0"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(1)">Cliente <span id="fso1"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(2)">Produto <span id="fso2"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(3)">Segmento <span id="fso3"></span></th>
+        <th style="text-align:left;cursor:pointer;user-select:none" onclick="fatSort(4)">Região <span id="fso4"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(5)">Qtde <span id="fso5"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(6)">Total <span id="fso6"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(7)">Margem % <span id="fso7"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(8)">Dias s/ Compra <span id="fso8"></span></th>
+        <th style="cursor:pointer;user-select:none" onclick="fatSort(9)">Status <span id="fso9"></span></th>
+      </tr></thead>
+      <tbody id="fat-tbody"></tbody>
+    </table>
+  </div>
+  <div id="fat-count" style="font-size:.72rem;color:var(--mu);text-align:right;margin-top:6px;padding-right:4px"></div>
+</div>
+
+
+
+    </div>
+
+    <!-- Lucro a Lucro -->
+    <div id="fin-lal" style="display:none">
+<div id="tab-lal" class="page" style="display:block">
+  <div class="sec">Linha a Linha — Análise Comparativa</div>
+
+  <!-- FILTROS COMPARAÇÃO -->
+  <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:20px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:flex-end;margin-bottom:10px">
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Período A (Base)</div>
+        <select id="lal-a" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:0.88rem;outline:none"></select>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Comparar com</div>
+        <select id="lal-b" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:0.88rem;outline:none"></select>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;color:var(--mu);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Atalhos</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px">
+          <span style="font-size:.68rem;color:var(--mu);font-weight:700;white-space:nowrap;flex-shrink:0">◀ Ant.</span>
+          <button onclick="lalPreset('prev')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Mês</button>
+          <button onclick="lalPreset('trim')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+          <button onclick="lalPreset('sem')"    style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
+          <button onclick="lalPreset('year')"   style="padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--tx);font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+          <span style="font-size:.68rem;color:#4d8ef5;font-weight:700;white-space:nowrap;flex-shrink:0;margin-left:4px">▶ Próx.</span>
+          <button onclick="lalPreset('nextprev')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Mês</button>
+          <button onclick="lalPreset('nexttrim')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Tri.</button>
+          <button onclick="lalPreset('nextsem')"   style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Sem.</button>
+          <button onclick="lalPreset('nextyear')"  style="padding:8px 12px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.3);border-radius:7px;color:#4d8ef5;font-size:0.75rem;cursor:pointer;white-space:nowrap">Ano</button>
+          <button onclick="buildLAL()" style="padding:8px 20px;background:var(--red);border:none;border-radius:7px;color:#fff;font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;margin-left:8px;flex-shrink:0">Comparar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs COMPARATIVOS -->
+  <div class="kpis" id="lal-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
+
+  <!-- GRÁFICO BARRAS LADO A LADO -->
+  <div class="cwrap">
+    <div class="ctitle" id="lal-chart-title">Comparativo por Categoria</div>
+    <div style="position:relative;height:220px"><canvas id="lal-c1"></canvas></div>
+  </div>
+
+  <!-- TABELA LINHA A LINHA PRINCIPAL -->
+  <div class="sec" style="margin-top:4px">Tabela Linha a Linha — Todas as Categorias</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <button onclick="lalExpandAll(true)"  style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">+ Expandir tudo</button>
+    <button onclick="lalExpandAll(false)" style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">- Recolher tudo</button>
+    <button onclick="lalCopyWhatsapp()"   style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">&#128205; Copiar Resumo</button>
+    <button id="lal-tv-btn" onclick="lalToggleTV()" style="padding:6px 14px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:0.78rem;cursor:pointer">&#128250; Modo TV</button>
+  </div>
+  <div class="twrap" id="lal-table-wrap">
+    <table id="lal-table">
+      <thead><tr id="lal-thead"></tr></thead>
+      <tbody id="lal-tbody"></tbody>
+    </table>
+  </div>
+
+  <!-- DRILL-DOWN SUBCONTA -->
+  <div id="lal-drill" style="display:none">
+    <div class="sec" id="lal-drill-title">Detalhamento</div>
+    <div class="cwrap">
+      <div style="position:relative;height:240px"><canvas id="lal-c2"></canvas></div>
+    </div>
+    <div class="twrap">
+      <table>
+        <thead><tr id="lal-drill-head"></tr></thead>
+        <tbody id="lal-drill-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// GUARD DE SESSAO + CONTROLE DE ACESSO
+// ════════════════════════════════════════════════════════════════
+// Usuarios autorizados ao modulo Financeiro
+var FINANCEIRO_ALLOWED = [
+  "rodrigo@qfoodcompany.com.br",
+  "adilson@qfoodcompany.com.br",
+  "gustavo@qfoodcompany.com.br",
+  "barbara@qfoodcompany.com.br",
+  "mariana@mercearialiberdade.com.br"
+];
+
+(function(){
+  var sess = localStorage.getItem("qfood_session");
+  if(!sess){ window.location.href = "Index_Menu.html"; return; }
+  try {
+    var s = JSON.parse(sess);
+    var now = Date.now();
+    if(now - s.ts > 8*60*60*1000){
+      localStorage.removeItem("qfood_session");
+      window.location.href = "Index_Menu.html";
+      return;
+    }
+    window.CURRENT_USER = s;
+    var un = document.getElementById("user-name");
+    if(un) un.textContent = s.nome || "";
+
+    // Checa permissao
+    var email = (s.email || "").toLowerCase();
+    if(FINANCEIRO_ALLOWED.indexOf(email) < 0){
+      document.getElementById("access-denied").style.display = "block";
+      document.getElementById("fin-content").style.display = "none";
+      return;
+    }
+    document.getElementById("access-denied").style.display = "none";
+    document.getElementById("fin-content").style.display = "block";
+  } catch(e){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+  }
+})();
+
+function logout(){
+  localStorage.removeItem("qfood_session");
+  window.location.href = "Index_Menu.html";
+}
+
+// Controla trocas de abas internas
+function finShowTab(tab){
+  document.querySelectorAll(".fin-tab").forEach(function(t){t.classList.remove("active");});
+  var activeEl = document.querySelector(".fin-tab[data-tab='"+tab+"']");
+  if(activeEl) activeEl.classList.add("active");
+
+  document.getElementById("fin-dre").style.display = tab==="dre" ? "block" : "none";
+  document.getElementById("fin-fat").style.display = tab==="fat" ? "block" : "none";
+  document.getElementById("fin-lal").style.display = tab==="lal" ? "block" : "none";
+
+  // Inicializa sob demanda
+  if(tab==="fat" && typeof initFat === "function" && !window._fatInited){
+    window._fatInited = true;
+    initFat();
+  }
+  if(tab==="lal" && typeof initLAL === "function" && !window._lalInited){
+    window._lalInited = true;
+    initLAL();
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PARSER CSV ROBUSTO (RFC 4180)
+// ════════════════════════════════════════════════════════════════
+function csv(txt){
+  txt = txt.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  var rows = [];
+  var curRow = [];
+  var curField = "";
+  var inQuotes = false;
+
+  for(var i = 0; i < txt.length; i++){
+    var c = txt[i];
+    var next = txt[i+1];
+
+    if(inQuotes){
+      if(c === '"'){
+        if(next === '"'){ curField += '"'; i++; }
+        else { inQuotes = false; }
+      } else { curField += c; }
+    } else {
+      if(c === '"'){ inQuotes = true; }
+      else if(c === ','){ curRow.push(curField); curField = ""; }
+      else if(c === '\n'){ curRow.push(curField); rows.push(curRow); curRow = []; curField = ""; }
+      else { curField += c; }
+    }
+  }
+  if(curField.length > 0 || curRow.length > 0){
+    curRow.push(curField);
+    rows.push(curRow);
+  }
+  if(rows.length === 0) return [];
+  var hdr = rows[0].map(function(h){ return String(h).trim(); });
+  return rows.slice(1).map(function(row){
+    var o = {};
+    hdr.forEach(function(h, i){
+      o[h] = (row[i] !== undefined) ? String(row[i]).trim() : "";
+    });
+    return o;
+  }).filter(function(r){
+    return Object.values(r).some(function(v){ return v !== ""; });
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// MODULO DRE + LINHA A LINHA (copia fiel do original)
+// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+// DRE + LINHA A LINHA MODULE
+// ════════════════════════════════════════════════════════════════════
+var UDRE="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1683176245&single=true&output=csv";
+// URL do formulário de cotação hospedado no GitHub Pages
+// CONFIGURE AQUI com seu usuário e repositório
+var COTACAO_FORM_URL="https://rodsilveira-rs.github.io/qfood-dashboard/cotacao.html";
+
+var UDEV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=543400305&single=true&output=csv";
+var UGIRO="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+var UFAT="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=493739923&single=true&output=csv";
+var UUSR="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+var DRE={"months": ["01/2024", "02/2024", "03/2024", "04/2024", "05/2024", "06/2024", "07/2024", "08/2024", "09/2024", "10/2024", "11/2024", "12/2024", "01/2025", "02/2025", "03/2025", "04/2025", "05/2025", "06/2025", "07/2025", "08/2025", "09/2025", "10/2025", "11/2025", "12/2025", "01/2026", "02/2026", "03/2026"], "categories": {"DEDUCOES DA RECEITA": {"TOTAL DEDUÇÕES DA RECEITA BRUTA": {"01/2024": 37763.83, "02/2024": 41463.91, "03/2024": 57326.01, "04/2024": 62644.56, "05/2024": 59604.83, "06/2024": 74167.34, "07/2024": 80394.83, "08/2024": 84180.71, "09/2024": 34301.67, "10/2024": 36328.9, "11/2024": 42435.67, "12/2024": 33482.57, "01/2025": 37895.2, "02/2025": 35699.05, "03/2025": 39646.87, "04/2025": 39642.48, "05/2025": 43944.07, "06/2025": 40503.98, "07/2025": 54389.91, "08/2025": 74128.96, "09/2025": 37953.69, "10/2025": 63360.09, "11/2025": 71154.75, "12/2025": 76361.78, "01/2026": 76255.1, "02/2026": 71216.86, "03/2026": 72019.46}, "COFINS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 1.0, "07/2025": 0.0, "08/2025": 1.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "COMISSÃO S/ VENDAS": {"01/2024": 7021.13, "02/2024": 6936.0, "03/2024": 6340.02, "04/2024": 3771.58, "05/2024": 4205.03, "06/2024": 4108.42, "07/2024": 4167.47, "08/2024": 2703.35, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "COMISSÃO SERVIÇOS 10%": {"01/2024": 0.0, "02/2024": 6604.0, "03/2024": 7277.55, "04/2024": 9319.76, "05/2024": 9167.49, "06/2024": 8947.38, "07/2024": 9545.96, "08/2024": 11747.48, "09/2024": 12114.04, "10/2024": 13392.4, "11/2024": 16976.91, "12/2024": 14075.76, "01/2025": 14592.09, "02/2025": 12780.92, "03/2025": 14863.76, "04/2025": 12242.49, "05/2025": 16833.42, "06/2025": 16344.06, "07/2025": 26525.64, "08/2025": 21389.23, "09/2025": 16340.85, "10/2025": 16284.26, "11/2025": 15085.86, "12/2025": 16342.5, "01/2026": 19913.29, "02/2026": 15276.26, "03/2026": 16924.58}, "CONSUMO ADILSON": {"01/2024": 2188.44, "02/2024": 1483.35, "03/2024": 2288.46, "04/2024": 3077.42, "05/2024": 3039.73, "06/2024": 2727.41, "07/2024": 2491.28, "08/2024": 1837.63, "09/2024": 500.0, "10/2024": 443.95, "11/2024": 805.46, "12/2024": 727.2, "01/2025": 96.92, "02/2025": 51.75, "03/2025": 0.0, "04/2025": 1289.39, "05/2025": 963.1, "06/2025": 225.07, "07/2025": 876.79, "08/2025": 632.75, "09/2025": 570.34, "10/2025": 1145.09, "11/2025": 568.07, "12/2025": 543.92, "01/2026": 392.01, "02/2026": 142.67, "03/2026": 611.25}, "DESCONTOS INCONDICIONAIS": {"01/2024": 42.9, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "DEVOLUÇÕES DE VENDAS": {"01/2024": 0.0, "02/2024": 24.9, "03/2024": 0.0, "04/2024": 80.8, "05/2024": 20.0, "06/2024": 0.0, "07/2024": 15.9, "08/2024": 426.34, "09/2024": 0.0, "10/2024": 237.49, "11/2024": 408.87, "12/2024": 278.0, "01/2025": 63.9, "02/2025": 178.94, "03/2025": 0.0, "04/2025": 327.19, "05/2025": 0.0, "06/2025": 92.9, "07/2025": 1.0, "08/2025": 1.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "ICMS S/ VENDAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 2278.71, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 11763.84, "11/2025": 27990.35, "12/2025": 29676.23, "01/2026": 30143.62, "02/2026": 34467.47, "03/2026": 29811.74}, "PERDAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 831.89, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 699.09, "10/2024": 3572.32, "11/2024": 4759.67, "12/2024": 1232.78, "01/2025": 1981.0, "02/2025": 1711.57, "03/2025": 2165.57, "04/2025": 1696.93, "05/2025": 1511.34, "06/2025": 1281.29, "07/2025": 1907.43, "08/2025": 840.17, "09/2025": 1484.76, "10/2025": 8337.88, "11/2025": 2634.57, "12/2025": 1769.47, "01/2026": 2133.86, "02/2026": 1832.32, "03/2026": 3583.96}, "PIS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 1.0, "07/2025": 0.0, "08/2025": 1.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "SIMPLES NACIONAL (DAS)": {"01/2024": 18002.35, "02/2024": 15092.25, "03/2024": 22786.4, "04/2024": 28766.12, "05/2024": 25875.11, "06/2024": 35227.97, "07/2024": 43300.87, "08/2024": 49181.44, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 28464.9, "09/2025": 0.0, "10/2025": 113.34, "11/2025": 113.34, "12/2025": 123.8, "01/2026": 113.34, "02/2026": 113.34, "03/2026": 204.19}, "TARIFAS ADM. CARTAO": {"01/2024": 6208.57, "02/2024": 4517.1, "03/2024": 8658.45, "04/2024": 6174.76, "05/2024": 6966.12, "06/2024": 7399.71, "07/2024": 7513.55, "08/2024": 6755.25, "09/2024": 5933.89, "10/2024": 6271.38, "11/2024": 7992.15, "12/2024": 7116.18, "01/2025": 8207.26, "02/2025": 6071.37, "03/2025": 8266.07, "04/2025": 7949.34, "05/2025": 8134.61, "06/2025": 5031.24, "07/2025": 8504.89, "08/2025": 6151.11, "09/2025": 5803.0, "10/2025": 5783.19, "11/2025": 5270.54, "12/2025": 6828.5, "01/2026": 7042.14, "02/2026": 5592.06, "03/2026": 5814.04}, "TARIFAS PIX CLOUDFY": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 470.43, "02/2025": 286.57, "03/2025": 414.97, "04/2025": 352.2, "05/2025": 412.16, "06/2025": 440.88, "07/2025": 669.6, "08/2025": 586.27, "09/2025": 461.63, "10/2025": 389.69, "11/2025": 434.91, "12/2025": 520.19, "01/2026": 573.58, "02/2026": 497.32, "03/2026": 480.51}, "TAXAS IFOOD": {"01/2024": 4300.44, "02/2024": 6806.31, "03/2024": 9143.24, "04/2024": 11454.12, "05/2024": 10331.35, "06/2024": 15756.45, "07/2024": 13359.8, "08/2024": 11529.22, "09/2024": 15054.65, "10/2024": 12411.36, "11/2024": 11492.61, "12/2024": 10052.65, "01/2025": 12483.6, "02/2025": 12339.22, "03/2025": 13936.5, "04/2025": 15784.94, "05/2025": 16089.44, "06/2025": 17086.54, "07/2025": 15904.56, "08/2025": 16061.53, "09/2025": 13293.11, "10/2025": 19542.8, "11/2025": 19057.11, "12/2025": 20557.17, "01/2026": 15943.26, "02/2026": 13295.42, "03/2026": 14589.19}}, "CUSTOS OPERACIONAIS": {"TOTAL CUSTOS OPERACIONAIS": {"01/2024": 154925.5, "02/2024": 125762.61, "03/2024": 159554.92, "04/2024": 157123.14, "05/2024": 172323.31, "06/2024": 168544.82, "07/2024": 174810.46, "08/2024": 157022.83, "09/2024": 136821.22, "10/2024": 163227.0, "11/2024": 186065.62, "12/2024": 170255.09, "01/2025": 200607.65, "02/2025": 122557.24, "03/2025": 154464.33, "04/2025": 133616.03, "05/2025": 160060.05, "06/2025": 159533.29, "07/2025": 187561.51, "08/2025": 182118.51, "09/2025": 149382.44, "10/2025": 153477.94, "11/2025": 140236.18, "12/2025": 169996.18, "01/2026": 175648.94, "02/2026": 150381.17, "03/2026": 145370.86}, "CMV": {"01/2024": 151915.21, "02/2024": 122679.58, "03/2024": 156707.42, "04/2024": 148572.16, "05/2024": 163649.6, "06/2024": 166721.83, "07/2024": 169518.29, "08/2024": 155000.0, "09/2024": 135000.0, "10/2024": 160000.0, "11/2024": 180000.0, "12/2024": 165000.0, "01/2025": 198779.64, "02/2025": 114500.32, "03/2025": 141795.83, "04/2025": 130789.85, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "CMV - DRINKS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 3715.08, "06/2025": 3771.57, "07/2025": 9332.1, "08/2025": 5821.11, "09/2025": 5142.87, "10/2025": 4364.34, "11/2025": 4072.63, "12/2025": 4807.36, "01/2026": 5760.08, "02/2026": 4359.43, "03/2026": 7806.37}, "CMV - EMPÓRIO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 95712.92, "06/2025": 90768.83, "07/2025": 90531.71, "08/2025": 110400.61, "09/2025": 95979.31, "10/2025": 99230.22, "11/2025": 90591.15, "12/2025": 108980.7, "01/2026": 109532.29, "02/2026": 87231.7, "03/2026": 74154.95}, "CMV - PRATOS RESTAURANTE": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 57471.56, "06/2025": 59959.73, "07/2025": 85971.6, "08/2025": 61840.43, "09/2025": 46913.25, "10/2025": 48066.39, "11/2025": 43316.96, "12/2025": 51454.17, "01/2026": 57818.55, "02/2026": 47757.94, "03/2026": 55452.23}, "EMBALAGENS": {"01/2024": 1436.33, "02/2024": 1357.08, "03/2024": 1147.5, "04/2024": 6950.63, "05/2024": 6786.44, "06/2024": 0.0, "07/2024": 3608.32, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 1227.0, "11/2024": 3735.0, "12/2024": 3179.09, "01/2025": 0.0, "02/2025": 6110.66, "03/2025": 10822.24, "04/2025": 1175.0, "05/2025": 1175.0, "06/2025": 3352.5, "07/2025": 0.0, "08/2025": 2337.6, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 2777.41, "01/2026": 731.01, "02/2026": 9037.93, "03/2026": 5772.14}, "FRETES E CARRETOS": {"01/2024": 0.0, "02/2024": 20.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 170.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "GAS DE COZINHA": {"01/2024": 1573.96, "02/2024": 1705.95, "03/2024": 1700.0, "04/2024": 1600.35, "05/2024": 1887.27, "06/2024": 1822.99, "07/2024": 1683.85, "08/2024": 2022.83, "09/2024": 1821.22, "10/2024": 2000.0, "11/2024": 2160.62, "12/2024": 2076.0, "01/2025": 1828.01, "02/2025": 1946.26, "03/2025": 1846.26, "04/2025": 1651.18, "05/2025": 1985.49, "06/2025": 1680.66, "07/2025": 1726.1, "08/2025": 1718.76, "09/2025": 1347.01, "10/2025": 1816.99, "11/2025": 2255.44, "12/2025": 1976.54, "01/2026": 1807.01, "02/2026": 1994.17, "03/2026": 2185.17}}, "DESPESAS COM PESSOAL": {"TOTAL DESPESAS COM PESSOAL": {"01/2024": 63467.7, "02/2024": 57186.02, "03/2024": 61921.33, "04/2024": 63152.87, "05/2024": 70343.03, "06/2024": 88597.64, "07/2024": 75526.74, "08/2024": 69803.8, "09/2024": 68569.29, "10/2024": 61600.02, "11/2024": 69674.45, "12/2024": 64750.11, "01/2025": 79824.04, "02/2025": 71655.96, "03/2025": 68625.04, "04/2025": 72911.92, "05/2025": 69374.7, "06/2025": 87285.26, "07/2025": 89939.21, "08/2025": 84927.83, "09/2025": 90418.46, "10/2025": 87459.67, "11/2025": 96303.78, "12/2025": 91931.74, "01/2026": 123992.68, "02/2026": 96953.7, "03/2026": 107548.75}, "AJUDA DE CUSTO": {"01/2024": 700.0, "02/2024": 700.0, "03/2024": 1650.0, "04/2024": 700.0, "05/2024": 1650.0, "06/2024": 1650.0, "07/2024": 950.0, "08/2024": 950.0, "09/2024": 1203.8, "10/2024": 950.0, "11/2024": 950.0, "12/2024": 950.0, "01/2025": 475.0, "02/2025": 475.0, "03/2025": 475.0, "04/2025": 475.0, "05/2025": 950.0, "06/2025": 950.0, "07/2025": 950.0, "08/2025": 950.0, "09/2025": 951.0, "10/2025": 950.0, "11/2025": 1330.0, "12/2025": 1330.0, "01/2026": 1330.0, "02/2026": 1840.0, "03/2026": 2074.6}, "BONIFICAÇÃO": {"01/2024": 0.0, "02/2024": 2250.2, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 2700.0, "07/2024": 3300.0, "08/2024": 0.0, "09/2024": 8310.41, "10/2024": 0.0, "11/2024": 2619.0, "12/2024": 2100.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 60.0, "05/2025": 500.0, "06/2025": 534.45, "07/2025": 13117.14, "08/2025": 131.99, "09/2025": 105.18, "10/2025": 494.42, "11/2025": 116.62, "12/2025": 1589.95, "01/2026": 22587.14, "02/2026": 194.54, "03/2026": 0.0}, "BRINDES FUNCIONÁRIOS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 120.87, "05/2025": 111.92, "06/2025": 151.66, "07/2025": 104.14, "08/2025": 28.74, "09/2025": 75.34, "10/2025": 84.94, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "CONFRATERNIZAÇÃO": {"01/2024": 288.0, "02/2024": 0.0, "03/2024": 80.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 400.0, "07/2024": 400.0, "08/2024": 357.78, "09/2024": 0.0, "10/2024": 190.0, "11/2024": 100.0, "12/2024": 1470.01, "01/2025": 0.0, "02/2025": 130.0, "03/2025": 310.0, "04/2025": 810.13, "05/2025": 256.22, "06/2025": 426.0, "07/2025": 877.8, "08/2025": 130.0, "09/2025": 39.0, "10/2025": 126.43, "11/2025": 130.0, "12/2025": 1574.12, "01/2026": 165.54, "02/2026": 1186.92, "03/2026": 266.26}, "CONTRIBUIÇÃO SINDICOMERCIARIOS": {"01/2024": 0.0, "02/2024": 558.96, "03/2024": 491.64, "04/2024": 155.32, "05/2024": 120.98, "06/2024": 0.0, "07/2024": 79.64, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 443.91, "06/2025": 443.91, "07/2025": 389.13, "08/2025": 408.59, "09/2025": 320.95, "10/2025": 272.03, "11/2025": 185.15, "12/2025": 0.0, "01/2026": 138.05, "02/2026": 110.44, "03/2026": 110.44}, "EXAMES": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 222.0, "04/2024": 40.0, "05/2024": 335.0, "06/2024": 171.0, "07/2024": 262.0, "08/2024": 80.0, "09/2024": 0.0, "10/2024": 125.38, "11/2024": 393.0, "12/2024": 91.0, "01/2025": 0.0, "02/2025": 40.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 884.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 889.57, "02/2026": 291.0, "03/2026": 80.0}, "FGTS": {"01/2024": 3277.21, "02/2024": 2661.6, "03/2024": 2787.13, "04/2024": 2963.9, "05/2024": 2823.77, "06/2024": 2806.0, "07/2024": 2369.39, "08/2024": 2932.2, "09/2024": 2994.55, "10/2024": 3514.46, "11/2024": 3155.26, "12/2024": 15.84, "01/2025": 3874.0, "02/2025": 2529.97, "03/2025": 2763.08, "04/2025": 2897.81, "05/2025": 2916.88, "06/2025": 2997.43, "07/2025": 2888.14, "08/2025": 2911.25, "09/2025": 2979.85, "10/2025": 4028.35, "11/2025": 4646.83, "12/2025": 6124.2, "01/2026": 5894.86, "02/2026": 3943.69, "03/2026": 3996.44}, "FREELANCER COZINHA": {"01/2024": 0.0, "02/2024": 280.0, "03/2024": 1317.0, "04/2024": 800.0, "05/2024": 2340.0, "06/2024": 2030.0, "07/2024": 1670.0, "08/2024": 1110.0, "09/2024": 2290.0, "10/2024": 1650.0, "11/2024": 4235.0, "12/2024": 5370.0, "01/2025": 8990.0, "02/2025": 7580.0, "03/2025": 3300.0, "04/2025": 5990.0, "05/2025": 4850.0, "06/2025": 12920.0, "07/2025": 8090.0, "08/2025": 14083.33, "09/2025": 17660.0, "10/2025": 8420.0, "11/2025": 5770.0, "12/2025": 5510.0, "01/2026": 7570.0, "02/2026": 11680.0, "03/2026": 19213.0}, "FREELANCER GERAL": {"01/2024": 5350.0, "02/2024": 2053.0, "03/2024": 3360.0, "04/2024": 5080.0, "05/2024": 7930.0, "06/2024": 8830.0, "07/2024": 3700.0, "08/2024": 4117.02, "09/2024": 5671.0, "10/2024": 4440.0, "11/2024": 8560.0, "12/2024": 7271.0, "01/2025": 9896.8, "02/2025": 8460.0, "03/2025": 6220.0, "04/2025": 7550.0, "05/2025": 7090.0, "06/2025": 14113.8, "07/2025": 7573.05, "08/2025": 12180.0, "09/2025": 10880.0, "10/2025": 10216.66, "11/2025": 12000.0, "12/2025": 12053.4, "01/2026": 13415.0, "02/2026": 20985.0, "03/2026": 12855.0}, "GRATIFICAÇÃO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 3196.27, "05/2024": 3195.83, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 405.43, "10/2024": 405.43, "11/2024": 276.11, "12/2024": 1013.13, "01/2025": 277.22, "02/2025": 278.2, "03/2025": 278.2, "04/2025": 278.2, "05/2025": 279.2, "06/2025": 279.2, "07/2025": 0.0, "08/2025": 1.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "HORAS EXTRAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 3622.87, "10/2024": 2793.01, "11/2024": 6670.54, "12/2024": 1676.53, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "MULTA FGTS + INDENIZAÇÕES": {"01/2024": 2928.77, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 348.43, "06/2024": 8904.35, "07/2024": 80.2, "08/2024": 0.0, "09/2024": 225.49, "10/2024": 2514.99, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 700.0, "08/2025": 1.0, "09/2025": 0.0, "10/2025": 1527.48, "11/2025": 1500.0, "12/2025": 836.29, "01/2026": 19306.82, "02/2026": 2548.59, "03/2026": 14600.0}, "PLANO DE SAÚDE": {"01/2024": 935.82, "02/2024": 196.9, "03/2024": 1197.65, "04/2024": 1168.54, "05/2024": 1068.54, "06/2024": 1456.55, "07/2024": 1196.26, "08/2024": 1152.41, "09/2024": 1152.41, "10/2024": 1152.41, "11/2024": 196.9, "12/2024": 118.14, "01/2025": 4218.34, "02/2025": 4216.91, "03/2025": 4445.58, "04/2025": 123.9, "05/2025": 123.9, "06/2025": 2841.22, "07/2025": 2996.64, "08/2025": 2775.99, "09/2025": 2845.55, "10/2025": 2280.23, "11/2025": 2638.76, "12/2025": 2836.76, "01/2026": 2852.28, "02/2026": 2521.88, "03/2026": 2260.44}, "PROVISÃO 13º SALÁRIO": {"01/2024": 2736.6, "02/2024": 2741.06, "03/2024": 2859.28, "04/2024": 3091.11, "05/2024": 2791.92, "06/2024": 2982.62, "07/2024": 3816.4, "08/2024": 3301.28, "09/2024": 2071.4, "10/2024": 3246.31, "11/2024": 3015.69, "12/2024": 3027.8, "01/2025": 3035.96, "02/2025": 2884.29, "03/2025": 3107.61, "04/2025": 3380.96, "05/2025": 3012.09, "06/2025": 3044.73, "07/2025": 2955.0, "08/2025": 3097.92, "09/2025": 3266.01, "10/2025": 3394.76, "11/2025": 4178.94, "12/2025": 3550.71, "01/2026": 2801.24, "02/2026": 2950.65, "03/2026": 2957.9}, "PROVISÃO FGTS 13º + FERIAS": {"01/2024": 525.42, "02/2024": 538.57, "03/2024": 548.8, "04/2024": 593.48, "05/2024": 521.16, "06/2024": 477.22, "07/2024": 610.62, "08/2024": 528.21, "09/2024": 441.9, "10/2024": 519.41, "11/2024": 521.52, "12/2024": 484.45, "01/2025": 485.75, "02/2025": 461.49, "03/2025": 497.22, "04/2025": 540.95, "05/2025": 481.93, "06/2025": 487.16, "07/2025": 472.8, "08/2025": 495.67, "09/2025": 522.56, "10/2025": 522.26, "11/2025": 668.63, "12/2025": 568.11, "01/2026": 448.2, "02/2026": 472.1, "03/2026": 473.26}, "PROVISÃO FÉRIAS + 1/3 FÉRIAS": {"01/2024": 3648.8, "02/2024": 3654.75, "03/2024": 3812.37, "04/2024": 4121.48, "05/2024": 3722.57, "06/2024": 4062.08, "07/2024": 4340.0, "08/2024": 4168.3, "09/2024": 2761.88, "10/2024": 4328.42, "11/2024": 3931.19, "12/2024": 4077.14, "01/2025": 4079.86, "02/2025": 4029.3, "03/2025": 4103.74, "04/2025": 4194.86, "05/2025": 4071.9, "06/2025": 4082.78, "07/2025": 4052.87, "08/2025": 4100.51, "09/2025": 4156.54, "10/2025": 4199.46, "11/2025": 4460.85, "12/2025": 4251.44, "01/2026": 4001.62, "02/2026": 4051.42, "03/2026": 4053.84}, "SALÁRIOS": {"01/2024": 32839.24, "02/2024": 32892.74, "03/2024": 34311.34, "04/2024": 33383.75, "05/2024": 33503.11, "06/2024": 41091.24, "07/2024": 44413.43, "08/2024": 39615.4, "09/2024": 27183.54, "10/2024": 26504.27, "11/2024": 26996.25, "12/2024": 36333.62, "01/2025": 36431.48, "02/2025": 34611.52, "03/2025": 37291.3, "04/2025": 40571.46, "05/2025": 38145.03, "06/2025": 37936.75, "07/2025": 35459.99, "08/2025": 37175.0, "09/2025": 39192.06, "10/2025": 40737.16, "11/2025": 50147.22, "12/2025": 43677.48, "01/2026": 33614.82, "02/2026": 35407.78, "03/2026": 35494.74}, "SEGURO DE VIDA": {"01/2024": 0.0, "02/2024": 177.84, "03/2024": 187.72, "04/2024": 187.72, "05/2024": 187.72, "06/2024": 158.08, "07/2024": 158.08, "08/2024": 187.72, "09/2024": 187.72, "10/2024": 167.96, "11/2024": 158.08, "12/2024": 158.08, "01/2025": 158.08, "02/2025": 159.0, "03/2025": 159.0, "04/2025": 159.0, "05/2025": 1.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 188.37}, "SERVIÇOS PRESTADOS PF/PJ": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 2160.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "UNIFORME": {"01/2024": 956.64, "02/2024": 70.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 265.6, "07/2024": 729.0, "08/2024": 1438.08, "09/2024": 0.0, "10/2024": 581.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 1267.75, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 110.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 832.26, "10/2025": 615.5, "11/2025": 0.0, "12/2025": 265.89, "01/2026": 0.0, "02/2026": 439.7, "03/2026": 399.97}, "VALE REFEIÇÃO": {"01/2024": 4995.0, "02/2024": 5122.8, "03/2024": 5400.0, "04/2024": 4818.4, "05/2024": 5579.8, "06/2024": 6070.0, "07/2024": 4881.96, "08/2024": 6210.0, "09/2024": 7852.63, "10/2024": 6253.8, "11/2024": 6024.96, "12/2024": 244.4, "01/2025": 4992.0, "02/2025": 4992.0, "03/2025": 4992.0, "04/2025": 4992.0, "05/2025": 5008.09, "06/2025": 4990.0, "07/2025": 8310.93, "08/2025": 3357.31, "09/2025": 3483.29, "10/2025": 5471.45, "11/2025": 4506.33, "12/2025": 4032.52, "01/2026": 5271.14, "02/2026": 5828.08, "03/2026": 6247.98}, "VALE TRANSPORTE": {"01/2024": 4286.2, "02/2024": 3287.6, "03/2024": 3696.4, "04/2024": 2852.9, "05/2024": 4224.2, "06/2024": 4542.9, "07/2024": 2569.76, "08/2024": 1495.4, "09/2024": 2194.26, "10/2024": 2263.17, "11/2024": 1870.95, "12/2024": 348.97, "01/2025": 1641.8, "02/2025": 808.28, "03/2025": 682.31, "04/2025": 766.78, "05/2025": 1132.63, "06/2025": 976.17, "07/2025": 1001.58, "08/2025": 3099.53, "09/2025": 3108.87, "10/2025": 3234.54, "11/2025": 4024.45, "12/2025": 3730.87, "01/2026": 3706.4, "02/2026": 2501.91, "03/2026": 2276.51}}, "DESPESAS COMERCIAIS": {"TOTAL DESPESAS COMERCIAIS": {"01/2024": 7968.9, "02/2024": 5865.72, "03/2024": 5448.59, "04/2024": 3500.0, "05/2024": 6879.86, "06/2024": 7660.0, "07/2024": 5500.0, "08/2024": 7000.0, "09/2024": 6987.18, "10/2024": 5600.47, "11/2024": 7539.57, "12/2024": 8938.11, "01/2025": 9503.94, "02/2025": 10308.21, "03/2025": 12162.54, "04/2025": 13392.29, "05/2025": 17155.26, "06/2025": 14411.34, "07/2025": 13045.01, "08/2025": 9976.01, "09/2025": 10993.89, "10/2025": 9784.35, "11/2025": 8913.74, "12/2025": 17082.33, "01/2026": 14129.4, "02/2026": 15441.97, "03/2026": 14582.55}, "BRINDES CLIENTES": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 409.74, "05/2025": 1212.12, "06/2025": 350.57, "07/2025": 212.95, "08/2025": 464.11, "09/2025": 101.05, "10/2025": 325.97, "11/2025": 0.0, "12/2025": 105.19, "01/2026": 243.13, "02/2026": 554.36, "03/2026": 181.22}, "DEGUSTAÇÃO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 160.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 63.96, "10/2024": 100.47, "11/2024": 239.57, "12/2024": 141.11, "01/2025": 97.51, "02/2025": 1011.21, "03/2025": 815.29, "04/2025": 152.54, "05/2025": 281.16, "06/2025": 527.9, "07/2025": 379.35, "08/2025": 213.9, "09/2025": 415.02, "10/2025": 174.48, "11/2025": 1327.4, "12/2025": 101.24, "01/2026": 362.56, "02/2026": 914.74, "03/2026": 433.16}, "DESPESAS C/ VIAGENS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 523.22, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 1000.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 629.0, "04/2025": 3050.59, "05/2025": 1024.16, "06/2025": 0.0, "07/2025": 1829.58, "08/2025": 1.0, "09/2025": 1126.92, "10/2025": 970.0, "11/2025": 200.0, "12/2025": 6622.0, "01/2026": 2191.51, "02/2026": 2118.97, "03/2026": 1044.27}, "EMBALAGENS": {"01/2024": 1175.37, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "FRETES E CARRETOS": {"01/2024": 2024.61, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "GESTÃO COMERCIAL": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 3000.0, "11/2024": 3000.0, "12/2024": 3300.0, "01/2025": 6709.43, "02/2025": 6600.0, "03/2025": 6821.25, "04/2025": 6974.62, "05/2025": 6765.46, "06/2025": 6947.14, "07/2025": 6951.23, "08/2025": 6600.0, "09/2025": 6600.0, "10/2025": 6600.0, "11/2025": 6600.0, "12/2025": 6600.0, "01/2026": 6600.0, "02/2026": 6600.0, "03/2026": 6600.0}, "INCENTIVOS IFOOD": {"01/2024": 2268.92, "02/2024": 2829.72, "03/2024": 2412.59, "04/2024": 0.0, "05/2024": 3759.86, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "PUBLICIDADE / PROPAGANDA": {"01/2024": 2500.0, "02/2024": 3036.0, "03/2024": 3036.0, "04/2024": 3500.0, "05/2024": 2960.0, "06/2024": 7660.0, "07/2024": 5500.0, "08/2024": 7000.0, "09/2024": 6400.0, "10/2024": 2500.0, "11/2024": 4300.0, "12/2024": 4497.0, "01/2025": 2697.0, "02/2025": 2697.0, "03/2025": 3897.0, "04/2025": 2804.8, "05/2025": 7872.36, "06/2025": 6585.73, "07/2025": 3671.9, "08/2025": 2697.0, "09/2025": 2750.9, "10/2025": 1713.9, "11/2025": 786.34, "12/2025": 3653.9, "01/2026": 4732.2, "02/2026": 5253.9, "03/2026": 6323.9}}, "DESPESAS GERAIS E ADMINISTRATIVAS": {"TOTAL DESPESAS GERAIS E ADMINISTRATIVAS": {"01/2024": 42509.68, "02/2024": 36338.41, "03/2024": 41020.07, "04/2024": 39063.25, "05/2024": 48422.45, "06/2024": 46301.03, "07/2024": 49923.15, "08/2024": 41873.96, "09/2024": 48730.39, "10/2024": 46375.73, "11/2024": 39803.46, "12/2024": 35629.33, "01/2025": 37227.61, "02/2025": 38548.01, "03/2025": 42015.15, "04/2025": 41575.79, "05/2025": 37425.19, "06/2025": 43491.38, "07/2025": 40717.01, "08/2025": 49457.91, "09/2025": 43930.88, "10/2025": 48591.9, "11/2025": 39993.7, "12/2025": 50599.9, "01/2026": 53567.58, "02/2026": 48047.9, "03/2026": 52092.76}, "ALARME E MONITORAMENTO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 300.0, "06/2024": 0.0, "07/2024": 300.0, "08/2024": 300.0, "09/2024": 300.0, "10/2024": 300.0, "11/2024": 300.0, "12/2024": 300.0, "01/2025": 300.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "ALUGUEL": {"01/2024": 16402.5, "02/2024": 17474.3, "03/2024": 17533.26, "04/2024": 16938.54, "05/2024": 16938.4, "06/2024": 16938.4, "07/2024": 16938.4, "08/2024": 16938.42, "09/2024": 16938.42, "10/2024": 17118.42, "11/2024": 17341.22, "12/2024": 17341.22, "01/2025": 16938.4, "02/2025": 17713.44, "03/2025": 17713.44, "04/2025": 18118.44, "05/2025": 18118.44, "06/2025": 17929.54, "07/2025": 17929.54, "08/2025": 17929.54, "09/2025": 17929.54, "10/2025": 17929.54, "11/2025": 17929.54, "12/2025": 17929.54, "01/2026": 17929.54, "02/2026": 17929.54, "03/2026": 17929.54}, "CONDOMÍNIO": {"01/2024": 596.65, "02/2024": 505.64, "03/2024": 550.0, "04/2024": 634.23, "05/2024": 611.72, "06/2024": 599.14, "07/2024": 996.36, "08/2024": 746.36, "09/2024": 724.74, "10/2024": 750.0, "11/2024": 719.8, "12/2024": 720.0, "01/2025": 667.12, "02/2025": 967.92, "03/2025": 987.65, "04/2025": 1038.12, "05/2025": 834.08, "06/2025": 659.32, "07/2025": 1505.0, "08/2025": 1484.42, "09/2025": 1082.56, "10/2025": 1747.62, "11/2025": 1052.0, "12/2025": 769.84, "01/2026": 1011.48, "02/2026": 983.12, "03/2026": 1014.25}, "ENERGIA ELÉTRICA": {"01/2024": 9719.75, "02/2024": 9572.69, "03/2024": 9793.67, "04/2024": 10080.23, "05/2024": 12172.57, "06/2024": 9903.62, "07/2024": 9264.26, "08/2024": 8773.44, "09/2024": 8281.07, "10/2024": 9097.29, "11/2024": 4117.32, "12/2024": 4922.87, "01/2025": 4391.56, "02/2025": 6883.76, "03/2025": 5899.61, "04/2025": 7499.04, "05/2025": 6769.52, "06/2025": 5302.69, "07/2025": 9915.4, "08/2025": 7562.46, "09/2025": 9235.27, "10/2025": 8281.51, "11/2025": 7331.81, "12/2025": 9954.54, "01/2026": 7781.78, "02/2026": 9203.9, "03/2026": 11447.69}, "HONORARIO ADVOGADO": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 3036.0, "02/2026": 3242.0, "03/2026": 5342.0}, "HONORÁRIO CONTÁBIL": {"01/2024": 660.0, "02/2024": 710.0, "03/2024": 710.0, "04/2024": 710.0, "05/2024": 710.0, "06/2024": 555.0, "07/2024": 710.0, "08/2024": 1000.0, "09/2024": 1398.89, "10/2024": 1000.0, "11/2024": 2000.0, "12/2024": 2000.0, "01/2025": 2000.0, "02/2025": 2000.0, "03/2025": 2000.0, "04/2025": 2000.0, "05/2025": 2000.0, "06/2025": 2000.0, "07/2025": 2000.0, "08/2025": 2000.0, "09/2025": 2100.0, "10/2025": 2100.0, "11/2025": 2100.0, "12/2025": 2100.0, "01/2026": 2100.0, "02/2026": 2100.0, "03/2026": 2100.0}, "INFORMÁTICA": {"01/2024": 360.0, "02/2024": 360.0, "03/2024": 376.23, "04/2024": 376.23, "05/2024": 721.23, "06/2024": 376.26, "07/2024": 250.0, "08/2024": 376.23, "09/2024": 376.23, "10/2024": 376.23, "11/2024": 376.23, "12/2024": 576.23, "01/2025": 576.23, "02/2025": 576.23, "03/2025": 576.23, "04/2025": 576.23, "05/2025": 576.23, "06/2025": 576.23, "07/2025": 576.23, "08/2025": 576.23, "09/2025": 576.23, "10/2025": 576.23, "11/2025": 576.23, "12/2025": 576.23, "01/2026": 650.0, "02/2026": 650.0, "03/2026": 650.0}, "IPTU": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 402.82, "04/2024": 1841.19, "05/2024": 402.82, "06/2024": 402.82, "07/2024": 402.82, "08/2024": 402.82, "09/2024": 402.82, "10/2024": 402.81, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 5254.94, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 555.81}, "LIMPEZA/HIGIENE": {"01/2024": 500.0, "02/2024": 549.99, "03/2024": 500.0, "04/2024": 550.0, "05/2024": 40.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 300.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 624.9, "03/2026": 0.0}, "MANUTENÇÃO E REFORMAS": {"01/2024": 7177.68, "02/2024": 2927.42, "03/2024": 5059.03, "04/2024": 865.5, "05/2024": 3147.0, "06/2024": 6770.03, "07/2024": 4956.72, "08/2024": 1595.9, "09/2024": 8177.89, "10/2024": 7871.58, "11/2024": 6597.93, "12/2024": 3276.4, "01/2025": 5765.3, "02/2025": 3322.16, "03/2025": 2522.13, "04/2025": 6325.48, "05/2025": 3114.0, "06/2025": 3909.0, "07/2025": 2496.95, "08/2025": 10938.3, "09/2025": 3963.2, "10/2025": 5174.49, "11/2025": 3556.73, "12/2025": 6970.07, "01/2026": 12982.84, "02/2026": 5194.4, "03/2026": 6366.82}, "MATERIAL P/ ESCRITORIO": {"01/2024": 0.0, "02/2024": 20.67, "03/2024": 194.41, "04/2024": 75.0, "05/2024": 135.43, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 910.05, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 450.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "OUTRAS DESPESAS": {"01/2024": 1075.92, "02/2024": 304.9, "03/2024": 420.0, "04/2024": 250.44, "05/2024": 890.0, "06/2024": 1078.19, "07/2024": 1885.85, "08/2024": 1038.36, "09/2024": 1971.75, "10/2024": 0.0, "11/2024": 510.0, "12/2024": 640.0, "01/2025": 314.15, "02/2025": 314.15, "03/2025": 235.88, "04/2025": 360.0, "05/2025": 360.0, "06/2025": 860.0, "07/2025": 360.0, "08/2025": 360.0, "09/2025": 1463.0, "10/2025": 4914.0, "11/2025": 574.54, "12/2025": 3441.75, "01/2026": 2109.3, "02/2026": 2385.3, "03/2026": 1365.0}, "SEGUROS": {"01/2024": 992.75, "02/2024": 163.66, "03/2024": 1587.61, "04/2024": 992.74, "05/2024": 829.12, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 449.59, "09/2024": 449.59, "10/2024": 449.59, "11/2024": 449.59, "12/2024": 0.0, "01/2025": 576.69, "02/2025": 576.66, "03/2025": 576.66, "04/2025": 576.66, "05/2025": 576.66, "06/2025": 576.66, "07/2025": 0.0, "08/2025": 339.85, "09/2025": 339.81, "10/2025": 339.81, "11/2025": 339.81, "12/2025": 339.81, "01/2026": 681.33, "02/2026": 341.59, "03/2026": 341.59}, "SERVIÇOS DE AUDITORIA FINANCEIRA": {"01/2024": 1212.0, "02/2024": 1212.0, "03/2024": 1212.0, "04/2024": 1212.0, "05/2024": 606.0, "06/2024": 606.0, "07/2024": 1000.0, "08/2024": 710.0, "09/2024": 1000.0, "10/2024": 710.0, "11/2024": 710.0, "12/2024": 710.0, "01/2025": 710.0, "02/2025": 710.0, "03/2025": 710.0, "04/2025": 710.0, "05/2025": 710.0, "06/2025": 1500.0, "07/2025": 1500.0, "08/2025": 1500.0, "09/2025": 1500.0, "10/2025": 1500.0, "11/2025": 1500.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "SERVIÇOS PRESTADOS PJ": {"01/2024": 1995.0, "02/2024": 500.0, "03/2024": 550.0, "04/2024": 550.0, "05/2024": 5083.33, "06/2024": 3178.33, "07/2024": 5053.33, "08/2024": 1045.0, "09/2024": 750.0, "10/2024": 1975.37, "11/2024": 750.0, "12/2024": 750.0, "01/2025": 750.0, "02/2025": 750.0, "03/2025": 825.0, "04/2025": 825.0, "05/2025": 825.0, "06/2025": 4034.13, "07/2025": 825.0, "08/2025": 2675.0, "09/2025": 825.0, "10/2025": 825.0, "11/2025": 825.0, "12/2025": 2086.5, "01/2026": 825.0, "02/2026": 825.0, "03/2026": 825.0}, "SOFTWARES": {"01/2024": 685.0, "02/2024": 904.0, "03/2024": 904.0, "04/2024": 2812.0, "05/2024": 4100.3, "06/2024": 4100.1, "07/2024": 6000.3, "08/2024": 6011.69, "09/2024": 5886.69, "10/2024": 4242.49, "11/2024": 2577.09, "12/2024": 2577.09, "01/2025": 2476.67, "02/2025": 2753.65, "03/2025": 2833.55, "04/2025": 1809.55, "05/2025": 1833.16, "06/2025": 4535.7, "07/2025": 2109.55, "08/2025": 2318.83, "09/2025": 2648.78, "10/2025": 3299.19, "11/2025": 2063.53, "12/2025": 4285.04, "01/2026": 3068.35, "02/2026": 2858.63, "03/2026": 2508.41}, "TELEFONIA/INTERNET": {"01/2024": 367.14, "02/2024": 327.14, "03/2024": 427.04, "04/2024": 179.99, "05/2024": 527.03, "06/2024": 503.43, "07/2024": 567.03, "08/2024": 629.88, "09/2024": 589.53, "10/2024": 581.95, "11/2024": 853.91, "12/2024": 409.89, "01/2025": 580.42, "02/2025": 532.04, "03/2025": 332.06, "04/2025": 581.95, "05/2025": 481.96, "06/2025": 451.52, "07/2025": 448.66, "08/2025": 259.99, "09/2025": 683.89, "10/2025": 394.54, "11/2025": 388.76, "12/2025": 390.62, "01/2026": 399.98, "02/2026": 399.98, "03/2026": 398.11}, "ÁGUA": {"01/2024": 765.29, "02/2024": 806.0, "03/2024": 800.0, "04/2024": 995.16, "05/2024": 1207.5, "06/2024": 1289.71, "07/2024": 1598.08, "08/2024": 1556.27, "09/2024": 1482.77, "10/2024": 1500.0, "11/2024": 1590.32, "12/2024": 1405.63, "01/2025": 1181.07, "02/2025": 1448.0, "03/2025": 1548.0, "04/2025": 1155.32, "05/2025": 1226.14, "06/2025": 1156.59, "07/2025": 1050.68, "08/2025": 1513.29, "09/2025": 1583.6, "10/2025": 1509.97, "11/2025": 1755.75, "12/2025": 1305.96, "01/2026": 991.98, "02/2026": 1309.54, "03/2026": 1248.54}}, "DESPESAS FINANCEIRAS": {"TOTAL DESPESAS FINANCEIRAS": {"01/2024": 12116.01, "02/2024": 12127.52, "03/2024": 12107.25, "04/2024": 12021.54, "05/2024": 9786.94, "06/2024": 9475.25, "07/2024": 9578.81, "08/2024": 9254.22, "09/2024": 9390.89, "10/2024": 9095.63, "11/2024": 9170.96, "12/2024": 9066.76, "01/2025": 7607.09, "02/2025": 8156.54, "03/2025": 8051.97, "04/2025": 8073.29, "05/2025": 8162.69, "06/2025": 8116.04, "07/2025": 8237.6, "08/2025": 9068.68, "09/2025": 9132.07, "10/2025": 15146.85, "11/2025": 13635.25, "12/2025": 12271.25, "01/2026": 11659.23, "02/2026": 11077.81, "03/2026": 10878.1}, "JUROS E MULTAS": {"01/2024": 12005.35, "02/2024": 12017.82, "03/2024": 11997.55, "04/2024": 11911.84, "05/2024": 9677.24, "06/2024": 9365.55, "07/2024": 9469.11, "08/2024": 9144.52, "09/2024": 9281.19, "10/2024": 8985.93, "11/2024": 9116.11, "12/2024": 9011.91, "01/2025": 7552.24, "02/2025": 8101.69, "03/2025": 7997.12, "04/2025": 8018.44, "05/2025": 8107.84, "06/2025": 8061.19, "07/2025": 8211.75, "08/2025": 9037.83, "09/2025": 9101.22, "10/2025": 15116.0, "11/2025": 13604.4, "12/2025": 12240.4, "01/2026": 11628.38, "02/2026": 11046.96, "03/2026": 10847.25}, "TARIFAS BANCÁRIAS": {"01/2024": 110.66, "02/2024": 109.7, "03/2024": 109.7, "04/2024": 109.7, "05/2024": 109.7, "06/2024": 109.7, "07/2024": 109.7, "08/2024": 109.7, "09/2024": 109.7, "10/2024": 109.7, "11/2024": 54.85, "12/2024": 54.85, "01/2025": 54.85, "02/2025": 54.85, "03/2025": 54.85, "04/2025": 54.85, "05/2025": 54.85, "06/2025": 54.85, "07/2025": 25.85, "08/2025": 30.85, "09/2025": 30.85, "10/2025": 30.85, "11/2025": 30.85, "12/2025": 30.85, "01/2026": 30.85, "02/2026": 30.85, "03/2026": 30.85}}, "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS": {"TOTAL DESPESAS COM INVESTIMENTOS E EMPRÉSTIMOS": {"01/2024": 28570.08, "02/2024": 28570.08, "03/2024": 28570.16, "04/2024": 28050.48, "05/2024": 28050.48, "06/2024": 28050.48, "07/2024": 28050.48, "08/2024": 28050.48, "09/2024": 28050.48, "10/2024": 28008.85, "11/2024": 28008.85, "12/2024": 28008.85, "01/2025": 28008.85, "02/2025": 28008.86, "03/2025": 28008.85, "04/2025": 28008.85, "05/2025": 28008.85, "06/2025": 28008.85, "07/2025": 28008.85, "08/2025": 31986.29, "09/2025": 31986.29, "10/2025": 42402.51, "11/2025": 42402.51, "12/2025": 42402.51, "01/2026": 42402.51, "02/2026": 42402.51, "03/2026": 42402.51}, "EMPRÉSTIMO X": {"01/2024": 28050.4, "02/2024": 28050.4, "03/2024": 28050.48, "04/2024": 28050.48, "05/2024": 28050.48, "06/2024": 28050.48, "07/2024": 28050.48, "08/2024": 28050.48, "09/2024": 28050.48, "10/2024": 28008.85, "11/2024": 28008.85, "12/2024": 28008.85, "01/2025": 28008.85, "02/2025": 28008.86, "03/2025": 28008.85, "04/2025": 28008.85, "05/2025": 28008.85, "06/2025": 28008.85, "07/2025": 28008.85, "08/2025": 31986.29, "09/2025": 31986.29, "10/2025": 42402.51, "11/2025": 42402.51, "12/2025": 42402.51, "01/2026": 42402.51, "02/2026": 42402.51, "03/2026": 42402.51}, "TITULO CAPITALIZACAO": {"01/2024": 519.68, "02/2024": 519.68, "03/2024": 519.68, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}}, "DESPESAS NAO OPERACIONAIS": {"TOTAL DESPESAS NÃO OPERACIONAIS": {"01/2024": 10147.34, "02/2024": 5207.55, "03/2024": 4399.55, "04/2024": 22938.08, "05/2024": 26549.0, "06/2024": 9502.6, "07/2024": 143098.89, "08/2024": 39120.42, "09/2024": 25350.94, "10/2024": 28677.61, "11/2024": 36721.96, "12/2024": 74979.78, "01/2025": 28806.21, "02/2025": 24545.88, "03/2025": 6734.93, "04/2025": 12644.12, "05/2025": 5128.5, "06/2025": 0.0, "07/2025": 1500.0, "08/2025": 3500.0, "09/2025": 45063.99, "10/2025": 13953.14, "11/2025": 47955.74, "12/2025": 121378.15, "01/2026": 30886.99, "02/2026": 7183.44, "03/2026": 11990.6}, "ADIANTAMENTO DE LUCROS": {"01/2024": 50.0, "02/2024": 2100.0, "03/2024": 0.0, "04/2024": 1100.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 600.0, "09/2024": 0.0, "10/2024": 344.23, "11/2024": 14319.0, "12/2024": 58006.04, "01/2025": 10000.0, "02/2025": 1151.86, "03/2025": 880.86, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 8313.99, "10/2025": 3218.9, "11/2025": 1241.68, "12/2025": 3206.1, "01/2026": 1648.4, "02/2026": 1654.45, "03/2026": 2016.71}, "BENS DE PEQUENO VALOR": {"01/2024": 4952.0, "02/2024": 3107.55, "03/2024": 3107.55, "04/2024": 4257.55, "05/2024": 1868.6, "06/2024": 1242.52, "07/2024": 797.59, "08/2024": 762.1, "09/2024": 1884.15, "10/2024": 6173.89, "11/2024": 4217.37, "12/2024": 2473.35, "01/2025": 3636.1, "02/2025": 890.07, "03/2025": 628.5, "04/2025": 628.5, "05/2025": 628.5, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 1762.21, "12/2025": 3622.35, "01/2026": 1098.88, "02/2026": 2315.99, "03/2026": 4174.89}, "IMOBILIZADO": {"01/2024": 5145.34, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 123000.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 3919.18, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 1500.0, "08/2025": 3500.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "PARCELAMENTOS FISCAIS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 0.0, "05/2024": 0.0, "06/2024": 0.0, "07/2024": 0.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 97699.35, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "REFORMAS E BENFEITORIAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 1292.0, "04/2024": 17580.53, "05/2024": 24680.4, "06/2024": 8260.08, "07/2024": 19301.3, "08/2024": 37758.32, "09/2024": 23466.79, "10/2024": 22159.49, "11/2024": 18185.59, "12/2024": 10581.21, "01/2025": 15170.11, "02/2025": 22503.95, "03/2025": 5225.57, "04/2025": 12015.62, "05/2025": 4500.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 36750.0, "10/2025": 10734.24, "11/2025": 44951.85, "12/2025": 16850.35, "01/2026": 28139.71, "02/2026": 3213.0, "03/2026": 5799.0}}, "OUTRAS RECEITAS": {"TOTAL OUTRAS RECEITAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 900.5, "05/2024": 135.0, "06/2024": 0.0, "07/2024": 123000.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}, "OUTRAS RECEITAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 900.5, "05/2024": 135.0, "06/2024": 0.0, "07/2024": 123000.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}}}, "cat_totals": {"DEDUCOES DA RECEITA": {"01/2024": 75527.66, "02/2024": 82927.82, "03/2024": 114652.02000000002, "04/2024": 125289.11999999998, "05/2024": 119209.66, "06/2024": 148334.68000000002, "07/2024": 160789.65999999997, "08/2024": 168361.42, "09/2024": 68603.34, "10/2024": 72657.79999999999, "11/2024": 84871.34, "12/2024": 66965.14, "01/2025": 75790.4, "02/2025": 71398.1, "03/2025": 79293.74, "04/2025": 79284.96, "05/2025": 87888.14, "06/2025": 81007.95999999999, "07/2025": 108779.81999999999, "08/2025": 148257.91999999998, "09/2025": 75907.38, "10/2025": 126720.18, "11/2025": 142309.5, "12/2025": 152723.56, "01/2026": 152510.2, "02/2026": 142433.72, "03/2026": 144038.92}, "CUSTOS OPERACIONAIS": {"01/2024": 309851.0, "02/2024": 251525.22, "03/2024": 319109.84, "04/2024": 314246.28, "05/2024": 344646.62000000005, "06/2024": 337089.64, "07/2024": 349620.92, "08/2024": 314045.66, "09/2024": 273642.43999999994, "10/2024": 326454.0, "11/2024": 372131.24, "12/2024": 340510.18, "01/2025": 401215.30000000005, "02/2025": 245114.48, "03/2025": 308928.66, "04/2025": 267232.06, "05/2025": 320120.1, "06/2025": 319066.57999999996, "07/2025": 375123.02, "08/2025": 364237.01999999996, "09/2025": 298764.88, "10/2025": 306955.88, "11/2025": 280472.36, "12/2025": 339992.3599999999, "01/2026": 351297.88, "02/2026": 300762.33999999997, "03/2026": 290741.72}, "DESPESAS COM PESSOAL": {"01/2024": 126935.40000000002, "02/2024": 114372.04, "03/2024": 123842.65999999999, "04/2024": 126305.73999999998, "05/2024": 140686.06, "06/2024": 177195.28, "07/2024": 151053.47999999998, "08/2024": 139607.6, "09/2024": 137138.58000000002, "10/2024": 123200.04000000001, "11/2024": 139348.89999999997, "12/2024": 129500.21999999999, "01/2025": 159648.08, "02/2025": 143311.92, "03/2025": 137250.08000000002, "04/2025": 145823.84, "05/2025": 138749.4, "06/2025": 174570.52, "07/2025": 179878.41999999998, "08/2025": 169855.66, "09/2025": 180836.92, "10/2025": 174919.34, "11/2025": 192607.56, "12/2025": 183863.47999999998, "01/2026": 247985.36000000002, "02/2026": 193907.4, "03/2026": 215097.5}, "DESPESAS COMERCIAIS": {"01/2024": 15937.800000000001, "02/2024": 11731.44, "03/2024": 10897.18, "04/2024": 7000.0, "05/2024": 13759.72, "06/2024": 15320.0, "07/2024": 11000.0, "08/2024": 14000.0, "09/2024": 13974.36, "10/2024": 11200.94, "11/2024": 15079.14, "12/2024": 17876.22, "01/2025": 19007.88, "02/2025": 20616.42, "03/2025": 24325.08, "04/2025": 26784.58, "05/2025": 34310.52, "06/2025": 28822.68, "07/2025": 26090.020000000004, "08/2025": 19952.02, "09/2025": 21987.78, "10/2025": 19568.7, "11/2025": 17827.48, "12/2025": 34164.66, "01/2026": 28258.8, "02/2026": 30883.940000000002, "03/2026": 29165.1}, "DESPESAS GERAIS E ADMINISTRATIVAS": {"01/2024": 85019.36, "02/2024": 72676.82, "03/2024": 82040.14, "04/2024": 78126.50000000001, "05/2024": 96844.90000000001, "06/2024": 92602.06000000001, "07/2024": 99846.30000000002, "08/2024": 83747.92, "09/2024": 97460.78, "10/2024": 92751.45999999999, "11/2024": 79606.92000000001, "12/2024": 71258.66000000002, "01/2025": 74455.22, "02/2025": 77096.01999999999, "03/2025": 84030.3, "04/2025": 83151.58, "05/2025": 74850.38000000002, "06/2025": 86982.76, "07/2025": 81434.01999999999, "08/2025": 98915.82000000002, "09/2025": 87861.76, "10/2025": 97183.79999999999, "11/2025": 79987.39999999998, "12/2025": 101199.79999999999, "01/2026": 107135.15999999999, "02/2026": 96095.79999999997, "03/2026": 104185.51999999999}, "DESPESAS FINANCEIRAS": {"01/2024": 24232.02, "02/2024": 24255.04, "03/2024": 24214.5, "04/2024": 24043.08, "05/2024": 19573.88, "06/2024": 18950.5, "07/2024": 19157.62, "08/2024": 18508.44, "09/2024": 18781.780000000002, "10/2024": 18191.26, "11/2024": 18341.92, "12/2024": 18133.519999999997, "01/2025": 15214.18, "02/2025": 16313.08, "03/2025": 16103.94, "04/2025": 16146.58, "05/2025": 16325.38, "06/2025": 16232.08, "07/2025": 16475.199999999997, "08/2025": 18137.36, "09/2025": 18264.14, "10/2025": 30293.699999999997, "11/2025": 27270.5, "12/2025": 24542.5, "01/2026": 23318.46, "02/2026": 22155.619999999995, "03/2026": 21756.199999999997}, "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS": {"01/2024": 57140.16, "02/2024": 57140.16, "03/2024": 57140.32, "04/2024": 56100.96, "05/2024": 56100.96, "06/2024": 56100.96, "07/2024": 56100.96, "08/2024": 56100.96, "09/2024": 56100.96, "10/2024": 56017.7, "11/2024": 56017.7, "12/2024": 56017.7, "01/2025": 56017.7, "02/2025": 56017.72, "03/2025": 56017.7, "04/2025": 56017.7, "05/2025": 56017.7, "06/2025": 56017.7, "07/2025": 56017.7, "08/2025": 63972.58, "09/2025": 63972.58, "10/2025": 84805.02, "11/2025": 84805.02, "12/2025": 84805.02, "01/2026": 84805.02, "02/2026": 84805.02, "03/2026": 84805.02}, "DESPESAS NAO OPERACIONAIS": {"01/2024": 20294.68, "02/2024": 10415.1, "03/2024": 8799.1, "04/2024": 45876.16, "05/2024": 53098.0, "06/2024": 19005.2, "07/2024": 286197.77999999997, "08/2024": 78240.84, "09/2024": 50701.880000000005, "10/2024": 57355.22, "11/2024": 73443.92, "12/2024": 149959.56, "01/2025": 57612.42, "02/2025": 49091.76, "03/2025": 13469.86, "04/2025": 25288.24, "05/2025": 10257.0, "06/2025": 0.0, "07/2025": 3000.0, "08/2025": 7000.0, "09/2025": 90127.98, "10/2025": 27906.28, "11/2025": 95911.48, "12/2025": 242756.30000000002, "01/2026": 61773.98, "02/2026": 14366.88, "03/2026": 23981.2}, "OUTRAS RECEITAS": {"01/2024": 0.0, "02/2024": 0.0, "03/2024": 0.0, "04/2024": 1801.0, "05/2024": 270.0, "06/2024": 0.0, "07/2024": 246000.0, "08/2024": 0.0, "09/2024": 0.0, "10/2024": 0.0, "11/2024": 0.0, "12/2024": 0.0, "01/2025": 0.0, "02/2025": 0.0, "03/2025": 0.0, "04/2025": 0.0, "05/2025": 0.0, "06/2025": 0.0, "07/2025": 0.0, "08/2025": 0.0, "09/2025": 0.0, "10/2025": 0.0, "11/2025": 0.0, "12/2025": 0.0, "01/2026": 0.0, "02/2026": 0.0, "03/2026": 0.0}}, "grand_total": {"01/2024": 714938.0800000001, "02/2024": 625043.64, "03/2024": 740695.76, "04/2024": 776987.84, "05/2024": 843919.8, "06/2024": 864598.3200000001, "07/2024": 1133766.72, "08/2024": 872612.84, "09/2024": 716404.12, "10/2024": 757828.42, "11/2024": 838841.08, "12/2024": 850221.2, "01/2025": 858961.18, "02/2025": 678959.5, "03/2025": 719419.36, "04/2025": 699729.54, "05/2025": 738518.62, "06/2025": 762700.2799999999, "07/2025": 846798.2, "08/2025": 890328.38, "09/2025": 837723.42, "10/2025": 868352.9, "11/2025": 921191.2999999999, "12/2025": 1164047.68, "01/2026": 1057084.86, "02/2026": 885410.72, "03/2026": 913771.1799999999}};
+var DRE_COLORS=["#ff4d4f","#4d8ef5","#36cfa0","#ffaa2b","#a07cf6","#00cec9","#fd79a8","#e17055","#55efc4"];
+var DRE_RESP={
+  "DEDUCOES DA RECEITA":"Financeiro/Vendas",
+  "CUSTOS OPERACIONAIS":"Gestor Operacional",
+  "DESPESAS COM PESSOAL":"Gestor RH",
+  "DESPESAS COMERCIAIS":"Gestor Comercial",
+  "DESPESAS GERAIS E ADMINISTRATIVAS":"Gestor Adm/Fin",
+  "DESPESAS FINANCEIRAS":"Gestor Financeiro",
+  "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS":"Diretoria",
+  "DESPESAS NAO OPERACIONAIS":"Diretoria",
+  "OUTRAS RECEITAS":"Diretoria"
+};
+var DRE_ACTIONS={
+  "DEDUCOES DA RECEITA":{causa:"Comissões, taxas iFood ou devoluções acima do planejado",acao:"Revisar política comercial, negociar taxas e processos de devolução."},
+  "CUSTOS OPERACIONAIS":{causa:"CMV elevado, perdas ou embalagens fora do padrão",acao:"Revisar mix de pratos/drinks, negociar fornecedores, reduzir perdas."},
+  "DESPESAS COM PESSOAL":{causa:"Horas extras, freelancers ou provisões acima do orçado",acao:"Analisar escala, substituir freelancer por CLT se recorrente."},
+  "DESPESAS COMERCIAIS":{causa:"Incentivos iFood, brindes ou eventos acima do planejado",acao:"Revisar política de incentivos e otimizar campanhas."},
+  "DESPESAS GERAIS E ADMINISTRATIVAS":{causa:"Aluguel, condomínio, honorários ou softwares acima do planejado",acao:"Negociar contratos, avaliar softwares, renegociar aluguel."},
+  "DESPESAS FINANCEIRAS":{causa:"Juros, multas ou tarifas bancárias acima do normal",acao:"Renegociar taxas, reduzir uso de capital externo."},
+  "DESPESAS COM INVESTIMENTOS E EMPRESTIMOS":{causa:"Parcelas de empréstimos ou títulos de capitalização",acao:"Avaliar ROI, renegociar prazos de amortização."},
+  "DESPESAS NAO OPERACIONAIS":{causa:"Adiantamento de lucros, imobilizado ou reformas",acao:"Identificar causa raiz e avaliar recorrência."},
+  "OUTRAS RECEITAS":{causa:"Receitas diversas fora do operacional",acao:"Verificar origem e classificação contábil."}
+};
+var dreSelCat=Object.keys(DRE.categories)[1]||"CUSTOS OPERACIONAIS";
+var dreC1=null,dreC2=null,dreC3=null,dreC4=null;
+
+// ── helpers ──────────────────────────────────────────────────────────
+function dreIdx(m){return DRE.months.indexOf(m);}
+function dreRange(from,to){var a=dreIdx(from),b=dreIdx(to);if(a<0)a=0;if(b<0)b=DRE.months.length-1;return DRE.months.slice(a,b+1);}
+function dreCatSum(cat,ms){var t=0;ms.forEach(function(m){t+=((DRE.cat_totals[cat]&&DRE.cat_totals[cat][m])||0);});return t;}
+function dreGrandSum(ms){var t=0;ms.forEach(function(m){t+=(DRE.grand_total[m]||0);});return t;}
+function dreFmt(v){if(v===null||v===undefined||isNaN(v))return"—";return"R$ "+Number(v).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function drePct(v){return v.toFixed(1).replace(".",",")+"%";}
+function dreCompact(v){
+  if(!v||isNaN(v)) return "R$ 0";
+  if(v>=1000000) return "R$ "+(v/1000000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" M";
+  if(v>=1000)    return "R$ "+(v/1000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" k";
+  return dreFmt(v);
+}
+function dreKill(ch){if(ch){try{ch.destroy();}catch(e){}}return null;}
+function dreEl(id){return document.getElementById(id);}
+
+// ── selectors ────────────────────────────────────────────────────────
+function initDRESelectors(){
+  var f=dreEl("dre-from"),t=dreEl("dre-to");
+  if(!f||!t)return;
+  f.innerHTML="";t.innerHTML="";
+  DRE.months.forEach(function(m){
+    f.innerHTML+='<option value="'+m+'">'+m+'</option>';
+    t.innerHTML+='<option value="'+m+'">'+m+'</option>';
+  });
+  var n=DRE.months.length;
+  f.value=DRE.months[Math.max(0,n-12)];
+  t.value=DRE.months[n-1];
+}
+
+// ── DRE main ─────────────────────────────────────────────────────────
+function buildDRE(){
+  var f=dreEl("dre-from"),t=dreEl("dre-to"),v=dreEl("dre-view");
+  if(!f)return;
+  var ms=dreRange(f.value,t.value);
+  if(!ms.length)return;
+  dreKPIs(ms);dreChart1(ms);dreChart2(ms);dreChart3(ms);dreFarol(ms);dreChart4(ms);dreCatBtns(ms,v.value);
+}
+
+function dreKPIs(ms){
+  var el=dreEl("dre-kpis");if(!el)return;
+  var total=dreGrandSum(ms);
+  var lm=ms[ms.length-1],pm=ms[ms.length-2]||"";
+  var lv=DRE.grand_total[lm]||0,pv=pm?(DRE.grand_total[pm]||0):0;
+  var vp=pv>0?((lv-pv)/pv*100):0;
+  var cmv=dreCatSum("CUSTOS OPERACIONAIS",ms),rh=dreCatSum("DESPESAS COM PESSOAL",ms);
+  var vc=vp>5?"r":vp>0?"w":"g";
+  el.innerHTML=
+    '<div class="kpi b"><div class="lbl">Total Período</div><div class="val">'+dreCompact(total)+'</div><div class="sub">'+ms.length+' meses</div></div>'+
+    '<div class="kpi '+vc+'"><div class="lbl">Var. Último Mês</div><div class="val">'+(vp>0?"+":"")+drePct(vp)+'</div><div class="sub">'+dreFmt(lv)+'</div></div>'+
+    '<div class="kpi r"><div class="lbl">Custos Operacionais</div><div class="val">'+drePct(total>0?cmv/total*100:0)+'</div><div class="sub">'+dreCompact(cmv)+'</div></div>'+
+    '<div class="kpi w"><div class="lbl">Desp. com Pessoal</div><div class="val">'+drePct(total>0?rh/total*100:0)+'</div><div class="sub">'+dreCompact(rh)+'</div></div>';
+}
+
+function dreChart1(ms){
+  dreC1=dreKill(dreC1);
+  var ctx=dreEl("dre-c1");if(!ctx)return;
+
+  // Separar TOTAL das categorias — escalas muito diferentes
+  var cats=["CUSTOS OPERACIONAIS","DESPESAS COM PESSOAL","DESPESAS GERAIS E ADMINISTRATIVAS","DESPESAS FINANCEIRAS","DESPESAS COMERCIAIS","DESPESAS COM VEICULOS"];
+  var labels=["Custos Operac.","Com Pessoal","Gerais e Adm.","Financeiras","Comerciais","Com Veiculos"];
+
+  // Dataset TOTAL — eixo y (esquerdo)
+  var dsTotal={
+    label:"TOTAL",
+    data:ms.map(function(m){return DRE.grand_total[m]||0;}),
+    borderColor:DRE_COLORS[0],backgroundColor:"transparent",
+    tension:.35,fill:false,pointRadius:4,borderWidth:3,
+    borderDash:[7,3],yAxisID:"yLeft",order:0
+  };
+
+  // Datasets categorias — eixo y2 (direito)
+  var dsCats=cats.map(function(cat,i){
+    return{
+      label:labels[i],
+      data:ms.map(function(m){return(DRE.cat_totals[cat]&&DRE.cat_totals[cat][m])||0;}),
+      borderColor:DRE_COLORS[i+1],backgroundColor:DRE_COLORS[i+1]+"18",
+      tension:.35,fill:false,
+      pointRadius:3,pointHoverRadius:6,
+      borderWidth:2,yAxisID:"yRight",order:i+1
+    };
+  });
+
+  var ds=[dsTotal].concat(dsCats);
+
+  dreC1=new Chart(ctx,{type:"line",data:{labels:ms,datasets:ds},options:{
+    responsive:true,maintainAspectRatio:false,
+    interaction:{mode:"index",intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        callbacks:{
+          label:function(x){
+            return " "+x.dataset.label+": "+dreFmt(x.parsed.y);
+          }
+        }
+      }
+    },
+    scales:{
+      yLeft:{
+        type:"linear",position:"left",
+        ticks:{color:"#ff7875",callback:function(v){return"R$"+(v/1000000).toFixed(1).replace(".",",")+"M";}},
+        grid:{color:"rgba(255,255,255,0.05)"},
+        title:{display:true,text:"Total",color:"#ff7875",font:{size:10}}
+      },
+      yRight:{
+        type:"linear",position:"right",
+        ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},
+        grid:{drawOnChartArea:false},
+        title:{display:true,text:"Categorias",color:"#8fa0c0",font:{size:10}}
+      },
+      x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:45},grid:{color:"rgba(255,255,255,0.03)"}}
+    }
+  }});
+  makeLegend(dreEl("dre-c1-leg"), dreC1, ds);
+}
+
+function dreChart2(ms){
+  dreC2=dreKill(dreC2);var ctx=dreEl("dre-c2");if(!ctx)return;
+  var cats=Object.keys(DRE.cat_totals);
+  var ds=cats.map(function(cat,i){return{
+    label:cat.length>28?cat.substring(0,26)+"…":cat,
+    data:ms.map(function(m){var g=DRE.grand_total[m]||1;return g>0?((DRE.cat_totals[cat]&&DRE.cat_totals[cat][m])||0)/g*100:0;}),
+    backgroundColor:DRE_COLORS[i%DRE_COLORS.length]+"cc",borderColor:DRE_COLORS[i%DRE_COLORS.length],borderWidth:1};});
+  dreC2=new Chart(ctx,{type:"bar",data:{labels:ms,datasets:ds},options:{
+    responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{mode:"index",intersect:false,callbacks:{label:function(x){return x.dataset.label+": "+x.parsed.y.toFixed(1)+"%";}}}},
+    scales:{x:{stacked:true,ticks:{color:"#8fa0c0",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"}},
+            y:{stacked:true,max:100,ticks:{color:"#8fa0c0",callback:function(v){return v+"%";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+  }});
+  makeLegend(dreEl("dre-c2-leg"), dreC2, ds);
+}
+
+function dreChart3(ms){
+  dreC3=dreKill(dreC3);var ctx=dreEl("dre-c3");if(!ctx)return;
+  var cats=Object.keys(DRE.cat_totals);
+  var vals=cats.map(function(cat){return dreCatSum(cat,ms);});
+  var run=0,floats=vals.map(function(v){var s=run;run+=v;return s;});
+  dreC3=new Chart(ctx,{type:"bar",data:{labels:cats.map(function(c){return c.length>20?c.substring(0,18)+"…":c;}),datasets:[
+    {label:"_base",data:floats,backgroundColor:"rgba(0,0,0,0)",borderColor:"rgba(0,0,0,0)",borderWidth:0,stack:"s"},
+    {label:"Valor",data:vals,backgroundColor:vals.map(function(v,i){return DRE_COLORS[i%DRE_COLORS.length]+"bb";}),
+     borderColor:vals.map(function(v,i){return DRE_COLORS[i%DRE_COLORS.length];}),borderWidth:1,stack:"s"}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{filter:function(i){return i.datasetIndex===1;},callbacks:{label:function(x){return dreFmt(x.parsed.y);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",font:{size:9}},grid:{color:"rgba(255,255,255,0.04)"}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+  }});
+}
+
+function dreFarol(ms){
+  var tb=dreEl("dre-farol");if(!tb)return;
+  var lm=ms[ms.length-1],pm=ms[ms.length-2]||"";
+  var rows="";
+  Object.keys(DRE.cat_totals).forEach(function(cat){
+    var cur=DRE.cat_totals[cat][lm]||0,prev=pm?(DRE.cat_totals[cat][pm]||0):0;
+    var dv=cur-prev,dp=prev>0?(dv/prev*100):0;
+    var st=dp>10?"&#128308; Crítico":dp>5?"&#128993; Alerta":dp>=-2?"&#128994; Ok":"&#128309; Queda";
+    var tr=dp>5?"&#128200; Subindo":dp<-5?"&#128201; Caindo":"&#10145; Estável";
+    var cls=dp>10?"tr":dp>5?"ty":"tg";
+    var resp=DRE_RESP[cat]||"—";
+    rows+="<tr onclick=\"dreAction('"+cat.replace(/'/g,"\\'")+"')\">" +
+      "<td><b>"+cat+"</b></td>" +
+      "<td>"+dreFmt(prev)+"</td><td>"+dreFmt(cur)+"</td>" +
+      "<td>"+(dv>=0?"+":"")+dreFmt(Math.abs(dv))+"</td>" +
+      "<td><span class=\"tag "+cls+"\">"+(dp>0?"+":"")+drePct(dp)+"</span></td>" +
+      "<td>"+st+"</td><td>"+tr+"</td>" +
+      "<td style=\"font-size:.78rem;color:var(--mu)\">"+resp+"</td></tr>";
+  });
+  tb.innerHTML=rows;
+}
+
+function dreChart4(ms){
+  dreC4=dreKill(dreC4);var ctx=dreEl("dre-c4");if(!ctx)return;
+  var cats=Object.keys(DRE.cat_totals),total=dreGrandSum(ms);
+  dreC4=new Chart(ctx,{type:"bar",data:{
+    labels:cats.map(function(c){return c.length>26?c.substring(0,24)+"…":c;}),
+    datasets:[{data:cats.map(function(cat){return total>0?(dreCatSum(cat,ms)/total*100):0;}),
+      backgroundColor:cats.map(function(c,i){return DRE_COLORS[i%DRE_COLORS.length]+"bb";}),
+      borderColor:cats.map(function(c,i){return DRE_COLORS[i%DRE_COLORS.length];}),borderWidth:1}]
+  },options:{indexAxis:"y",responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return drePct(x.parsed.x);}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",callback:function(v){return v.toFixed(0)+"%";}},grid:{color:"rgba(255,255,255,0.06)"}},
+            y:{ticks:{color:"#8fa0c0",font:{size:11}},grid:{color:"rgba(255,255,255,0.04)"}}}
+  }});
+}
+
+function dreCatBtns(ms,view){
+  var el=dreEl("dre-cat-btns");if(!el)return;
+  el.innerHTML="";
+  Object.keys(DRE.categories).forEach(function(cat,i){
+    var isA=cat===dreSelCat,col=DRE_COLORS[i%DRE_COLORS.length];
+    var btn=document.createElement("button");
+    btn.textContent=cat;btn.dataset.cat=cat;
+    btn.style.cssText="padding:6px 14px;border-radius:20px;font-size:.78rem;cursor:pointer;font-weight:500;"+
+      "border:1px solid "+(isA?col:"var(--br)")+";background:"+(isA?col:"var(--sf)")+";color:"+(isA?"#fff":"var(--mu)")+";";
+    el.appendChild(btn);
+  });
+  el.onclick=function(e){
+    var btn=e.target;if(btn.tagName!=="BUTTON")return;
+    dreSelCat=btn.dataset.cat;
+    var f=dreEl("dre-from"),t=dreEl("dre-to"),v=dreEl("dre-view");
+    if(f&&t&&v)dreCatBtns(dreRange(f.value,t.value),v.value);
+  };
+  dreDetail(ms,view);
+}
+
+function dreDetail(ms,view){
+  var tb=dreEl("dre-detail"),h1=dreEl("dre-h1"),h2=dreEl("dre-h2");if(!tb)return;
+  var items=DRE.categories[dreSelCat];
+  if(!items){tb.innerHTML="<tr><td colspan='6' style='color:var(--mu);text-align:center'>Sem dados</td></tr>";return;}
+  var pm=ms[ms.length-2]||"",lm=ms[ms.length-1];
+  if(h1)h1.textContent=pm||"—";if(h2)h2.textContent=lm||"—";
+  var catTotal=dreCatSum(dreSelCat,ms);
+  var rows=Object.keys(items).map(function(item){
+    var md=items[item];
+    var tot=ms.reduce(function(a,m){return a+(md[m]||0);},0);
+    var pv=pm?(md[pm]||0):0,lv=md[lm]||0,vp=pv>0?((lv-pv)/pv*100):0;
+    return{item:item,tot:tot,pv:pv,lv:lv,vp:vp,pct:catTotal>0?tot/catTotal*100:0};
+  }).filter(function(r){return r.tot>0;}).sort(function(a,b){return b.tot-a.tot;});
+  var fv=view==="av"?drePct:dreFmt;
+  tb.innerHTML=rows.map(function(r){
+    var cls=r.vp>10?"tr":r.vp>5?"ty":"tg";
+    return"<tr><td>"+r.item+"</td><td>"+fv(r.pv)+"</td><td>"+fv(r.lv)+"</td>"+
+      "<td style='font-weight:600'>"+dreFmt(r.tot)+"</td>"+
+      "<td style='color:var(--mu)'>"+r.pct.toFixed(1).replace(".",",")+"%</td>"+
+      "<td><span class='tag "+cls+"'>"+(r.vp>0?"+":"")+drePct(r.vp)+"</span></td></tr>";
+  }).join("");
+}
+
+function dreAction(cat){
+  var el=dreEl("dre-action");if(!el)return;
+  var a=DRE_ACTIONS[cat]||{causa:"Verificar com o gestor.",acao:"Revisar linha a linha."};
+  var resp=DRE_RESP[cat]||"Gestor";
+  el.innerHTML="";
+  var g=document.createElement("div");
+  g.style.cssText="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px";
+  [{bg:"rgba(255,77,79,.1)",bd:"rgba(255,77,79,.25)",tit:"Causa Raiz",val:a.causa},
+   {bg:"rgba(77,142,245,.1)",bd:"rgba(77,142,245,.25)",tit:"Ação Sugerida",val:a.acao},
+   {bg:"rgba(54,207,160,.1)",bd:"rgba(54,207,160,.25)",tit:"Responsável",val:resp}
+  ].forEach(function(it){
+    var d=document.createElement("div");
+    d.style.cssText="background:"+it.bg+";border:1px solid "+it.bd+";border-radius:10px;padding:16px";
+    var t=document.createElement("div");t.style.cssText="font-size:.7rem;color:var(--mu);margin-bottom:7px;text-transform:uppercase;letter-spacing:1px;font-weight:600";t.textContent=it.tit;
+    var v=document.createElement("div");v.style.cssText="font-size:.88rem;color:var(--tx);line-height:1.5";v.textContent=it.val;
+    d.appendChild(t);d.appendChild(v);g.appendChild(d);
+  });
+  el.appendChild(g);
+}
+
+function initDRE(){initDRESelectors();buildDRE();}
+
+// ════════════════════════════════════════════════════════════════════
+// LINHA A LINHA MODULE
+// ════════════════════════════════════════════════════════════════════
+var lalC1=null,lalC2=null,lalExpanded={};
+
+function initLALSelectors(){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  a.innerHTML="";b.innerHTML="";
+  DRE.months.forEach(function(m){
+    a.innerHTML+='<option value="'+m+'">'+m+'</option>';
+    b.innerHTML+='<option value="'+m+'">'+m+'</option>';
+  });
+  var n=DRE.months.length;
+  a.value=DRE.months[n-1];
+  b.value=DRE.months[n-2]||DRE.months[0];
+}
+
+function lalPreset(type){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  var mA=a.value, idxA=dreIdx(mA), idxB=-1;
+  // Backwards (B earlier than A) — offset = n-1 porque range inclui ambos endpoints
+  if(type==="prev")     idxB=idxA-1;  // 2 meses
+  if(type==="trim")     idxB=idxA-2;  // 3 meses
+  if(type==="sem")      idxB=idxA-5;  // 6 meses
+  if(type==="year")     idxB=idxA-11; // 12 meses
+  // Forwards (B later than A)
+  if(type==="nextprev") idxB=idxA+1;
+  if(type==="nexttrim") idxB=idxA+2;
+  if(type==="nextsem")  idxB=idxA+5;
+  if(type==="nextyear") idxB=idxA+11;
+  if(idxB>=0&&idxB<DRE.months.length){
+    b.value=DRE.months[idxB];
+    buildLAL();
+  } else if(idxB>=DRE.months.length){
+    alert("Período futuro ainda não disponível nos dados.");
+  }
+}
+
+function buildLAL(){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  var mA=a.value,mB=b.value;
+  if(mA===mB){alert("Selecione períodos diferentes.");return;}
+  lalKPIs(mA,mB);lalChart1(mA,mB);lalTable(mA,mB);dreEl("lal-drill").style.display="none";
+}
+
+function lalGetRange(mA,mB){
+  var iA=dreIdx(mA),iB=dreIdx(mB);
+  var from=Math.min(iA,iB),to=Math.max(iA,iB);
+  return DRE.months.slice(from,to+1);
+}
+
+function lalKPIs(mA,mB){
+  var el=dreEl("lal-kpis");if(!el)return;
+  var range=lalGetRange(mA,mB);
+  var nMeses=range.length;
+  var totA=DRE.grand_total[mA]||0,totB=DRE.grand_total[mB]||0;
+  var totRange=dreGrandSum(range);
+  var dv=totA-totB,dp=totB>0?(dv/totB*100):0;
+  var cats=Object.keys(DRE.cat_totals);
+  var bigCat="",bigVal=0;
+  cats.forEach(function(cat){
+    var va=DRE.cat_totals[cat][mA]||0,vb=DRE.cat_totals[cat][mB]||0;
+    if(Math.abs(va-vb)>bigVal){bigVal=Math.abs(va-vb);bigCat=cat;}
+  });
+  var vc=dp>5?"r":dp>0?"w":dp<-5?"g":"b";
+  el.innerHTML=
+    '<div class="kpi b"><div class="lbl">'+mA+' (Período A)</div><div class="val">'+dreCompact(totA)+'</div><div class="sub">'+dreFmt(totA)+'</div></div>'+
+    '<div class="kpi p"><div class="lbl">'+mB+' (Período B)</div><div class="val">'+dreCompact(totB)+'</div><div class="sub">'+dreFmt(totB)+'</div></div>'+
+    '<div class="kpi '+vc+'"><div class="lbl">Variação A vs B</div><div class="val">'+(dv>=0?"+":"")+dreCompact(dv)+'</div><div class="sub">'+(dp>=0?"+":"")+drePct(dp)+'</div></div>'+
+    (nMeses>1?
+      '<div class="kpi g"><div class="lbl">Total '+nMeses+' meses</div><div class="val">'+dreCompact(totRange)+'</div><div class="sub">média: '+dreCompact(totRange/nMeses)+'/mês</div></div>':
+      '<div class="kpi w"><div class="lbl">Maior Variação</div><div class="val" style="font-size:.9rem">'+bigCat+'</div><div class="sub">'+(dv>=0?"↑":"↓")+' '+dreCompact(bigVal)+'</div></div>');
+}
+
+function lalChart1(mA,mB){
+  lalC1=dreKill(lalC1);
+  var ctx=dreEl("lal-c1");if(!ctx)return;
+  var range=lalGetRange(mA,mB);
+  var nM=range.length;
+  var cats=Object.keys(DRE.cat_totals);
+  var tit=dreEl("lal-chart-title");
+  var lalLeg=dreEl("lal-c1-leg");
+  var COLORS=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4","#f8c291","#6c5ce7"];
+
+  if(nM<=2){
+    // 2 months: classic side-by-side bar
+    var valsA=cats.map(function(k){return DRE.cat_totals[k][mA]||0;});
+    var valsB=cats.map(function(k){return DRE.cat_totals[k][mB]||0;});
+    if(tit) tit.textContent="Comparativo por Categoria — "+mB+" vs "+mA;
+    lalC1=new Chart(ctx,{type:"bar",data:{
+      labels:cats.map(function(k){return k.length>22?k.substring(0,20)+"…":k;}),
+      datasets:[
+        {label:mB,data:valsB,backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1},
+        {label:mA,data:valsA,backgroundColor:"rgba(77,142,245,.75)",borderColor:"#4d8ef5",borderWidth:1}
+      ]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){
+        var ds=x.chart.data.datasets,i=x.dataIndex;
+        var ref=x.datasetIndex===0?(ds[1]?ds[1].data[i]||0:0):(ds[0]?ds[0].data[i]||0:0);
+        var pct=ref>0?((x.parsed.y-ref)/ref*100):0;
+        return x.dataset.label+": "+dreFmt(x.parsed.y)+" ("+(pct>=0?"+":"")+pct.toFixed(1).replace(".",",")+"%)";}}}},
+      scales:{x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+              y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+    }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,[{label:mB,borderColor:"#36cfa0"},{label:mA,borderColor:"#4d8ef5"}]);
+  } else {
+    // 3+ months: X-axis = categories, one dataset per month
+    // This way you see ALL categories side-by-side per month
+    // User wants: for each category, see bars for each month
+    // → X = categories, datasets = months (each month is a color)
+    var topCats=cats.map(function(k){
+      return{k:k,v:range.reduce(function(s,m){return s+(DRE.cat_totals[k][m]||0);},0)};
+    }).sort(function(a,b){return b.v-a.v;}).slice(0,10).map(function(x){return x.k;});
+
+    var MONTH_COLORS=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055","#74b9ff","#55efc4","#f8c291","#6c5ce7"];
+    var datasets=range.map(function(m,mi){
+      return{
+        label:m,
+        data:topCats.map(function(k){return DRE.cat_totals[k][m]||0;}),
+        backgroundColor:MONTH_COLORS[mi%MONTH_COLORS.length]+"bb",
+        borderColor:MONTH_COLORS[mi%MONTH_COLORS.length],
+        borderWidth:1,
+        borderRadius:3
+      };
+    });
+    if(tit) tit.textContent="Categorias × Período — "+range[0]+" → "+range[range.length-1]+" ("+nM+" meses)";
+    lalC1=new Chart(ctx,{type:"bar",data:{
+      labels:topCats.map(function(k){return k.length>20?k.substring(0,18)+"…":k;}),
+      datasets:datasets
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{
+        label:function(x){return x.dataset.label+": "+dreFmt(x.parsed.y);}
+      }}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:9},maxRotation:0,minRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      },
+      layout:{padding:{bottom:2,left:0,right:0,top:4}}
+    }});
+    if(lalLeg) makeLegend(lalLeg,lalC1,range.map(function(m,i){return{label:m,borderColor:MONTH_COLORS[i%MONTH_COLORS.length],backgroundColor:MONTH_COLORS[i%MONTH_COLORS.length]};}));
+  }
+}
+
+function lalTable(mA,mB){
+  var th=dreEl("lal-thead"),tb=dreEl("lal-tbody");if(!th||!tb)return;
+  th.innerHTML="<th style='text-align:left;width:34%'>Categoria / Subconta</th>"+
+    "<th>"+mB+"</th><th>"+mA+"</th>"+
+    "<th>Var. R$</th><th>Var. %</th><th style='text-align:left'>Status</th>";
+  var rows="";
+  var cats=Object.keys(DRE.cat_totals);
+  cats.forEach(function(cat,ci){
+    var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
+    var dv=vA-vB,dp=vB>0?(dv/vB*100):0;
+    var cls=dp>10?"tr":dp>5?"ty":dp<-10?"tg":"tb";
+    var col=DRE_COLORS[ci%DRE_COLORS.length];
+    var isExp=lalExpanded[cat];
+    rows+="<tr style='cursor:pointer;background:var(--s2)' onclick=\"lalToggleCat('"+cat.replace(/'/g,"\\'")+"','"+mA+"','"+mB+"')\">" +
+      "<td style='padding-left:14px;position:relative'>" +
+      "<span style='display:inline-block;width:10px;height:10px;border-radius:2px;background:"+col+";margin-right:8px;flex-shrink:0'></span>" +
+      "<b style='font-size:.88rem'>"+cat+"</b>" +
+      "<span style='margin-left:8px;font-size:.72rem;color:var(--mu)'>"+(isExp?"▲ recolher":"▼ expandir")+"</span>" +
+      "<span style='float:right;display:inline-flex;gap:4px'>" +
+      "<button class='lal-act-btn ai' data-cat='"+encodeURIComponent(cat)+"' data-ma='"+mA+"' data-mb='"+mB+"' data-action='ai' onclick='event.stopPropagation();lalBtnClick(this)'>🤖 Alerta IA</button>" +
+      "<button class='lal-act-btn chart' data-cat='"+encodeURIComponent(cat)+"' data-ma='"+mA+"' data-mb='"+mB+"' data-action='chart' onclick='event.stopPropagation();lalBtnClick(this)'>📊 Gráfico</button>" +
+      "</span>" +
+      "</td>" +
+      "<td>"+dreFmt(vB)+"</td>" +
+      "<td style='font-weight:600'>"+dreFmt(vA)+"</td>" +
+      "<td>"+(dv>0?"<span style='color:#ff7875'>+":"<span style='color:#36cfa0'>")+dreFmt(Math.abs(dv))+"</span></td>" +
+      "<td><span class='tag "+cls+"'>"+(dp>0?"+":"")+drePct(dp)+"</span></td>" +
+      "<td style='font-size:.78rem;color:var(--mu)'>"+DRE_RESP[cat]+"</td>" +
+      "</tr>";
+    if(isExp){
+      var items=DRE.categories[cat]||{};
+      var catTot=vA||1;
+      var itemArr=Object.keys(items).map(function(item){
+        var iA=items[item][mA]||0,iB=items[item][mB]||0;
+        return{item:item,iA:iA,iB:iB,dv:iA-iB,dp:iB>0?((iA-iB)/iB*100):0,pct:catTot>0?iA/catTot*100:0};
+      }).filter(function(r){return r.iA>0||r.iB>0;}).sort(function(a,b){return b.iA-a.iA;});
+      itemArr.forEach(function(r){
+        var ic=r.dp>10?"tr":r.dp>5?"ty":r.dp<-10?"tg":"tb";
+        rows+="<tr style='background:var(--bg)'>" +
+          "<td style='padding-left:36px;font-size:.83rem;color:var(--mu)'>"+r.item+" <span style='font-size:.7rem;color:var(--mu2)'>"+r.pct.toFixed(1).replace(".",",")+"%</span></td>" +
+          "<td style='font-size:.83rem'>"+dreFmt(r.iB)+"</td>" +
+          "<td style='font-size:.83rem;font-weight:600'>"+dreFmt(r.iA)+"</td>" +
+          "<td style='font-size:.83rem'>"+(r.dv>0?"<span style='color:#ff7875'>+":"<span style='color:#36cfa0'>")+dreFmt(Math.abs(r.dv))+"</span></td>" +
+          "<td><span class='tag "+ic+"'>"+(r.dp>0?"+":"")+drePct(r.dp)+"</span></td>" +
+          "<td></td></tr>";
+      });
+    }
+  });
+  tb.innerHTML=rows;
+}
+
+function lalToggleCat(cat,mA,mB){
+  // Save scroll position before rebuilding table
+  var wrap=document.getElementById("lal-table-wrap");
+  var scrollY=window.scrollY||window.pageYOffset;
+
+  lalExpanded[cat]=!lalExpanded[cat];
+  lalTable(mA,mB);
+
+  // After rebuild, scroll back to where the user was
+  requestAnimationFrame(function(){
+    window.scrollTo({top:scrollY,behavior:"instant"});
+    // Find and scroll the expanded row into view if it's below viewport
+    var tb=document.getElementById("lal-tbody");
+    if(!tb) return;
+    tb.querySelectorAll("tr").forEach(function(tr){
+      var b=tr.querySelector("b");
+      if(b&&b.textContent.trim()===cat){
+        var rect=tr.getBoundingClientRect();
+        if(rect.top<0||rect.top>window.innerHeight*0.7){
+          tr.scrollIntoView({behavior:"smooth",block:"center"});
+        }
+      }
+    });
+  });
+
+  // drill-down chart
+  if(lalExpanded[cat]){lalDrill(cat,mA,mB);}
+  else{dreEl("lal-drill").style.display="none";}
+}
+
+function lalDrill(cat,mA,mB){
+  var drill=dreEl("lal-drill");if(!drill)return;
+  drill.style.display="block";
+  var tit=dreEl("lal-drill-title");if(tit)tit.textContent="Detalhamento — "+cat;
+  lalC2=dreKill(lalC2);
+  var ctx=dreEl("lal-c2");if(!ctx)return;
+  var items=DRE.categories[cat]||{};
+  var arr=Object.keys(items).map(function(item){
+    return{item:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
+  }).filter(function(r){return r.vA>0||r.vB>0;}).sort(function(a,b){return b.vA-a.vA;}).slice(0,12);
+  lalC2=new Chart(ctx,{type:"bar",data:{
+    labels:arr.map(function(r){return r.item.length>20?r.item.substring(0,18)+"…":r.item;}),
+    datasets:[
+      {label:mA,data:arr.map(function(r){return r.vA;}),backgroundColor:"rgba(77,142,245,.75)",borderColor:"#4d8ef5",borderWidth:1},
+      {label:mB,data:arr.map(function(r){return r.vB;}),backgroundColor:"rgba(54,207,160,.75)",borderColor:"#36cfa0",borderWidth:1}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{labels:{color:"#8fa0c0",font:{size:12}}},tooltip:{callbacks:{label:function(x){var ds=x.chart.data.datasets,i=x.dataIndex;var vA=ds[0]?ds[0].data[i]||0:0,vB=ds[1]?ds[1].data[i]||0:0;var ref=x.datasetIndex===0?vB:vA;var pct=ref>0?((x.parsed.y-ref)/ref*100):0;return x.dataset.label+": "+dreFmt(x.parsed.y)+" ("+(pct>=0?"+":"")+pct.toFixed(1).replace(".",",")+"%)";}}}},
+    scales:{x:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{color:"rgba(255,255,255,0.04)"}},
+            y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}}
+  }});
+  // drill table
+  var dh=dreEl("lal-drill-head"),db=dreEl("lal-drill-body");if(!dh||!db)return;
+  dh.innerHTML="<th style='text-align:left'>Subconta</th><th>"+mB+"</th><th>"+mA+"</th><th>Var. R$</th><th>Var. %</th><th>% Cat.</th>";
+  var catTot=arr.reduce(function(s,r){return s+r.vA;},0)||1;
+  db.innerHTML=arr.map(function(r){
+    var dv=r.vA-r.vB,dp=r.vB>0?((r.vA-r.vB)/r.vB*100):0;
+    var cls=dp>10?"tr":dp>5?"ty":dp<-10?"tg":"tb";
+    return"<tr><td style='font-size:.85rem'>"+r.item+"</td><td>"+dreFmt(r.vB)+"</td>"+
+      "<td style='font-weight:600'>"+dreFmt(r.vA)+"</td>"+
+      "<td>"+(dv>0?"<span style='color:#ff7875'>+":"<span style='color:#36cfa0'>")+dreFmt(Math.abs(dv))+"</span></td>"+
+      "<td><span class='tag "+cls+"'>"+(dp>0?"+":"")+drePct(dp)+"</span></td>"+
+      "<td style='color:var(--mu)'>"+((r.vA/catTot)*100).toFixed(1).replace(".",",")+"% </td></tr>";
+  }).join("");
+  drill.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function lalExpandAll(expand){
+  Object.keys(DRE.cat_totals).forEach(function(cat){lalExpanded[cat]=expand;});
+  var a=dreEl("lal-a"),b=dreEl("lal-b");
+  if(a&&b)lalTable(a.value,b.value);
+}
+
+function lalCopyWhatsapp(){
+  var a=dreEl("lal-a"),b=dreEl("lal-b");if(!a||!b)return;
+  var mA=a.value,mB=b.value;
+  var totA=DRE.grand_total[mA]||0,totB=DRE.grand_total[mB]||0;
+  var dv=totA-totB,dp=totB>0?(dv/totB*100):0;
+  var lines=["*Comparativo DRE — "+mA+" vs "+mB+"*",""];
+  lines.push("Total "+mA+": "+dreFmt(totA));
+  lines.push("Total "+mB+": "+dreFmt(totB));
+  lines.push("Variação: "+(dp>0?"+":"")+dp.toFixed(1).replace(".",",")+"% ("+dreFmt(Math.abs(dv))+")");
+  lines.push("");
+  Object.keys(DRE.cat_totals).forEach(function(cat){
+    var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
+    var p=vB>0?((vA-vB)/vB*100):0;
+    var icon=p>10?"🔴":p>5?"🟡":p<-5?"🟢":"⚪";
+    lines.push(icon+" "+cat+": "+dreFmt(vA)+" ("+(p>0?"+":"")+p.toFixed(1).replace(".",",")+"%)");
+  });
+  lines.push(""); lines.push("_Gerado pelo Painel Q Food_");
+  try{
+    navigator.clipboard.writeText(lines.join("\n")).then(function(){
+      var btn=dreEl("lal-tv-btn");
+      var old=dreEl("lal-tv-btn").previousElementSibling;
+      old.textContent="✓ Copiado!";
+      setTimeout(function(){old.textContent="📋 Copiar Resumo";},2500);
+    });
+  }catch(e){alert(lines.join("\n"));}
+}
+
+var lalTVMode=false;
+function lalToggleTV(){
+  lalTVMode=!lalTVMode;
+  var page=dreEl("tab-lal");
+  var btn=dreEl("lal-tv-btn");
+  if(lalTVMode){
+    page.style.cssText="display:block;position:fixed;inset:0;z-index:500;overflow-y:auto;padding:24px 32px;background:var(--bg)";
+    document.querySelector(".hdr").style.display="none";
+    document.querySelector(".tabs").style.display="none";
+    if(btn)btn.textContent="✕ Sair TV";
+    document.documentElement.style.fontSize="19px";
+  }else{
+    page.style.cssText="display:block;padding:28px;max-width:1000px;margin:0 auto";
+    document.querySelector(".hdr").style.display="";
+    document.querySelector(".tabs").style.display="";
+    if(btn)btn.textContent="📺 Modo TV";
+    document.documentElement.style.fontSize="16px";
+  }
+}
+
+function initLAL(){initLALSelectors();buildLAL();}
+
+
+// ════════════════════════════════════════════════════════════════
+// FUNCOES LAL EXTRAS (lalAIAlert, lalCatChart, lalBtnClick)
+// ════════════════════════════════════════════════════════════════
+function lalAIAlert(cat,mA,mB){
+  var rowId="lal-ai-"+btoa(cat).replace(/[^a-z0-9]/gi,"");
+  var existing=document.getElementById(rowId);
+  if(existing){existing.remove();return;}
+  var vA=DRE.cat_totals[cat][mA]||0,vB=DRE.cat_totals[cat][mB]||0;
+  var dv=vA-vB,dp=vB>0?(dv/vB*100):0;
+  var range=lalGetRange(mA,mB),nMeses=range.length;
+  var vRange=dreCatSum(cat,range),vMedia=nMeses>0?vRange/nMeses:0;
+  var resp=DRE_RESP[cat]||"Gestor";
+  var nivel=dp>15?"🔴 CRÍTICO":dp>5?"🟡 ATENÇÃO":dp<-10?"🟢 QUEDA POSITIVA":"⚪ ESTÁVEL";
+  var msg="";
+  if(dp>15) msg="Aumento expressivo de "+drePct(dp)+" em relação ao período anterior. Verificação urgente com "+resp+".";
+  else if(dp>5) msg="Alta de "+drePct(dp)+" acima do normal. Recomenda-se análise com "+resp+".";
+  else if(dp<-10) msg="Redução de "+drePct(Math.abs(dp))+" — resultado positivo. "+resp+" avalia sustentabilidade.";
+  else msg="Variação dentro do esperado ("+drePct(dp)+"). Sem ação imediata necessária para "+resp+".";
+  var items=DRE.categories[cat]||{};
+  var topItems=Object.keys(items).map(function(item){
+    var vIA=items[item][mA]||0,vIB=items[item][mB]||0;
+    return{item:item,dv:vIA-vIB,dp:vIB>0?((vIA-vIB)/vIB*100):0,vA:vIA};
+  }).filter(function(r){return Math.abs(r.dp)>5&&(r.vA>0);})
+    .sort(function(a,b){return Math.abs(b.dv)-Math.abs(a.dv);}).slice(0,3);
+  var topHTML=topItems.length>0?
+    "<div style='margin-top:8px;font-size:.78rem;color:var(--mu)'>Subcontas de maior impacto:</div>"+
+    topItems.map(function(r){
+      var cor=r.dp>0?"#ff7875":"#36cfa0";
+      return "<div style='font-size:.8rem;padding:2px 0'>"+
+        "<span style='color:"+cor+";font-weight:600'>"+(r.dp>0?"+":"")+drePct(r.dp)+"</span> "+
+        r.item+" <span style='color:var(--mu)'>("+dreFmt(Math.abs(r.dv))+")</span></div>";
+    }).join(""):"";
+  var tb=document.getElementById("lal-tbody");
+  if(!tb) return;
+  var targetRow=null;
+  tb.querySelectorAll("tr").forEach(function(tr){
+    var b=tr.querySelector("b");
+    if(b&&b.textContent.trim()===cat) targetRow=tr;
+  });
+  var alertRow=document.createElement("tr");
+  alertRow.id=rowId;
+  alertRow.innerHTML="<td colspan='6' style='padding:0 14px 10px'><div class='lal-ai-box'>"+
+    "<div style='font-weight:700;margin-bottom:6px'>"+nivel+" — "+cat+"</div>"+
+    "<div style='font-size:.82rem;line-height:1.6'>"+msg+"</div>"+topHTML+
+    "<div style='font-size:.72rem;color:var(--mu);margin-top:8px'>Responsável: "+resp+" | "+mA+" vs "+mB+"</div>"+
+    "</div></td>";
+  if(targetRow) tb.insertBefore(alertRow,targetRow.nextSibling);
+}
+
+// LAL CAT CHART
+function lalCatChart(cat,mA,mB){
+  var chartId="lal-ch-"+btoa(cat).replace(/[^a-z0-9]/gi,"");
+  var existing=document.getElementById(chartId);
+  if(existing){existing.remove();return;}
+  var range=lalGetRange(mA,mB);
+  var nM=range.length;
+  var items=DRE.categories[cat]||{};
+  var col=DRE_COLORS[Object.keys(DRE.cat_totals).indexOf(cat)%DRE_COLORS.length]||"#4d8ef5";
+  var tb=document.getElementById("lal-tbody");if(!tb)return;
+  var targetRow=null;
+  tb.querySelectorAll("tr").forEach(function(tr){
+    var b=tr.querySelector("b");
+    if(b&&b.textContent.trim()===cat)targetRow=tr;
+  });
+  var chartRow=document.createElement("tr");
+  chartRow.id=chartId;
+  
+  var td=document.createElement("td");
+  td.colSpan=6;
+  td.style.cssText="padding:4px 10px 12px;max-width:100%;width:100%";
+  var wrap=document.createElement("div");
+  wrap.style.cssText="background:var(--s2);border-radius:8px;padding:8px 12px 4px;height:200px;position:relative";
+
+  if(nM<=2){
+    // Classic 2-period SVG bars
+    var arr=Object.keys(items).map(function(item){
+      return{n:item,vA:items[item][mA]||0,vB:items[item][mB]||0};
+    }).filter(function(r){return r.vA>0||r.vB>0;})
+      .sort(function(a,b){return b.vA-a.vA;}).slice(0,6);
+    if(!arr.length){td.innerHTML="<span style='color:var(--mu);font-size:.8rem'>Sem dados</span>";chartRow.appendChild(td);if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);return;}
+    var maxV=Math.max.apply(null,arr.map(function(d){return Math.max(d.vA,d.vB);}));
+    if(maxV===0)maxV=1;
+    var W=720,barH=16,gap=4,left=130,right=20,topPad=6;
+    var svgH=arr.length*(barH*2+gap+12)+topPad*2+24;
+    var aW=W-left-right;
+    // Wrap in scrollable container if tall
+    var maxH=Math.min(svgH,340);
+    var sh="";
+    arr.forEach(function(d,i){
+      var y=topPad+24+i*(barH*2+gap+14);
+      var wA=(d.vA/maxV)*aW,wB=(d.vB/maxV)*aW;
+      var nm=d.n.length>17?d.n.substring(0,16)+"…":d.n;
+      var dl=(i*.08).toFixed(2)+"s";
+      sh+="<text x='"+(left-6)+"' y='"+(y+barH/2+4)+"' text-anchor='end' font-size='10' fill='#8fa0c0'>"+nm+"</text>";
+      sh+="<rect x='"+left+"' y='"+y+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
+      sh+="<rect x='"+left+"' y='"+y+"' width='0' height='"+barH+"' rx='3' fill='"+col+"' opacity='0.85'><animate attributeName='width' from='0' to='"+wA.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
+      sh+="<text x='"+(left+wA+4)+"' y='"+(y+barH/2+4)+"' font-size='10' fill='"+col+"'>"+dreFmt(d.vA)+"</text>";
+      sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='"+aW+"' height='"+barH+"' rx='3' fill='rgba(255,255,255,0.05)'/>";
+      sh+="<rect x='"+left+"' y='"+(y+barH+3)+"' width='0' height='"+barH+"' rx='3' fill='#36cfa0' opacity='0.6'><animate attributeName='width' from='0' to='"+wB.toFixed(1)+"' dur='0.5s' begin='"+dl+"' fill='freeze'/></rect>";
+      sh+="<text x='"+(left+wB+4)+"' y='"+(y+barH*2+4)+"' font-size='10' fill='#36cfa0'>"+dreFmt(d.vB)+"</text>";
+    });
+    var leg="<rect x='"+left+"' y='4' width='12' height='10' rx='2' fill='"+col+"'/><text x='"+(left+16)+"' y='13' font-size='11' fill='#8fa0c0'>"+mA+"</text><rect x='"+(left+80)+"' y='4' width='12' height='10' rx='2' fill='#36cfa0' opacity='0.7'/><text x='"+(left+96)+"' y='13' font-size='11' fill='#8fa0c0'>"+mB+"</text>";
+    var svgEl="<svg width='100%' height='"+svgH+"' viewBox='0 0 "+W+" "+svgH+"' xmlns='http://www.w3.org/2000/svg'>"+leg+sh+"</svg>";
+    wrap.innerHTML="<div style='max-height:240px;overflow-y:auto;overflow-x:hidden;border-radius:8px'>"+svgEl+"</div>";
+  } else {
+    // 3+ months: Canvas bar chart showing monthly totals for this category
+    var cvs=document.createElement("canvas");
+    cvs.style.cssText="position:absolute;top:28px;left:0;right:0;bottom:0;width:100%";
+    var monthTotals=range.map(function(m){
+      return Object.values(items).reduce(function(s,byM){return s+(byM[m]||0);},0);
+    });
+    wrap.appendChild(cvs);
+    var titleEl=document.createElement("div");
+    titleEl.style.cssText="font-size:.72rem;color:var(--mu);font-weight:600;position:absolute;top:0;left:12px";
+    titleEl.textContent=cat+" — "+nM+" meses ("+range[0]+" → "+range[range.length-1]+")";
+    wrap.insertBefore(titleEl,cvs);
+    new Chart(cvs,{type:"bar",data:{
+      labels:range,
+      datasets:[{
+        label:cat,
+        data:monthTotals,
+        backgroundColor:col+"bb",
+        borderColor:col,
+        borderWidth:1,
+        borderRadius:4
+      }]
+    },options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return dreFmt(x.parsed.y);}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",font:{size:10},maxRotation:0,minRotation:0,autoSkip:false},grid:{color:"rgba(255,255,255,0.04)"}},
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return"R$"+(v/1000).toFixed(0)+"k";}},grid:{color:"rgba(255,255,255,0.06)"}}
+      },
+      layout:{padding:{bottom:2,left:0,right:0,top:4}}
+    }});
+  }
+
+  td.appendChild(wrap);
+  chartRow.appendChild(td);
+  if(targetRow)tb.insertBefore(chartRow,targetRow.nextSibling);
+}
+
+
+function lalBtnClick(btn){
+  var cat=decodeURIComponent(btn.dataset.cat);
+  var mA=btn.dataset.ma;
+  var mB=btn.dataset.mb;
+  var action=btn.dataset.action;
+  if(action==="ai") lalAIAlert(cat,mA,mB);
+  else if(action==="chart") lalCatChart(cat,mA,mB);
+}
+
+
+// ── LEGEND TOGGLE — helper global ────────────────────────────
+function makeLegend(legEl, chartInst, datasets){
+  if(!legEl||!chartInst) return;
+  legEl.innerHTML="";
+  datasets.forEach(function(d,i){
+    var span=document.createElement("span");
+    var dot=document.createElement("i");
+    dot.style.background=d.borderColor||d.backgroundColor||"#888";
+    span.appendChild(dot);
+    span.appendChild(document.createTextNode(" "+d.label));
+    span.dataset.idx=i;
+    span.onclick=function(){
+      var idx=parseInt(this.dataset.idx);
+      var meta=chartInst.getDatasetMeta(idx);
+      meta.hidden=!meta.hidden;
+      this.classList.toggle("off", meta.hidden);
+      chartInst.update();
+    };
+    legEl.appendChild(span);
+  });
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+// MÓDULO FATURAMENTO DINÂMICO
+// ════════════════════════════════════════════════════════════════════
+var fatAllRows=[];
+var fatLoaded=false;
+
+
+// ════════════════════════════════════════════════════════════════
+// MODULO FATURAMENTO (copia fiel do original)
+// ════════════════════════════════════════════════════════════════
+var fatAllRows=[];
+var fatLoaded=false;
+var fatC1=null,fatC2=null,fatC3=null,fatC4=null;
+
+function fatNum(v){
+  var s=String(v||0).replace(/R\$\s*/g,"").trim();
+  if(s.indexOf(",")>-1&&s.indexOf(".")>-1) s=s.replace(/\./g,"").replace(",",".");
+  else if(s.indexOf(",")>-1) s=s.replace(",",".");
+  var n=parseFloat(s);
+  return isNaN(n)?0:n;
+}
+function fatFmt(v){
+  var n=fatNum(v);
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fatFmtK(v){
+  var n=fatNum(v);
+  if(n>=1000000) return "R$ "+(n/1000000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" M";
+  if(n>=1000)    return "R$ "+(n/1000).toLocaleString("pt-BR",{minimumFractionDigits:1,maximumFractionDigits:1})+" k";
+  return fatFmt(n);
+}
+function fatPct(v){
+  return fatNum(v).toFixed(1).replace(".",",")+"%";
+}
+function fatExcelDate(v){
+  if(!v) return "—";
+  // CSV exports dates as text "dd/mm/yyyy" - parse directly
+  var s=String(v).trim();
+  if(s.indexOf("/")>-1) return s; // already formatted
+  // fallback: Excel serial
+  var n=parseFloat(s);
+  if(!isNaN(n)&&n>40000&&n<60000){
+    var d=new Date(Math.round((n-25569)*86400*1000));
+    return d.toLocaleDateString("pt-BR");
+  }
+  return s||"—";
+}
+
+async function initFat(){
+  if(fatLoaded){ fatApplyFilters(); return; }
+  fatLoad(false);
+}
+
+async function fatLoad(force){
+  if(force) fatLoaded=false;
+  var ldg=document.getElementById("fat-loading");
+  var upd=document.getElementById("fat-last-update");
+  if(ldg) ldg.style.display="flex";
+  try{
+    var r=await fetch(UFAT+"&t="+Date.now());
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt=await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV");
+    fatAllRows=csv(txt);
+    fatLoaded=true;
+    if(upd) upd.textContent="Atualizado em "+new Date().toLocaleString("pt-BR")+" — "+fatAllRows.length+" registros";
+    fatPopulateFilters();
+    fatApplyFilters();
+    if(ldg) ldg.style.display="none";
+  }catch(e){
+    if(ldg) ldg.innerHTML="<div style='color:var(--red)'>Erro: "+e.message+"</div>";
+  }
+}
+
+function fatPopulateFilters(){
+  var vends=[...new Set(fatAllRows.map(function(r){return(r["VENDEDOR:"]||r["VENDEDOR"]||"").trim();}))].filter(Boolean).sort();
+  var regs=[...new Set(fatAllRows.map(function(r){return(r["REGIAO:"]||r["REGIAO"]||"").trim();}))].filter(Boolean).sort();
+  var segs=[...new Set(fatAllRows.map(function(r){return(r["SEGMENTO:"]||r["SEGMENTO"]||"").trim();}))].filter(Boolean).sort();
+
+  function populateSel(id, opts){
+    var sel=document.getElementById(id);
+    if(!sel) return;
+    var cur=sel.value;
+    sel.querySelectorAll("option:not([value=''])").forEach(function(o){o.remove();});
+    opts.forEach(function(v){
+      var o=document.createElement("option");
+      o.value=v; o.textContent=v; sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
+  }
+  populateSel("fat-vend", vends);
+  populateSel("fat-regiao", regs);
+  populateSel("fat-seg", segs);
+}
+
+function fatGetField(r, keys){
+  for(var i=0;i<keys.length;i++){
+    if(r[keys[i]]!==undefined&&r[keys[i]]!=="") return r[keys[i]];
+  }
+  return "";
+}
+
+function fatApplyFilters(){
+  var vend=(document.getElementById("fat-vend").value||"").trim();
+  var reg=(document.getElementById("fat-regiao").value||"").trim();
+  var seg=(document.getElementById("fat-seg").value||"").trim();
+  var search=(document.getElementById("fat-search").value||"").toLowerCase().trim();
+
+  var rows=fatAllRows.filter(function(r){
+    if(vend&&(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim()!==vend) return false;
+    if(reg&&(fatGetField(r,["REGIAO:","REGIAO"])||"").trim()!==reg) return false;
+    if(seg&&(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"").trim()!==seg) return false;
+    if(search){
+      var hay=[
+        fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"]),
+        fatGetField(r,["DESCRICAO:","DESCRICAO"]),
+        fatGetField(r,["VENDEDOR:","VENDEDOR"]),
+        fatGetField(r,["MUNICIPIO:","MUNICIPIO"])
+      ].join(" ").toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  var ldg=document.getElementById("fat-loading");
+  if(ldg) ldg.style.display="none";
+
+  fatKPIs(rows);
+  fatCharts(rows);
+  fatRankings(rows);
+  fatTable(rows);
+}
+
+function fatKPIs(rows){
+  var n=rows.length;
+  var totFat=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["TOTAL:","TOTAL"]));},0);
+  var totCusto=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["CUSTO:","CUSTO"]));},0);
+  var totMargem=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["MARGEM:","MARGEM"]));},0);
+  var avgMargem=n>0?totMargem/n:0;
+  var avgMarkup=0;
+  var mkupCount=0;
+  rows.forEach(function(r){
+    var m=fatNum(fatGetField(r,["MARCKUP:","MARCKUP"]));
+    if(m>0){avgMarkup+=m;mkupCount++;}
+  });
+  avgMarkup=mkupCount>0?avgMarkup/mkupCount:0;
+
+  // Unique clients
+  var clientes=new Set(rows.map(function(r){return fatGetField(r,["CNPJ/CPF","CNPJ"]);})).size;
+
+  // Churn risk: dias sem compra > 30
+  var churnRisk=rows.filter(function(r){
+    return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]))>30;
+  }).length;
+  var clientesChurn=new Set(rows.filter(function(r){
+    return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]))>30;
+  }).map(function(r){return fatGetField(r,["CNPJ/CPF","CNPJ"]);})).size;
+
+  // Ticket médio por cliente
+  var byClient={};
+  rows.forEach(function(r){
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    if(!byClient[cli]) byClient[cli]=0;
+    byClient[cli]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var clienteVals=Object.values(byClient);
+  var ticketMedio=clienteVals.length>0?clienteVals.reduce(function(a,b){return a+b;},0)/clienteVals.length:0;
+
+  // Concentracao: top cliente %
+  var topClienteFat=Math.max.apply(null,clienteVals);
+  var concPct=totFat>0?(topClienteFat/totFat*100):0;
+  var topClienteNome="—";
+  rows.forEach(function(r){
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    if(byClient[cli]===topClienteFat) topClienteNome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"—";
+  });
+  // shorten name
+  var parts=topClienteNome.split(" ");
+  topClienteNome=parts.slice(0,2).join(" ");
+
+  var k1=document.getElementById("fat-kpis1");
+  var k2=document.getElementById("fat-kpis2");
+  if(k1) k1.innerHTML=
+    '<div class="kpi b"><div class="lbl">Faturamento Total</div><div class="val">'+fatFmtK(totFat)+'</div><div class="sub">'+n+' registros</div></div>'+
+    '<div class="kpi g"><div class="lbl">Margem Média</div><div class="val">'+fatPct(avgMargem)+'</div><div class="sub">Markup médio: '+avgMarkup.toFixed(1).replace(".",",")+'%</div></div>'+
+    '<div class="kpi p"><div class="lbl">Clientes Ativos</div><div class="val">'+clientes+'</div><div class="sub">na seleção atual</div></div>'+
+    '<div class="kpi r"><div class="lbl">Risco de Churn</div><div class="val">'+clientesChurn+'</div><div class="sub">clientes +30 dias s/ compra</div></div>';
+
+  if(k2) k2.innerHTML=
+    '<div class="kpi w"><div class="lbl">Ticket Médio / Cliente</div><div class="val">'+fatFmtK(ticketMedio)+'</div><div class="sub">faturamento médio por conta</div></div>'+
+    '<div class="kpi b"><div class="lbl">Custo Total</div><div class="val">'+fatFmtK(totCusto)+'</div><div class="sub">base de custo</div></div>'+
+    '<div class="kpi g"><div class="lbl">Concentração Top 1</div><div class="val">'+concPct.toFixed(1).replace(".",",")+"%"+'</div><div class="sub">'+topClienteNome+'</div></div>'+
+    '<div class="kpi p"><div class="lbl">Produtos Distintos</div><div class="val">'+new Set(rows.map(function(r){return fatGetField(r,["CODIGO:","CODIGO"]);})).size+'</div><div class="sub">SKUs na seleção</div></div>';
+}
+
+function fatCharts(rows){
+  // ── C1: Faturamento por Vendedor (barras) ────────────────────
+  var byVend={};
+  rows.forEach(function(r){
+    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    if(!byVend[v]) byVend[v]=0;
+    byVend[v]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var vNames=Object.keys(byVend).sort(function(a,b){return byVend[b]-byVend[a];});
+  var vColors=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8","#e17055"];
+
+  if(fatC1){fatC1.destroy();fatC1=null;}
+  var ctx1=document.getElementById("fat-c1");
+  if(ctx1){
+    fatC1=new Chart(ctx1,{type:"bar",data:{
+      labels:vNames,
+      datasets:[{
+        label:"Faturamento",
+        data:vNames.map(function(v){return byVend[v];}),
+        backgroundColor:vNames.map(function(v,i){return vColors[i%vColors.length]+"bb";}),
+        borderColor:vNames.map(function(v,i){return vColors[i%vColors.length];}),
+        borderWidth:1,borderRadius:5
+      }]
+    },options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return fatFmtK(x.parsed.y);}}}},
+      scales:{
+        y:{ticks:{color:"#8fa0c0",callback:function(v){return fatFmtK(v);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        x:{ticks:{color:"#8fa0c0"},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C2: Margem por Segmento (barras horizontais) ─────────────
+  var bySeg={};
+  rows.forEach(function(r){
+    var s=(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"Outros").trim();
+    if(!bySeg[s]) bySeg[s]={sum:0,cnt:0};
+    bySeg[s].sum+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    bySeg[s].cnt++;
+  });
+  var segNames=Object.keys(bySeg).sort(function(a,b){
+    return (bySeg[b].sum/bySeg[b].cnt)-(bySeg[a].sum/bySeg[a].cnt);
+  });
+
+  if(fatC2){fatC2.destroy();fatC2=null;}
+  var ctx2=document.getElementById("fat-c2");
+  if(ctx2){
+    var segColors=["#36cfa0","#4d8ef5","#a07cf6","#ffaa2b","#ff4d4f","#00cec9","#fd79a8"];
+    fatC2=new Chart(ctx2,{type:"bar",data:{
+      labels:segNames,
+      datasets:[{
+        label:"Margem Média %",
+        data:segNames.map(function(s){return bySeg[s].sum/bySeg[s].cnt;}),
+        backgroundColor:segNames.map(function(s,i){return segColors[i%segColors.length]+"bb";}),
+        borderColor:segNames.map(function(s,i){return segColors[i%segColors.length];}),
+        borderWidth:1,borderRadius:5
+      }]
+    },options:{
+      indexAxis:"y",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return x.parsed.x.toFixed(1).replace(".",",")+"%";}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",callback:function(v){return v.toFixed(0)+"%";}},grid:{color:"rgba(255,255,255,0.05)"}},
+        y:{ticks:{color:"#8fa0c0"},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C3: Top 10 Clientes (barras horizontais) ─────────────────
+  var byCliF={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"S/N";
+    var short=k.split(" ").slice(0,2).join(" ");
+    if(!byCliF[short]) byCliF[short]=0;
+    byCliF[short]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var top10=Object.keys(byCliF).sort(function(a,b){return byCliF[b]-byCliF[a];}).slice(0,10);
+
+  if(fatC3){fatC3.destroy();fatC3=null;}
+  var ctx3=document.getElementById("fat-c3");
+  if(ctx3){
+    fatC3=new Chart(ctx3,{type:"bar",data:{
+      labels:top10,
+      datasets:[{
+        label:"Faturamento",
+        data:top10.map(function(c){return byCliF[c];}),
+        backgroundColor:"rgba(77,142,245,.75)",
+        borderColor:"#4d8ef5",borderWidth:1,borderRadius:4
+      }]
+    },options:{
+      indexAxis:"y",
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:function(x){return fatFmtK(x.parsed.x);}}}},
+      scales:{
+        x:{ticks:{color:"#8fa0c0",callback:function(v){return fatFmtK(v);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        y:{ticks:{color:"#8fa0c0",font:{size:10}},grid:{display:false}}
+      }
+    }});
+  }
+
+  // ── C4: Distribuição por Região (doughnut) ────────────────────
+  var byReg={};
+  rows.forEach(function(r){
+    var reg=(fatGetField(r,["REGIAO:","REGIAO"])||"Outros").trim();
+    if(!byReg[reg]) byReg[reg]=0;
+    byReg[reg]+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var regNames=Object.keys(byReg).sort(function(a,b){return byReg[b]-byReg[a];});
+  var regColors=["#4d8ef5","#36cfa0","#a07cf6","#ffaa2b","#ff4d4f","#00cec9"];
+
+  if(fatC4){fatC4.destroy();fatC4=null;}
+  var ctx4=document.getElementById("fat-c4");
+  if(ctx4){
+    var ds4=[{
+      data:regNames.map(function(r){return byReg[r];}),
+      backgroundColor:regNames.map(function(r,i){return regColors[i%regColors.length]+"cc";}),
+      borderColor:regNames.map(function(r,i){return regColors[i%regColors.length];}),
+      borderWidth:2
+    }];
+    fatC4=new Chart(ctx4,{type:"doughnut",data:{labels:regNames,datasets:ds4},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:function(x){
+          var tot=x.dataset.data.reduce(function(a,b){return a+b;},0);
+          return x.label+": "+fatFmtK(x.parsed)+" ("+((x.parsed/tot)*100).toFixed(1)+"%)";}}}
+      },
+      cutout:"60%"
+    }});
+    makeLegend(document.getElementById("fat-c4-leg"),fatC4,ds4[0].backgroundColor.map(function(c,i){
+      return{label:regNames[i],borderColor:regColors[i%regColors.length],backgroundColor:regColors[i%regColors.length]};
+    }));
+  }
+}
+
+function fatRankings(rows){
+  var totFat=rows.reduce(function(s,r){return s+fatNum(fatGetField(r,["TOTAL:","TOTAL"]));},0);
+
+  // ── Top Clientes ─────────────────────────────────────────────
+  var byCliObj={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    var nome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||k;
+    if(!byCliObj[k]) byCliObj[k]={nome:nome,fat:0,qtd:0,margem:0,cnt:0};
+    byCliObj[k].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byCliObj[k].qtd+=fatNum(fatGetField(r,["QTDE:","QTDE"]));
+    byCliObj[k].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byCliObj[k].cnt++;
+  });
+  var topCli=Object.values(byCliObj).sort(function(a,b){return b.fat-a.fat;}).slice(0,8);
+  var maxCliFat=topCli[0]?topCli[0].fat:1;
+
+  var rCli=document.getElementById("fat-rank-clientes");
+  if(rCli){
+    rCli.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      topCli.map(function(d,i){
+        var pct=maxCliFat>0?(d.fat/maxCliFat*100):0;
+        var share=totFat>0?(d.fat/totFat*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var nome=d.nome.split(" ").slice(0,3).join(" ");
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+nome+"</span>"+
+            "<span style='font-weight:700;color:#4d8ef5'>"+fatFmtK(d.fat)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:#4d8ef5;width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>Share: "+share.toFixed(1).replace(".",",")+"%&nbsp;·&nbsp;Margem avg: "+(d.cnt>0?d.margem/d.cnt:0).toFixed(1).replace(".",",")+"% &nbsp;·&nbsp; Dias s/compra: veja tabela</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+
+  // ── Top Produtos ─────────────────────────────────────────────
+  var byProd={};
+  rows.forEach(function(r){
+    var k=fatGetField(r,["CODIGO:","CODIGO"]);
+    var desc=fatGetField(r,["DESCRICAO:","DESCRICAO"])||k;
+    if(!byProd[k]) byProd[k]={desc:desc,fat:0,qtd:0,margem:0,cnt:0};
+    byProd[k].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byProd[k].qtd+=fatNum(fatGetField(r,["QTDE:","QTDE"]));
+    byProd[k].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byProd[k].cnt++;
+  });
+  var topProd=Object.values(byProd).sort(function(a,b){return b.fat-a.fat;}).slice(0,8);
+  var maxProdFat=topProd[0]?topProd[0].fat:1;
+
+  var rProd=document.getElementById("fat-rank-produtos");
+  if(rProd){
+    rProd.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      topProd.map(function(d,i){
+        var pct=maxProdFat>0?(d.fat/maxProdFat*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var desc=d.desc.length>30?d.desc.substring(0,28)+"…":d.desc;
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+desc+"</span>"+
+            "<span style='font-weight:700;color:#36cfa0'>"+fatFmtK(d.fat)+"</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:#36cfa0;width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>"+d.qtd+" un &nbsp;·&nbsp; Margem avg: "+(d.cnt>0?d.margem/d.cnt:0).toFixed(1).replace(".",",")+"% &nbsp;·&nbsp; Clientes: "+d.cnt+"</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+
+  // ── Risco de Churn ───────────────────────────────────────────
+  var ricoMap={};
+  rows.forEach(function(r){
+    var dias=fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    if(dias<30) return;
+    var cli=fatGetField(r,["CNPJ/CPF","CNPJ"]);
+    var nome=fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||cli;
+    var ult=fatGetField(r,["ULTIMA NF","ULTIMA_NF"]);
+    if(!ricoMap[cli]||ricoMap[cli].dias<dias)
+      ricoMap[cli]={nome:nome,dias:dias,ult:ult,fat:0};
+    ricoMap[cli].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+  });
+  var riscoList=Object.values(ricoMap).sort(function(a,b){return b.dias-a.dias;}).slice(0,8);
+
+  var rRisco=document.getElementById("fat-risco");
+  if(rRisco){
+    if(!riscoList.length){
+      rRisco.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;text-align:center;color:var(--mu);font-size:.85rem'>Nenhum cliente com +30 dias sem compra ✓</div>";
+    } else {
+      rRisco.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+        riscoList.map(function(d){
+          var cls=d.dias>60?"tr":d.dias>45?"ty":"tw";
+          var nome=d.nome.split(" ").slice(0,3).join(" ");
+          return "<div style='display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--br)'>"+
+            "<div><div style='font-size:.82rem;font-weight:600'>"+nome+"</div>"+
+            "<div style='font-size:.7rem;color:var(--mu)'>Últ. NF: "+fatExcelDate(d.ult)+" &nbsp;·&nbsp; Fat: "+fatFmtK(d.fat)+"</div></div>"+
+            "<span class='tag "+cls+"'>"+d.dias+" dias</span>"+
+          "</div>";
+        }).join("")+"</div>";
+    }
+  }
+
+  // ── Margem por Vendedor ───────────────────────────────────────
+  var byVendM={};
+  rows.forEach(function(r){
+    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    if(!byVendM[v]) byVendM[v]={fat:0,margem:0,cnt:0};
+    byVendM[v].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+    byVendM[v].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    byVendM[v].cnt++;
+  });
+  var vendList=Object.values(byVendM).map(function(d){
+    return{nome:d.nome||"",fat:d.fat,avgMargem:d.cnt>0?d.margem/d.cnt:0,cnt:d.cnt};
+  });
+  Object.keys(byVendM).forEach(function(k,i){vendList[i].nome=k;});
+  vendList.sort(function(a,b){return b.avgMargem-a.avgMargem;});
+  var maxMarg=vendList[0]?vendList[0].avgMargem:1;
+
+  var rMarg=document.getElementById("fat-rank-margem");
+  if(rMarg){
+    rMarg.innerHTML="<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px'>"+
+      vendList.map(function(d,i){
+        var pct=maxMarg>0?(d.avgMargem/maxMarg*100):0;
+        var medals=["🥇","🥈","🥉"];
+        var medal=i<3?medals[i]:"";
+        var cor=d.avgMargem>=35?"#36cfa0":d.avgMargem>=25?"#ffaa2b":"#ff4d4f";
+        return "<div style='margin-bottom:10px'>"+
+          "<div style='display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:2px'>"+
+            "<span>"+medal+" "+d.nome+"</span>"+
+            "<span style='font-weight:700;color:"+cor+"'>"+d.avgMargem.toFixed(1).replace(".",",")+"% margem</span>"+
+          "</div>"+
+          "<div style='background:var(--br);border-radius:3px;height:5px;overflow:hidden'>"+
+            "<div style='height:100%;border-radius:3px;background:"+cor+";width:"+pct.toFixed(1)+"%'></div>"+
+          "</div>"+
+          "<div style='font-size:.68rem;color:var(--mu);margin-top:1px'>Fat: "+fatFmtK(d.fat)+" &nbsp;·&nbsp; "+d.cnt+" registros</div>"+
+        "</div>";
+      }).join("")+"</div>";
+  }
+}
+
+var fatSortCol=-1, fatSortAsc=true;
+var fatLastRows=[];
+
+function fatSort(col){
+  if(fatSortCol===col) fatSortAsc=!fatSortAsc;
+  else { fatSortCol=col; fatSortAsc=true; }
+  // Update indicators
+  for(var i=0;i<10;i++){
+    var el=document.getElementById("fso"+i);
+    if(el) el.textContent=i===fatSortCol?(fatSortAsc?" ▲":" ▼"):"";
+  }
+  var rows=fatLastRows.slice();
+  rows.sort(function(a,b){
+    var getVal=function(r,c){
+      switch(c){
+        case 0: return (fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").replace("."," ").split(" ")[0];
+        case 1: return (fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"").split(" ").slice(0,3).join(" ");
+        case 2: return (fatGetField(r,["DESCRICAO:","DESCRICAO"])||"").substring(0,30);
+        case 3: return fatGetField(r,["SEGMENTO:","SEGMENTO"])||"";
+        case 4: return fatGetField(r,["REGIAO:","REGIAO"])||"";
+        case 5: return fatNum(fatGetField(r,["QTDE:","QTDE"]));
+        case 6: return fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
+        case 7: return fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+        case 8: return fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+        case 9: return fatGetField(r,["STATUS:","STATUS"])||"";
+        default: return "";
+      }
+    };
+    var va=getVal(a,fatSortCol), vb=getVal(b,fatSortCol);
+    if(typeof va==="number") return fatSortAsc?va-vb:vb-va;
+    return fatSortAsc?String(va).localeCompare(String(vb),"pt-BR"):String(vb).localeCompare(String(va),"pt-BR");
+  });
+  fatTable(rows);
+}
+
+function fatTable(rows){
+  fatLastRows=rows; // save for sort
+  var wrap=document.getElementById("fat-table-wrap");
+  var tbody=document.getElementById("fat-tbody");
+  var count=document.getElementById("fat-count");
+  if(!tbody) return;
+  if(!rows.length){
+    if(wrap) wrap.style.display="none";
+    if(count) count.textContent="";
+    return;
+  }
+  if(wrap) wrap.style.display="block";
+  if(count) count.textContent=rows.length+" registro(s)";
+
+  tbody.innerHTML=rows.map(function(r){
+    var dias=fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    var margem=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
+    var diasCls=dias>60?"tr":dias>30?"ty":"tg";
+    var margCls=margem>=35?"tg":margem>=20?"tb":"tr";
+    var vend=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").replace("."," ").split(" ")[0];
+    return "<tr>"+
+      "<td style='font-size:.8rem'>"+vend+"</td>"+
+      "<td style='font-size:.82rem;font-weight:500'>"+(fatGetField(r,["NOME FANTASIA:","NOME FANTASIA"])||"—").split(" ").slice(0,3).join(" ")+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["DESCRICAO:","DESCRICAO"])||"—").substring(0,30)+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["SEGMENTO:","SEGMENTO"])||"—")+"</td>"+
+      "<td style='font-size:.78rem'>"+(fatGetField(r,["REGIAO:","REGIAO"])||"—")+"</td>"+
+      "<td style='text-align:center'>"+(fatGetField(r,["QTDE:","QTDE"])||"—")+"</td>"+
+      "<td style='text-align:right;font-weight:600'>"+fatFmt(fatGetField(r,["TOTAL:","TOTAL"]))+"</td>"+
+      "<td style='text-align:center'><span class='tag "+margCls+"'>"+margem.toFixed(1).replace(".",",")+"% </span></td>"+
+      "<td style='text-align:center'><span class='tag "+diasCls+"'>"+dias+"d</span></td>"+
+      "<td style='font-size:.78rem;text-align:center'>"+(fatGetField(r,["STATUS:","STATUS"])||"—")+"</td>"+
+      "</tr>";
+  }).join("");
+}
+
+// Search real-time
+document.addEventListener("DOMContentLoaded",function(){
+  var s=document.getElementById("fat-search");
+  if(s) s.addEventListener("input",function(){if(fatLoaded)fatApplyFilters();});
+  var sels=["fat-vend","fat-regiao","fat-seg"];
+  sels.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.addEventListener("change",function(){if(fatLoaded)fatApplyFilters();});
+  });
+});
+
+
+
+
+// ════════════════════════════════════════════════════════════════
+// INIT AO CARREGAR
+// ════════════════════════════════════════════════════════════════
+document.addEventListener("DOMContentLoaded", function(){
+  // Se o usuario tem acesso, inicia DRE por padrao (tab ativa)
+  var content = document.getElementById("fin-content");
+  if(content && content.style.display !== "none"){
+    if(typeof initDRE === "function"){
+      initDRE();
+    }
+  }
+});
+</script>
+
+</body>
+</html>
