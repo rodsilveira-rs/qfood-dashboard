@@ -151,22 +151,29 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
    Responsabilidade: Login + Navegação principal
    ============================================================ */
 
-// ---- USUARIOS ----
+// ---- USUARIOS (Fonte da verdade: Acesso_Cards_index.xlsx — revisado 24/04/2026) ----
 // role: "admin" = acesso total | "gestor" = lista em 'abas' | "vendedor" = so Remuneracao
 var USERS = {
   // Admins completos
   "rodrigo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Rodrigo",  sigla:""},
   "adilson@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Adilson",  sigla:""},
-  "celio@qfoodcompany.com.br":    {pwd:"Gestao2026@", role:"admin",   nome:"Celio",    sigla:""},
-  "gustavo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"admin",   nome:"Gustavo",  sigla:"", abas:"checkpoint"},
-  // Maiko: logistica completa (entregas + quebra de rede)
-  "maiko@qfoodcompany.com.br":    {pwd:"qfood2026",   role:"gestor",  nome:"Maiko",    sigla:"", abas:"comercial,financeiro,logistica"},
-  // Cris (Compras): sem Remuneracao
-  "compras@qfoodcompany.com.br":  {pwd:"compras2026", role:"gestor",  nome:"Cris",     sigla:"", abas:"comercial,financeiro,logistica,compras"},
-  // Logistica / Compras
-  "jonathas@qfoodcompany.com.br": {pwd:"qfood2026",   role:"gestor",  nome:"Jonathas", sigla:"", abas:"logistica,compras"},
-  "eduardo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"gestor",  nome:"Eduardo",  sigla:"", abas:"logistica,compras"},
-  // Vendedores (apenas Remuneracao)
+
+  // Gestores com acesso aos 6 cards (Celio, Gustavo, Maiko, Cris, Barbara)
+  "celio@qfoodcompany.com.br":    {pwd:"Gestao2026@",    role:"gestor", nome:"Celio",   sigla:"", abas:"comercial,remuneracao,financeiro,logistica,compras,checkpoint"},
+  "gustavo@qfoodcompany.com.br":  {pwd:"qfood2026",      role:"gestor", nome:"Gustavo", sigla:"", abas:"comercial,remuneracao,financeiro,logistica,compras,checkpoint"},
+  "maiko@qfoodcompany.com.br":    {pwd:"qfood2026",      role:"gestor", nome:"Maiko",   sigla:"", abas:"comercial,remuneracao,financeiro,logistica,compras,checkpoint"},
+  "compras@qfoodcompany.com.br":  {pwd:"compras2026",    role:"gestor", nome:"Cris",    sigla:"", abas:"comercial,remuneracao,financeiro,logistica,compras,checkpoint"},
+  "barbara@qfoodcompany.com.br":  {pwd:"Liberdade2026",  role:"gestor", nome:"Barbara", sigla:"", abas:"comercial,remuneracao,financeiro,logistica,compras,checkpoint"},
+
+  // Gestores Mercearia Liberdade (apenas Checkpoint)
+  "mariana@mercearialiberdade.com.br": {pwd:"Liberdade2026", role:"gestor", nome:"Mariana", sigla:"", abas:"checkpoint"},
+  "elizeu@mercearialiberdade.com.br":  {pwd:"Liberdade2026", role:"gestor", nome:"Elizeu",  sigla:"", abas:"checkpoint"},
+
+  // Coordenadores (Comercial + Remuneracao + Logistica)
+  "jonathas@qfoodcompany.com.br": {pwd:"qfood2026",   role:"gestor",  nome:"Jonathas", sigla:"", abas:"comercial,remuneracao,logistica"},
+  "eduardo@qfoodcompany.com.br":  {pwd:"qfood2026",   role:"gestor",  nome:"Eduardo",  sigla:"", abas:"comercial,remuneracao,logistica"},
+
+  // Vendedores (Comercial + Remuneracao propria + Logistica)
   "lucas@qfoodcompany.com.br":    {pwd:"vendas2026",  role:"vendedor",nome:"Lucas",    sigla:"LB"},
   "vera@qfoodcompany.com.br":     {pwd:"vendas2026",  role:"vendedor",nome:"Vera",     sigla:"VS"},
   "dayane@qfoodcompany.com.br":   {pwd:"vendas2026",  role:"vendedor",nome:"Dayane",   sigla:"DN"},
@@ -238,7 +245,8 @@ function applyUserAccess(){
   if(role === "admin"){
     allowed = DEFAULT_ADMIN_CARDS.split(",");
   } else if(role === "vendedor"){
-    allowed = ["remuneracao"];
+    // Vendedores: Comercial + Remuneracao (propria) + Logistica
+    allowed = ["comercial","remuneracao","logistica"];
   } else {
     // gestor -> usa lista 'abas' do usuario
     allowed = (CURRENT_USER.abas || "").split(",").map(function(s){return s.trim();});
@@ -247,11 +255,6 @@ function applyUserAccess(){
   cards.forEach(function(id){
     var el = document.getElementById("mbtn-" + id);
     if(!el) return;
-    // Logistica: TODOS podem ver (decisao: 22/04/2026)
-    if(id === "logistica"){
-      el.style.display = "flex";
-      return;
-    }
     if(allowed.indexOf(id) >= 0){
       el.style.display = "flex";
     } else {
