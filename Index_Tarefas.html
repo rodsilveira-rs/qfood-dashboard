@@ -172,7 +172,32 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .com-form button{background:var(--red);border:none;color:#fff;padding:10px 16px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:700;white-space:nowrap}
 .com-form button:disabled{background:var(--s3);color:var(--mu);cursor:not-allowed}
 
-/* Loader e toast */
+/* Sub-tarefas */
+.subt-section{background:var(--s2);border-radius:10px;padding:14px;margin-top:14px}
+.subt-title{font-size:.78rem;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.subt-title .progress{font-size:.72rem;color:var(--ok);font-weight:600;text-transform:none;letter-spacing:0}
+.subt-list{display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.subt-row{background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:10px;display:grid;grid-template-columns:14px 1fr 1fr 110px 120px auto;gap:8px;align-items:center;transition:opacity .15s}
+.subt-row.done-sub{opacity:.55}
+.subt-row.done-sub .subt-desc{text-decoration:line-through}
+.subt-row .subt-farol{width:10px;height:10px;border-radius:50%;flex-shrink:0;justify-self:center}
+.subt-row select, .subt-row input{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:6px 8px;color:var(--tx);font-size:.78rem;font-family:var(--fb);outline:none;width:100%}
+.subt-row select:disabled, .subt-row input:disabled{opacity:.6;cursor:not-allowed}
+.subt-row .subt-del{background:transparent;border:1px solid var(--br);color:var(--mu);padding:5px 9px;border-radius:6px;cursor:pointer;font-size:.72rem}
+.subt-row .subt-del:hover{color:var(--red);border-color:var(--red)}
+.subt-add{background:var(--s3);border:1px dashed var(--b2);color:var(--mu);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.78rem;width:100%;font-family:var(--fb);font-weight:600}
+.subt-add:hover{background:var(--br);color:var(--tx)}
+.subt-mine{border-left:3px solid var(--cyan)}
+
+/* Mini-faróis na linha da mãe */
+.mini-farois{display:inline-flex;gap:2px;margin-left:4px}
+.mini-farois .mf{width:7px;height:7px;border-radius:50%;display:inline-block}
+.subt-count{font-size:.65rem;color:var(--mu);margin-left:5px}
+
+@media(max-width:700px){
+  .subt-row{grid-template-columns:14px 1fr 1fr;gap:6px}
+  .subt-row .subt-prazo, .subt-row .subt-status, .subt-row .subt-del{grid-column:span 3}
+}
 .loader-bar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--red),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:slide 1.2s infinite;z-index:9999;display:none}
 .loader-bar.show{display:block}
 @keyframes slide{0%{background-position:-50% 0}100%{background-position:150% 0}}
@@ -250,6 +275,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
         <option value="todas">📂 Todas que vejo</option>
         <option value="dono">👤 Sou dono</option>
         <option value="resp">👥 Sou responsável</option>
+        <option value="sub">🎯 Tenho sub-tarefa</option>
       </select>
 
       <select id="gestor-filter" style="display:none" onchange="renderTable()">
@@ -413,6 +439,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
       <textarea id="fld-obs" placeholder="Notas, contexto, decisões..."></textarea>
     </div>
 
+    <!-- Sub-tarefas (etapas com responsáveis individuais) -->
+    <div id="subt-section-wrap"></div>
+
     <div id="prazo-hist-wrap"></div>
 
     <!-- Caixa de comentários -->
@@ -485,6 +514,15 @@ function logout(){
 // Init: carrega gestores + tarefas
 // ─────────────────────────────────────────────────────
 function init(){
+  // Personalizar labels do filtro de escopo com o nome do usuário
+  var sel = document.getElementById("escopo-filter");
+  if(sel){
+    sel.innerHTML =
+      '<option value="todas">📂 Todas que vejo</option>' +
+      '<option value="dono">👤 Tarefas onde sou dono ('+escapeHtml(CURRENT_USER.nome)+')</option>' +
+      '<option value="resp">👥 Onde sou responsável</option>' +
+      '<option value="sub">🎯 Onde tenho sub-tarefa</option>';
+  }
   if(CURRENT_USER.isAdmin){
     document.getElementById("gestor-filter").style.display = "inline-block";
   }
@@ -617,10 +655,13 @@ function podeVer(t){
   if(CURRENT_USER.isAdmin) return true;
   if(t.dono === CURRENT_USER.email) return true;
   if((t.responsaveis||[]).indexOf(CURRENT_USER.email) >= 0) return true;
+  // Tem alguma sub-tarefa atribuída a mim?
+  if((t.subtarefas||[]).some(function(s){ return s.email === CURRENT_USER.email; })) return true;
   return false;
 }
 function ehDono(t){ return t.dono === CURRENT_USER.email || CURRENT_USER.isAdmin; }
 function ehResponsavel(t){ return (t.responsaveis||[]).indexOf(CURRENT_USER.email) >= 0; }
+function temSubMinha(t){ return (t.subtarefas||[]).some(function(s){ return s.email === CURRENT_USER.email; }); }
 
 // ─────────────────────────────────────────────────────
 // Farol
@@ -631,17 +672,48 @@ function diasAte(prazoISO){
   var p = new Date(prazoISO + "T00:00:00");
   return Math.round((p - hoje) / (1000*60*60*24));
 }
-function farolDaTarefa(t){
-  if(t.status === "concluido") return "done";
-  if(t.status === "cancelado") return "done";
-  if(t.status === "bloqueado") return "blk";
-  if(!t.prazo) return "gray";
-  var d = diasAte(t.prazo);
+
+// Farol de uma única "etapa" (tarefa simples ou sub-tarefa)
+function farolItem(item){
+  if(item.status === "concluido") return "done";
+  if(item.status === "cancelado") return "done";
+  if(item.status === "bloqueado") return "blk";
+  if(!item.prazo) return "gray";
+  var d = diasAte(item.prazo);
   if(d == null) return "gray";
   if(d < 0) return "r";
   if(d <= 3) return "y";
   return "g";
 }
+
+// Farol "principal" de uma tarefa-mãe.
+// Se tem sub-tarefas, calcula a partir delas (a "pior" sub não-concluída).
+// Se não tem subs, usa a própria.
+function farolDaTarefa(t){
+  if(t.subtarefas && t.subtarefas.length){
+    // Prioridade: vermelho > amarelo > cinza > verde > done
+    var ativas = t.subtarefas.filter(function(s){ return s.status !== "concluido" && s.status !== "cancelado"; });
+    if(ativas.length === 0) return "done";
+    var faroisAtivos = ativas.map(farolItem);
+    if(faroisAtivos.indexOf("r") >= 0) return "r";
+    if(faroisAtivos.indexOf("blk") >= 0) return "blk";
+    if(faroisAtivos.indexOf("y") >= 0) return "y";
+    if(faroisAtivos.indexOf("gray") >= 0) return "gray";
+    return "g";
+  }
+  return farolItem(t);
+}
+
+// Conta subs por farol (pra mostrar na tabela: 🔴 1 + 🟡 1)
+function contaSubsPorFarol(t){
+  var c = {r:0, y:0, g:0, gray:0, done:0, blk:0};
+  (t.subtarefas||[]).forEach(function(s){
+    var f = farolItem(s);
+    c[f] = (c[f]||0) + 1;
+  });
+  return c;
+}
+
 function farolLabel(f){ return {g:"Em dia",y:"Vence ≤3d",r:"Vencida",gray:"A definir",done:"Concluída/Cancelada",blk:"Bloqueada"}[f]||""; }
 function formatPrazo(p){ if(!p) return "A definir"; return new Date(p+"T00:00:00").toLocaleDateString("pt-BR"); }
 
@@ -687,6 +759,7 @@ function applyFilters(list){
   return list.filter(function(t){
     if(escopo === "dono" && t.dono !== CURRENT_USER.email) return false;
     if(escopo === "resp" && (t.responsaveis||[]).indexOf(CURRENT_USER.email) < 0) return false;
+    if(escopo === "sub" && !(t.subtarefas||[]).some(function(s){ return s.email === CURRENT_USER.email; })) return false;
     if(donoFilter && t.dono !== donoFilter) return false;
     if(area && t.area !== area) return false;
     if(status && t.status !== status) return false;
@@ -760,12 +833,28 @@ function renderTable(){
     });
     var respHtml = respNomes.length ? respNomes.map(function(n){return '<span class="tag tag-resp">'+escapeHtml(n)+'</span>';}).join("") : '<span class="muted" style="font-size:.7rem">—</span>';
 
+    // Indicador de sub-tarefas (mini-faróis + contagem)
+    var subHtml = "";
+    if(t.subtarefas && t.subtarefas.length){
+      var c = contaSubsPorFarol(t);
+      var totalAtivas = c.r + c.y + c.g + c.gray + c.blk;
+      var concluidas = c.done;
+      var miniFs = "";
+      if(c.r > 0) miniFs += '<span class="mf" style="background:var(--red)" title="'+c.r+' vencida(s)"></span>';
+      if(c.y > 0) miniFs += '<span class="mf" style="background:var(--warn)" title="'+c.y+' vence(m) em ≤3d"></span>';
+      if(c.g > 0) miniFs += '<span class="mf" style="background:var(--ok)" title="'+c.g+' em dia"></span>';
+      if(c.gray > 0) miniFs += '<span class="mf" style="background:var(--mu2)" title="'+c.gray+' sem prazo"></span>';
+      if(c.blk > 0) miniFs += '<span class="mf" style="background:#222;border:1px solid #b45309" title="'+c.blk+' bloqueada(s)"></span>';
+      subHtml = '<span class="mini-farois" title="'+t.subtarefas.length+' etapa(s)">'+miniFs+'</span>' +
+        '<span class="subt-count">🎯'+concluidas+'/'+t.subtarefas.length+'</span>';
+    }
+
     var podeApagar = ehDono(t);
     var btnDel = podeApagar ? '<button class="mini-btn del" onclick="removerTarefa(\''+t.id+'\')" title="Excluir">🗑️</button>' : '';
 
     return '<tr class="'+rowClass+'">' +
       '<td><span class="farol '+farol+'" title="'+farolLabel(farol)+'"></span></td>' +
-      '<td><div class="acao">'+escapeHtml(t.acao||"—")+'</div></td>' +
+      '<td><div class="acao">'+escapeHtml(t.acao||"—")+subHtml+'</div></td>' +
       '<td><div class="muted">'+escapeHtml(t.comprar||"—")+'</div></td>' +
       '<td><div style="font-size:.78rem"><strong>'+escapeHtml(donoNome)+'</strong></div><div style="margin-top:3px">'+respHtml+'</div></td>' +
       '<td>'+(t.area?'<span class="tag tag-area">'+escapeHtml(t.area)+'</span>':'<span class="muted">—</span>')+'</td>' +
@@ -802,14 +891,114 @@ function escapeHtml(s){
 }
 
 // ─────────────────────────────────────────────────────
-// Modal Criar / Editar
+// Sub-tarefas
+// ─────────────────────────────────────────────────────
+var EDITING_SUBS = [];  // array das subs sendo editadas no modal
+
+function renderSubtSection(t, soStatus){
+  var wrap = document.getElementById("subt-section-wrap");
+  var dono = ehDono(t || {dono:CURRENT_USER.email});
+  var subs = EDITING_SUBS;
+
+  var totalConc = subs.filter(function(s){return s.status==="concluido";}).length;
+  var progresso = subs.length ? '<span class="progress">'+totalConc+'/'+subs.length+' concluída(s)</span>' : '';
+
+  var rows = subs.map(function(s, i){
+    var podeEditarTexto = dono && !soStatus;
+    var minhaSub = s.email === CURRENT_USER.email;
+    var podeMudarStatus = dono || minhaSub;
+    var f = farolItem(s);
+    var doneCls = (s.status==="concluido"||s.status==="cancelado") ? "done-sub" : "";
+    var mineCls = minhaSub ? "subt-mine" : "";
+
+    var optsResp = '<option value="">— Responsável —</option>' + GESTORES.map(function(g){
+      var sel = (g.email === s.email) ? "selected" : "";
+      return '<option value="'+g.email+'" '+sel+'>'+escapeHtml(g.nome)+'</option>';
+    }).join("");
+
+    var statusOpts = ["pendente","em_andamento","concluido","cancelado","bloqueado"].map(function(st){
+      var label = {pendente:"Pendente",em_andamento:"Em andam.",concluido:"Concluído",cancelado:"Cancelado",bloqueado:"Bloqueado"}[st];
+      var sel = (s.status===st) ? "selected" : "";
+      return '<option value="'+st+'" '+sel+'>'+label+'</option>';
+    }).join("");
+
+    var btnDel = podeEditarTexto ? '<button class="subt-del" onclick="removerSubt('+i+')" title="Remover etapa">🗑️</button>' : '<span></span>';
+
+    return '<div class="subt-row '+doneCls+' '+mineCls+'">' +
+      '<span class="farol '+f+' subt-farol" title="'+farolLabel(f)+'"></span>' +
+      '<select class="subt-resp" data-i="'+i+'" onchange="updateSubt('+i+',\'email\',this.value)" '+(podeEditarTexto?'':'disabled')+'>'+optsResp+'</select>' +
+      '<input type="text" class="subt-desc" data-i="'+i+'" placeholder="Descrição da etapa..." value="'+escapeHtml(s.descricao||'')+'" oninput="updateSubt('+i+',\'descricao\',this.value)" '+(podeEditarTexto?'':'disabled')+'>' +
+      '<input type="date" class="subt-prazo" data-i="'+i+'" value="'+(s.prazo||'')+'" onchange="updateSubt('+i+',\'prazo\',this.value)" '+(podeEditarTexto?'':'disabled')+'>' +
+      '<select class="subt-status" data-i="'+i+'" onchange="updateSubt('+i+',\'status\',this.value)" '+(podeMudarStatus?'':'disabled')+'>'+statusOpts+'</select>' +
+      btnDel +
+    '</div>';
+  }).join("");
+
+  var btnAdd = (dono && !soStatus) ? '<button class="subt-add" onclick="adicionarSubt()">+ Adicionar etapa</button>' : '';
+
+  wrap.innerHTML =
+    '<div class="subt-section">' +
+      '<div class="subt-title">🎯 Sub-tarefas / Etapas '+progresso+'</div>' +
+      '<div class="subt-list">'+ (rows || '<div style="color:var(--mu);font-size:.78rem;padding:8px 4px">Nenhuma etapa cadastrada. Use o botão abaixo para dividir esta tarefa entre vários responsáveis.</div>') +'</div>' +
+      btnAdd +
+    '</div>';
+}
+
+function adicionarSubt(){
+  EDITING_SUBS.push({
+    id: "s_"+Date.now()+"_"+Math.random().toString(36).substring(2,5),
+    email: "",
+    nome: "",
+    descricao: "",
+    prazo: "",
+    status: "pendente",
+    createdAt: new Date().toISOString()
+  });
+  renderSubtSectionForCurrentEdit();
+}
+
+function removerSubt(idx){
+  if(idx < 0 || idx >= EDITING_SUBS.length) return;
+  if(!confirm("Remover esta etapa?")) return;
+  EDITING_SUBS.splice(idx, 1);
+  renderSubtSectionForCurrentEdit();
+}
+
+function updateSubt(idx, field, val){
+  if(idx < 0 || idx >= EDITING_SUBS.length) return;
+  var s = EDITING_SUBS[idx];
+  if(field === "email"){
+    s.email = val;
+    var g = GESTORES.find(function(x){ return x.email === val; });
+    s.nome = g ? g.nome : (val ? val.split("@")[0] : "");
+  } else {
+    s[field] = val;
+  }
+  // Re-renderiza só pra atualizar o farol e estilo done (sem perder foco)
+  // Mas evita re-render se for typing em texto livre (volátil)
+  if(field === "status" || field === "prazo" || field === "email"){
+    renderSubtSectionForCurrentEdit();
+  }
+}
+
+function renderSubtSectionForCurrentEdit(){
+  // Recupera contexto
+  var t = EDITING_ID ? TAREFAS.find(function(x){return x.id===EDITING_ID;}) : null;
+  var dono = t ? ehDono(t) : true;
+  var resp = t ? ehResponsavel(t) : false;
+  var soStatus = !dono && resp;
+  renderSubtSection(t, soStatus);
+}
+
+// ─────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────
 function openModalNova(){
   EDITING_ID = null;
   SELECTED_RESP = [];
+  EDITING_SUBS = [];
   document.getElementById("modal-title").textContent = "+ Nova Tarefa";
   document.getElementById("readonly-banner-wrap").innerHTML = "";
-  setFieldsDisabled(false, false);  // tudo editável
+  setFieldsDisabled(false, false);
 
   document.getElementById("fld-acao").value = "";
   document.getElementById("fld-comprar").value = "";
@@ -820,11 +1009,12 @@ function openModalNova(){
   document.getElementById("fld-custo").value = "";
   document.getElementById("fld-obs").value = "";
   document.getElementById("prazo-hist-wrap").innerHTML = "";
-  document.getElementById("com-section-wrap").innerHTML = "";  // sem comentários antes de criar
+  document.getElementById("com-section-wrap").innerHTML = "";
   document.getElementById("btn-save").style.display = "inline-block";
   document.getElementById("btn-save").textContent = "✅ Criar tarefa";
 
   renderRespMulti();
+  renderSubtSection(null, false);
   document.getElementById("modal-task").classList.add("open");
   setTimeout(function(){ document.getElementById("fld-acao").focus(); }, 50);
 }
@@ -836,17 +1026,24 @@ function openModalEditar(id){
 
   EDITING_ID = id;
   SELECTED_RESP = (t.responsaveis||[]).slice();
+  EDITING_SUBS = (t.subtarefas||[]).map(function(s){ return Object.assign({}, s); });
 
   var dono = ehDono(t);
   var resp = ehResponsavel(t);
-  var soStatus = !dono && resp;  // só responsável: pode editar APENAS status
+  var temSub = temSubMinha(t);
+  // soStatus: pode editar APENAS o status da tarefa-mãe (não pode mexer em campos dela)
+  // Mas sub-tarefas próprias seguem regra própria (cada um muda a sua)
+  var soStatus = !dono && (resp || temSub);
 
   document.getElementById("modal-title").textContent = (dono?"✏️ Editar":"📖 Visualizar") + " Tarefa";
 
   // Banner explicativo
   var banner = "";
   if(soStatus){
-    banner = '<div class="readonly-banner">⚠️ Você é responsável por esta tarefa, mas não é o dono. Pode <strong>alterar apenas o Status</strong> e <strong>comentar</strong>. Os demais campos estão em modo somente leitura.</div>';
+    var partes = [];
+    if(resp) partes.push("responsável geral");
+    if(temSub) partes.push("dono de uma sub-tarefa");
+    banner = '<div class="readonly-banner">⚠️ Você é '+partes.join(" e ")+' nesta tarefa. Pode <strong>alterar o status da tarefa principal</strong>, <strong>atualizar suas sub-tarefas</strong> e <strong>comentar</strong>. Os demais campos estão em modo somente leitura.</div>';
   } else if(!dono && CURRENT_USER.isAdmin){
     banner = '<div class="readonly-banner" style="background:rgba(77,142,245,.12);border-color:rgba(77,142,245,.35);color:var(--blue)">👁️ Modo admin: você pode editar tudo nesta tarefa.</div>';
   }
@@ -863,6 +1060,9 @@ function openModalEditar(id){
   document.getElementById("fld-custo").value = (t.custo!=null) ? t.custo : "";
   document.getElementById("fld-obs").value = t.obs || "";
 
+  // Sub-tarefas
+  renderSubtSection(t, soStatus);
+
   // Histórico de prazo
   var wrap = document.getElementById("prazo-hist-wrap");
   if(t.prazoHist && t.prazoHist.length){
@@ -877,17 +1077,13 @@ function openModalEditar(id){
     wrap.innerHTML = "";
   }
 
-  // Comentários
   renderComents(t);
   renderRespMulti();
 
-  // Botão salvar
   document.getElementById("btn-save").style.display = "inline-block";
-  document.getElementById("btn-save").textContent = soStatus ? "💾 Salvar Status" : "💾 Salvar alterações";
+  document.getElementById("btn-save").textContent = soStatus ? "💾 Salvar" : "💾 Salvar alterações";
 
-  // Marca como visualizado (zera contador de não-lidos)
   localStorage.setItem("qfood_tarefa_seen_"+t.id, String(Date.now()));
-
   document.getElementById("modal-task").classList.add("open");
 }
 
@@ -914,6 +1110,7 @@ function closeModal(){
   document.getElementById("fld-resp-dropdown").classList.remove("open");
   EDITING_ID = null;
   SELECTED_RESP = [];
+  EDITING_SUBS = [];
 }
 document.addEventListener("keydown", function(e){ if(e.key === "Escape") closeModal(); });
 function isModalOpen(){ return document.getElementById("modal-task").classList.contains("open"); }
@@ -985,11 +1182,22 @@ function saveTask(){
   var newPrazo  = document.getElementById("fld-prazo").value || "";
   var custoRaw  = document.getElementById("fld-custo").value;
   var custo     = sanitizeCustoFront(custoRaw);
-
-  // Bloqueia salvar se digitou texto inválido em custo
   if(custoRaw && custo == null){
     toast("Valor de custo inválido. Use formato 1500.50 ou 1.500,50","error");
     btn.disabled=false; return;
+  }
+
+  // Validação básica de sub-tarefas (todas precisam ter responsável e descrição)
+  for(var k = 0; k < EDITING_SUBS.length; k++){
+    var s = EDITING_SUBS[k];
+    if(!s.email){
+      toast("Etapa #"+(k+1)+": selecione o responsável.","error");
+      btn.disabled=false; return;
+    }
+    if(!s.descricao || !s.descricao.trim()){
+      toast("Etapa #"+(k+1)+": preencha a descrição.","error");
+      btn.disabled=false; return;
+    }
   }
 
   if(EDITING_ID){
@@ -997,26 +1205,73 @@ function saveTask(){
     if(!t){ btn.disabled=false; return; }
     var dono = ehDono(t);
     var resp = ehResponsavel(t);
+    var temSub = temSubMinha(t);
+    var soStatus = !dono && (resp || temSub);
 
-    if(!dono && resp){
-      // Só status: atualiza apenas esse campo, mantém o resto
+    var oldSubs = t.subtarefas || [];
+    var newSubs = EDITING_SUBS;
+
+    if(soStatus){
+      // Não-dono: só atualiza status da mãe + status das subs próprias
       t.status = newStatus;
       if(t.status === "concluido" && !t.completedAt) t.completedAt = new Date().toISOString();
+
+      // Atualiza só as subs onde a pessoa é dona
+      var mergedSubs = oldSubs.map(function(oldS){
+        var foundNew = newSubs.find(function(n){ return n.id === oldS.id; });
+        if(!foundNew) return oldS;
+        // Se é minha sub, posso atualizar o status (não os outros campos)
+        if(oldS.email === CURRENT_USER.email){
+          var statusChanged = oldS.status !== foundNew.status;
+          if(statusChanged && foundNew.status === "concluido"){
+            // Comentário automático
+            t.comentarios = t.comentarios || [];
+            t.comentarios.push({
+              autor: CURRENT_USER.nome, email: CURRENT_USER.email,
+              ts: new Date().toISOString(),
+              texto: "✅ "+CURRENT_USER.nome+" concluiu a etapa: "+(oldS.descricao||"—"),
+              auto: true
+            });
+          }
+          return Object.assign({}, oldS, {status: foundNew.status});
+        }
+        return oldS;
+      });
+      t.subtarefas = mergedSubs;
+
     } else if(dono){
-      // Dono: atualiza tudo, captura mudança de prazo + comentário automático
+      // Dono: edita tudo
       var oldPrazo = t.prazo || "";
-      var prazoChanged = (oldPrazo !== newPrazo);
-      if(prazoChanged){
+      if(oldPrazo !== newPrazo){
         t.prazoHist = t.prazoHist || [];
         t.prazoHist.push({de: oldPrazo||null, para: newPrazo||null, ts: new Date().toISOString(), por: CURRENT_USER.nome});
         t.comentarios = t.comentarios || [];
-        var msgPrazo = "🔁 " + CURRENT_USER.nome + " alterou o prazo: " +
-          (oldPrazo?formatPrazo(oldPrazo):"A definir") + " → " + (newPrazo?formatPrazo(newPrazo):"A definir");
-        t.comentarios.push({autor:CURRENT_USER.nome, email:CURRENT_USER.email, ts:new Date().toISOString(), texto:msgPrazo, auto:true});
+        t.comentarios.push({
+          autor:CURRENT_USER.nome, email:CURRENT_USER.email, ts:new Date().toISOString(),
+          texto: "🔁 " + CURRENT_USER.nome + " alterou o prazo: " +
+            (oldPrazo?formatPrazo(oldPrazo):"A definir") + " → " + (newPrazo?formatPrazo(newPrazo):"A definir"),
+          auto:true
+        });
       }
+
+      // Detecta subs concluídas agora
+      newSubs.forEach(function(ns){
+        var prev = oldSubs.find(function(o){ return o.id === ns.id; });
+        if(prev && prev.status !== "concluido" && ns.status === "concluido"){
+          t.comentarios = t.comentarios || [];
+          var autorNome = ns.nome || ns.email;
+          t.comentarios.push({
+            autor:CURRENT_USER.nome, email:CURRENT_USER.email, ts:new Date().toISOString(),
+            texto: "✅ "+autorNome+" concluiu a etapa: "+(ns.descricao||"—")+" (marcada por "+CURRENT_USER.nome+")",
+            auto:true
+          });
+        }
+      });
+
       t.acao = acao;
       t.comprar = document.getElementById("fld-comprar").value.trim();
       t.responsaveis = SELECTED_RESP.slice();
+      t.subtarefas = newSubs;
       t.area = document.getElementById("fld-area").value;
       t.status = newStatus;
       t.prioridade = document.getElementById("fld-prioridade").value;
@@ -1025,10 +1280,24 @@ function saveTask(){
       t.obs = document.getElementById("fld-obs").value.trim();
       if(t.status === "concluido" && !t.completedAt) t.completedAt = new Date().toISOString();
       if(t.status !== "concluido") t.completedAt = null;
+
+      // Auto-conclusão da tarefa-mãe se TODAS as subs estiverem concluídas
+      if(t.subtarefas.length > 0 && t.subtarefas.every(function(s){return s.status === "concluido";})){
+        if(t.status !== "concluido"){
+          t.status = "concluido";
+          t.completedAt = new Date().toISOString();
+          t.comentarios = t.comentarios || [];
+          t.comentarios.push({
+            autor:"Sistema", email:"system@qfood",
+            ts:new Date().toISOString(),
+            texto: "🎉 Todas as etapas foram concluídas. Tarefa marcada como concluída automaticamente.",
+            auto:true
+          });
+        }
+      }
     }
 
     apiSave(t).then(function(saved){
-      // Atualiza local
       var idx = TAREFAS.findIndex(function(x){return x.id===EDITING_ID;});
       if(idx>=0) TAREFAS[idx] = saved;
       btn.disabled=false;
@@ -1046,6 +1315,7 @@ function saveTask(){
       dono: CURRENT_USER.email,
       donoNome: CURRENT_USER.nome,
       responsaveis: SELECTED_RESP.slice(),
+      subtarefas: EDITING_SUBS,
       acao: acao,
       comprar: document.getElementById("fld-comprar").value.trim(),
       area: document.getElementById("fld-area").value,
@@ -1062,7 +1332,7 @@ function saveTask(){
       btn.disabled=false;
       closeModal();
       renderTable();
-      toast("Tarefa criada.","ok");
+      toast(EDITING_SUBS.length ? "Tarefa criada com "+EDITING_SUBS.length+" etapa(s)." : "Tarefa criada.","ok");
     }).catch(function(e){
       btn.disabled=false;
       toast("Erro: "+e.message,"error");
