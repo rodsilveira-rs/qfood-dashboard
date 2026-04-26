@@ -296,6 +296,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
   </div>
   <div class="actions">
     <span id="user-name" class="user-name">-</span>
+    <select id="admin-vd-filter" onchange="onAdminFilterChange(this.value)" style="display:none;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.82rem;outline:none;cursor:pointer;font-family:var(--fb);max-width:240px"></select>
     <button onclick="atualizarDados()" title="Recarrega catálogo e PDVs do servidor">🔄</button>
     <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
     <button class="primary" onclick="logout()">Sair</button>
@@ -449,6 +450,8 @@ var LEADS_VISTOS = {};       // localStorage: ids já marcados como visualizados
 var PDVS = [];               // PDVs agregados (1 linha por CNPJ) com farol calculado
 
 var ACTIVE_VIEW = "home";    // home | atrasados | hoje | leads | todos | em-dia
+var ADMIN_FILTER_SIGLA = ""; // filtro admin: "" = todas, "NOME.SOBRENOME" = uma vendedora
+var VENDEDORAS_LIST = [];    // [{sigla, nome}] — vendedoras detectadas no DINAMICO/ROTA
 var ACTIVE_PDV  = null;
 var ACTIVE_LEAD = null;
 var POLL_TIMER = null;
@@ -469,14 +472,18 @@ var NV_MOTIVO = "";
 
   var sigla = (s.crmSigla || "").toString().toUpperCase();
   var isAdmin = sigla === "*";
-  // Admin pode usar essa tela com sigla via querystring (?vd=NOME.SOBRENOME)
+
+  // Admin: entra direto, vê tudo. Pode usar ?vd=NOME.SOBRENOME pra carregar já filtrado por uma vendedora.
   if(isAdmin){
     var qs = new URLSearchParams(location.search);
     var v = (qs.get("vd") || qs.get("vendedor") || "").toUpperCase();
-    if(v && v.indexOf(".") > 0) sigla = v;
+    // se passou ?vd=X, deixa filtro pré-selecionado, mas a query do backend continua sendo pra TODAS
+    if(v && v.indexOf(".") > 0) ADMIN_FILTER_SIGLA = v;
   }
-  // Não-vendedor ou sigla inválida = bloqueia
-  if(sigla === "*" || sigla === "LEAD" || !sigla || sigla.indexOf(".") < 0){
+
+  // LEAD (Bárbara) e perfis sem sigla de vendedor = bloqueia
+  // (caminho 2 da decisão: Bárbara fica só no Index_CRM_Lead.html nesta versão)
+  if(!isAdmin && (sigla === "LEAD" || !sigla || sigla.indexOf(".") < 0)){
     document.getElementById("access-denied").style.display = "block";
     document.getElementById("user-name").textContent = s.nome || s.email;
     return;
@@ -485,12 +492,14 @@ var NV_MOTIVO = "";
   CURRENT_USER = {
     email: (s.email || "").toLowerCase(),
     nome:  s.nome || (s.email||"").split("@")[0],
-    sigla: sigla,
+    sigla: sigla,        // '*' para admin, NOME.SOBRENOME para vendedora
     isAdmin: isAdmin,
     recebeLeads: !!s.recebeLeads
   };
-  document.getElementById("user-name").textContent = CURRENT_USER.nome + " · " + sigla;
-  document.getElementById("sub-title").textContent = "Carteira de " + CURRENT_USER.nome + " (" + sigla + ")";
+  var lblHdr = isAdmin ? (CURRENT_USER.nome + " · admin") : (CURRENT_USER.nome + " · " + sigla);
+  document.getElementById("user-name").textContent = lblHdr;
+  var lblSub = isAdmin ? "Visão Consolidada · todas as vendedoras" : ("Carteira de " + CURRENT_USER.nome + " (" + sigla + ")");
+  document.getElementById("sub-title").textContent = lblSub;
   // Restaura leads vistos
   try {
     var lv = localStorage.getItem("crm_leads_vistos_" + sigla);
@@ -552,6 +561,21 @@ function atualizarDados(){
   ["crm_basepdv_v1","crm_produtos_v1"].forEach(function(k){ sessionStorage.removeItem(k); });
   toast("Atualizando dados...", "");
   init();
+}
+
+// Admin: troca a vendedora filtrada (filtro client-side)
+function onAdminFilterChange(sigla){
+  ADMIN_FILTER_SIGLA = (sigla || "").toUpperCase();
+  // Re-renderiza tudo que depende do filtro
+  if(ACTIVE_VIEW === "home") renderHome();
+  else renderListaAtual();
+  renderLeadBanner();
+  // Atualiza subtítulo
+  if(CURRENT_USER && CURRENT_USER.isAdmin){
+    document.getElementById("sub-title").textContent = ADMIN_FILTER_SIGLA ?
+      ("Visão de " + siglaParaNomeAmigavel(ADMIN_FILTER_SIGLA) + " (" + ADMIN_FILTER_SIGLA + ")") :
+      "Visão Consolidada · todas as vendedoras";
+  }
 }
 
 // ─────────────────────────────────────────────────────
@@ -631,7 +655,10 @@ function loadRotas(){
 }
 
 function loadLeads(silent){
-  return apiGet("leads").then(function(d){
+  // Admin (sigla='*') usa endpoint leads_admin que devolve tudo
+  // Vendedora normal usa 'leads' (já filtrado pela sigla server-side)
+  var action = (CURRENT_USER && CURRENT_USER.isAdmin) ? "leads_admin" : "leads";
+  return apiGet(action).then(function(d){
     LEADS_MEUS = d.dados || [];
     if(!silent){
       renderLeadBanner();
@@ -863,12 +890,16 @@ function parseProdutoGiroCSV(txt){
 // ─────────────────────────────────────────────────────
 function montarPDVs(){
   var byCnpj = {};
+  var siglasVistas = {};
   DINAMICO_ROWS.forEach(function(r){
     var cnpj = (r.cnpj || "").replace(/\D/g,"");
     if(!cnpj) return;
+    var vendSig = String(r.vendedor || "").trim().toUpperCase();
+    if(vendSig && vendSig.indexOf(".") > 0) siglasVistas[vendSig] = true;
     if(!byCnpj[cnpj]){
       byCnpj[cnpj] = {
         cnpj: cnpj,
+        vendedorSigla: vendSig,
         diasSemCompra: r.diasSemCompra || 0,
         ultimaNf: r.ultimaNf || "",
         razao: r.razaoSocial || "",
@@ -886,6 +917,8 @@ function montarPDVs(){
     var p = byCnpj[cnpj];
     // Mantém maior diasSemCompra (deveria ser igual em todas linhas, mas garante)
     if(r.diasSemCompra > p.diasSemCompra) p.diasSemCompra = r.diasSemCompra;
+    // Se ainda não tem vendedor mas a linha tem, captura
+    if(!p.vendedorSigla && vendSig) p.vendedorSigla = vendSig;
     if(r.total > 0){
       p.ticketTotal += r.total;
       p.ticketCount++;
@@ -918,6 +951,7 @@ function montarPDVs(){
 
     return {
       cnpj: c,
+      vendedorSigla: p.vendedorSigla || (base.vendedor || "").toUpperCase(),
       razao: base.razao || p.razao || "—",
       fantasia: base.fantasia || p.fantasia || "",
       cidade: base.cidade || p.cidade || "",
@@ -937,6 +971,56 @@ function montarPDVs(){
       items: p.items
     };
   });
+
+  // Popula VENDEDORAS_LIST (admin only — pra dropdown)
+  VENDEDORAS_LIST = Object.keys(siglasVistas).map(function(sig){
+    return {sigla: sig, nome: siglaParaNomeAmigavel(sig)};
+  }).sort(function(a,b){ return a.nome.localeCompare(b.nome); });
+
+  // Atualiza dropdown de admin (se existir)
+  preencheDropdownAdmin();
+}
+
+// Converte NOME.SOBRENOME em "Nome Sobrenome"
+function siglaParaNomeAmigavel(sig){
+  if(!sig) return "";
+  return sig.split(".").map(function(part){
+    var s = part.toLowerCase();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }).join(" ");
+}
+
+// Devolve as listas filtradas pelo admin filter (admin) ou só do vendedor (não-admin)
+function pdvsAplicaveis(){
+  if(!CURRENT_USER) return [];
+  if(!CURRENT_USER.isAdmin) return PDVS; // vendedora normal: backend já filtrou
+  if(!ADMIN_FILTER_SIGLA) return PDVS;   // admin: 'Todas'
+  return PDVS.filter(function(p){ return p.vendedorSigla === ADMIN_FILTER_SIGLA; });
+}
+
+function leadsAplicaveis(){
+  if(!CURRENT_USER) return [];
+  if(!CURRENT_USER.isAdmin) return LEADS_MEUS;
+  if(!ADMIN_FILTER_SIGLA) return LEADS_MEUS;
+  return LEADS_MEUS.filter(function(l){
+    return String(l.vendedorAtribuido||"").toUpperCase() === ADMIN_FILTER_SIGLA;
+  });
+}
+
+function preencheDropdownAdmin(){
+  var sel = document.getElementById("admin-vd-filter");
+  if(!sel) return;
+  if(!CURRENT_USER || !CURRENT_USER.isAdmin){
+    sel.style.display = "none";
+    return;
+  }
+  sel.style.display = "inline-block";
+  var current = ADMIN_FILTER_SIGLA;
+  sel.innerHTML = '<option value="">👥 Todas vendedoras</option>' +
+    VENDEDORAS_LIST.map(function(v){
+      var sel = (v.sigla === current) ? " selected" : "";
+      return '<option value="'+escapeAttr(v.sigla)+'"'+sel+'>'+escapeHtml(v.nome)+'</option>';
+    }).join("");
 }
 
 // ─────────────────────────────────────────────────────
@@ -946,32 +1030,40 @@ function renderHome(){
   document.getElementById("view-home").style.display = "block";
   document.getElementById("view-list").style.display = "none";
 
+  var pool = pdvsAplicaveis();
   var hojeKey = DIAS_SEMANA[new Date().getDay()];
-  var atrasados = PDVS.filter(function(p){ return p.farol === "r"; });
-  var hoje = PDVS.filter(function(p){
+  var atrasados = pool.filter(function(p){ return p.farol === "r"; });
+  var hoje = pool.filter(function(p){
     if(p.diasSemana && p.diasSemana.indexOf(hojeKey) >= 0) return true;
     return p.farol === "y";
   });
-  var emDia = PDVS.filter(function(p){ return p.farol === "g"; });
+  var emDia = pool.filter(function(p){ return p.farol === "g"; });
 
   document.getElementById("hc-atrasados").textContent = atrasados.length;
   document.getElementById("hc-hoje").textContent = hoje.length;
-  document.getElementById("mi-todos").textContent = PDVS.length;
+  document.getElementById("mi-todos").textContent = pool.length;
   document.getElementById("mi-em-dia").textContent = emDia.length;
 
   // Leads novos (NOVO ou VISUALIZADO)
-  var leadsNovos = LEADS_MEUS.filter(function(l){
+  var leadsP = leadsAplicaveis();
+  var leadsNovos = leadsP.filter(function(l){
     var st = (l.status||"").toUpperCase();
     return st === "NOVO" || st === "VISUALIZADO";
   });
   document.getElementById("hc-leads").textContent = leadsNovos.length;
   document.getElementById("ld-pulse").style.display = leadsNovos.length > 0 ? "block" : "none";
-  document.getElementById("hc-leads-sub").textContent = CURRENT_USER.recebeLeads || leadsNovos.length > 0 ?
-    "do Marketing" : "(você não recebe leads)";
+  if(CURRENT_USER.isAdmin){
+    document.getElementById("hc-leads-sub").textContent = ADMIN_FILTER_SIGLA ?
+      ("Leads de " + siglaParaNomeAmigavel(ADMIN_FILTER_SIGLA)) : "Leads de todas";
+  } else {
+    document.getElementById("hc-leads-sub").textContent = CURRENT_USER.recebeLeads || leadsNovos.length > 0 ?
+      "do Marketing" : "(você não recebe leads)";
+  }
 }
 
 function renderLeadBanner(){
-  var leadsNovos = LEADS_MEUS.filter(function(l){
+  var leadsP = leadsAplicaveis();
+  var leadsNovos = leadsP.filter(function(l){
     var st = (l.status||"").toUpperCase();
     return st === "NOVO";
   });
@@ -980,14 +1072,17 @@ function renderLeadBanner(){
     b.classList.remove("show");
     return;
   }
-  // Soa beep quando aparece lead que ainda não foi visto
+  // Soa beep quando aparece lead que ainda não foi visto (não toca pra admin pra não perturbar)
   var temNovo = leadsNovos.some(function(l){ return !LEADS_VISTOS[l.id]; });
-  if(temNovo){
+  if(temNovo && !CURRENT_USER.isAdmin){
     try { beep(); } catch(e){}
   }
   document.getElementById("lb-text-main").innerHTML =
     "🔥 <b>" + leadsNovos.length + "</b> novo" + (leadsNovos.length>1?"s":"") + " lead" + (leadsNovos.length>1?"s":"") + "!";
-  document.getElementById("lb-text-sub").textContent = "Atenda o quanto antes — tempo de resposta é registrado";
+  var sub = CURRENT_USER.isAdmin ?
+    (ADMIN_FILTER_SIGLA ? ("Leads de " + siglaParaNomeAmigavel(ADMIN_FILTER_SIGLA)) : "Leads de todas as vendedoras") :
+    "Atenda o quanto antes — tempo de resposta é registrado";
+  document.getElementById("lb-text-sub").textContent = sub;
   b.classList.add("show");
 }
 
@@ -1044,7 +1139,7 @@ function renderListaAtual(){
 function filtrarPDVs(){
   var v = ACTIVE_VIEW;
   var hojeKey = DIAS_SEMANA[new Date().getDay()];
-  var lista = PDVS.slice();
+  var lista = pdvsAplicaveis().slice();
   if(v === "atrasados") lista = lista.filter(function(p){ return p.farol === "r"; });
   else if(v === "hoje") lista = lista.filter(function(p){
     if(p.diasSemana && p.diasSemana.indexOf(hojeKey) >= 0) return true;
@@ -1093,11 +1188,13 @@ function renderPDVLista(){
     else tagFarol = '<span class="pc-tag novo">🆕 Sem histórico</span>';
 
     var tagSeg = p.segmento ? '<span class="pc-tag seg">'+escapeHtml(p.segmento)+'</span>' : '';
+    var tagVend = (CURRENT_USER.isAdmin && !ADMIN_FILTER_SIGLA && p.vendedorSigla) ?
+      '<span class="pc-tag novo">👤 '+escapeHtml(siglaParaNomeAmigavel(p.vendedorSigla))+'</span>' : '';
 
     return '<div class="pdv-card farol-'+p.farol+'" onclick="abrirPDV(\''+p.cnpj+'\')">'+
       '<div class="pc-name">'+escapeHtml(p.razao)+'</div>'+
       (p.fantasia ? '<div class="pc-fant">'+escapeHtml(p.fantasia)+'</div>' : '')+
-      '<div class="pc-meta">'+tagFarol+tagSeg+'</div>'+
+      '<div class="pc-meta">'+tagFarol+tagSeg+tagVend+'</div>'+
       '<div class="pc-meta">'+
         '<span>'+escapeHtml(dias)+'</span>'+
         (p.cidade ? '<span>· '+escapeHtml(p.cidade)+(p.uf?'/'+p.uf:'')+'</span>' : '')+
@@ -1108,7 +1205,7 @@ function renderPDVLista(){
 }
 
 function renderLeadsLista(){
-  var leads = LEADS_MEUS.slice().filter(function(l){
+  var leads = leadsAplicaveis().slice().filter(function(l){
     var st = (l.status||"").toUpperCase();
     return st === "NOVO" || st === "VISUALIZADO" || st === "EM_ATENDIMENTO";
   });
@@ -1368,10 +1465,17 @@ function salvarRotina(){
   });
   var diasStr = diasOn.join(",");
 
+  // Resolver sigla efetiva: vendedora normal usa a sua; admin usa a do PDV ou a do filtro selecionado
+  var siglaEfetiva = resolverSiglaEfetiva();
+  if(!siglaEfetiva){
+    toast("Selecione uma vendedora no dropdown antes de salvar a rotina.", "error");
+    return;
+  }
+
   apiPost("save_rota", {
     payload: {
       cnpj: ACTIVE_PDV.cnpj,
-      vendedorSigla: CURRENT_USER.sigla,
+      vendedorSigla: siglaEfetiva,
       diasSemana: diasStr,
       periodicidadeDias: period
     }
@@ -1388,6 +1492,18 @@ function salvarRotina(){
   }).catch(function(e){
     toast("Erro ao salvar rotina: "+e.message, "error");
   });
+}
+
+// Devolve a sigla a usar nas escritas (save_rota, save_hist).
+// Vendedora normal: a própria sigla.
+// Admin: a sigla do PDV (vendedora dona dele); fallback: ADMIN_FILTER_SIGLA.
+function resolverSiglaEfetiva(){
+  if(!CURRENT_USER) return "";
+  if(!CURRENT_USER.isAdmin) return CURRENT_USER.sigla;
+  // Admin: prioriza sigla do PDV ativo
+  if(ACTIVE_PDV && ACTIVE_PDV.vendedorSigla) return ACTIVE_PDV.vendedorSigla;
+  if(ADMIN_FILTER_SIGLA) return ADMIN_FILTER_SIGLA;
+  return "";
 }
 
 // ─────────────────────────────────────────────────────
@@ -1672,6 +1788,12 @@ function enviarCheckin(){
   if(!ACTIVE_PDV){ toast("Selecione um PDV primeiro.","error"); return; }
   if(!CHECKIN_MODE){ toast("Marque Vendeu ou Não Vendeu.","error"); return; }
 
+  var siglaEfetiva = resolverSiglaEfetiva();
+  if(!siglaEfetiva){
+    toast("Como admin, escolha uma vendedora no dropdown ou um PDV com vendedora atribuída.","error");
+    return;
+  }
+
   var obs = (document.getElementById("checkin-obs")||{value:""}).value.trim();
 
   var payload;
@@ -1700,7 +1822,7 @@ function enviarCheckin(){
 
     payload = {
       cnpj: ACTIVE_PDV.cnpj,
-      vendedorSigla: CURRENT_USER.sigla,
+      vendedorSigla: siglaEfetiva,
       razaoSocial: ACTIVE_PDV.razao,
       resultado: "VENDA",
       valorTotal: valorTotal,
@@ -1713,7 +1835,7 @@ function enviarCheckin(){
     if(!NV_MOTIVO){ toast("Selecione o motivo da não venda.","error"); return; }
     payload = {
       cnpj: ACTIVE_PDV.cnpj,
-      vendedorSigla: CURRENT_USER.sigla,
+      vendedorSigla: siglaEfetiva,
       razaoSocial: ACTIVE_PDV.razao,
       resultado: "NAO_VENDA",
       valorTotal: 0,
