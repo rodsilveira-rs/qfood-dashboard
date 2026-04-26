@@ -231,6 +231,43 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .cart-total{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:.95rem}
 .cart-total b{font-family:var(--fh);font-size:1.2rem;font-weight:800;color:var(--ok)}
 
+/* Vendeu — toggle modo rápido/detalhado */
+.vd-mode-toggle{display:flex;gap:5px;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:4px;margin-bottom:12px}
+.vd-mode-btn{flex:1;background:transparent;border:none;color:var(--mu);padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:700;font-size:.82rem;font-family:var(--fb);transition:all .15s}
+.vd-mode-btn:hover{color:var(--tx)}
+.vd-mode-btn.active{background:var(--ok);color:#0a1f17}
+.vd-mode-panel{display:none}
+.vd-mode-panel.active{display:block}
+
+/* Vendeu rápido */
+.vd-rapido-card{background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:14px}
+.vd-rapido-fld{margin-bottom:0}
+.vd-rapido-fld label{display:block;font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:5px;font-weight:600}
+.vd-rapido-fld input{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:14px 16px;color:var(--tx);font-size:1.4rem;font-weight:800;outline:none;font-family:var(--fh);text-align:center}
+.vd-rapido-fld input:focus{border-color:var(--ok);box-shadow:0 0 0 3px rgba(54,207,160,.15)}
+.vd-rapido-fld .rp-prefix{display:flex;align-items:center;background:var(--s2);border:1px solid var(--br);border-radius:8px;overflow:hidden}
+.vd-rapido-fld .rp-prefix span{padding:14px 14px;background:var(--s3);color:var(--mu);font-weight:800;font-size:1.1rem}
+.vd-rapido-fld .rp-prefix input{border:none;background:transparent;border-radius:0}
+
+/* Catálogo por Categoria */
+.cat-section{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px;margin-bottom:14px}
+.cat-section .ss-title{font-family:var(--fh);font-size:.95rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.cat-section .ss-title .ss-info{font-size:.7rem;color:var(--mu);font-weight:400;font-family:var(--fb);margin-left:auto}
+.cat-filtros{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.cat-filtros select{background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb);width:100%}
+.cat-filtros select:focus{border-color:var(--pink)}
+.cat-list{display:flex;flex-direction:column;gap:7px;max-height:260px;overflow-y:auto;padding-right:4px}
+.cat-list::-webkit-scrollbar{width:6px}
+.cat-list::-webkit-scrollbar-thumb{background:var(--s3);border-radius:3px}
+.cat-empty{text-align:center;padding:18px;color:var(--mu);font-size:.85rem}
+.cat-toggle-promo{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--mu);cursor:pointer;margin-left:8px}
+.cat-toggle-promo input{cursor:pointer}
+.cat-pr-promo{color:var(--warn);font-weight:700}
+.cat-pr-normal{color:var(--ok);font-weight:700}
+.cat-promo-tag{display:inline-block;background:rgba(255,170,43,.15);color:var(--warn);border:1px solid rgba(255,170,43,.3);padding:1px 6px;border-radius:999px;font-size:.62rem;font-weight:700;letter-spacing:.3px;margin-left:4px}
+.cat-info-segm{font-size:.72rem;color:var(--mu);margin-top:6px;padding:6px 8px;background:var(--sf);border-radius:6px;display:flex;align-items:center;gap:5px}
+.cat-info-segm b{color:var(--tx)}
+
 /* Não vendeu */
 .nv-motivos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px}
 .nv-motivo{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 12px;cursor:pointer;font-size:.82rem;font-weight:600;text-align:left;color:var(--tx);font-family:var(--fb);transition:all .15s}
@@ -458,6 +495,8 @@ var POLL_TIMER = null;
 
 // Carrinho do check-in (modal)
 var CHECKIN_MODE = null;     // "vendeu" | "naovendeu"
+var VD_MODE = "rapido";      // "rapido" | "detalhado"
+var VD_RAPIDO_VALOR = 0;     // valor R$ digitado no modo rápido
 var CART = [];               // [{codigo, descricao, custo, margem, qtde, preco, abaixoPiso, aprovacao}]
 var NV_MOTIVO = "";
 
@@ -1364,6 +1403,11 @@ function abrirPDV(cnpj){
   CART = [];
   CHECKIN_MODE = null;
   NV_MOTIVO = "";
+  VD_MODE = "rapido";       // padrão = rápido
+  VD_RAPIDO_VALOR = 0;
+  CAT_GRUPO_SEL = "";       // reset filtros catálogo (renderCatalogoBlock vai pré-selecionar)
+  CAT_SUBGRUPO_SEL = "";
+  CAT_PROMO_ONLY = false;
 
   document.getElementById("mp-title").textContent = p.razao + (p.fantasia?" · "+p.fantasia:"");
   document.getElementById("mp-subtitle").textContent = formatCNPJ(p.cnpj) + " · " + (p.cidade||"") + (p.uf?'/'+p.uf:"");
@@ -1397,6 +1441,9 @@ function abrirPDV(cnpj){
   // Rotina configurável
   body += renderRotinaBlock(p);
 
+  // Catálogo por Categoria (vendedor explora produtos do segmento)
+  body += renderCatalogoBlock(p);
+
   // Itens frequentes
   body += renderItensFrequentesBlock(p);
 
@@ -1406,6 +1453,9 @@ function abrirPDV(cnpj){
   document.getElementById("modal-body").innerHTML = body;
   document.getElementById("btn-save-checkin").style.display = "none";
   document.getElementById("modal-pdv").classList.add("open");
+  // Após render, popula sub-grupos (se grupo pré-selecionado) e lista do catálogo
+  preencheSubgrupos();
+  renderCatList();
 }
 
 function closeModal(){
@@ -1414,6 +1464,11 @@ function closeModal(){
   ACTIVE_LEAD = null;
   CART = [];
   CHECKIN_MODE = null;
+  VD_MODE = "rapido";
+  VD_RAPIDO_VALOR = 0;
+  CAT_GRUPO_SEL = "";
+  CAT_SUBGRUPO_SEL = "";
+  CAT_PROMO_ONLY = false;
 }
 function isModalOpen(){ return document.getElementById("modal-pdv").classList.contains("open"); }
 
@@ -1560,6 +1615,8 @@ function adicionarFreqAoCart(cod){
     iniciarCheckin();
     setCheckinMode("vendeu");
   }
+  // Força modo Detalhado (precisa do carrinho)
+  if(VD_MODE !== "detalhado") setVDMode("detalhado");
   var prod = PRODUTOS_BY_COD[cod];
   if(!prod){
     toast("Produto não encontrado no catálogo.","error");
@@ -1569,6 +1626,166 @@ function adicionarFreqAoCart(cod){
   // scroll pro checkin container
   var el = document.getElementById("checkin-container");
   if(el && el.scrollIntoView) el.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+// ─────────────────────────────────────────────────────
+// Catálogo por Categoria — explorar produtos por Grupo/Sub-Grupo
+// ─────────────────────────────────────────────────────
+var CAT_GRUPO_SEL = "";       // filtro atual de grupo
+var CAT_SUBGRUPO_SEL = "";    // filtro atual de sub-grupo
+var CAT_PROMO_ONLY = false;   // só promo
+
+// Heurística simples de pré-seleção por segmento do PDV (v1.5 terá mapeamento formal)
+function inferirGrupoPorSegmento(seg){
+  if(!seg) return "";
+  var s = seg.toUpperCase();
+  if(s.indexOf("SUSHI") >= 0 || s.indexOf("JAPON") >= 0 || s.indexOf("ORIENT") >= 0 || s.indexOf("TEMAKERIA") >= 0) return "ORIENTAL";
+  if(s.indexOf("HAMBURG") >= 0 || s.indexOf("LANCHO") >= 0 || s.indexOf("BURGER") >= 0) return "HAMBURGUERIA";
+  if(s.indexOf("EMPOR") >= 0 || s.indexOf("MERCEAR") >= 0 || s.indexOf("DELI") >= 0 || s.indexOf("ADEGA") >= 0) return "EMPORIO";
+  if(s.indexOf("USO") >= 0 || s.indexOf("CONSUMO") >= 0) return "USO E CONSUMO";
+  return "";
+}
+
+function gruposDisponiveis(){
+  var set = {};
+  PRODUTOS.forEach(function(p){ if(p.grupo) set[p.grupo.toUpperCase()] = true; });
+  return Object.keys(set).sort();
+}
+
+function subgruposDoGrupo(grupo){
+  if(!grupo) return [];
+  var set = {};
+  var g = grupo.toUpperCase();
+  PRODUTOS.forEach(function(p){
+    if((p.grupo||"").toUpperCase() === g && p.subgrupo) set[p.subgrupo.toUpperCase()] = true;
+  });
+  return Object.keys(set).sort();
+}
+
+function renderCatalogoBlock(p){
+  // Pré-seleciona grupo pela heurística (só uma vez por abertura de modal)
+  if(!CAT_GRUPO_SEL){
+    var sugerido = inferirGrupoPorSegmento(p.segmento);
+    if(sugerido) CAT_GRUPO_SEL = sugerido;
+  }
+  CAT_SUBGRUPO_SEL = "";  // reset subgrupo
+
+  var grupos = gruposDisponiveis();
+  var optsGrupo = '<option value="">— Escolher grupo —</option>' + grupos.map(function(g){
+    var sel = (g === CAT_GRUPO_SEL) ? " selected" : "";
+    return '<option value="'+escapeAttr(g)+'"'+sel+'>'+escapeHtml(g)+'</option>';
+  }).join("");
+
+  var infoSegm = "";
+  if(p.segmento){
+    var sugeridoLbl = inferirGrupoPorSegmento(p.segmento);
+    infoSegm = '<div class="cat-info-segm">📍 Segmento do PDV: <b>'+escapeHtml(p.segmento)+'</b>' +
+      (sugeridoLbl ? ' · Grupo sugerido: <b>'+escapeHtml(sugeridoLbl)+'</b>' : '') + '</div>';
+  }
+
+  return '<div class="cat-section" id="cat-section">'+
+    '<div class="ss-title">📦 Catálogo por Categoria <span class="ss-info">'+PRODUTOS.length+' produtos disponíveis</span></div>'+
+    '<div class="cat-filtros">'+
+      '<select id="cat-grupo" onchange="onCatGrupoChange(this.value)">'+optsGrupo+'</select>'+
+      '<select id="cat-subgrupo" onchange="onCatSubgrupoChange(this.value)" '+(CAT_GRUPO_SEL?'':'disabled')+'>'+
+        '<option value="">— Sub-grupo (opcional) —</option>'+
+      '</select>'+
+    '</div>'+
+    '<label class="cat-toggle-promo"><input type="checkbox" id="cat-promo" onchange="onCatPromoChange(this.checked)"'+(CAT_PROMO_ONLY?' checked':'')+'> Mostrar só itens em promoção 🔥</label>'+
+    infoSegm+
+    '<div class="cat-list" id="cat-list" style="margin-top:10px"></div>'+
+  '</div>';
+}
+
+function onCatGrupoChange(v){
+  CAT_GRUPO_SEL = (v||"").toUpperCase();
+  CAT_SUBGRUPO_SEL = "";
+  preencheSubgrupos();
+  renderCatList();
+}
+function onCatSubgrupoChange(v){
+  CAT_SUBGRUPO_SEL = (v||"").toUpperCase();
+  renderCatList();
+}
+function onCatPromoChange(checked){
+  CAT_PROMO_ONLY = !!checked;
+  renderCatList();
+}
+
+function preencheSubgrupos(){
+  var sel = document.getElementById("cat-subgrupo");
+  if(!sel) return;
+  var subs = subgruposDoGrupo(CAT_GRUPO_SEL);
+  sel.innerHTML = '<option value="">— Sub-grupo (opcional) —</option>' +
+    subs.map(function(s){
+      var sl = (s === CAT_SUBGRUPO_SEL) ? " selected" : "";
+      return '<option value="'+escapeAttr(s)+'"'+sl+'>'+escapeHtml(s)+'</option>';
+    }).join("");
+  sel.disabled = !CAT_GRUPO_SEL;
+}
+
+function renderCatList(){
+  var box = document.getElementById("cat-list");
+  if(!box) return;
+
+  // Inicializa subgrupos no primeiro render quando há grupo pré-selecionado
+  if(CAT_GRUPO_SEL && document.getElementById("cat-subgrupo") && document.getElementById("cat-subgrupo").options.length <= 1){
+    preencheSubgrupos();
+  }
+
+  if(!CAT_GRUPO_SEL){
+    box.innerHTML = '<div class="cat-empty">Escolha um <b>grupo</b> acima pra ver os produtos.</div>';
+    return;
+  }
+  var lista = PRODUTOS.filter(function(p){
+    if((p.grupo||"").toUpperCase() !== CAT_GRUPO_SEL) return false;
+    if(CAT_SUBGRUPO_SEL && (p.subgrupo||"").toUpperCase() !== CAT_SUBGRUPO_SEL) return false;
+    if(CAT_PROMO_ONLY && !p.emPromo) return false;
+    return true;
+  });
+  // Ordena: promo primeiro, depois alfabético
+  lista.sort(function(a,b){
+    if(a.emPromo && !b.emPromo) return -1;
+    if(!a.emPromo && b.emPromo) return 1;
+    return a.descricao.localeCompare(b.descricao);
+  });
+
+  if(!lista.length){
+    box.innerHTML = '<div class="cat-empty">Nenhum produto neste filtro.</div>';
+    return;
+  }
+
+  // Limita render a 100 itens (mais seria muito pesado)
+  var top = lista.slice(0, 100);
+  var hidden = lista.length - top.length;
+
+  box.innerHTML = top.map(function(p){
+    var precoSug = p.precoSugerido > 0 ? p.precoSugerido : p.preco;
+    var precoStr = precoSug > 0 ? "R$ "+precoSug.toFixed(2).replace(".",",") : "—";
+    var precoCls = p.emPromo ? "cat-pr-promo" : "cat-pr-normal";
+    var promoTag = p.emPromo ? '<span class="cat-promo-tag">PROMO</span>' : '';
+    return '<div class="freq-item">'+
+      '<div class="fi-rank">📦</div>'+
+      '<div class="fi-info">'+
+        '<div class="fi-desc">'+escapeHtml(p.descricao||p.codigo)+promoTag+'</div>'+
+        '<div class="fi-meta">'+escapeHtml(p.codigo)+' · '+escapeHtml(p.subgrupo||"—")+' · <span class="'+precoCls+'">'+precoStr+'</span></div>'+
+      '</div>'+
+      '<button class="fi-add" onclick="adicionarCatAoCart(\''+escapeAttr(p.codigo)+'\')">+ Add</button>'+
+    '</div>';
+  }).join("") +
+    (hidden > 0 ? '<div class="cat-empty" style="padding:10px">… e mais '+hidden+' produtos. Refine o filtro pra ver todos.</div>' : '');
+}
+
+function adicionarCatAoCart(cod){
+  if(CHECKIN_MODE !== "vendeu"){
+    iniciarCheckin();
+    setCheckinMode("vendeu");
+  }
+  if(VD_MODE !== "detalhado") setVDMode("detalhado");
+  var prod = PRODUTOS_BY_COD[cod];
+  if(!prod){ toast("Produto não encontrado.","error"); return; }
+  addProdutoAoCart(prod);
+  toast("Adicionado: "+prod.descricao,"ok");
 }
 
 // ─────────────────────────────────────────────────────
@@ -1619,17 +1836,62 @@ function renderCheckinPanel(){
 function renderVendeuPanel(){
   var box = document.getElementById("cp-vendeu");
   var html =
-    '<div class="prod-search">'+
-      '<input type="text" id="prod-search-input" placeholder="🔍 Buscar produto por código ou descrição..." oninput="buscarProduto(this.value)" onfocus="buscarProduto(this.value)" onblur="setTimeout(function(){var s=document.getElementById(\'prod-suggest\');if(s)s.classList.remove(\'show\');},200)">'+
+    '<div class="vd-mode-toggle">'+
+      '<button class="vd-mode-btn '+(VD_MODE==="rapido"?"active":"")+'" onclick="setVDMode(\'rapido\')">⚡ Rápido</button>'+
+      '<button class="vd-mode-btn '+(VD_MODE==="detalhado"?"active":"")+'" onclick="setVDMode(\'detalhado\')">🛒 Detalhado</button>'+
     '</div>'+
-    '<div class="prod-suggest" id="prod-suggest"></div>'+
-    '<div class="cart-list" id="cart-list"></div>'+
-    '<div class="cart-total" id="cart-total" style="display:none">'+
-      '<span>Total da venda:</span>'+
-      '<b id="cart-total-val">R$ 0,00</b>'+
+
+    // PAINEL RÁPIDO
+    '<div class="vd-mode-panel '+(VD_MODE==="rapido"?"active":"")+'" id="vd-panel-rapido">'+
+      '<div class="vd-rapido-card">'+
+        '<div class="vd-rapido-fld">'+
+          '<label>💰 Valor fechado da venda</label>'+
+          '<div class="rp-prefix">'+
+            '<span>R$</span>'+
+            '<input type="text" id="vd-rapido-input" value="'+(VD_RAPIDO_VALOR>0 ? VD_RAPIDO_VALOR.toFixed(2).replace(".",","):"")+'" placeholder="0,00" oninput="onVDRapidoChange(this.value)" autocomplete="off">'+
+          '</div>'+
+        '</div>'+
+        '<div style="font-size:.78rem;color:var(--mu);margin-top:8px;line-height:1.4">'+
+          '💡 Modo rápido — informe só o valor total fechado e a observação. Sem necessidade de detalhar SKUs.'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
+    // PAINEL DETALHADO
+    '<div class="vd-mode-panel '+(VD_MODE==="detalhado"?"active":"")+'" id="vd-panel-detalhado">'+
+      '<div class="prod-search">'+
+        '<input type="text" id="prod-search-input" placeholder="🔍 Buscar produto por código ou descrição..." oninput="buscarProduto(this.value)" onfocus="buscarProduto(this.value)" onblur="setTimeout(function(){var s=document.getElementById(\'prod-suggest\');if(s)s.classList.remove(\'show\');},200)">'+
+      '</div>'+
+      '<div class="prod-suggest" id="prod-suggest"></div>'+
+      '<div class="cart-list" id="cart-list"></div>'+
+      '<div class="cart-total" id="cart-total" style="display:none">'+
+        '<span>Total da venda:</span>'+
+        '<b id="cart-total-val">R$ 0,00</b>'+
+      '</div>'+
     '</div>';
   box.innerHTML = html;
-  renderCart();
+  if(VD_MODE === "detalhado") renderCart();
+}
+
+function setVDMode(mode){
+  VD_MODE = mode;
+  document.querySelectorAll(".vd-mode-btn").forEach(function(b){ b.classList.remove("active"); });
+  document.querySelectorAll(".vd-mode-panel").forEach(function(p){ p.classList.remove("active"); });
+  if(mode === "rapido"){
+    document.querySelectorAll(".vd-mode-btn")[0].classList.add("active");
+    var p1 = document.getElementById("vd-panel-rapido"); if(p1) p1.classList.add("active");
+  } else {
+    document.querySelectorAll(".vd-mode-btn")[1].classList.add("active");
+    var p2 = document.getElementById("vd-panel-detalhado"); if(p2) p2.classList.add("active");
+    renderCart();
+  }
+}
+
+function onVDRapidoChange(v){
+  var s = String(v||"").replace(/r\$/gi,"").replace(/\s+/g,"").replace(/[^\d,.\-]/g,"");
+  if(s.indexOf(",")>=0 && s.indexOf(".")>=0) s = s.replace(/\./g,"").replace(",",".");
+  else if(s.indexOf(",")>=0) s = s.replace(",",".");
+  VD_RAPIDO_VALOR = parseFloat(s) || 0;
 }
 
 function renderNaoVendeuPanel(){
@@ -1798,39 +2060,59 @@ function enviarCheckin(){
 
   var payload;
   if(CHECKIN_MODE === "vendeu"){
-    if(!CART.length){ toast("Adicione ao menos 1 produto.","error"); return; }
-    // Valida qtdes e aprovações
-    var temQtde = CART.some(function(c){ return c.qtde > 0; });
-    if(!temQtde){ toast("Informe quantidade pra ao menos 1 produto.","error"); return; }
-    var temAlertaSemAprov = CART.some(function(c){ return c.abaixoPiso && !c.aprovacao; });
-    if(temAlertaSemAprov){
-      if(!confirm("Há produtos abaixo do piso sem indicar aprovação. Enviar mesmo assim?")) return;
-    }
-    var produtos = CART.filter(function(c){ return c.qtde > 0; }).map(function(c){
-      return {
-        codigo: c.codigo, descricao: c.descricao,
-        qtde: c.qtde, preco: c.preco, total: c.qtde * c.preco,
-        custo: c.custo, margem: c.margem, piso: c.piso,
-        abaixoPiso: c.abaixoPiso,
-        aprovacao: c.aprovacao || "N_A"
-      };
-    });
-    var valorTotal = produtos.reduce(function(s,p){ return s + p.total; }, 0);
-    var algumaAprovGeral = produtos.some(function(p){ return p.abaixoPiso && p.aprovacao && p.aprovacao !== "N_A"; })
-      ? (produtos.find(function(p){ return p.abaixoPiso && p.aprovacao; })||{}).aprovacao
-      : "N_A";
 
-    payload = {
-      cnpj: ACTIVE_PDV.cnpj,
-      vendedorSigla: siglaEfetiva,
-      razaoSocial: ACTIVE_PDV.razao,
-      resultado: "VENDA",
-      valorTotal: valorTotal,
-      produtosVendidos: produtos,
-      aprovacaoGerencial: algumaAprovGeral,
-      observacao: obs,
-      idLeadOrigem: ACTIVE_LEAD ? ACTIVE_LEAD.id : ""
-    };
+    if(VD_MODE === "rapido"){
+      // ============ MODO RÁPIDO: só valor + observação ============
+      if(!VD_RAPIDO_VALOR || VD_RAPIDO_VALOR <= 0){
+        toast("Informe o valor da venda (modo rápido).","error");
+        return;
+      }
+      payload = {
+        cnpj: ACTIVE_PDV.cnpj,
+        vendedorSigla: siglaEfetiva,
+        razaoSocial: ACTIVE_PDV.razao,
+        resultado: "VENDA",
+        valorTotal: VD_RAPIDO_VALOR,
+        produtosVendidos: [],   // sem detalhamento
+        aprovacaoGerencial: "N_A",
+        observacao: obs ? (obs + " [check-in rápido]") : "[check-in rápido — sem detalhamento de SKUs]",
+        idLeadOrigem: ACTIVE_LEAD ? ACTIVE_LEAD.id : ""
+      };
+    } else {
+      // ============ MODO DETALHADO: carrinho com SKUs ============
+      if(!CART.length){ toast("Adicione ao menos 1 produto (ou troque pra modo Rápido).","error"); return; }
+      var temQtde = CART.some(function(c){ return c.qtde > 0; });
+      if(!temQtde){ toast("Informe quantidade pra ao menos 1 produto.","error"); return; }
+      var temAlertaSemAprov = CART.some(function(c){ return c.abaixoPiso && !c.aprovacao; });
+      if(temAlertaSemAprov){
+        if(!confirm("Há produtos abaixo do piso sem indicar aprovação. Enviar mesmo assim?")) return;
+      }
+      var produtos = CART.filter(function(c){ return c.qtde > 0; }).map(function(c){
+        return {
+          codigo: c.codigo, descricao: c.descricao,
+          qtde: c.qtde, preco: c.preco, total: c.qtde * c.preco,
+          custo: c.custo, margem: c.margem, piso: c.piso,
+          abaixoPiso: c.abaixoPiso,
+          aprovacao: c.aprovacao || "N_A"
+        };
+      });
+      var valorTotal = produtos.reduce(function(s,p){ return s + p.total; }, 0);
+      var algumaAprovGeral = produtos.some(function(p){ return p.abaixoPiso && p.aprovacao && p.aprovacao !== "N_A"; })
+        ? (produtos.find(function(p){ return p.abaixoPiso && p.aprovacao; })||{}).aprovacao
+        : "N_A";
+
+      payload = {
+        cnpj: ACTIVE_PDV.cnpj,
+        vendedorSigla: siglaEfetiva,
+        razaoSocial: ACTIVE_PDV.razao,
+        resultado: "VENDA",
+        valorTotal: valorTotal,
+        produtosVendidos: produtos,
+        aprovacaoGerencial: algumaAprovGeral,
+        observacao: obs,
+        idLeadOrigem: ACTIVE_LEAD ? ACTIVE_LEAD.id : ""
+      };
+    }
   } else {
     if(!NV_MOTIVO){ toast("Selecione o motivo da não venda.","error"); return; }
     payload = {
