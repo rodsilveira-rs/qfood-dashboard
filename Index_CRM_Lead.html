@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CRM · Cadastro de Leads — Q Food Company</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;--pink:#ec4899;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+.page-hdr{display:flex;align-items:center;gap:16px;background:var(--sf);border-bottom:1px solid var(--br);padding:14px 24px;margin-bottom:20px}
+.page-hdr .logo-wrap{background:#fff;border-radius:10px;padding:6px;width:60px;height:60px;display:flex;align-items:center;justify-content:center}
+.page-hdr .logo-wrap img{width:100%;height:100%;object-fit:contain}
+.page-hdr .title-wrap{flex:1}
+.page-hdr .title-wrap h1{font-family:var(--fh);font-size:1.5rem;margin:0;color:var(--tx);font-weight:700}
+.page-hdr .title-wrap .sub{font-size:.82rem;color:var(--mu);margin-top:2px}
+.page-hdr .actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.page-hdr .user-name{font-size:.85rem;color:var(--mu);padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px}
+.page-hdr button{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.85rem;font-weight:600;transition:all .15s}
+.page-hdr button:hover{background:var(--br);transform:translateY(-1px)}
+.page-hdr button.primary{background:#e63329;border-color:#e63329;color:#fff}
+.page-hdr button.primary:hover{background:#c42a22}
+
+.page-container{max-width:1400px;margin:0 auto;padding:0 24px 40px}
+
+.blocked{max-width:500px;margin:60px auto;padding:40px;text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:16px}
+.blocked h2{color:#e63329;margin-bottom:12px}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:6px;margin-bottom:20px;overflow-x:auto}
+.tab{flex:1;min-width:160px;background:transparent;border:none;color:var(--mu);padding:12px 18px;border-radius:8px;cursor:pointer;font-family:var(--fb);font-size:.9rem;font-weight:600;transition:all .15s;white-space:nowrap;display:flex;align-items:center;justify-content:center;gap:8px}
+.tab:hover{color:var(--tx);background:var(--s2)}
+.tab.active{background:var(--pink);color:#fff;font-weight:700}
+.tab .badge{background:rgba(255,255,255,.22);color:#fff;font-size:.7rem;padding:1px 8px;border-radius:999px;font-weight:700}
+.tab:not(.active) .badge{background:var(--s3);color:var(--mu)}
+
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:fadeIn .2s ease-out}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s}
+.kpi:hover{border-color:var(--b2);transform:translateY(-2px)}
+.kpi.active{border-color:var(--pink)}
+.kpi .lbl{font-size:.68rem;color:var(--mu);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px}
+.kpi .val{font-family:var(--fh);font-size:1.4rem;font-weight:800;line-height:1}
+.kpi.g .val{color:var(--ok)}
+.kpi.y .val{color:var(--warn)}
+.kpi.r .val{color:var(--red)}
+.kpi.gray .val{color:var(--mu)}
+.kpi.b .val{color:var(--blue)}
+.kpi.pink .val{color:var(--pink)}
+
+/* Form (aba 1) */
+.form-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:24px;margin-bottom:16px}
+.form-card .card-title{font-family:var(--fh);font-size:1.05rem;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.form-card .card-sub{font-size:.82rem;color:var(--mu);margin-bottom:18px}
+
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:.72rem;color:var(--mu);margin-bottom:5px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.fld label .req{color:var(--red);margin-left:3px}
+.fld input, .fld select, .fld textarea{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 12px;color:var(--tx);font-size:.88rem;outline:none;font-family:var(--fb);resize:vertical}
+.fld input:disabled, .fld select:disabled, .fld textarea:disabled{opacity:.6;cursor:not-allowed}
+.fld input:focus, .fld select:focus, .fld textarea:focus{border-color:var(--pink)}
+.fld input.err, .fld select.err{border-color:var(--red)}
+.fld textarea{min-height:70px}
+.fld .hint{font-size:.7rem;color:var(--mu);margin-top:4px}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fld-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.fld-cnpj{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:flex-end}
+
+.btn-check{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.82rem;white-space:nowrap;height:42px;transition:all .15s}
+.btn-check:hover{background:var(--s3);border-color:var(--pink)}
+.btn-check:disabled{opacity:.5;cursor:not-allowed}
+
+.cnpj-status{margin-top:8px;padding:10px 12px;border-radius:8px;font-size:.82rem;display:none}
+.cnpj-status.show{display:block}
+.cnpj-status.ok{background:rgba(54,207,160,.12);border:1px solid rgba(54,207,160,.35);color:var(--ok)}
+.cnpj-status.warn{background:rgba(255,170,43,.12);border:1px solid rgba(255,170,43,.35);color:var(--warn)}
+.cnpj-status.err{background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.35);color:var(--red)}
+.cnpj-status.loading{background:var(--s2);border:1px solid var(--br);color:var(--mu)}
+.cnpj-status .st-line{margin-bottom:3px}
+.cnpj-status .st-line:last-child{margin-bottom:0}
+.cnpj-status b{color:inherit;font-weight:700}
+
+.form-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;padding-top:18px;border-top:1px solid var(--br)}
+.btn-clear{background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:11px 22px;border-radius:8px;cursor:pointer;font-weight:600;font-size:.88rem}
+.btn-clear:hover{color:var(--tx);background:var(--s3)}
+.btn-submit{background:var(--pink);border:none;color:#fff;padding:11px 28px;border-radius:8px;cursor:pointer;font-weight:700;font-size:.92rem;display:flex;align-items:center;gap:6px}
+.btn-submit:hover{filter:brightness(1.1)}
+.btn-submit:disabled{background:var(--s3);color:var(--mu);cursor:not-allowed;filter:none}
+
+/* Toolbar (aba 2) */
+.toolbar{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toolbar .search{flex:1;min-width:220px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb)}
+.toolbar .search:focus{border-color:var(--pink)}
+.toolbar select{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:.82rem;outline:none;cursor:pointer;font-family:var(--fb)}
+.toolbar .btn-sec{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:9px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600}
+.toolbar .btn-sec:hover{background:var(--s3)}
+
+/* Table */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden}
+.ttable{width:100%;border-collapse:collapse;font-size:.86rem}
+.ttable th{font-size:.68rem;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:.8px;padding:12px 10px;text-align:left;border-bottom:1px solid var(--br);background:var(--s2)}
+.ttable td{padding:11px 10px;border-bottom:1px solid var(--br);vertical-align:top}
+.ttable tr:hover td{background:rgba(255,255,255,.02)}
+.muted{color:var(--mu);font-size:.78rem;line-height:1.4}
+.mono{font-family:'SF Mono','Consolas',monospace;font-size:.78rem}
+
+.tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:.68rem;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.tag-st-novo{background:rgba(143,160,192,.15);color:#9aabc9;border:1px solid rgba(143,160,192,.3)}
+.tag-st-visualizado{background:rgba(34,211,238,.15);color:var(--cyan);border:1px solid rgba(34,211,238,.3)}
+.tag-st-em_atendimento{background:rgba(255,170,43,.15);color:var(--warn);border:1px solid rgba(255,170,43,.3)}
+.tag-st-convertido{background:rgba(54,207,160,.15);color:var(--ok);border:1px solid rgba(54,207,160,.3)}
+.tag-st-perdido{background:rgba(255,77,79,.15);color:var(--red);border:1px solid rgba(255,77,79,.3)}
+.tag-st-cancelado{background:rgba(94,113,142,.15);color:var(--mu2);border:1px solid rgba(94,113,142,.3)}
+.tag-vd{background:rgba(34,211,238,.12);color:#60d8eb;border:1px solid rgba(34,211,238,.25)}
+.tag-orig{background:rgba(160,124,246,.12);color:#b798f8;border:1px solid rgba(160,124,246,.25)}
+
+.acoes-cell{white-space:nowrap;display:flex;gap:4px}
+.mini-btn{background:transparent;border:1px solid var(--br);color:var(--mu);padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.72rem;transition:all .15s}
+.mini-btn:hover{background:var(--s2);color:var(--tx);border-color:var(--b2)}
+.mini-btn.del:hover{color:var(--red);border-color:var(--red)}
+
+.empty{text-align:center;padding:40px 20px;color:var(--mu)}
+.empty .em-icon{font-size:3rem;margin-bottom:10px;opacity:.4}
+
+/* Ranking (aba 3) */
+.rank-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.rank-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:22px;position:relative;overflow:hidden}
+.rank-card.winner{border-color:var(--ok);box-shadow:0 0 0 1px rgba(54,207,160,.25), 0 8px 24px rgba(54,207,160,.08)}
+.rank-card .rank-medal{position:absolute;top:14px;right:16px;font-size:1.6rem}
+.rank-card .rank-name{font-family:var(--fh);font-size:1.25rem;font-weight:800;margin-bottom:4px}
+.rank-card .rank-role{font-size:.75rem;color:var(--mu);margin-bottom:18px;text-transform:uppercase;letter-spacing:.5px}
+.rank-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rank-metric{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px}
+.rank-metric.full{grid-column:span 2}
+.rank-metric .m-lbl{font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.rank-metric .m-val{font-family:var(--fh);font-size:1.35rem;font-weight:800;line-height:1}
+.rank-metric .m-sub{font-size:.7rem;color:var(--mu);margin-top:3px}
+.rank-metric.good .m-val{color:var(--ok)}
+.rank-metric.bad .m-val{color:var(--red)}
+
+.rank-period{background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:10px 14px;margin-bottom:16px;text-align:center;font-size:.85rem;color:var(--mu)}
+.rank-period b{color:var(--tx);font-weight:700}
+
+.rank-empty{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:50px 20px;text-align:center;color:var(--mu)}
+
+/* Modal (edição) */
+.modal-ov{position:fixed;inset:0;background:rgba(10,12,20,.78);backdrop-filter:blur(4px);z-index:2000;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:24px;width:100%;max-width:680px;box-shadow:0 24px 80px rgba(0,0,0,.7);margin:auto}
+.modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-family:var(--fh);font-size:1.15rem;font-weight:700;color:var(--tx)}
+.modal-close{background:none;border:none;color:var(--mu);font-size:1.5rem;cursor:pointer;padding:4px 10px;border-radius:8px;line-height:1}
+.modal-close:hover{background:var(--s2);color:var(--tx)}
+.modal-footer{display:flex;justify-content:space-between;gap:10px;margin-top:22px;padding-top:16px;border-top:1px solid var(--br)}
+.modal-footer .left, .modal-footer .right{display:flex;gap:10px}
+.modal-footer button{padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:.86rem;border:none}
+.btn-cancel{background:var(--s2);border:1px solid var(--br);color:var(--mu)}
+.btn-save{background:var(--pink);color:#fff}
+.btn-save:hover{filter:brightness(1.1)}
+.btn-danger{background:rgba(255,77,79,.15);border:1px solid var(--red);color:var(--red)}
+.btn-danger:hover{background:var(--red);color:#fff}
+
+.det-block{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.det-block .dt-lbl{font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;font-weight:600}
+.det-block .dt-val{font-size:.92rem;color:var(--tx)}
+.det-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+
+/* Loader + toast */
+.loader-bar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--pink),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:slide 1.2s infinite;z-index:9999;display:none}
+.loader-bar.show{display:block}
+@keyframes slide{0%{background-position:-50% 0}100%{background-position:150% 0}}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:.85rem;z-index:5000;display:none;max-width:340px}
+.toast.show{display:block;animation:fadeIn .2s ease-out}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.ok{border-color:var(--ok);color:var(--ok)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}.rank-grid{grid-template-columns:1fr}}
+@media(max-width:700px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .ttable{font-size:.78rem}
+  .ttable th, .ttable td{padding:8px 6px}
+  .fld-row, .fld-row-3, .rank-metrics{grid-template-columns:1fr}
+  .page-hdr{flex-wrap:wrap}
+  .page-hdr .actions{width:100%;justify-content:flex-end}
+  .fld-cnpj{grid-template-columns:1fr}
+  .tab{min-width:auto;font-size:.78rem;padding:10px 8px}
+}
+</style>
+</head>
+<body>
+
+<div class="loader-bar" id="loader-bar"></div>
+<div class="toast" id="toast"></div>
+
+<div class="page-hdr">
+  <div class="logo-wrap"><img src="logo.png" alt="Q Food"></div>
+  <div class="title-wrap">
+    <h1>📨 CRM · Cadastro de Leads</h1>
+    <div class="sub">Captação Marketing → Time Comercial · Q Food Company</div>
+  </div>
+  <div class="actions">
+    <span id="user-name" class="user-name">-</span>
+    <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
+    <button class="primary" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="page-container">
+
+  <div id="access-denied" class="blocked" style="display:none">
+    <h2>🔒 Acesso Restrito</h2>
+    <p>Esta tela é exclusiva para o time de Marketing/Leads e administradores.</p>
+    <button onclick="window.location.href='Index_Menu.html'" style="margin-top:16px;background:#e63329;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600">Voltar ao Menu</button>
+  </div>
+
+  <div id="main-content" style="display:none">
+
+    <!-- TABS -->
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="cadastro" onclick="setTab('cadastro')">
+        🆕 Cadastrar Lead
+      </button>
+      <button class="tab" data-tab="enviados" onclick="setTab('enviados')">
+        📨 Leads enviados <span class="badge" id="bd-enviados">0</span>
+      </button>
+      <button class="tab" data-tab="ranking" onclick="setTab('ranking')">
+        🏆 Ranking de Resposta
+      </button>
+    </div>
+
+    <!-- ====== ABA 1: CADASTRAR ====== -->
+    <div class="tab-panel active" id="panel-cadastro">
+      <div class="form-card">
+        <div class="card-title">📌 Dados do Lead</div>
+        <div class="card-sub">Capturado via Instagram, site, indicação ou outro canal. Antes de enviar, verifique se o CNPJ já está na nossa base.</div>
+
+        <!-- CNPJ + Verificar -->
+        <div class="fld">
+          <label>CNPJ <span class="req">*</span></label>
+          <div class="fld-cnpj">
+            <input type="text" id="f-cnpj" maxlength="18" placeholder="00.000.000/0000-00" oninput="maskCNPJ(this); resetCnpjStatus()">
+            <button class="btn-check" id="btn-check-cnpj" onclick="verificarCnpj()">🔍 Verificar CNPJ</button>
+          </div>
+          <div class="hint">Confirme com 14 dígitos válidos antes de enviar.</div>
+          <div class="cnpj-status" id="cnpj-status"></div>
+        </div>
+
+        <div class="fld-row">
+          <div class="fld">
+            <label>Razão Social <span class="req">*</span></label>
+            <input type="text" id="f-razao" placeholder="Ex.: ABC Comércio de Alimentos LTDA">
+          </div>
+          <div class="fld">
+            <label>Nome Fantasia</label>
+            <input type="text" id="f-fantasia" placeholder="Ex.: Mercadinho do Bairro">
+          </div>
+        </div>
+
+        <div class="fld-row">
+          <div class="fld">
+            <label>Telefone</label>
+            <input type="text" id="f-tel" maxlength="15" placeholder="(00) 0000-0000" oninput="maskTel(this)">
+          </div>
+          <div class="fld">
+            <label>WhatsApp <span class="req">*</span></label>
+            <input type="text" id="f-wpp" maxlength="15" placeholder="(00) 00000-0000" oninput="maskTel(this)">
+          </div>
+        </div>
+
+        <div class="fld">
+          <label>Endereço</label>
+          <input type="text" id="f-end" placeholder="Rua, número, bairro">
+        </div>
+
+        <div class="fld-row-3">
+          <div class="fld">
+            <label>Cidade</label>
+            <input type="text" id="f-cid" placeholder="Ex.: Vitória">
+          </div>
+          <div class="fld">
+            <label>UF</label>
+            <select id="f-uf">
+              <option value="">—</option>
+              <option>AC</option><option>AL</option><option>AP</option><option>AM</option>
+              <option>BA</option><option>CE</option><option>DF</option><option>ES</option>
+              <option>GO</option><option>MA</option><option>MT</option><option>MS</option>
+              <option>MG</option><option>PA</option><option>PB</option><option>PR</option>
+              <option>PE</option><option>PI</option><option>RJ</option><option>RN</option>
+              <option>RS</option><option>RO</option><option>RR</option><option>SC</option>
+              <option>SP</option><option>SE</option><option>TO</option>
+            </select>
+          </div>
+          <div class="fld">
+            <label>Origem <span class="req">*</span></label>
+            <select id="f-orig">
+              <option value="">—</option>
+              <option value="Instagram">📷 Instagram</option>
+              <option value="Site">🌐 Site</option>
+              <option value="Indicação">🤝 Indicação</option>
+              <option value="WhatsApp">💬 WhatsApp</option>
+              <option value="Feira/Evento">🎪 Feira/Evento</option>
+              <option value="Outro">❓ Outro</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fld-row">
+          <div class="fld">
+            <label>Segmento</label>
+            <input type="text" id="f-seg" placeholder="Ex.: restaurante oriental, mini mercado, lanchonete...">
+            <div class="hint">Texto livre — ajuda o vendedor a entender o perfil.</div>
+          </div>
+          <div class="fld">
+            <label>Atribuir a <span class="req">*</span></label>
+            <select id="f-vendedor">
+              <option value="">Carregando vendedores...</option>
+            </select>
+            <div class="hint">Vendedoras com <b>Recebe_Leads = SIM</b> na UUSR.</div>
+          </div>
+        </div>
+
+        <div class="fld">
+          <label>Observação para o vendedor</label>
+          <textarea id="f-obs" placeholder="Contexto da conversa, demanda específica, melhor horário pra contato..."></textarea>
+        </div>
+
+        <div class="form-footer">
+          <button class="btn-clear" onclick="limparForm()">Limpar</button>
+          <button class="btn-submit" id="btn-submit" onclick="enviarLead()">📤 Enviar Lead</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ABA 2: ENVIADOS ====== -->
+    <div class="tab-panel" id="panel-enviados">
+
+      <div class="kpi-row">
+        <div class="kpi" data-flt="" onclick="setFilterStatus('')">
+          <div class="lbl">Total</div><div class="val" id="kpi-total">0</div>
+        </div>
+        <div class="kpi gray" data-flt="NOVO" onclick="setFilterStatus('NOVO')">
+          <div class="lbl">⚪ Novos</div><div class="val" id="kpi-novo">0</div>
+        </div>
+        <div class="kpi b" data-flt="VISUALIZADO" onclick="setFilterStatus('VISUALIZADO')">
+          <div class="lbl">👁️ Visualizados</div><div class="val" id="kpi-vis">0</div>
+        </div>
+        <div class="kpi y" data-flt="EM_ATENDIMENTO" onclick="setFilterStatus('EM_ATENDIMENTO')">
+          <div class="lbl">📞 Em atendimento</div><div class="val" id="kpi-atd">0</div>
+        </div>
+        <div class="kpi g" data-flt="CONVERTIDO" onclick="setFilterStatus('CONVERTIDO')">
+          <div class="lbl">✅ Convertidos</div><div class="val" id="kpi-conv">0</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input type="text" id="search-input" class="search" placeholder="🔍 Buscar por razão, fantasia, CNPJ, observação..." oninput="renderLeads()">
+        <select id="vd-filter" onchange="renderLeads()">
+          <option value="">Todas vendedoras</option>
+        </select>
+        <select id="period-filter" onchange="renderLeads()">
+          <option value="">Período: tudo</option>
+          <option value="hoje">Hoje</option>
+          <option value="7d">Últimos 7 dias</option>
+          <option value="30d">Últimos 30 dias</option>
+          <option value="mes">Mês corrente</option>
+        </select>
+        <button class="btn-sec" onclick="reloadLeads()" title="Atualizar do servidor">🔄</button>
+        <button class="btn-sec" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+
+      <div class="twrap">
+        <table class="ttable" id="ttable">
+          <thead>
+            <tr>
+              <th style="width:14%">Data envio</th>
+              <th style="width:22%">Cliente</th>
+              <th style="width:14%">CNPJ / Contato</th>
+              <th style="width:11%">Origem</th>
+              <th style="width:11%">Vendedor</th>
+              <th style="width:12%">Status</th>
+              <th style="width:8%">T. Resp.</th>
+              <th style="width:8%">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="empty-state" style="display:none">
+          <div class="em-icon">📨</div>
+          <div>Nenhum lead encontrado.</div>
+          <div style="font-size:.8rem;margin-top:6px">Use a aba "Cadastrar Lead" para começar.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== ABA 3: RANKING ====== -->
+    <div class="tab-panel" id="panel-ranking">
+      <div class="rank-period" id="rank-period">Período: <b id="rank-period-lbl">—</b></div>
+      <div id="rank-content">
+        <div class="rank-empty">Carregando ranking...</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal de detalhes/edição do lead -->
+<div class="modal-ov" id="modal-lead" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">📨 Detalhes do Lead</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+
+    <div id="modal-body"></div>
+
+    <div class="modal-footer">
+      <div class="left">
+        <button class="btn-danger" id="btn-cancelar-lead" onclick="cancelarLead()">🚫 Cancelar Lead</button>
+      </div>
+      <div class="right">
+        <button class="btn-cancel" onclick="closeModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Q FOOD COMPANY — CRM · CADASTRO DE LEADS (BÁRBARA)
+   Backend: Apps Script v1.3 (?modulo=crm) + planilha CRM_LEADS
+   ============================================================ */
+
+var WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec";
+var UUSR_URL   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+var ADMINS     = ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br","celio@qfoodcompany.com.br"];
+var POLL_MS    = 30 * 1000;  // 30s — só na aba Enviados/Ranking
+
+var CURRENT_USER = null;     // {email, nome, sigla, isAdmin}
+var VENDEDORAS   = [];       // {email, nome, sigla} de quem tem Recebe_Leads=SIM
+var TODAS_USERS  = [];       // todos com CRM=X (pra resolver siglas → nomes)
+var LEADS        = [];
+var FILTER_STATUS = "";
+var EDITING_ID   = null;
+var POLL_TIMER   = null;
+var ACTIVE_TAB   = "cadastro";
+var CNPJ_OK_VERIFICADO = false;   // travado pra "true" depois de checar; reseta ao alterar
+
+// ─────────────────────────────────────────────────────
+// Auth guard
+// ─────────────────────────────────────────────────────
+(function checkAuth(){
+  var sess = localStorage.getItem("qfood_session");
+  if(!sess){ goLogin("Sessão expirada."); return; }
+  var s; try{ s = JSON.parse(sess); }catch(e){ goLogin(); return; }
+  if(!s.email || !s.ts || (Date.now() - s.ts > 8*60*60*1000)){ goLogin(); return; }
+
+  var sigla = (s.crmSigla || "").toUpperCase();
+  var isAdmin = ADMINS.indexOf(s.email) >= 0 || sigla === "*";
+  var podeLead = isAdmin || sigla === "LEAD";
+
+  if(!podeLead){
+    document.getElementById("access-denied").style.display = "block";
+    document.getElementById("user-name").textContent = s.nome || s.email;
+    return;
+  }
+
+  CURRENT_USER = {
+    email: s.email,
+    nome:  s.nome || s.email.split("@")[0],
+    sigla: sigla,
+    isAdmin: isAdmin
+  };
+  document.getElementById("user-name").textContent = CURRENT_USER.nome + (isAdmin?" · admin":" · marketing");
+  document.getElementById("main-content").style.display = "block";
+  init();
+})();
+
+function goLogin(msg){
+  if(msg) alert(msg);
+  localStorage.removeItem("qfood_session");
+  window.location.href = "Index_Menu.html";
+}
+
+function logout(){
+  if(confirm("Sair do sistema?")){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────────
+function init(){
+  loadVendedoras().then(function(){
+    loadLeads();
+    POLL_TIMER = setInterval(function(){
+      if(ACTIVE_TAB === "enviados" || ACTIVE_TAB === "ranking"){
+        if(!isModalOpen()) loadLeads(true);
+      }
+    }, POLL_MS);
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Carrega vendedoras (UUSR — quem tem Recebe_Leads=SIM)
+// ─────────────────────────────────────────────────────
+function loadVendedoras(){
+  return fetch(UUSR_URL + "&t=" + Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      if(txt.trim().startsWith("<")) throw new Error("CSV indisponível");
+      var parsed = parseUUSRCSV(txt);
+      TODAS_USERS = parsed.todos;
+      VENDEDORAS  = parsed.recebem;
+      preencheSelectVendedoras();
+    })
+    .catch(function(e){
+      console.warn("Falha UUSR:", e);
+      // Fallback hardcoded conforme memória
+      VENDEDORAS = [
+        {email:"dayane@qfoodcompany.com.br", nome:"Dayane Nascimento", sigla:"DAYANE.NASCIMENTO"},
+        {email:"eliane@qfoodcompany.com.br", nome:"Eliane Moreira",    sigla:"ELIANE.MOREIRA"}
+      ];
+      TODAS_USERS = VENDEDORAS.slice();
+      preencheSelectVendedoras();
+      toast("Lista de vendedoras carregada do cache local.", "");
+    });
+}
+
+function parseUUSRCSV(txt){
+  var rows = parseCSV(txt);
+  if(rows.length < 2) return {todos:[], recebem:[]};
+  var hdr = rows[0].map(function(h){return (h||"").trim().toLowerCase();});
+  var iE = hdr.indexOf("email");
+  var iN = hdr.indexOf("nome");
+  var iCRM = hdr.indexOf("crm");
+  var iSig = hdr.indexOf("crm_sigla");
+  var iRec = hdr.indexOf("recebe_leads");
+  if(iE < 0) return {todos:[], recebem:[]};
+
+  var todos = [], recebem = [];
+  for(var r=1; r<rows.length; r++){
+    var email = (rows[r][iE]||"").trim().toLowerCase();
+    if(!email) continue;
+    var nome  = iN  >= 0 ? (rows[r][iN]||"").trim() : email;
+    var crm   = iCRM>= 0 ? (rows[r][iCRM]||"").trim().toLowerCase() : "";
+    var sigla = iSig>= 0 ? (rows[r][iSig]||"").trim().toUpperCase() : "";
+    var rec   = iRec>= 0 ? (rows[r][iRec]||"").trim().toLowerCase() : "";
+
+    var temCRM = (crm === "x" || crm.indexOf("x") === 0);
+    if(temCRM) todos.push({email:email, nome:nome, sigla:sigla});
+    if(rec === "sim" && temCRM) recebem.push({email:email, nome:nome, sigla:sigla});
+  }
+  todos.sort(function(a,b){return a.nome.localeCompare(b.nome);});
+  recebem.sort(function(a,b){return a.nome.localeCompare(b.nome);});
+  return {todos:todos, recebem:recebem};
+}
+
+function parseCSV(txt){
+  var rows = [], cur = [], field = "", inQ = false;
+  for(var i=0; i<txt.length; i++){
+    var c = txt[i];
+    if(inQ){
+      if(c==='"' && txt[i+1]==='"'){field+='"';i++;}
+      else if(c==='"'){inQ=false;}
+      else field+=c;
+    } else {
+      if(c==='"'){inQ=true;}
+      else if(c===','){cur.push(field);field='';}
+      else if(c==='\r'){}
+      else if(c==='\n'){cur.push(field);rows.push(cur);cur=[];field='';}
+      else field+=c;
+    }
+  }
+  if(field.length || cur.length){cur.push(field);rows.push(cur);}
+  return rows;
+}
+
+function preencheSelectVendedoras(){
+  var sel = document.getElementById("f-vendedor");
+  sel.innerHTML = '<option value="">— escolha —</option>';
+  VENDEDORAS.forEach(function(v){
+    var o = document.createElement("option");
+    o.value = v.sigla;
+    o.textContent = v.nome;
+    sel.appendChild(o);
+  });
+
+  // filtro da aba enviados
+  var fv = document.getElementById("vd-filter");
+  fv.innerHTML = '<option value="">Todas vendedoras</option>';
+  VENDEDORAS.forEach(function(v){
+    var o = document.createElement("option");
+    o.value = v.sigla;
+    o.textContent = v.nome;
+    fv.appendChild(o);
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// API helpers (form-urlencoded — sem preflight CORS)
+// ─────────────────────────────────────────────────────
+function apiPost(action, params){
+  showLoader(true);
+  var body = "modulo=crm&action=" + encodeURIComponent(action);
+  // auth no payload (Apps Script v1.3 não usa Session.getActiveUser)
+  body += "&auth_email=" + encodeURIComponent(CURRENT_USER.email);
+  body += "&auth_nome="  + encodeURIComponent(CURRENT_USER.nome);
+  body += "&auth_sigla=" + encodeURIComponent(CURRENT_USER.sigla);
+  if(params){
+    Object.keys(params).forEach(function(k){
+      var v = params[k];
+      if(v == null) return;
+      if(typeof v === "object") v = JSON.stringify(v);
+      body += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v);
+    });
+  }
+  return fetch(WEBAPP_URL, {
+    method: "POST",
+    headers: {"Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"},
+    body: body
+  }).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(function(d){
+    showLoader(false);
+    if(!d.ok) throw new Error(d.error || "Erro");
+    return d;
+  }).catch(function(e){
+    showLoader(false);
+    throw e;
+  });
+}
+
+function apiGet(action, params){
+  showLoader(true);
+  var qs = "?modulo=crm&action=" + encodeURIComponent(action) + "&t=" + Date.now();
+  qs += "&auth_email=" + encodeURIComponent(CURRENT_USER.email);
+  qs += "&auth_sigla=" + encodeURIComponent(CURRENT_USER.sigla);
+  if(params){
+    Object.keys(params).forEach(function(k){
+      if(params[k] == null) return;
+      qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+    });
+  }
+  return fetch(WEBAPP_URL + qs).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(function(d){
+    showLoader(false);
+    if(!d.ok) throw new Error(d.error || "Erro");
+    return d;
+  }).catch(function(e){
+    showLoader(false);
+    throw e;
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────────
+function setTab(name){
+  ACTIVE_TAB = name;
+  document.querySelectorAll(".tab").forEach(function(b){
+    b.classList.toggle("active", b.dataset.tab === name);
+  });
+  document.querySelectorAll(".tab-panel").forEach(function(p){
+    p.classList.toggle("active", p.id === "panel-"+name);
+  });
+  if(name === "ranking") loadRanking();
+  if(name === "enviados") renderLeads();
+}
+
+// ─────────────────────────────────────────────────────
+// Máscaras + validação
+// ─────────────────────────────────────────────────────
+function maskCNPJ(el){
+  var v = el.value.replace(/\D/g,"").slice(0,14);
+  if(v.length>12) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2}).*/, "$1.$2.$3/$4-$5");
+  else if(v.length>8) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, "$1.$2.$3/$4");
+  else if(v.length>5) v = v.replace(/^(\d{2})(\d{3})(\d{0,3}).*/, "$1.$2.$3");
+  else if(v.length>2) v = v.replace(/^(\d{2})(\d{0,3}).*/, "$1.$2");
+  el.value = v;
+}
+function maskTel(el){
+  var v = el.value.replace(/\D/g,"").slice(0,11);
+  if(v.length>10) v = v.replace(/^(\d{2})(\d{5})(\d{0,4}).*/, "($1) $2-$3");
+  else if(v.length>6) v = v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/, "($1) $2-$3");
+  else if(v.length>2) v = v.replace(/^(\d{2})(\d{0,5}).*/, "($1) $2");
+  el.value = v;
+}
+function onlyDigits(s){ return (s||"").replace(/\D/g,""); }
+function isCnpjValid(cnpj){
+  cnpj = onlyDigits(cnpj);
+  if(cnpj.length !== 14) return false;
+  if(/^(\d)\1+$/.test(cnpj)) return false;
+  var calc = function(x){
+    var n = cnpj.substring(0, x).split("").map(Number);
+    var w = x===12 ? [5,4,3,2,9,8,7,6,5,4,3,2] : [6,5,4,3,2,9,8,7,6,5,4,3,2];
+    var sum = 0; for(var i=0;i<n.length;i++) sum += n[i]*w[i];
+    var r = sum % 11;
+    return r < 2 ? 0 : 11 - r;
+  };
+  return calc(12) === Number(cnpj.charAt(12)) && calc(13) === Number(cnpj.charAt(13));
+}
+
+function resetCnpjStatus(){
+  CNPJ_OK_VERIFICADO = false;
+  var box = document.getElementById("cnpj-status");
+  box.classList.remove("show","ok","warn","err","loading");
+  box.innerHTML = "";
+}
+
+// ─────────────────────────────────────────────────────
+// Verificar CNPJ na BASE_PDV (via Apps Script)
+// ─────────────────────────────────────────────────────
+function verificarCnpj(){
+  var raw = document.getElementById("f-cnpj").value;
+  var cnpj = onlyDigits(raw);
+  var box = document.getElementById("cnpj-status");
+  if(!isCnpjValid(cnpj)){
+    box.className = "cnpj-status show err";
+    box.innerHTML = "<div class='st-line'>❌ CNPJ inválido. Confira os 14 dígitos.</div>";
+    CNPJ_OK_VERIFICADO = false;
+    return;
+  }
+  box.className = "cnpj-status show loading";
+  box.innerHTML = "<div class='st-line'>⏳ Consultando BASE_PDV...</div>";
+
+  apiGet("checkCnpjBasePdv", {cnpj: cnpj}).then(function(d){
+    var info = d.resultado || d.data || d;  // tolerante
+    var existe   = !!info.existe;
+    var status   = (info.status || "").toString().toUpperCase();
+    var razao    = info.razao || info.razao_social || "";
+    var vendedor = info.vendedor || "";
+    var dias     = info.dias_sem_compra;
+
+    if(!existe){
+      box.className = "cnpj-status show ok";
+      box.innerHTML = "<div class='st-line'>✅ <b>CNPJ não está na base.</b> É um lead novo, pode prosseguir.</div>";
+      CNPJ_OK_VERIFICADO = true;
+      return;
+    }
+
+    // Existe na base: avisa em vermelho mas DEIXA enviar
+    var atendVendedor = vendedor ? "<div class='st-line'>👤 Já é atendido por <b>"+escapeHtml(vendedor)+"</b></div>" : "";
+    var diasInfo = (dias != null && dias !== "") ? "<div class='st-line'>📆 Dias sem compra: <b>"+escapeHtml(String(dias))+"</b></div>" : "";
+
+    box.className = "cnpj-status show warn";
+    box.innerHTML =
+      "<div class='st-line'>⚠️ <b>Atenção:</b> este CNPJ <b>já está na BASE_PDV</b>.</div>" +
+      (razao ? "<div class='st-line'>🏢 <b>"+escapeHtml(razao)+"</b></div>" : "") +
+      (status ? "<div class='st-line'>📊 Status atual: <b>"+escapeHtml(status)+"</b></div>" : "") +
+      atendVendedor +
+      diasInfo +
+      "<div class='st-line' style='margin-top:6px;font-size:.78rem'>💡 Você pode enviar mesmo assim — será marcado como <b>lead de cliente já cadastrado</b>.</div>";
+
+    // Tenta auto-preencher razão se ainda vazia
+    if(razao && !document.getElementById("f-razao").value){
+      document.getElementById("f-razao").value = razao;
+    }
+    CNPJ_OK_VERIFICADO = true;
+  }).catch(function(e){
+    box.className = "cnpj-status show err";
+    box.innerHTML = "<div class='st-line'>❌ Falha ao consultar: "+escapeHtml(e.message)+"</div>";
+    CNPJ_OK_VERIFICADO = false;
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Enviar lead
+// ─────────────────────────────────────────────────────
+function enviarLead(){
+  // limpa erros visuais
+  ["f-cnpj","f-razao","f-wpp","f-orig","f-vendedor"].forEach(function(id){
+    document.getElementById(id).classList.remove("err");
+  });
+
+  var cnpj    = onlyDigits(document.getElementById("f-cnpj").value);
+  var razao   = document.getElementById("f-razao").value.trim();
+  var fant    = document.getElementById("f-fantasia").value.trim();
+  var tel     = onlyDigits(document.getElementById("f-tel").value);
+  var wpp     = onlyDigits(document.getElementById("f-wpp").value);
+  var endr    = document.getElementById("f-end").value.trim();
+  var cid     = document.getElementById("f-cid").value.trim();
+  var uf      = document.getElementById("f-uf").value;
+  var seg     = document.getElementById("f-seg").value.trim();
+  var orig    = document.getElementById("f-orig").value;
+  var vend    = document.getElementById("f-vendedor").value;
+  var obs     = document.getElementById("f-obs").value.trim();
+
+  var erros = [];
+  if(!isCnpjValid(cnpj)){ document.getElementById("f-cnpj").classList.add("err"); erros.push("CNPJ inválido"); }
+  if(!razao){ document.getElementById("f-razao").classList.add("err"); erros.push("Razão Social"); }
+  if(wpp.length < 10){ document.getElementById("f-wpp").classList.add("err"); erros.push("WhatsApp"); }
+  if(!orig){ document.getElementById("f-orig").classList.add("err"); erros.push("Origem"); }
+  if(!vend){ document.getElementById("f-vendedor").classList.add("err"); erros.push("Vendedor"); }
+
+  if(erros.length){
+    toast("Preencha: " + erros.join(", "), "error");
+    return;
+  }
+
+  if(!CNPJ_OK_VERIFICADO){
+    if(!confirm("Você não verificou esse CNPJ na base.\n\nDeseja enviar mesmo assim?")) return;
+  }
+
+  // status do CNPJ vem do banner (warn = é cliente ativo)
+  var box = document.getElementById("cnpj-status");
+  var leadDeClienteAtivo = box.classList.contains("warn");
+
+  var payload = {
+    cnpj: cnpj,
+    razao_social: razao,
+    nome_fantasia: fant,
+    telefone: tel,
+    whatsapp: wpp,
+    endereco: endr,
+    cidade: cid,
+    uf: uf,
+    segmento: seg,
+    origem: orig,
+    vendedor_sigla: vend,
+    observacao: obs,
+    lead_de_cliente_ativo: leadDeClienteAtivo
+  };
+
+  document.getElementById("btn-submit").disabled = true;
+  apiPost("createLead", {payload: payload}).then(function(d){
+    toast("✅ Lead enviado com sucesso!", "ok");
+    limparForm();
+    document.getElementById("btn-submit").disabled = false;
+    // Re-carrega lista e troca de aba
+    loadLeads().then(function(){ setTab("enviados"); });
+  }).catch(function(e){
+    document.getElementById("btn-submit").disabled = false;
+    toast("Erro ao enviar: " + e.message, "error");
+  });
+}
+
+function limparForm(){
+  ["f-cnpj","f-razao","f-fantasia","f-tel","f-wpp","f-end","f-cid","f-seg","f-obs"].forEach(function(id){
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("f-uf").value = "";
+  document.getElementById("f-orig").value = "";
+  document.getElementById("f-vendedor").value = "";
+  resetCnpjStatus();
+}
+
+// ─────────────────────────────────────────────────────
+// Aba 2: Leads enviados
+// ─────────────────────────────────────────────────────
+function loadLeads(silent){
+  if(!silent) showLoader(true);
+  return apiGet("listLeads", {}).then(function(d){
+    LEADS = (d.leads || []).slice();
+    // ordena por data envio desc
+    LEADS.sort(function(a,b){
+      var da = new Date(a.data_envio || a.created_at || 0).getTime();
+      var db = new Date(b.data_envio || b.created_at || 0).getTime();
+      return db - da;
+    });
+    updateBadges();
+    renderLeads();
+  }).catch(function(e){
+    if(!silent) toast("Erro ao carregar leads: " + e.message, "error");
+  });
+}
+
+function reloadLeads(){ loadLeads().then(function(){ toast("Atualizado.", "ok"); }); }
+
+function setFilterStatus(s){
+  FILTER_STATUS = (FILTER_STATUS === s) ? "" : s;
+  document.querySelectorAll(".kpi").forEach(function(el){
+    el.classList.toggle("active", el.dataset.flt === FILTER_STATUS);
+  });
+  renderLeads();
+}
+
+function periodoMatch(dt, key){
+  if(!key) return true;
+  if(!dt) return false;
+  var d = new Date(dt);
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var diffMs = Date.now() - d.getTime();
+  if(key === "hoje"){
+    var ini = hoje.getTime();
+    return d.getTime() >= ini;
+  }
+  if(key === "7d") return diffMs <= 7*86400*1000;
+  if(key === "30d") return diffMs <= 30*86400*1000;
+  if(key === "mes"){
+    var n = new Date();
+    return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
+  }
+  return true;
+}
+
+function visiveis(){
+  var q = (document.getElementById("search-input").value || "").toLowerCase().trim();
+  var fv = document.getElementById("vd-filter").value;
+  var fp = document.getElementById("period-filter").value;
+
+  return LEADS.filter(function(l){
+    // Bárbara (LEAD): só vê o que ela cadastrou. Admin: vê tudo.
+    if(!CURRENT_USER.isAdmin){
+      if((l.barbara_email||"").toLowerCase() !== CURRENT_USER.email.toLowerCase()) return false;
+    }
+    if(FILTER_STATUS && (l.status||"").toUpperCase() !== FILTER_STATUS) return false;
+    if(fv && (l.vendedor_sigla||"").toUpperCase() !== fv.toUpperCase()) return false;
+    if(!periodoMatch(l.data_envio || l.created_at, fp)) return false;
+    if(q){
+      var blob = [
+        l.razao_social, l.nome_fantasia, l.cnpj, l.observacao,
+        l.cidade, l.segmento, l.origem
+      ].join(" ").toLowerCase();
+      if(blob.indexOf(q) < 0) return false;
+    }
+    return true;
+  });
+}
+
+function updateBadges(){
+  var meus = LEADS.filter(function(l){
+    return CURRENT_USER.isAdmin || (l.barbara_email||"").toLowerCase() === CURRENT_USER.email.toLowerCase();
+  });
+  var c = {total:meus.length, NOVO:0, VISUALIZADO:0, EM_ATENDIMENTO:0, CONVERTIDO:0};
+  meus.forEach(function(l){
+    var s = (l.status||"NOVO").toUpperCase();
+    if(c[s] != null) c[s]++;
+  });
+  document.getElementById("kpi-total").textContent = c.total;
+  document.getElementById("kpi-novo").textContent  = c.NOVO;
+  document.getElementById("kpi-vis").textContent   = c.VISUALIZADO;
+  document.getElementById("kpi-atd").textContent   = c.EM_ATENDIMENTO;
+  document.getElementById("kpi-conv").textContent  = c.CONVERTIDO;
+  document.getElementById("bd-enviados").textContent = c.total;
+}
+
+function renderLeads(){
+  updateBadges();
+  var tb = document.getElementById("tbody");
+  var vis = visiveis();
+
+  if(!vis.length){
+    tb.innerHTML = "";
+    document.getElementById("empty-state").style.display = "block";
+    return;
+  }
+  document.getElementById("empty-state").style.display = "none";
+
+  tb.innerHTML = vis.map(function(l){
+    var dt = l.data_envio || l.created_at;
+    var dtStr = dt ? new Date(dt).toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—";
+    var st = (l.status||"NOVO").toUpperCase();
+    var stTag = '<span class="tag tag-st-'+st.toLowerCase()+'">'+stLabel(st)+'</span>';
+    var vdNome = siglaToNome(l.vendedor_sigla) || l.vendedor_sigla || "—";
+    var resp = (l.tempo_resposta_min != null && l.tempo_resposta_min !== "") ?
+      formatMin(l.tempo_resposta_min) :
+      (st === "NOVO" ? '<span class="muted">aguardando</span>' : "—");
+
+    var cnpj = formatCNPJ(l.cnpj);
+    var wpp = formatTel(l.whatsapp || l.telefone);
+
+    return '<tr>'+
+      '<td><div>'+escapeHtml(dtStr)+'</div></td>'+
+      '<td>'+
+        '<div style="font-weight:600">'+escapeHtml(l.razao_social||"—")+'</div>'+
+        (l.nome_fantasia ? '<div class="muted">'+escapeHtml(l.nome_fantasia)+'</div>' : '')+
+        (l.cidade ? '<div class="muted">'+escapeHtml(l.cidade)+(l.uf?'/'+escapeHtml(l.uf):'')+'</div>' : '')+
+      '</td>'+
+      '<td>'+
+        '<div class="mono">'+escapeHtml(cnpj)+'</div>'+
+        (wpp ? '<div class="muted">📱 '+escapeHtml(wpp)+'</div>' : '')+
+      '</td>'+
+      '<td><span class="tag tag-orig">'+escapeHtml(l.origem||"—")+'</span></td>'+
+      '<td><span class="tag tag-vd">'+escapeHtml(vdNome)+'</span></td>'+
+      '<td>'+stTag+'</td>'+
+      '<td>'+resp+'</td>'+
+      '<td class="acoes-cell">'+
+        '<button class="mini-btn" title="Detalhes" onclick="abrirLead(\''+l.id+'\')">👁️</button>'+
+      '</td>'+
+    '</tr>';
+  }).join("");
+}
+
+function stLabel(s){
+  return {
+    NOVO: "Novo",
+    VISUALIZADO: "Visualizado",
+    EM_ATENDIMENTO: "Em atendimento",
+    CONVERTIDO: "Convertido",
+    PERDIDO: "Perdido",
+    CANCELADO: "Cancelado"
+  }[s] || s;
+}
+
+function formatMin(m){
+  m = Number(m);
+  if(!isFinite(m)) return "—";
+  if(m < 60) return Math.round(m)+"min";
+  var h = Math.floor(m/60);
+  var rest = Math.round(m - h*60);
+  if(h < 24) return h+"h"+(rest?" "+rest+"m":"");
+  var d = Math.floor(h/24);
+  return d+"d "+(h-d*24)+"h";
+}
+
+function formatCNPJ(c){
+  c = onlyDigits(c||"");
+  if(c.length !== 14) return c;
+  return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, "$1.$2.$3/$4-$5");
+}
+function formatTel(t){
+  t = onlyDigits(t||"");
+  if(!t) return "";
+  if(t.length === 11) return t.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+  if(t.length === 10) return t.replace(/^(\d{2})(\d{4})(\d{4}).*/, "($1) $2-$3");
+  return t;
+}
+function siglaToNome(sig){
+  if(!sig) return "";
+  var u = sig.toUpperCase();
+  var hit = TODAS_USERS.find(function(x){return x.sigla === u;});
+  return hit ? hit.nome : "";
+}
+
+// ─────────────────────────────────────────────────────
+// Modal de detalhes / cancelamento
+// ─────────────────────────────────────────────────────
+function abrirLead(id){
+  var l = LEADS.find(function(x){return x.id === id;});
+  if(!l){ toast("Lead não encontrado.","error"); return; }
+  EDITING_ID = id;
+  var st = (l.status||"NOVO").toUpperCase();
+  var podeCancelar = st !== "CANCELADO" && st !== "CONVERTIDO";
+
+  var dt = l.data_envio || l.created_at;
+  var dtStr = dt ? new Date(dt).toLocaleString("pt-BR") : "—";
+  var dtVis = l.data_visualizado ? new Date(l.data_visualizado).toLocaleString("pt-BR") : "—";
+  var dtAtd = l.data_em_atendimento ? new Date(l.data_em_atendimento).toLocaleString("pt-BR") : "—";
+  var resp  = l.tempo_resposta_min != null ? formatMin(l.tempo_resposta_min) : "—";
+  var atend = l.tempo_atendimento_min != null ? formatMin(l.tempo_atendimento_min) : "—";
+
+  document.getElementById("modal-body").innerHTML =
+    '<div class="det-block"><div class="dt-lbl">Status atual</div><div class="dt-val"><span class="tag tag-st-'+st.toLowerCase()+'">'+stLabel(st)+'</span></div></div>'+
+    '<div class="det-grid">'+
+      '<div class="det-block"><div class="dt-lbl">CNPJ</div><div class="dt-val mono">'+escapeHtml(formatCNPJ(l.cnpj))+'</div></div>'+
+      '<div class="det-block"><div class="dt-lbl">Vendedor atribuído</div><div class="dt-val">'+escapeHtml(siglaToNome(l.vendedor_sigla)||l.vendedor_sigla||"—")+'</div></div>'+
+    '</div>'+
+    '<div class="det-block"><div class="dt-lbl">Razão Social</div><div class="dt-val">'+escapeHtml(l.razao_social||"—")+'</div></div>'+
+    (l.nome_fantasia ? '<div class="det-block"><div class="dt-lbl">Nome Fantasia</div><div class="dt-val">'+escapeHtml(l.nome_fantasia)+'</div></div>' : '')+
+    '<div class="det-grid">'+
+      '<div class="det-block"><div class="dt-lbl">WhatsApp</div><div class="dt-val">'+escapeHtml(formatTel(l.whatsapp))+'</div></div>'+
+      '<div class="det-block"><div class="dt-lbl">Telefone</div><div class="dt-val">'+escapeHtml(formatTel(l.telefone)||"—")+'</div></div>'+
+    '</div>'+
+    (l.endereco || l.cidade ? '<div class="det-block"><div class="dt-lbl">Endereço</div><div class="dt-val">'+escapeHtml([l.endereco, l.cidade, l.uf].filter(Boolean).join(" · "))+'</div></div>' : '')+
+    (l.segmento ? '<div class="det-block"><div class="dt-lbl">Segmento</div><div class="dt-val">'+escapeHtml(l.segmento)+'</div></div>' : '')+
+    '<div class="det-block"><div class="dt-lbl">Origem</div><div class="dt-val"><span class="tag tag-orig">'+escapeHtml(l.origem||"—")+'</span></div></div>'+
+    (l.observacao ? '<div class="det-block"><div class="dt-lbl">Observação</div><div class="dt-val">'+escapeHtml(l.observacao)+'</div></div>' : '')+
+    '<div class="det-grid">'+
+      '<div class="det-block"><div class="dt-lbl">Enviado em</div><div class="dt-val">'+escapeHtml(dtStr)+'</div></div>'+
+      '<div class="det-block"><div class="dt-lbl">Visualizado em</div><div class="dt-val">'+escapeHtml(dtVis)+'</div></div>'+
+    '</div>'+
+    '<div class="det-grid">'+
+      '<div class="det-block"><div class="dt-lbl">Tempo de resposta</div><div class="dt-val">'+escapeHtml(resp)+'</div></div>'+
+      '<div class="det-block"><div class="dt-lbl">Tempo até atendimento</div><div class="dt-val">'+escapeHtml(atend)+'</div></div>'+
+    '</div>'+
+    (l.lead_de_cliente_ativo ? '<div class="det-block" style="border-color:rgba(255,170,43,.4);background:rgba(255,170,43,.08)"><div class="dt-lbl" style="color:var(--warn)">⚠️ Atenção</div><div class="dt-val">Esse lead foi enviado mesmo o CNPJ já estando na BASE_PDV.</div></div>' : '');
+
+  document.getElementById("btn-cancelar-lead").style.display = podeCancelar ? "inline-block" : "none";
+  document.getElementById("modal-lead").classList.add("open");
+}
+
+function closeModal(){
+  document.getElementById("modal-lead").classList.remove("open");
+  EDITING_ID = null;
+}
+function isModalOpen(){ return document.getElementById("modal-lead").classList.contains("open"); }
+
+function cancelarLead(){
+  if(!EDITING_ID) return;
+  if(!confirm("Cancelar este lead?\n\nEle não será excluído, apenas marcado como CANCELADO no histórico.")) return;
+  apiPost("cancelLead", {id: EDITING_ID, motivo: "Cancelado pela origem"}).then(function(){
+    toast("Lead cancelado.","ok");
+    closeModal();
+    loadLeads();
+  }).catch(function(e){
+    toast("Erro ao cancelar: "+e.message,"error");
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Aba 3: Ranking (mês corrente)
+// ─────────────────────────────────────────────────────
+function loadRanking(){
+  var n = new Date();
+  var mes = String(n.getMonth()+1).padStart(2,"0");
+  var ano = n.getFullYear();
+  document.getElementById("rank-period-lbl").textContent = mes+"/"+ano + " (mês corrente)";
+
+  var wrap = document.getElementById("rank-content");
+  wrap.innerHTML = '<div class="rank-empty">Carregando ranking...</div>';
+
+  apiGet("rankingLeads", {ano: ano, mes: mes}).then(function(d){
+    renderRanking(d.ranking || []);
+  }).catch(function(e){
+    // Fallback: calcula no client a partir de LEADS já carregados
+    console.warn("rankingLeads falhou, calculando local:", e);
+    renderRankingFromLeads();
+  });
+}
+
+function renderRankingFromLeads(){
+  var n = new Date();
+  var mesLeads = LEADS.filter(function(l){
+    var dt = new Date(l.data_envio || l.created_at || 0);
+    return dt.getFullYear() === n.getFullYear() && dt.getMonth() === n.getMonth();
+  });
+  // Agrupa por sigla
+  var byVd = {};
+  mesLeads.forEach(function(l){
+    var sig = (l.vendedor_sigla||"").toUpperCase();
+    if(!sig) return;
+    if(!byVd[sig]) byVd[sig] = {sigla:sig, total:0, conv:0, perd:0, somaResp:0, nResp:0, somaAtd:0, nAtd:0};
+    var b = byVd[sig];
+    b.total++;
+    var st = (l.status||"NOVO").toUpperCase();
+    if(st === "CONVERTIDO") b.conv++;
+    if(st === "PERDIDO") b.perd++;
+    if(l.tempo_resposta_min != null && l.tempo_resposta_min !== ""){
+      b.somaResp += Number(l.tempo_resposta_min);
+      b.nResp++;
+    }
+    if(l.tempo_atendimento_min != null && l.tempo_atendimento_min !== ""){
+      b.somaAtd += Number(l.tempo_atendimento_min);
+      b.nAtd++;
+    }
+  });
+  var ranking = Object.keys(byVd).map(function(k){
+    var b = byVd[k];
+    return {
+      sigla: b.sigla,
+      nome: siglaToNome(b.sigla) || b.sigla,
+      total: b.total,
+      convertidos: b.conv,
+      perdidos: b.perd,
+      taxa_conv: b.total ? (b.conv*100/b.total) : 0,
+      tempo_resposta_medio: b.nResp ? b.somaResp/b.nResp : null,
+      tempo_atendimento_medio: b.nAtd ? b.somaAtd/b.nAtd : null
+    };
+  });
+  renderRanking(ranking);
+}
+
+function renderRanking(ranking){
+  var wrap = document.getElementById("rank-content");
+  // só mostra Dayane vs Eliane (quem recebe leads)
+  var alvos = VENDEDORAS.map(function(v){return v.sigla;});
+  var lista = alvos.map(function(sig){
+    var hit = ranking.find(function(r){return (r.sigla||"").toUpperCase() === sig;});
+    var nome = siglaToNome(sig) || sig;
+    return hit || {sigla:sig, nome:nome, total:0, convertidos:0, perdidos:0, taxa_conv:0, tempo_resposta_medio:null, tempo_atendimento_medio:null};
+  });
+
+  if(!lista.length){
+    wrap.innerHTML = '<div class="rank-empty">Nenhuma vendedora com Recebe_Leads = SIM ainda.</div>';
+    return;
+  }
+
+  // Determina vencedora: menor tempo de resposta médio (com leads no mês). Empate → maior taxa de conv.
+  var vencedora = null;
+  var ativos = lista.filter(function(x){return x.total > 0;});
+  if(ativos.length){
+    ativos.sort(function(a,b){
+      var ta = a.tempo_resposta_medio == null ? Infinity : a.tempo_resposta_medio;
+      var tb = b.tempo_resposta_medio == null ? Infinity : b.tempo_resposta_medio;
+      if(ta !== tb) return ta - tb;
+      return (b.taxa_conv||0) - (a.taxa_conv||0);
+    });
+    vencedora = ativos[0].sigla;
+  }
+
+  wrap.innerHTML = lista.map(function(r){
+    var isWin = r.sigla === vencedora && r.total > 0;
+    var medal = isWin ? '<div class="rank-medal">🥇</div>' : '';
+    var resp = r.tempo_resposta_medio != null ? formatMin(r.tempo_resposta_medio) : "—";
+    var atd  = r.tempo_atendimento_medio != null ? formatMin(r.tempo_atendimento_medio) : "—";
+    var taxa = (r.taxa_conv != null ? r.taxa_conv : 0).toFixed(1) + "%";
+    return '<div class="rank-card '+(isWin?"winner":"")+'">'+
+      medal+
+      '<div class="rank-name">'+escapeHtml(r.nome||r.sigla)+'</div>'+
+      '<div class="rank-role">vendedora · recebe leads</div>'+
+      '<div class="rank-metrics">'+
+        '<div class="rank-metric good"><div class="m-lbl">⏱ Tempo médio resposta</div><div class="m-val">'+resp+'</div><div class="m-sub">cadastro → visualizou</div></div>'+
+        '<div class="rank-metric"><div class="m-lbl">📞 Tempo médio atendimento</div><div class="m-val">'+atd+'</div><div class="m-sub">cadastro → 1º contato</div></div>'+
+        '<div class="rank-metric"><div class="m-lbl">📨 Leads recebidos</div><div class="m-val">'+r.total+'</div></div>'+
+        '<div class="rank-metric good"><div class="m-lbl">✅ Convertidos</div><div class="m-val">'+r.convertidos+'</div></div>'+
+        '<div class="rank-metric full"><div class="m-lbl">🎯 Taxa de conversão</div><div class="m-val">'+taxa+'</div><div class="m-sub">'+r.convertidos+' de '+r.total+' leads</div></div>'+
+      '</div>'+
+    '</div>';
+  }).reduce(function(a,b){return a+b;}, '<div class="rank-grid">') + '</div>';
+}
+
+// ─────────────────────────────────────────────────────
+// Export CSV
+// ─────────────────────────────────────────────────────
+function exportCSV(){
+  var rows = [["Data envio","CNPJ","Razão","Fantasia","WhatsApp","Cidade","UF","Origem","Vendedor","Status","T. Resposta (min)","T. Atendimento (min)","Observação"]];
+  visiveis().forEach(function(l){
+    rows.push([
+      l.data_envio || l.created_at || "",
+      formatCNPJ(l.cnpj),
+      l.razao_social || "",
+      l.nome_fantasia || "",
+      formatTel(l.whatsapp),
+      l.cidade || "",
+      l.uf || "",
+      l.origem || "",
+      siglaToNome(l.vendedor_sigla) || l.vendedor_sigla || "",
+      l.status || "",
+      l.tempo_resposta_min != null ? l.tempo_resposta_min : "",
+      l.tempo_atendimento_min != null ? l.tempo_atendimento_min : "",
+      l.observacao || ""
+    ]);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(c){
+      var s = String(c||"");
+      if(s.indexOf(",")>=0||s.indexOf("\n")>=0||s.indexOf("\"")>=0) return '"'+s.replace(/"/g,'""')+'"';
+      return s;
+    }).join(",");
+  }).join("\n");
+  var blob = new Blob(["\uFEFF"+csv], {type:"text/csv;charset=utf-8"});
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "leads_"+(new Date().toISOString().substring(0,10))+".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─────────────────────────────────────────────────────
+// UI helpers
+// ─────────────────────────────────────────────────────
+function escapeHtml(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function showLoader(on){ document.getElementById("loader-bar").classList.toggle("show", on); }
+function toast(msg, kind){
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast " + (kind||"") + " show";
+  setTimeout(function(){ el.classList.remove("show"); }, 3500);
+}
+</script>
+</body>
+</html>
