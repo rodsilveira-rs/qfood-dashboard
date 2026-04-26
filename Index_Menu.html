@@ -55,6 +55,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .menu-btn.mb-adm{border-top:3px solid var(--red);}
 .menu-btn.mb-chk{border-top:3px solid #f59e0b;}
 .menu-btn.mb-tar{border-top:3px solid #22d3ee;}
+.menu-btn.mb-crm{border-top:3px solid #ec4899;}
 
 .mb-badge{position:absolute;top:10px;right:10px;background:var(--s3);color:var(--mu);font-size:0.62rem;padding:2px 7px;border-radius:999px;letter-spacing:0.3px;border:1px solid var(--br);}
 
@@ -84,6 +85,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .fin-opt.ml{border-left-color:#d4a340;}
 .fin-opt.prime{border-left-color:#c9a03a;}
 .fin-opt.sushi{border-left-color:#ff7a45;}
+.fin-opt.crm-vend{border-left-color:#ec4899;}
+.fin-opt.crm-lead{border-left-color:#a07cf6;}
+.fin-opt.crm-cons{border-left-color:#22d3ee;}
 .fin-empty{color:var(--mu);text-align:center;padding:24px;font-size:0.85rem;}
 
 @media(max-width:900px){.menu-grid{grid-template-columns:repeat(2,1fr);} .fin-modal-grid{grid-template-columns:1fr;}}
@@ -166,6 +170,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
       <div class="mb-sub">Plano de Ação por Gestor<br>Prazos · Prioridades · Farol</div>
     </a>
 
+    <!-- Card agrupador de CRM (comportamento depende da CRM_Sigla) -->
+    <a href="javascript:void(0)" onclick="openCrmModal()" class="menu-btn mb-crm" id="mbtn-crm" style="display:none">
+      <div class="mb-icon">🤝</div>
+      <div class="mb-title">CRM</div>
+      <div class="mb-sub" id="crm-badge-txt">Gestão de Clientes &middot; Visitas<br>Leads &middot; Histórico</div>
+      <div class="mb-badge" id="crm-count-badge" style="display:none">0</div>
+    </a>
+
   </div>
 
   <div class="menu-bar">
@@ -189,6 +201,18 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
   </div>
 </div>
 
+<!-- ============ MODAL CRM (admin: vê todos vendedores + consolidado) ============ -->
+<div class="fin-modal-overlay" id="crm-modal-overlay" onclick="if(event.target===this)closeCrmModal()">
+  <div class="fin-modal">
+    <div class="fin-modal-hdr">
+      <div class="fin-modal-title">🤝 CRM &mdash; Selecione a visão</div>
+      <button class="fin-modal-close" onclick="closeCrmModal()">×</button>
+    </div>
+    <div class="fin-modal-sub">Acompanhe carteiras individuais ou a visão consolidada</div>
+    <div class="fin-modal-grid" id="crm-modal-grid"></div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    Q FOOD COMPANY — PAINEL OPERACIONAL
@@ -198,12 +222,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
    Colunas: email, nome, senha, perfil, sigla,
             Comercial, Remuneração, Financeiro, Financeiro ML,
             Financeiro Prime, Financeiro Sushi Trip,
-            Logistica, Compras, Checkpoint
+            Logistica, Compras, Checkpoint, Tarefas,
+            CRM, CRM_Sigla, Recebe_Leads
    Células: 'X' = acesso / 'X Apenas o seu nome' = filtrado / vazio = sem acesso
+   CRM_Sigla: '*'=admin, 'LEAD'=Bárbara, 'NOME.SOBRENOME'=vendedor
    ============================================================ */
 
 var UUSR_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
-var USERS_CACHE_KEY = "qfood_users_cache_v3";  // v3: inclui tarefas
+var USERS_CACHE_KEY = "qfood_users_cache_v4";  // v4: inclui crm + crmSigla + recebeLeads
 var USERS_CACHE_TTL_MIN = 15;  // atualiza a cada 15 min
 
 // Fallback: snapshot embutido (usado se o CSV falhar)
@@ -224,7 +250,20 @@ var CARD_MAP = {
   "logistica":            "Logistica",
   "compras":              "Compras",
   "checkpoint":           "Checkpoint",
-  "tarefas":              "Tarefas"
+  "tarefas":              "Tarefas",
+  "crm":                  "CRM"
+};
+
+// Mapeamento das siglas DINAMICO → nome curto exibido no modal CRM
+var CRM_VENDEDORES_LABEL = {
+  "LUCAS.BRITES":       "Lucas",
+  "VERA.SILVA":         "Vera",
+  "DAYANE.NASCIMENTO":  "Dayane",
+  "ELIANE.MOREIRA":     "Eliane",
+  "EDERSON.BARCELOS":   "Eder",
+  "CLAUDIA.GOMES":      "Claudia",
+  "CAMILA.CORREIA":     "Camila",
+  "DEANE.TREVINE":      "Deane"
 };
 
 // Mapa: ID do financeiro → arquivo destino
@@ -279,6 +318,8 @@ function buildUsersFromCSV(csvText){
   var iSenha  = colIdx("senha");
   var iPerfil = colIdx("perfil");
   var iSigla  = colIdx("sigla");
+  var iCrmSig = colIdx("CRM_Sigla");
+  var iRecLea = colIdx("Recebe_Leads");
   if(iEmail < 0 || iSenha < 0 || iPerfil < 0) throw new Error("Colunas obrigatórias ausentes");
 
   // Cache dos índices das colunas de card
@@ -303,11 +344,13 @@ function buildUsersFromCSV(csvText){
     });
 
     out[email] = {
-      pwd:   (row[iSenha]  || "").trim(),
-      role:  (row[iPerfil] || "").trim() || "gestor",
-      nome:  (row[iNome]   || "").trim(),
-      sigla: iSigla >= 0 ? (row[iSigla] || "").trim() : "",
-      abas:  abas.join(",")
+      pwd:         (row[iSenha]  || "").trim(),
+      role:        (row[iPerfil] || "").trim() || "gestor",
+      nome:        (row[iNome]   || "").trim(),
+      sigla:       iSigla  >= 0 ? (row[iSigla]  || "").trim() : "",
+      crmSigla:    iCrmSig >= 0 ? (row[iCrmSig] || "").trim() : "",
+      recebeLeads: iRecLea >= 0 ? ((row[iRecLea] || "").trim().toUpperCase() === "SIM") : false,
+      abas:        abas.join(",")
     };
   }
   return out;
@@ -380,10 +423,16 @@ function doLogin(){
 
     // Sessão 8h — inclui abas (para cards filtrarem)
     localStorage.setItem("qfood_session", JSON.stringify({
-      email:email, role:u.role, nome:u.nome, sigla:u.sigla, abas:u.abas, ts:Date.now()
+      email:email, role:u.role, nome:u.nome, sigla:u.sigla,
+      crmSigla:u.crmSigla||"", recebeLeads:!!u.recebeLeads,
+      abas:u.abas, ts:Date.now()
     }));
 
-    CURRENT_USER = {email:email, role:u.role, nome:u.nome, sigla:u.sigla, abas:u.abas};
+    CURRENT_USER = {
+      email:email, role:u.role, nome:u.nome, sigla:u.sigla,
+      crmSigla:u.crmSigla||"", recebeLeads:!!u.recebeLeads,
+      abas:u.abas
+    };
     showMenu();
   });
 }
@@ -395,26 +444,32 @@ function checkSession(){
     var u = USERS[sess.email];
     if(u){
       CURRENT_USER = {
-        email: sess.email,
-        role:  u.role,
-        nome:  u.nome,
-        sigla: u.sigla,
-        abas:  u.abas || ""
+        email:       sess.email,
+        role:        u.role,
+        nome:        u.nome,
+        sigla:       u.sigla,
+        crmSigla:    u.crmSigla||"",
+        recebeLeads: !!u.recebeLeads,
+        abas:        u.abas || ""
       };
       // Re-hidrata a sessão com abas atualizadas (importante após deploy de novos cards)
-      sess.abas = u.abas;
-      sess.role = u.role;
-      sess.nome = u.nome;
-      sess.sigla = u.sigla;
+      sess.abas        = u.abas;
+      sess.role        = u.role;
+      sess.nome        = u.nome;
+      sess.sigla       = u.sigla;
+      sess.crmSigla    = u.crmSigla||"";
+      sess.recebeLeads = !!u.recebeLeads;
       localStorage.setItem("qfood_session", JSON.stringify(sess));
     } else {
       // USERS ainda não carregou ou o email sumiu da planilha — usa snapshot da sessão
       CURRENT_USER = {
-        email: sess.email,
-        role:  sess.role,
-        nome:  sess.nome,
-        sigla: sess.sigla,
-        abas:  sess.abas || ""
+        email:       sess.email,
+        role:        sess.role,
+        nome:        sess.nome,
+        sigla:       sess.sigla,
+        crmSigla:    sess.crmSigla||"",
+        recebeLeads: !!sess.recebeLeads,
+        abas:        sess.abas || ""
       };
     }
     showMenu();
@@ -444,7 +499,7 @@ function applyUserAccess(){
   if(!CURRENT_USER) return;
   var abas = (CURRENT_USER.abas || "").split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
 
-  // Cards não-financeiro
+  // Cards não-financeiro (não-CRM)
   ["comercial","remuneracao","logistica","compras","checkpoint","tarefas"].forEach(function(id){
     var el = document.getElementById("mbtn-" + id);
     if(!el) return;
@@ -456,9 +511,7 @@ function applyUserAccess(){
   var finBtn = document.getElementById("mbtn-financeiro");
   if(finAbas.length > 0){
     finBtn.style.display = "flex";
-    // Badge
     document.getElementById("fin-count-badge").textContent = finAbas.length;
-    // Texto resumido
     var labels = finAbas.map(function(a){
       var t = FIN_TARGETS[a];
       if(!t) return a;
@@ -471,6 +524,28 @@ function applyUserAccess(){
     document.getElementById("fin-badge-txt").textContent = labels.join(" · ");
   } else {
     finBtn.style.display = "none";
+  }
+
+  // Card CRM — aparece se tem 'crm' nas abas E uma CRM_Sigla válida
+  var crmBtn = document.getElementById("mbtn-crm");
+  var temCrm = (abas.indexOf("crm") >= 0) && !!(CURRENT_USER.crmSigla||"").trim();
+  if(crmBtn){
+    if(temCrm){
+      crmBtn.style.display = "flex";
+      var sg = (CURRENT_USER.crmSigla || "").trim();
+      var legenda;
+      if(sg === "*"){
+        legenda = "Visão consolidada<br>Todos os vendedores";
+      } else if(sg === "LEAD"){
+        legenda = "Cadastro de Leads<br>Marketing &middot; Distribuição";
+      } else {
+        var nm = CRM_VENDEDORES_LABEL[sg] || sg.split(".")[0];
+        legenda = "Carteira de " + nm + "<br>Visitas &middot; Pedidos &middot; Histórico";
+      }
+      document.getElementById("crm-badge-txt").innerHTML = legenda;
+    } else {
+      crmBtn.style.display = "none";
+    }
   }
 }
 
@@ -515,8 +590,77 @@ function openFinModal(){
 function closeFinModal(){
   document.getElementById("fin-modal-overlay").classList.remove("open");
 }
+
+// ────────────────────────────────────────────────────────────
+// MODAL / ROTEAMENTO CRM
+// ────────────────────────────────────────────────────────────
+// Comportamento:
+//   - CRM_Sigla = "*"     → mostra modal com todos os vendedores + Consolidado
+//   - CRM_Sigla = "LEAD"  → vai DIRETO para Index_CRM_Lead.html
+//   - CRM_Sigla = vendedor → vai DIRETO para Index_CRM.html
+function openCrmModal(){
+  if(!CURRENT_USER) return;
+  var sg = (CURRENT_USER.crmSigla || "").trim();
+  if(!sg) return;
+
+  // Vendedor: vai direto pra própria carteira
+  if(sg !== "*" && sg !== "LEAD"){
+    window.location.href = "Index_CRM.html";
+    return;
+  }
+
+  // Bárbara (LEAD): vai direto pro cadastro de leads
+  if(sg === "LEAD"){
+    window.location.href = "Index_CRM_Lead.html";
+    return;
+  }
+
+  // Admin (*): abre modal com 8 vendedores + Consolidado + Cadastro de Lead
+  var grid = document.getElementById("crm-modal-grid");
+  grid.innerHTML = "";
+
+  // Visão consolidada
+  grid.innerHTML +=
+    '<a href="Index_CRM.html?sigla=*" class="fin-opt crm-cons">' +
+      '<div class="fo-icon">📊</div>' +
+      '<div class="fo-content">' +
+        '<div class="fo-title">Consolidado</div>' +
+        '<div class="fo-sub">Todos os vendedores · KPIs gerais</div>' +
+      '</div>' +
+    '</a>';
+
+  // Cadastro de Lead (admin também tem acesso)
+  grid.innerHTML +=
+    '<a href="Index_CRM_Lead.html" class="fin-opt crm-lead">' +
+      '<div class="fo-icon">📨</div>' +
+      '<div class="fo-content">' +
+        '<div class="fo-title">Cadastrar Lead</div>' +
+        '<div class="fo-sub">Marketing · Distribuir para Dayane / Eliane</div>' +
+      '</div>' +
+    '</a>';
+
+  // 8 vendedores em ordem alfabética
+  var ordemVend = ["CAMILA.CORREIA","CLAUDIA.GOMES","DAYANE.NASCIMENTO","DEANE.TREVINE",
+                   "EDERSON.BARCELOS","ELIANE.MOREIRA","LUCAS.BRITES","VERA.SILVA"];
+  ordemVend.forEach(function(s){
+    var nome = CRM_VENDEDORES_LABEL[s] || s;
+    grid.innerHTML +=
+      '<a href="Index_CRM.html?sigla=' + encodeURIComponent(s) + '" class="fin-opt crm-vend">' +
+        '<div class="fo-icon">👤</div>' +
+        '<div class="fo-content">' +
+          '<div class="fo-title">' + nome + '</div>' +
+          '<div class="fo-sub">Carteira · Visitas · Histórico</div>' +
+        '</div>' +
+      '</a>';
+  });
+
+  document.getElementById("crm-modal-overlay").classList.add("open");
+}
+function closeCrmModal(){
+  document.getElementById("crm-modal-overlay").classList.remove("open");
+}
 document.addEventListener("keydown", function(e){
-  if(e.key === "Escape") closeFinModal();
+  if(e.key === "Escape"){ closeFinModal(); closeCrmModal(); }
 });
 
 // ────────────────────────────────────────────────────────────
@@ -537,9 +681,18 @@ function reloadUsers(){
       // Re-hidrata sessão com dados frescos
       var u = USERS[sess.email];
       if(u){
-        CURRENT_USER = {email:sess.email, role:u.role, nome:u.nome, sigla:u.sigla, abas:u.abas};
+        CURRENT_USER = {
+          email:sess.email, role:u.role, nome:u.nome, sigla:u.sigla,
+          crmSigla:u.crmSigla||"", recebeLeads:!!u.recebeLeads,
+          abas:u.abas
+        };
         // Atualiza sessão
-        sess.abas = u.abas; sess.role = u.role; sess.nome = u.nome; sess.sigla = u.sigla;
+        sess.abas        = u.abas;
+        sess.role        = u.role;
+        sess.nome        = u.nome;
+        sess.sigla       = u.sigla;
+        sess.crmSigla    = u.crmSigla||"";
+        sess.recebeLeads = !!u.recebeLeads;
         localStorage.setItem("qfood_session", JSON.stringify(sess));
       }
     }
