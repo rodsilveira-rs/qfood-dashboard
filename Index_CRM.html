@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CRM · Minha Carteira — Q Food Company</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;--pink:#ec4899;
+  --wpp:#25d366;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+/* Header */
+.page-hdr{display:flex;align-items:center;gap:16px;background:var(--sf);border-bottom:1px solid var(--br);padding:14px 24px;margin-bottom:20px;position:sticky;top:0;z-index:100}
+.page-hdr .logo-wrap{background:#fff;border-radius:10px;padding:6px;width:60px;height:60px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.page-hdr .logo-wrap img{width:100%;height:100%;object-fit:contain}
+.page-hdr .title-wrap{flex:1;min-width:0}
+.page-hdr .title-wrap h1{font-family:var(--fh);font-size:1.4rem;margin:0;color:var(--tx);font-weight:700}
+.page-hdr .title-wrap .sub{font-size:.8rem;color:var(--mu);margin-top:2px}
+.page-hdr .actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.page-hdr .user-name{font-size:.82rem;color:var(--mu);padding:8px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px;white-space:nowrap}
+.page-hdr button{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .15s;font-family:var(--fb)}
+.page-hdr button:hover{background:var(--br);transform:translateY(-1px)}
+.page-hdr button.primary{background:#e63329;border-color:#e63329;color:#fff}
+.page-hdr button.primary:hover{background:#c42a22}
+
+.page-container{max-width:1300px;margin:0 auto;padding:0 24px 40px}
+
+.blocked{max-width:500px;margin:60px auto;padding:40px;text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:16px}
+.blocked h2{color:#e63329;margin-bottom:12px}
+
+/* Banner de leads novos */
+.lead-banner{background:linear-gradient(135deg, rgba(34,211,238,.12), rgba(160,124,246,.10));border:1px solid var(--cyan);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:none;align-items:center;gap:14px;animation:pulse 2.4s infinite}
+.lead-banner.show{display:flex}
+.lead-banner .lb-icon{font-size:1.7rem}
+.lead-banner .lb-text{flex:1;font-size:.95rem;font-weight:600}
+.lead-banner .lb-text b{color:var(--cyan)}
+.lead-banner .lb-text .lb-sub{display:block;font-size:.78rem;color:var(--mu);font-weight:400;margin-top:2px}
+.lead-banner .lb-cta{background:var(--cyan);border:none;color:#0c1827;padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:800;font-size:.85rem;white-space:nowrap}
+.lead-banner .lb-cta:hover{filter:brightness(1.1)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.4)}50%{box-shadow:0 0 0 8px rgba(34,211,238,0)}}
+
+/* HOME — 3 cards grandes */
+.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.home-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.home-card:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.3)}
+.home-card .hc-icon{font-size:2rem;margin-bottom:10px}
+.home-card .hc-count{font-family:var(--fh);font-size:2.4rem;font-weight:800;line-height:1;margin-bottom:4px}
+.home-card .hc-label{font-size:.95rem;font-weight:700;color:var(--tx);margin-bottom:2px}
+.home-card .hc-sub{font-size:.78rem;color:var(--mu)}
+.home-card.atrasados{border-left:4px solid var(--red)}
+.home-card.atrasados .hc-count{color:var(--red)}
+.home-card.hoje{border-left:4px solid var(--warn)}
+.home-card.hoje .hc-count{color:var(--warn)}
+.home-card.leads{border-left:4px solid var(--cyan)}
+.home-card.leads .hc-count{color:var(--cyan)}
+.home-card.leads .ld-pulse{position:absolute;top:14px;right:14px;width:10px;height:10px;background:var(--cyan);border-radius:50%;box-shadow:0 0 0 0 rgba(34,211,238,.6);animation:ldp 2s infinite}
+@keyframes ldp{0%{box-shadow:0 0 0 0 rgba(34,211,238,.6)}70%{box-shadow:0 0 0 12px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
+
+.home-secondary{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.home-mini{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:14px}
+.home-mini:hover{border-color:var(--b2);background:var(--s2)}
+.home-mini .mi-icon{font-size:1.6rem;flex-shrink:0}
+.home-mini .mi-text{flex:1;min-width:0}
+.home-mini .mi-title{font-weight:700;font-size:.95rem;color:var(--tx)}
+.home-mini .mi-sub{font-size:.76rem;color:var(--mu);margin-top:2px}
+.home-mini .mi-count{font-family:var(--fh);font-size:1.4rem;font-weight:800;color:var(--mu)}
+
+/* Toolbar (lista) */
+.toolbar{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.toolbar .search{flex:1;min-width:220px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb)}
+.toolbar .search:focus{border-color:var(--pink)}
+.toolbar select{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:.82rem;outline:none;cursor:pointer;font-family:var(--fb)}
+.toolbar .btn-sec{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:9px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600}
+.toolbar .btn-sec:hover{background:var(--s3)}
+.toolbar .btn-back{background:transparent;border:1px solid var(--br);color:var(--mu);padding:9px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600}
+.toolbar .btn-back:hover{color:var(--tx);border-color:var(--b2)}
+
+/* Lista PDVs */
+.section-title{font-family:var(--fh);font-size:1.1rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.section-title .st-count{background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:2px 10px;border-radius:999px;font-size:.72rem;font-weight:700;font-family:var(--fb)}
+
+.pdv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;margin-bottom:20px}
+.pdv-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:8px;position:relative}
+.pdv-card:hover{border-color:var(--b2);transform:translateY(-2px)}
+.pdv-card.farol-r{border-left:4px solid var(--red)}
+.pdv-card.farol-y{border-left:4px solid var(--warn)}
+.pdv-card.farol-g{border-left:4px solid var(--ok)}
+.pdv-card.farol-gray{border-left:4px solid var(--mu2)}
+.pdv-card .pc-name{font-weight:700;font-size:.95rem;line-height:1.25;color:var(--tx)}
+.pdv-card .pc-fant{font-size:.78rem;color:var(--mu);margin-top:1px}
+.pdv-card .pc-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.74rem;color:var(--mu);margin-top:auto}
+.pdv-card .pc-tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.7rem;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.pdv-card .pc-tag.atrasado{background:rgba(255,77,79,.15);color:var(--red);border:1px solid rgba(255,77,79,.35)}
+.pdv-card .pc-tag.hoje{background:rgba(255,170,43,.15);color:var(--warn);border:1px solid rgba(255,170,43,.35)}
+.pdv-card .pc-tag.ok{background:rgba(54,207,160,.12);color:var(--ok);border:1px solid rgba(54,207,160,.3)}
+.pdv-card .pc-tag.novo{background:rgba(143,160,192,.12);color:var(--mu);border:1px solid rgba(143,160,192,.25)}
+.pdv-card .pc-tag.seg{background:rgba(160,124,246,.12);color:#b798f8;border:1px solid rgba(160,124,246,.25)}
+.pdv-card .pc-cnpj{font-family:'SF Mono','Consolas',monospace;font-size:.72rem;color:var(--mu)}
+.pdv-card .pc-quick{display:flex;gap:6px;margin-top:6px}
+.pdv-card .pc-mini-btn{flex:1;background:transparent;border:1px solid var(--br);color:var(--mu);padding:6px 8px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:4px}
+.pdv-card .pc-mini-btn:hover{background:var(--s2);color:var(--tx);border-color:var(--b2)}
+.pdv-card .pc-mini-btn.wpp{background:var(--wpp);border-color:var(--wpp);color:#fff}
+.pdv-card .pc-mini-btn.wpp:hover{filter:brightness(1.1)}
+
+/* Lista de leads */
+.lead-card{background:var(--sf);border:1px solid var(--cyan);border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px}
+.lead-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(34,211,238,.15)}
+.lead-card.late{border-color:var(--red)}
+.lead-card .lc-tempo{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:8px 12px;text-align:center;min-width:90px;flex-shrink:0}
+.lead-card .lc-tempo .lc-num{font-family:var(--fh);font-size:1.3rem;font-weight:800;line-height:1}
+.lead-card .lc-tempo .lc-lbl{font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.lead-card.fresh .lc-tempo .lc-num{color:var(--ok)}
+.lead-card.warn .lc-tempo .lc-num{color:var(--warn)}
+.lead-card.late .lc-tempo .lc-num{color:var(--red);animation:blink 1.5s infinite}
+.lead-card .lc-info{flex:1;min-width:0}
+.lead-card .lc-nome{font-weight:700;font-size:.95rem}
+.lead-card .lc-meta{font-size:.78rem;color:var(--mu);margin-top:2px;line-height:1.4}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+
+.empty{text-align:center;padding:40px 20px;color:var(--mu);background:var(--sf);border:1px dashed var(--br);border-radius:12px}
+.empty .em-icon{font-size:3rem;margin-bottom:10px;opacity:.4}
+
+/* Modal PDV */
+.modal-ov{position:fixed;inset:0;background:rgba(10,12,20,.82);backdrop-filter:blur(4px);z-index:2000;display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto}
+.modal-ov.open{display:flex}
+.modal{background:var(--sf);border:1px solid var(--br);border-radius:16px;width:100%;max-width:880px;box-shadow:0 24px 80px rgba(0,0,0,.7);margin:auto;overflow:hidden}
+.modal-hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 22px;border-bottom:1px solid var(--br);gap:12px}
+.modal-title-wrap{flex:1;min-width:0}
+.modal-title{font-family:var(--fh);font-size:1.15rem;font-weight:800;color:var(--tx);line-height:1.2}
+.modal-title-sub{font-size:.78rem;color:var(--mu);margin-top:3px}
+.modal-close{background:none;border:none;color:var(--mu);font-size:1.6rem;cursor:pointer;padding:0 8px;border-radius:8px;line-height:1;flex-shrink:0}
+.modal-close:hover{background:var(--s2);color:var(--tx)}
+.modal-body{padding:18px 22px;max-height:calc(100vh - 220px);overflow-y:auto}
+
+.pdv-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.pdv-block{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 14px}
+.pdv-block .pb-lbl{font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px;font-weight:600}
+.pdv-block .pb-val{font-size:.92rem;color:var(--tx);word-break:break-word}
+.pdv-block.full{grid-column:span 2}
+
+.pdv-actions{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.pdv-act-btn{flex:1;min-width:140px;padding:11px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:800;font-size:.86rem;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--fb);transition:all .15s}
+.pdv-act-btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.pdv-act-btn.wpp{background:var(--wpp);color:#fff}
+.pdv-act-btn.tel{background:var(--blue);color:#fff}
+.pdv-act-btn.checkin{background:var(--pink);color:#fff}
+
+/* Sub-seções dentro do modal PDV */
+.sub-section{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px;margin-bottom:14px}
+.sub-section .ss-title{font-family:var(--fh);font-size:.95rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.sub-section .ss-title .ss-info{font-size:.7rem;color:var(--mu);font-weight:400;font-family:var(--fb);margin-left:auto}
+
+/* Rotina */
+.rot-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px}
+.rot-fld label{display:block;font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;font-weight:600}
+.rot-fld select{width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:9px 10px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb)}
+.rot-fld select:focus{border-color:var(--pink)}
+.dia-toggles{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+.dia-toggle{flex:1;min-width:42px;background:var(--sf);border:1px solid var(--br);color:var(--mu);padding:7px 4px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:700;text-align:center;font-family:var(--fb);transition:all .15s}
+.dia-toggle:hover{border-color:var(--b2)}
+.dia-toggle.on{background:var(--pink);color:#fff;border-color:var(--pink)}
+.rot-info{font-size:.78rem;color:var(--mu);margin-top:8px}
+.rot-info b{color:var(--tx)}
+.rot-save{margin-top:10px;background:var(--pink);border:none;color:#fff;padding:9px 18px;border-radius:8px;cursor:pointer;font-weight:800;font-size:.84rem;font-family:var(--fb)}
+.rot-save:hover{filter:brightness(1.1)}
+.rot-save:disabled{opacity:.5;cursor:not-allowed}
+
+/* Itens frequentes */
+.freq-list{display:flex;flex-direction:column;gap:7px}
+.freq-item{background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:10px;font-size:.84rem}
+.freq-item .fi-rank{font-family:var(--fh);font-size:.95rem;font-weight:800;color:var(--mu);min-width:20px}
+.freq-item .fi-info{flex:1;min-width:0}
+.freq-item .fi-desc{color:var(--tx);line-height:1.3;font-weight:600}
+.freq-item .fi-meta{font-size:.72rem;color:var(--mu);margin-top:2px}
+.freq-item .fi-add{background:var(--pink);border:none;color:#fff;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:.72rem;font-weight:700;flex-shrink:0}
+.freq-item .fi-add:hover{filter:brightness(1.1)}
+
+/* Check-in */
+.checkin-tabs{display:flex;gap:6px;background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:5px;margin-bottom:14px}
+.checkin-tab{flex:1;background:transparent;border:none;color:var(--mu);padding:11px 14px;border-radius:7px;cursor:pointer;font-weight:700;font-size:.88rem;font-family:var(--fb);transition:all .15s}
+.checkin-tab:hover{color:var(--tx)}
+.checkin-tab.active.vendeu{background:var(--ok);color:#0a1f17}
+.checkin-tab.active.naovendeu{background:var(--red);color:#fff}
+
+.checkin-panel{display:none}
+.checkin-panel.active{display:block}
+
+/* Vendeu — produtos */
+.prod-search{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:10px}
+.prod-search input{background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb)}
+.prod-search input:focus{border-color:var(--pink)}
+.prod-suggest{background:var(--sf);border:1px solid var(--br);border-radius:8px;max-height:220px;overflow-y:auto;display:none;margin-top:-6px;margin-bottom:10px}
+.prod-suggest.show{display:block}
+.prod-sg-item{padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--br);font-size:.83rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.prod-sg-item:hover{background:var(--s3)}
+.prod-sg-item:last-child{border-bottom:none}
+.prod-sg-item .sg-desc{flex:1;min-width:0;line-height:1.25}
+.prod-sg-item .sg-cod{font-family:'SF Mono','Consolas',monospace;font-size:.72rem;color:var(--mu)}
+.prod-sg-item .sg-pr{font-family:var(--fh);font-weight:700;color:var(--ok);font-size:.85rem;white-space:nowrap}
+
+.cart-list{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.cart-item{background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:12px}
+.cart-item.alerta{border-color:var(--red);background:rgba(255,77,79,.05)}
+.cart-row{display:grid;grid-template-columns:1fr 80px 110px auto;gap:8px;align-items:center}
+.cart-desc{font-size:.85rem;line-height:1.25;font-weight:600}
+.cart-cod{font-family:'SF Mono','Consolas',monospace;font-size:.7rem;color:var(--mu);margin-top:2px}
+.cart-input{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:7px 9px;color:var(--tx);font-size:.85rem;outline:none;text-align:center;font-family:var(--fb);width:100%}
+.cart-input:focus{border-color:var(--pink)}
+.cart-input.preco-baixo{border-color:var(--red);background:rgba(255,77,79,.08)}
+.cart-rm{background:transparent;border:none;color:var(--mu);font-size:1.2rem;cursor:pointer;padding:4px 8px;border-radius:6px;line-height:1}
+.cart-rm:hover{color:var(--red);background:rgba(255,77,79,.1)}
+.cart-piso{font-size:.72rem;color:var(--mu);margin-top:5px}
+.cart-piso b{color:var(--tx)}
+.cart-piso.alerta{color:var(--red)}
+.cart-aprov{margin-top:8px;padding:8px;background:var(--s2);border:1px solid var(--red);border-radius:6px;display:none}
+.cart-aprov.show{display:block}
+.cart-aprov .ap-lbl{font-size:.72rem;color:var(--red);font-weight:700;margin-bottom:5px}
+.cart-aprov .ap-radios{display:flex;gap:14px;flex-wrap:wrap}
+.cart-aprov .ap-radios label{font-size:.78rem;color:var(--tx);cursor:pointer;display:flex;align-items:center;gap:5px}
+.cart-aprov .ap-radios input{cursor:pointer}
+
+.cart-total{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:.95rem}
+.cart-total b{font-family:var(--fh);font-size:1.2rem;font-weight:800;color:var(--ok)}
+
+/* Não vendeu */
+.nv-motivos{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px}
+.nv-motivo{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 12px;cursor:pointer;font-size:.82rem;font-weight:600;text-align:left;color:var(--tx);font-family:var(--fb);transition:all .15s}
+.nv-motivo:hover{border-color:var(--b2)}
+.nv-motivo.on{background:var(--red);color:#fff;border-color:var(--red)}
+
+/* Observação */
+.obs-fld textarea{width:100%;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:10px 12px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb);resize:vertical;min-height:60px}
+.obs-fld textarea:focus{border-color:var(--pink)}
+.obs-fld label{display:block;font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px;font-weight:600}
+
+.modal-footer{padding:14px 22px;border-top:1px solid var(--br);display:flex;justify-content:space-between;gap:10px;background:var(--bg)}
+.modal-footer .left, .modal-footer .right{display:flex;gap:8px}
+.modal-footer button{padding:11px 20px;border-radius:8px;cursor:pointer;font-weight:800;font-size:.86rem;border:none;font-family:var(--fb)}
+.btn-cancel{background:var(--s2);border:1px solid var(--br);color:var(--mu)}
+.btn-cancel:hover{color:var(--tx);background:var(--s3)}
+.btn-save-checkin{background:var(--pink);color:#fff}
+.btn-save-checkin:hover{filter:brightness(1.1)}
+.btn-save-checkin:disabled{background:var(--s3);color:var(--mu);cursor:not-allowed;filter:none}
+
+/* Loader + toast */
+.loader-bar{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--pink),transparent);background-size:50% 100%;background-repeat:no-repeat;animation:slide 1.2s infinite;z-index:9999;display:none}
+.loader-bar.show{display:block}
+@keyframes slide{0%{background-position:-50% 0}100%{background-position:150% 0}}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.4);font-size:.85rem;z-index:5000;display:none;max-width:340px}
+.toast.show{display:block;animation:fadeIn .2s ease-out}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.ok{border-color:var(--ok);color:var(--ok)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+/* Responsivo */
+@media(max-width:900px){
+  .home-grid{grid-template-columns:1fr}
+  .home-secondary{grid-template-columns:1fr}
+  .pdv-summary{grid-template-columns:1fr}
+  .pdv-block.full{grid-column:span 1}
+  .cart-row{grid-template-columns:1fr 60px 90px auto}
+}
+@media(max-width:700px){
+  .page-hdr{flex-wrap:wrap}
+  .page-hdr .actions{width:100%;justify-content:flex-end}
+  .pdv-grid{grid-template-columns:1fr}
+  .pdv-act-btn{font-size:.78rem;min-width:100px}
+  .modal{max-width:100%;border-radius:12px}
+  .modal-body{padding:14px}
+  .rot-grid{grid-template-columns:1fr}
+  .nv-motivos{grid-template-columns:1fr 1fr}
+  .cart-row{grid-template-columns:1fr;gap:6px}
+  .cart-row .cart-input{text-align:left}
+}
+</style>
+</head>
+<body>
+
+<div class="loader-bar" id="loader-bar"></div>
+<div class="toast" id="toast"></div>
+
+<div class="page-hdr">
+  <div class="logo-wrap"><img src="logo.png" alt="Q Food"></div>
+  <div class="title-wrap">
+    <h1>📞 CRM · Minha Carteira</h1>
+    <div class="sub" id="sub-title">Carregando...</div>
+  </div>
+  <div class="actions">
+    <span id="user-name" class="user-name">-</span>
+    <button onclick="atualizarDados()" title="Recarrega catálogo e PDVs do servidor">🔄</button>
+    <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
+    <button class="primary" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="page-container">
+
+  <div id="access-denied" class="blocked" style="display:none">
+    <h2>🔒 Acesso Restrito</h2>
+    <p>Esta tela é exclusiva para vendedores com CRM_Sigla ativa na UUSR.</p>
+    <button onclick="window.location.href='Index_Menu.html'" style="margin-top:16px;background:#e63329;border:none;color:#fff;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600">Voltar ao Menu</button>
+  </div>
+
+  <div id="loading-state" style="text-align:center;padding:60px 20px;color:var(--mu);display:none">
+    <div style="font-size:2rem;margin-bottom:14px">⏳</div>
+    <div id="loading-msg">Carregando sua carteira...</div>
+  </div>
+
+  <div id="main-content" style="display:none">
+
+    <!-- Banner de leads novos -->
+    <div class="lead-banner" id="lead-banner" onclick="navTo('leads')">
+      <div class="lb-icon">🔥</div>
+      <div class="lb-text">
+        <span id="lb-text-main">Você tem novos leads!</span>
+        <span class="lb-sub" id="lb-text-sub">Clique para atender</span>
+      </div>
+      <button class="lb-cta">Ver leads</button>
+    </div>
+
+    <!-- VIEW HOME -->
+    <div id="view-home">
+      <div class="home-grid">
+        <div class="home-card atrasados" onclick="navTo('atrasados')">
+          <div class="hc-icon">🔥</div>
+          <div class="hc-count" id="hc-atrasados">0</div>
+          <div class="hc-label">Atrasados</div>
+          <div class="hc-sub">PDVs com farol vermelho</div>
+        </div>
+        <div class="home-card hoje" onclick="navTo('hoje')">
+          <div class="hc-icon">📅</div>
+          <div class="hc-count" id="hc-hoje">0</div>
+          <div class="hc-label">Hoje</div>
+          <div class="hc-sub">Visitas programadas</div>
+        </div>
+        <div class="home-card leads" onclick="navTo('leads')">
+          <div class="ld-pulse" id="ld-pulse" style="display:none"></div>
+          <div class="hc-icon">📨</div>
+          <div class="hc-count" id="hc-leads">0</div>
+          <div class="hc-label">Leads novos</div>
+          <div class="hc-sub" id="hc-leads-sub">do Marketing</div>
+        </div>
+      </div>
+
+      <div class="home-secondary">
+        <div class="home-mini" onclick="navTo('todos')">
+          <div class="mi-icon">📋</div>
+          <div class="mi-text">
+            <div class="mi-title">Toda a carteira</div>
+            <div class="mi-sub">Lista completa de PDVs</div>
+          </div>
+          <div class="mi-count" id="mi-todos">0</div>
+        </div>
+        <div class="home-mini" onclick="navTo('em-dia')">
+          <div class="mi-icon">✅</div>
+          <div class="mi-text">
+            <div class="mi-title">Em dia</div>
+            <div class="mi-sub">Verde no farol</div>
+          </div>
+          <div class="mi-count" id="mi-em-dia">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW LISTA (PDVs ou leads) -->
+    <div id="view-list" style="display:none">
+      <div class="toolbar">
+        <button class="btn-back" onclick="navTo('home')">← Voltar</button>
+        <input type="text" id="search-input" class="search" placeholder="🔍 Buscar por razão, CNPJ, fantasia, cidade..." oninput="renderListaAtual()">
+        <select id="ord-filter" onchange="renderListaAtual()">
+          <option value="atraso">Ordenar: Atraso</option>
+          <option value="dias">Dias sem compra</option>
+          <option value="razao">Razão social (A-Z)</option>
+          <option value="ticket">Ticket médio</option>
+        </select>
+      </div>
+
+      <div class="section-title">
+        <span id="list-title">Lista</span>
+        <span class="st-count" id="list-count">0</span>
+      </div>
+
+      <div id="list-container"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal PDV / Check-in -->
+<div class="modal-ov" id="modal-pdv" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title-wrap">
+        <div class="modal-title" id="mp-title">PDV</div>
+        <div class="modal-title-sub" id="mp-subtitle">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="modal-body" id="modal-body"></div>
+
+    <div class="modal-footer">
+      <div class="left">
+        <button class="btn-cancel" onclick="closeModal()">Fechar</button>
+      </div>
+      <div class="right">
+        <button class="btn-save-checkin" id="btn-save-checkin" onclick="enviarCheckin()" style="display:none">📤 Enviar Check-in</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   Q FOOD COMPANY — CRM · MINHA CARTEIRA (VENDEDOR)
+   Backend v1.3 + leitura CSV BASE_PDV/PRODUTO_GIRO no client
+   ============================================================ */
+var WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec";
+var BASE_PDV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1880583941&single=true&output=csv";
+var PRODUTO_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+var POLL_MS = 30 * 1000;
+
+var DIAS_SEMANA = ["DOM","SEG","TER","QUA","QUI","SEX","SAB"];
+var MOTIVOS_NAO_VENDA = [
+  "Ruptura de Estoque","Preço/Concorrência","Estoque Cheio","Inadimplência",
+  "Estabelecimento Fechado","Proprietário Ausente","Substituição de Mix",
+  "CNPJ Inativo","Mudou de CNPJ"
+];
+
+// Estado global
+var CURRENT_USER = null;     // {email, nome, sigla, isAdmin, recebeLeads}
+var DINAMICO_ROWS = [];      // array de linhas DINAMICO da minha sigla
+var BASE_PDV_MAP  = {};      // cnpj -> {razao, fantasia, fone, whats, novoWhats, end, cidade, uf, segmento, inativo}
+var PRODUTOS      = [];      // array do PRODUTO_GIRO {codigo, descricao, custo, preco, margem, promo, ...}
+var PRODUTOS_BY_COD = {};
+var TODAS_USERS = [];        // UUSR (do localStorage cache do menu)
+var ROTAS_MAP = {};          // cnpj -> {dias, periodicidade}
+var LEADS_MEUS = [];         // leads atribuídos a mim
+var LEADS_VISTOS = {};       // localStorage: ids já marcados como visualizados nesta sessão
+var PDVS = [];               // PDVs agregados (1 linha por CNPJ) com farol calculado
+
+var ACTIVE_VIEW = "home";    // home | atrasados | hoje | leads | todos | em-dia
+var ACTIVE_PDV  = null;
+var ACTIVE_LEAD = null;
+var POLL_TIMER = null;
+
+// Carrinho do check-in (modal)
+var CHECKIN_MODE = null;     // "vendeu" | "naovendeu"
+var CART = [];               // [{codigo, descricao, custo, margem, qtde, preco, abaixoPiso, aprovacao}]
+var NV_MOTIVO = "";
+
+// ─────────────────────────────────────────────────────
+// Auth guard
+// ─────────────────────────────────────────────────────
+(function checkAuth(){
+  var sess = localStorage.getItem("qfood_session");
+  if(!sess){ goLogin(); return; }
+  var s; try{ s = JSON.parse(sess); }catch(e){ goLogin(); return; }
+  if(!s.email || !s.ts || (Date.now() - s.ts > 8*60*60*1000)){ goLogin(); return; }
+
+  var sigla = (s.crmSigla || "").toString().toUpperCase();
+  var isAdmin = sigla === "*";
+  // Admin pode usar essa tela com sigla via querystring (?vd=NOME.SOBRENOME)
+  if(isAdmin){
+    var qs = new URLSearchParams(location.search);
+    var v = (qs.get("vd") || qs.get("vendedor") || "").toUpperCase();
+    if(v && v.indexOf(".") > 0) sigla = v;
+  }
+  // Não-vendedor ou sigla inválida = bloqueia
+  if(sigla === "*" || sigla === "LEAD" || !sigla || sigla.indexOf(".") < 0){
+    document.getElementById("access-denied").style.display = "block";
+    document.getElementById("user-name").textContent = s.nome || s.email;
+    return;
+  }
+
+  CURRENT_USER = {
+    email: (s.email || "").toLowerCase(),
+    nome:  s.nome || (s.email||"").split("@")[0],
+    sigla: sigla,
+    isAdmin: isAdmin,
+    recebeLeads: !!s.recebeLeads
+  };
+  document.getElementById("user-name").textContent = CURRENT_USER.nome + " · " + sigla;
+  document.getElementById("sub-title").textContent = "Carteira de " + CURRENT_USER.nome + " (" + sigla + ")";
+  // Restaura leads vistos
+  try {
+    var lv = localStorage.getItem("crm_leads_vistos_" + sigla);
+    if(lv) LEADS_VISTOS = JSON.parse(lv) || {};
+  } catch(e){ LEADS_VISTOS = {}; }
+  init();
+})();
+
+function goLogin(msg){
+  if(msg) alert(msg);
+  window.location.href = "Index_Menu.html";
+}
+
+function logout(){
+  if(confirm("Sair do sistema?")){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Init — carrega tudo em paralelo
+// ─────────────────────────────────────────────────────
+function init(){
+  document.getElementById("loading-state").style.display = "block";
+  setLoadingMsg("Carregando catálogo, PDVs e histórico...");
+
+  Promise.all([
+    loadDinamico(),
+    loadRotas(),
+    loadLeads(true),
+    loadBasePdvCSV(),
+    loadProdutosCSV()
+  ]).then(function(){
+    document.getElementById("loading-state").style.display = "none";
+    document.getElementById("main-content").style.display = "block";
+    montarPDVs();
+    renderHome();
+    renderLeadBanner();
+    iniciarPolling();
+  }).catch(function(e){
+    document.getElementById("loading-state").style.display = "none";
+    document.getElementById("main-content").style.display = "block";
+    toast("Erro ao carregar dados: " + e.message, "error");
+    console.error(e);
+    // Tenta renderizar home mesmo com erro parcial
+    montarPDVs();
+    renderHome();
+  });
+}
+
+function setLoadingMsg(m){
+  var el = document.getElementById("loading-msg");
+  if(el) el.textContent = m;
+}
+
+function atualizarDados(){
+  // Limpa caches do session storage
+  ["crm_basepdv_v1","crm_produtos_v1"].forEach(function(k){ sessionStorage.removeItem(k); });
+  toast("Atualizando dados...", "");
+  init();
+}
+
+// ─────────────────────────────────────────────────────
+// API helpers — backend v1.3 (auth = email no payload)
+// ─────────────────────────────────────────────────────
+function apiGet(action, params){
+  showLoader(true);
+  var qs = "?modulo=crm&action=" + encodeURIComponent(action) + "&t=" + Date.now();
+  qs += "&email=" + encodeURIComponent(CURRENT_USER.email);
+  if(params){
+    Object.keys(params).forEach(function(k){
+      if(params[k] == null) return;
+      qs += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+    });
+  }
+  return fetch(WEBAPP_URL + qs).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(function(d){
+    showLoader(false);
+    if(!d.ok) throw new Error(d.error || "Erro");
+    return d;
+  }).catch(function(e){
+    showLoader(false);
+    throw e;
+  });
+}
+
+function apiPost(action, params){
+  showLoader(true);
+  var body = "modulo=crm&action=" + encodeURIComponent(action);
+  body += "&email=" + encodeURIComponent(CURRENT_USER.email);
+  if(params){
+    Object.keys(params).forEach(function(k){
+      var v = params[k];
+      if(v == null) return;
+      if(typeof v === "object") v = JSON.stringify(v);
+      body += "&" + encodeURIComponent(k) + "=" + encodeURIComponent(v);
+    });
+  }
+  return fetch(WEBAPP_URL, {
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+    body: body
+  }).then(function(r){
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  }).then(function(d){
+    showLoader(false);
+    return d;
+  }).catch(function(e){
+    showLoader(false);
+    throw e;
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Loaders
+// ─────────────────────────────────────────────────────
+function loadDinamico(){
+  setLoadingMsg("Buscando seu histórico de vendas...");
+  return apiGet("dinamico").then(function(d){
+    DINAMICO_ROWS = d.dados || [];
+  });
+}
+
+function loadRotas(){
+  return apiGet("rota").then(function(d){
+    ROTAS_MAP = {};
+    (d.dados || []).forEach(function(r){
+      if(r.cnpj) ROTAS_MAP[r.cnpj] = {
+        diasSemana: (r.diasSemana||"").toUpperCase(),
+        periodicidadeDias: r.periodicidadeDias || 0
+      };
+    });
+  });
+}
+
+function loadLeads(silent){
+  return apiGet("leads").then(function(d){
+    LEADS_MEUS = d.dados || [];
+    if(!silent){
+      renderLeadBanner();
+      if(ACTIVE_VIEW === "leads") renderListaAtual();
+    }
+  }).catch(function(e){
+    console.warn("Falha ao carregar leads:", e);
+    LEADS_MEUS = [];
+  });
+}
+
+function loadBasePdvCSV(){
+  setLoadingMsg("Carregando base de clientes...");
+  // Cache 6h
+  try {
+    var cached = sessionStorage.getItem("crm_basepdv_v1");
+    if(cached){
+      var c = JSON.parse(cached);
+      if(c && c.ts && (Date.now() - c.ts) < 6*3600*1000 && c.map){
+        BASE_PDV_MAP = c.map;
+        return Promise.resolve();
+      }
+    }
+  } catch(e){}
+
+  return fetch(BASE_PDV_URL + "&t=" + Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      if(txt.trim().charAt(0) === "<") throw new Error("CSV BASE_PDV indisponível");
+      BASE_PDV_MAP = parseBasePDVCSV(txt);
+      try {
+        sessionStorage.setItem("crm_basepdv_v1", JSON.stringify({ts:Date.now(), map:BASE_PDV_MAP}));
+      } catch(e){ /* quota cheia, ok */ }
+    });
+}
+
+function loadProdutosCSV(){
+  setLoadingMsg("Carregando catálogo...");
+  try {
+    var cached = sessionStorage.getItem("crm_produtos_v1");
+    if(cached){
+      var c = JSON.parse(cached);
+      if(c && c.ts && (Date.now() - c.ts) < 6*3600*1000 && c.list){
+        PRODUTOS = c.list;
+        PRODUTOS_BY_COD = {};
+        PRODUTOS.forEach(function(p){ PRODUTOS_BY_COD[p.codigo] = p; });
+        return Promise.resolve();
+      }
+    }
+  } catch(e){}
+
+  return fetch(PRODUTO_URL + "&t=" + Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      if(txt.trim().charAt(0) === "<") throw new Error("CSV PRODUTO_GIRO indisponível");
+      PRODUTOS = parseProdutoGiroCSV(txt);
+      PRODUTOS_BY_COD = {};
+      PRODUTOS.forEach(function(p){ PRODUTOS_BY_COD[p.codigo] = p; });
+      try {
+        sessionStorage.setItem("crm_produtos_v1", JSON.stringify({ts:Date.now(), list:PRODUTOS}));
+      } catch(e){ /* cota */ }
+    });
+}
+
+// ─────────────────────────────────────────────────────
+// CSV parser RFC 4180
+// ─────────────────────────────────────────────────────
+function parseCSV(txt){
+  var rows = [], cur = [], field = "", inQ = false;
+  for(var i=0; i<txt.length; i++){
+    var c = txt[i];
+    if(inQ){
+      if(c==='"' && txt[i+1]==='"'){ field+='"'; i++; }
+      else if(c==='"'){ inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"'){ inQ=true; }
+      else if(c===','){ cur.push(field); field=''; }
+      else if(c==='\r'){ /* skip */ }
+      else if(c==='\n'){ cur.push(field); rows.push(cur); cur=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field.length || cur.length){ cur.push(field); rows.push(cur); }
+  return rows;
+}
+
+function parseBasePDVCSV(txt){
+  // Colunas relevantes (índice 0-based, conforme memória/backend):
+  // B=1 razao, C=2 fantasia, D=3 cnpj, H=7 inativo,
+  // I=8 fone1, J=9 whatsapp, AX=49 novo_whatsapp,
+  // S-Y=18-24 endereço, AB=27 status, AL=37 vendedor, AS=44 segmento
+  var rows = parseCSV(txt);
+  if(rows.length < 2) return {};
+  var hdr = rows[0].map(function(h){ return (h||"").trim().toLowerCase(); });
+  function findCol(names){
+    for(var n=0; n<names.length; n++){
+      var i = hdr.indexOf(names[n].toLowerCase());
+      if(i >= 0) return i;
+    }
+    return -1;
+  }
+  var iCnpj  = findCol(["cnpj"]);
+  var iRazao = findCol(["razao_social","razao social","razão social","razao","cliente"]);
+  var iFant  = findCol(["nome_fantasia","nome fantasia","fantasia"]);
+  var iFone  = findCol(["fone1","telefone","fone"]);
+  var iWpp   = findCol(["whatsapp","whats","wpp"]);
+  var iNovo  = findCol(["novo_whatsapp","novo whatsapp"]);
+  var iEnd   = findCol(["endereco","endereço","logradouro"]);
+  var iCid   = findCol(["cidade","municipio","município"]);
+  var iUf    = findCol(["uf","estado"]);
+  var iSeg   = findCol(["segmento","atividade"]);
+  var iVend  = findCol(["vendedor"]);
+  var iInat  = findCol(["inativo"]);
+  var iStat  = findCol(["status","situacao","situação"]);
+
+  var map = {};
+  if(iCnpj < 0) return map;
+  for(var r=1; r<rows.length; r++){
+    var line = rows[r];
+    var cnpj = (line[iCnpj] || "").replace(/\D/g,"");
+    if(!cnpj || cnpj.length < 11) continue;
+    map[cnpj] = {
+      cnpj: cnpj,
+      razao:    iRazao>=0 ? String(line[iRazao]||"").trim() : "",
+      fantasia: iFant>=0  ? String(line[iFant]||"").trim()  : "",
+      fone:     iFone>=0  ? String(line[iFone]||"").trim()  : "",
+      whats:    iWpp>=0   ? String(line[iWpp]||"").trim()   : "",
+      novoWhats: iNovo>=0 ? String(line[iNovo]||"").trim()  : "",
+      endereco: iEnd>=0   ? String(line[iEnd]||"").trim()   : "",
+      cidade:   iCid>=0   ? String(line[iCid]||"").trim()   : "",
+      uf:       iUf>=0    ? String(line[iUf]||"").trim().toUpperCase()  : "",
+      segmento: iSeg>=0   ? String(line[iSeg]||"").trim().toUpperCase() : "",
+      vendedor: iVend>=0  ? String(line[iVend]||"").trim() : "",
+      inativo:  iInat>=0  ? String(line[iInat]||"").trim().toUpperCase() : "",
+      status:   iStat>=0  ? String(line[iStat]||"").trim().toUpperCase() : ""
+    };
+  }
+  return map;
+}
+
+function parseProdutoGiroCSV(txt){
+  // Colunas relevantes (memória):
+  // A=0 codigo, B=1 descricao, G=6 promo flag, H..S = giro mensal, V=21 estoque,
+  // AL=37 custo (Custo Adm), AM=38 preço (Preço!), AN=39 markup, AO=40 margem%,
+  // AX=49 promo (Por), BU=72 família, BV=73 grupo, BW=74 sub-grupo
+  var rows = parseCSV(txt);
+  if(rows.length < 2) return [];
+  var hdr = rows[0].map(function(h){ return (h||"").trim().toLowerCase(); });
+  function findCol(names){
+    for(var n=0; n<names.length; n++){
+      var i = hdr.indexOf(names[n].toLowerCase());
+      if(i >= 0) return i;
+    }
+    return -1;
+  }
+  var iCod = findCol(["codigo","código","cod"]);
+  var iDesc = findCol(["descricao","descrição","produto"]);
+  var iPromo = findCol(["promo","em promo"]);
+  var iCusto = findCol(["custo adm","custo_adm","custo"]);
+  var iPreco = findCol(["preço!","preco!","preço","preco"]);
+  var iMarkup = findCol(["markup"]);
+  var iMargem = findCol(["margem","margem%"]);
+  var iPor = findCol(["por","preco_por","preço_por"]);
+  var iFam = findCol(["familia","família"]);
+  var iGrupo = findCol(["grupo"]);
+  var iSubGr = findCol(["sub-grupo","subgrupo","sub grupo","sub_grupo"]);
+  var iAtivo = findCol(["ativo?","ativo"]);
+  var iLinha = findCol(["em linha?","em linha","em_linha"]);
+
+  function num(v){
+    if(v == null) return 0;
+    var s = String(v).trim();
+    if(!s) return 0;
+    s = s.replace(/r\$/gi,"").replace(/\s+/g,"").replace(/[^\d,.\-]/g,"");
+    if(s.indexOf(",")>=0 && s.indexOf(".")>=0) s = s.replace(/\./g,"").replace(",",".");
+    else if(s.indexOf(",")>=0) s = s.replace(",",".");
+    var n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  }
+
+  var out = [];
+  for(var r=1; r<rows.length; r++){
+    var line = rows[r];
+    var cod = String(line[iCod]||"").trim();
+    if(!cod) continue;
+    // Filtra ativo + em linha quando colunas existem
+    if(iAtivo >= 0){
+      var av = String(line[iAtivo]||"").trim().toLowerCase();
+      if(av && av !== "sim" && av !== "s" && av !== "x" && av !== "true") continue;
+    }
+    if(iLinha >= 0){
+      var lv = String(line[iLinha]||"").trim().toLowerCase();
+      if(lv && lv !== "sim" && lv !== "s" && lv !== "x" && lv !== "true") continue;
+    }
+    var custo  = iCusto  >= 0 ? num(line[iCusto])  : 0;
+    var preco  = iPreco  >= 0 ? num(line[iPreco])  : 0;
+    var margem = iMargem >= 0 ? num(line[iMargem]) : 0;
+    var por    = iPor    >= 0 ? num(line[iPor])    : 0;
+    var promoFlag = iPromo >= 0 ? String(line[iPromo]||"").trim().toLowerCase() : "";
+    var emPromo = promoFlag === "sim" || promoFlag === "s" || (por > 0 && preco > 0 && por < preco);
+
+    // Preço-piso: AL / (1 - AO/100)
+    var piso = 0;
+    if(custo > 0 && margem > 0 && margem < 100){
+      piso = custo / (1 - margem/100);
+    }
+
+    out.push({
+      codigo: cod,
+      descricao: iDesc>=0 ? String(line[iDesc]||"").trim() : "",
+      custo: custo,
+      preco: preco,
+      precoPromo: por,
+      precoSugerido: emPromo && por > 0 ? por : preco,
+      margem: margem,
+      piso: piso,
+      emPromo: emPromo,
+      familia: iFam>=0 ? String(line[iFam]||"").trim() : "",
+      grupo: iGrupo>=0 ? String(line[iGrupo]||"").trim() : "",
+      subgrupo: iSubGr>=0 ? String(line[iSubGr]||"").trim() : ""
+    });
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────
+// Monta lista de PDVs (1 por CNPJ) com farol calculado
+// ─────────────────────────────────────────────────────
+function montarPDVs(){
+  var byCnpj = {};
+  DINAMICO_ROWS.forEach(function(r){
+    var cnpj = (r.cnpj || "").replace(/\D/g,"");
+    if(!cnpj) return;
+    if(!byCnpj[cnpj]){
+      byCnpj[cnpj] = {
+        cnpj: cnpj,
+        diasSemCompra: r.diasSemCompra || 0,
+        ultimaNf: r.ultimaNf || "",
+        razao: r.razaoSocial || "",
+        fantasia: r.nomeFantasia || "",
+        cidade: r.municipio || "",
+        uf: r.uf || "",
+        segmento: r.segmento || "",
+        ramo: r.ramo || "",
+        regiao: r.regiao || "",
+        items: [],
+        ticketTotal: 0,
+        ticketCount: 0
+      };
+    }
+    var p = byCnpj[cnpj];
+    // Mantém maior diasSemCompra (deveria ser igual em todas linhas, mas garante)
+    if(r.diasSemCompra > p.diasSemCompra) p.diasSemCompra = r.diasSemCompra;
+    if(r.total > 0){
+      p.ticketTotal += r.total;
+      p.ticketCount++;
+    }
+    p.items.push(r);
+  });
+
+  // Enriquece com BASE_PDV (contato, endereço) e CRM_ROTA (periodicidade/dias)
+  PDVS = Object.keys(byCnpj).map(function(c){
+    var p = byCnpj[c];
+    var base = BASE_PDV_MAP[c] || {};
+    var rota = ROTAS_MAP[c] || {};
+
+    var period = rota.periodicidadeDias || 30;  // default 30 dias
+    var dias = p.diasSemCompra || 0;
+    var ratio = dias / period;
+    var farol;
+    if(p.diasSemCompra == null || dias === 0){
+      farol = "g";  // assumido em dia se nunca registrou
+    } else if(ratio < 0.8){
+      farol = "g";
+    } else if(ratio < 1.0){
+      farol = "y";
+    } else {
+      farol = "r";
+    }
+    if(!p.ticketCount && dias === 0) farol = "gray"; // novo / sem dado
+
+    var ticketMedio = p.ticketCount ? (p.ticketTotal / p.ticketCount) : 0;
+
+    return {
+      cnpj: c,
+      razao: base.razao || p.razao || "—",
+      fantasia: base.fantasia || p.fantasia || "",
+      cidade: base.cidade || p.cidade || "",
+      uf: base.uf || p.uf || "",
+      segmento: base.segmento || p.segmento || "",
+      fone: base.fone || "",
+      whats: base.whats || "",
+      novoWhats: base.novoWhats || "",
+      endereco: base.endereco || "",
+      diasSemCompra: dias,
+      ultimaNf: p.ultimaNf,
+      farol: farol,
+      ratio: ratio,
+      periodicidade: period,
+      diasSemana: rota.diasSemana || "",
+      ticketMedio: ticketMedio,
+      items: p.items
+    };
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Render Home — 3 cards + secundários
+// ─────────────────────────────────────────────────────
+function renderHome(){
+  document.getElementById("view-home").style.display = "block";
+  document.getElementById("view-list").style.display = "none";
+
+  var hojeKey = DIAS_SEMANA[new Date().getDay()];
+  var atrasados = PDVS.filter(function(p){ return p.farol === "r"; });
+  var hoje = PDVS.filter(function(p){
+    if(p.diasSemana && p.diasSemana.indexOf(hojeKey) >= 0) return true;
+    return p.farol === "y";
+  });
+  var emDia = PDVS.filter(function(p){ return p.farol === "g"; });
+
+  document.getElementById("hc-atrasados").textContent = atrasados.length;
+  document.getElementById("hc-hoje").textContent = hoje.length;
+  document.getElementById("mi-todos").textContent = PDVS.length;
+  document.getElementById("mi-em-dia").textContent = emDia.length;
+
+  // Leads novos (NOVO ou VISUALIZADO)
+  var leadsNovos = LEADS_MEUS.filter(function(l){
+    var st = (l.status||"").toUpperCase();
+    return st === "NOVO" || st === "VISUALIZADO";
+  });
+  document.getElementById("hc-leads").textContent = leadsNovos.length;
+  document.getElementById("ld-pulse").style.display = leadsNovos.length > 0 ? "block" : "none";
+  document.getElementById("hc-leads-sub").textContent = CURRENT_USER.recebeLeads || leadsNovos.length > 0 ?
+    "do Marketing" : "(você não recebe leads)";
+}
+
+function renderLeadBanner(){
+  var leadsNovos = LEADS_MEUS.filter(function(l){
+    var st = (l.status||"").toUpperCase();
+    return st === "NOVO";
+  });
+  var b = document.getElementById("lead-banner");
+  if(!leadsNovos.length){
+    b.classList.remove("show");
+    return;
+  }
+  // Soa beep quando aparece lead que ainda não foi visto
+  var temNovo = leadsNovos.some(function(l){ return !LEADS_VISTOS[l.id]; });
+  if(temNovo){
+    try { beep(); } catch(e){}
+  }
+  document.getElementById("lb-text-main").innerHTML =
+    "🔥 <b>" + leadsNovos.length + "</b> novo" + (leadsNovos.length>1?"s":"") + " lead" + (leadsNovos.length>1?"s":"") + "!";
+  document.getElementById("lb-text-sub").textContent = "Atenda o quanto antes — tempo de resposta é registrado";
+  b.classList.add("show");
+}
+
+function beep(){
+  // beep curto via Web Audio
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return;
+  var ctx = new Ctx();
+  var o = ctx.createOscillator();
+  var g = ctx.createGain();
+  o.connect(g); g.connect(ctx.destination);
+  o.frequency.value = 880;
+  o.type = "sine";
+  g.gain.setValueAtTime(0.001, ctx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+  o.start(ctx.currentTime);
+  o.stop(ctx.currentTime + 0.26);
+}
+
+// ─────────────────────────────────────────────────────
+// Navegação
+// ─────────────────────────────────────────────────────
+function navTo(view){
+  ACTIVE_VIEW = view;
+  if(view === "home"){
+    renderHome();
+    return;
+  }
+  document.getElementById("view-home").style.display = "none";
+  document.getElementById("view-list").style.display = "block";
+  // título
+  var titleMap = {
+    "atrasados": "🔥 PDVs Atrasados",
+    "hoje": "📅 Visitas de Hoje",
+    "em-dia": "✅ PDVs em Dia",
+    "todos": "📋 Toda a Carteira",
+    "leads": "📨 Leads Novos do Marketing"
+  };
+  document.getElementById("list-title").textContent = titleMap[view] || "Lista";
+  document.getElementById("search-input").value = "";
+  renderListaAtual();
+}
+
+function renderListaAtual(){
+  var v = ACTIVE_VIEW;
+  if(v === "leads") return renderLeadsLista();
+  return renderPDVLista();
+}
+
+// ─────────────────────────────────────────────────────
+// Render PDV lista
+// ─────────────────────────────────────────────────────
+function filtrarPDVs(){
+  var v = ACTIVE_VIEW;
+  var hojeKey = DIAS_SEMANA[new Date().getDay()];
+  var lista = PDVS.slice();
+  if(v === "atrasados") lista = lista.filter(function(p){ return p.farol === "r"; });
+  else if(v === "hoje") lista = lista.filter(function(p){
+    if(p.diasSemana && p.diasSemana.indexOf(hojeKey) >= 0) return true;
+    return p.farol === "y";
+  });
+  else if(v === "em-dia") lista = lista.filter(function(p){ return p.farol === "g"; });
+  // 'todos' = sem filtro
+
+  var q = (document.getElementById("search-input").value || "").toLowerCase().trim();
+  if(q){
+    lista = lista.filter(function(p){
+      var blob = [p.razao, p.fantasia, p.cnpj, p.cidade, p.segmento].join(" ").toLowerCase();
+      return blob.indexOf(q) >= 0;
+    });
+  }
+
+  var ord = document.getElementById("ord-filter").value;
+  if(ord === "atraso"){
+    lista.sort(function(a,b){ return (b.ratio||0) - (a.ratio||0); });
+  } else if(ord === "dias"){
+    lista.sort(function(a,b){ return (b.diasSemCompra||0) - (a.diasSemCompra||0); });
+  } else if(ord === "razao"){
+    lista.sort(function(a,b){ return a.razao.localeCompare(b.razao); });
+  } else if(ord === "ticket"){
+    lista.sort(function(a,b){ return (b.ticketMedio||0) - (a.ticketMedio||0); });
+  }
+  return lista;
+}
+
+function renderPDVLista(){
+  var lista = filtrarPDVs();
+  document.getElementById("list-count").textContent = lista.length;
+  var box = document.getElementById("list-container");
+
+  if(!lista.length){
+    box.innerHTML = '<div class="empty"><div class="em-icon">🗂</div><div>Nenhum PDV encontrado.</div></div>';
+    return;
+  }
+
+  box.innerHTML = '<div class="pdv-grid">' + lista.map(function(p){
+    var dias = p.diasSemCompra > 0 ? p.diasSemCompra + " dias sem compra" : "Nunca comprou";
+    var tagFarol;
+    if(p.farol === "r") tagFarol = '<span class="pc-tag atrasado">🔥 Atrasado</span>';
+    else if(p.farol === "y") tagFarol = '<span class="pc-tag hoje">📅 Visitar</span>';
+    else if(p.farol === "g") tagFarol = '<span class="pc-tag ok">✅ Em dia</span>';
+    else tagFarol = '<span class="pc-tag novo">🆕 Sem histórico</span>';
+
+    var tagSeg = p.segmento ? '<span class="pc-tag seg">'+escapeHtml(p.segmento)+'</span>' : '';
+
+    return '<div class="pdv-card farol-'+p.farol+'" onclick="abrirPDV(\''+p.cnpj+'\')">'+
+      '<div class="pc-name">'+escapeHtml(p.razao)+'</div>'+
+      (p.fantasia ? '<div class="pc-fant">'+escapeHtml(p.fantasia)+'</div>' : '')+
+      '<div class="pc-meta">'+tagFarol+tagSeg+'</div>'+
+      '<div class="pc-meta">'+
+        '<span>'+escapeHtml(dias)+'</span>'+
+        (p.cidade ? '<span>· '+escapeHtml(p.cidade)+(p.uf?'/'+p.uf:'')+'</span>' : '')+
+      '</div>'+
+      '<div class="pc-cnpj">'+escapeHtml(formatCNPJ(p.cnpj))+'</div>'+
+    '</div>';
+  }).join("") + '</div>';
+}
+
+function renderLeadsLista(){
+  var leads = LEADS_MEUS.slice().filter(function(l){
+    var st = (l.status||"").toUpperCase();
+    return st === "NOVO" || st === "VISUALIZADO" || st === "EM_ATENDIMENTO";
+  });
+  // Ordena por mais antigo primeiro (mais urgente)
+  leads.sort(function(a,b){
+    var da = new Date(a.dataHoraCadastro || 0).getTime();
+    var db = new Date(b.dataHoraCadastro || 0).getTime();
+    return da - db;
+  });
+
+  document.getElementById("list-count").textContent = leads.length;
+  var box = document.getElementById("list-container");
+
+  if(!leads.length){
+    box.innerHTML = '<div class="empty"><div class="em-icon">📨</div><div>Nenhum lead pendente.</div><div style="font-size:.78rem;margin-top:6px">Todos os leads já foram atendidos! 🎉</div></div>';
+    return;
+  }
+
+  box.innerHTML = leads.map(function(l){
+    var min = minutosDesde(l.dataHoraCadastro);
+    var cls = "fresh";
+    if(min > 120) cls = "late";
+    else if(min > 30) cls = "warn";
+    var temposLbl = formatTempoCurto(min);
+    return '<div class="lead-card '+cls+'" onclick="abrirLead(\''+escapeHtml(l.id)+'\')">'+
+      '<div class="lc-tempo">'+
+        '<div class="lc-num">'+escapeHtml(temposLbl)+'</div>'+
+        '<div class="lc-lbl">aguardando</div>'+
+      '</div>'+
+      '<div class="lc-info">'+
+        '<div class="lc-nome">'+escapeHtml(l.razaoSocial||"—")+(l.nomeFantasia?" · "+escapeHtml(l.nomeFantasia):"")+'</div>'+
+        '<div class="lc-meta">'+
+          '📱 '+escapeHtml(formatTel(l.whatsapp||l.telefone)||"sem contato")+
+          ' · 📍 '+escapeHtml((l.cidade||"")+(l.uf?'/'+l.uf:'') || "—")+
+          (l.segmento ? ' · 🏢 '+escapeHtml(l.segmento) : '')+
+          (l.observacao ? '<br>💬 '+escapeHtml(l.observacao.substring(0,140))+(l.observacao.length>140?"...":"") : '')+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+}
+
+function minutosDesde(iso){
+  if(!iso) return 0;
+  var d = new Date(iso).getTime();
+  if(isNaN(d)) return 0;
+  return Math.max(0, Math.round((Date.now() - d) / 60000));
+}
+function formatTempoCurto(m){
+  if(m < 60) return m + "m";
+  var h = Math.floor(m/60);
+  if(h < 24) return h + "h";
+  var d = Math.floor(h/24);
+  return d + "d";
+}
+
+// ─────────────────────────────────────────────────────
+// Abrir Lead — marca como visualizado e mostra modal de PDV (após cadastrar)
+// ─────────────────────────────────────────────────────
+function abrirLead(id){
+  var l = LEADS_MEUS.find(function(x){ return x.id === id; });
+  if(!l){ toast("Lead não encontrado.","error"); return; }
+  ACTIVE_LEAD = l;
+  // Marca como visualizado se ainda não foi
+  var st = (l.status||"").toUpperCase();
+  if(st === "NOVO"){
+    apiPost("update_lead", {payload:{id: id, marcarVisualizado: true}}).then(function(d){
+      if(d.ok){
+        l.status = "VISUALIZADO";
+        l.dataHoraVisualizado = new Date().toISOString();
+        LEADS_VISTOS[id] = true;
+        try { localStorage.setItem("crm_leads_vistos_"+CURRENT_USER.sigla, JSON.stringify(LEADS_VISTOS)); } catch(e){}
+      }
+    }).catch(function(e){ console.warn("Falha update_lead:", e); });
+  }
+  // Mostra modal informativo do lead com ação de "abrir cliente" (cadastrar como PDV/check-in só após save_hist com idLeadOrigem)
+  abrirModalLead(l);
+}
+
+function abrirModalLead(l){
+  document.getElementById("mp-title").textContent = "🔥 Lead: " + (l.razaoSocial || l.nomeFantasia || l.cnpj);
+  document.getElementById("mp-subtitle").textContent = "Recebido " + new Date(l.dataHoraCadastro).toLocaleString("pt-BR");
+
+  var wpp = pickWhatsapp({
+    whats: l.whatsapp,
+    novoWhats: "",
+    fone: l.telefone
+  });
+  var wppLink = wpp ? wppLinkPara(wpp, l.razaoSocial || l.nomeFantasia || "") : "";
+  var telLink = l.telefone ? "tel:+55"+(l.telefone||"").replace(/\D/g,"") : "";
+
+  var body = '<div class="pdv-summary">'+
+    '<div class="pdv-block"><div class="pb-lbl">Razão Social</div><div class="pb-val">'+escapeHtml(l.razaoSocial||"—")+'</div></div>'+
+    (l.nomeFantasia ? '<div class="pdv-block"><div class="pb-lbl">Nome Fantasia</div><div class="pb-val">'+escapeHtml(l.nomeFantasia)+'</div></div>' : '<div class="pdv-block"></div>')+
+    '<div class="pdv-block"><div class="pb-lbl">CNPJ</div><div class="pb-val mono" style="font-family:monospace">'+escapeHtml(formatCNPJ(l.cnpj))+'</div></div>'+
+    '<div class="pdv-block"><div class="pb-lbl">Origem</div><div class="pb-val">'+escapeHtml(l.origem||"—")+'</div></div>'+
+    (l.cidade ? '<div class="pdv-block"><div class="pb-lbl">Localização</div><div class="pb-val">'+escapeHtml(l.cidade+(l.uf?'/'+l.uf:''))+'</div></div>' : '')+
+    (l.segmento ? '<div class="pdv-block"><div class="pb-lbl">Segmento</div><div class="pb-val">'+escapeHtml(l.segmento)+'</div></div>' : '')+
+    (l.endereco ? '<div class="pdv-block full"><div class="pb-lbl">Endereço</div><div class="pb-val">'+escapeHtml(l.endereco)+'</div></div>' : '')+
+    (l.observacao ? '<div class="pdv-block full"><div class="pb-lbl">💬 Observação do marketing</div><div class="pb-val" style="white-space:pre-wrap">'+escapeHtml(l.observacao)+'</div></div>' : '')+
+  '</div>';
+
+  body += '<div class="pdv-actions">';
+  if(wppLink) body += '<a class="pdv-act-btn wpp" href="'+wppLink+'" target="_blank" rel="noopener">💬 WhatsApp</a>';
+  if(telLink) body += '<a class="pdv-act-btn tel" href="'+telLink+'">📞 Ligar</a>';
+  body += '</div>';
+
+  body +=
+    '<div class="sub-section" style="background:rgba(54,207,160,.06);border-color:rgba(54,207,160,.3)">'+
+      '<div class="ss-title" style="color:var(--ok)">✅ Quando atender / converter</div>'+
+      '<div style="font-size:.85rem;color:var(--mu);line-height:1.5">'+
+        'Após contatar o cliente, abra um <b>check-in normal</b> nesse CNPJ pra registrar o resultado.<br>'+
+        '<b>Se já existe na sua carteira</b> → busque pelo CNPJ na lista e faça check-in.<br>'+
+        '<b>Se é cliente novo</b> → o check-in será criado automaticamente quando o ERP atualizar.<br>'+
+        'O lead vai virar <b>CONVERTIDO</b> ou <b>PERDIDO</b> quando você fizer o check-in com idLeadOrigem.'+
+      '</div>'+
+    '</div>';
+
+  document.getElementById("modal-body").innerHTML = body;
+  document.getElementById("btn-save-checkin").style.display = "none";
+  document.getElementById("modal-pdv").classList.add("open");
+  ACTIVE_PDV = null;
+}
+
+// ─────────────────────────────────────────────────────
+// WhatsApp helpers
+// ─────────────────────────────────────────────────────
+function pickWhatsapp(p){
+  // Prioridade: J (whats) → AX (novoWhats) → I (fone)
+  // (regra do user: "WhatsApp da BASE_PDV (col J) ou Novo_WhatsApp (col AX) com fallback no Fone1 (col I)")
+  var w = (p.whats || "").replace(/\D/g,"");
+  if(w.length >= 10) return w;
+  w = (p.novoWhats || "").replace(/\D/g,"");
+  if(w.length >= 10) return w;
+  w = (p.fone || "").replace(/\D/g,"");
+  if(w.length >= 10) return w;
+  return "";
+}
+
+function wppLinkPara(numero, nome){
+  var num = numero.replace(/\D/g,"");
+  if(num.indexOf("55") !== 0) num = "55" + num;
+  var n = nome ? nome.split(/\s+/)[0] : "";
+  var msg = "Olá" + (n?", "+n:"") + "! Aqui é " + CURRENT_USER.nome + " da Q Food Company. Tudo bem? Posso conversar sobre seu próximo pedido?";
+  return "https://api.whatsapp.com/send?phone=" + num + "&text=" + encodeURIComponent(msg);
+}
+
+// ─────────────────────────────────────────────────────
+// Abrir PDV (modal completo)
+// ─────────────────────────────────────────────────────
+function abrirPDV(cnpj){
+  var p = PDVS.find(function(x){ return x.cnpj === cnpj; });
+  if(!p){ toast("PDV não encontrado.","error"); return; }
+  ACTIVE_PDV = p;
+  ACTIVE_LEAD = null;
+  CART = [];
+  CHECKIN_MODE = null;
+  NV_MOTIVO = "";
+
+  document.getElementById("mp-title").textContent = p.razao + (p.fantasia?" · "+p.fantasia:"");
+  document.getElementById("mp-subtitle").textContent = formatCNPJ(p.cnpj) + " · " + (p.cidade||"") + (p.uf?'/'+p.uf:"");
+
+  var wpp = pickWhatsapp(p);
+  var wppLink = wpp ? wppLinkPara(wpp, p.fantasia || p.razao) : "";
+  var telLink = p.fone ? "tel:+55"+(p.fone||"").replace(/\D/g,"") : "";
+
+  // Top com farol e dados rápidos
+  var farolTxt = {r:"🔥 Atrasado", y:"📅 Visitar logo", g:"✅ Em dia", gray:"🆕 Sem histórico"}[p.farol] || "—";
+  var diasInfo = p.diasSemCompra > 0 ? p.diasSemCompra+" dias sem compra" : "Sem compra registrada";
+  var pisoInfo = p.periodicidade ? "Periodicidade: "+p.periodicidade+" dias" : "Sem rotina configurada";
+  var ticketStr = p.ticketMedio > 0 ? "R$ "+p.ticketMedio.toFixed(2).replace(".",",") : "—";
+
+  var body = '<div class="pdv-summary">'+
+    '<div class="pdv-block"><div class="pb-lbl">Status</div><div class="pb-val">'+escapeHtml(farolTxt)+'</div></div>'+
+    '<div class="pdv-block"><div class="pb-lbl">Última compra</div><div class="pb-val">'+escapeHtml(diasInfo)+'</div></div>'+
+    '<div class="pdv-block"><div class="pb-lbl">Ticket médio</div><div class="pb-val">'+ticketStr+'</div></div>'+
+    '<div class="pdv-block"><div class="pb-lbl">Rotina</div><div class="pb-val">'+escapeHtml(pisoInfo)+(p.diasSemana?" · "+escapeHtml(p.diasSemana):"")+'</div></div>'+
+    (p.endereco ? '<div class="pdv-block full"><div class="pb-lbl">Endereço</div><div class="pb-val">'+escapeHtml(p.endereco)+(p.cidade?" · "+escapeHtml(p.cidade):"")+(p.uf?"/"+escapeHtml(p.uf):"")+'</div></div>' : '')+
+    (p.segmento ? '<div class="pdv-block full"><div class="pb-lbl">Segmento</div><div class="pb-val">'+escapeHtml(p.segmento)+'</div></div>' : '')+
+  '</div>';
+
+  // Ações rápidas
+  body += '<div class="pdv-actions">';
+  if(wppLink) body += '<a class="pdv-act-btn wpp" href="'+wppLink+'" target="_blank" rel="noopener">💬 WhatsApp</a>';
+  if(telLink) body += '<a class="pdv-act-btn tel" href="'+telLink+'">📞 Ligar</a>';
+  body += '<button class="pdv-act-btn checkin" onclick="iniciarCheckin()">✏️ Fazer Check-in</button>';
+  body += '</div>';
+
+  // Rotina configurável
+  body += renderRotinaBlock(p);
+
+  // Itens frequentes
+  body += renderItensFrequentesBlock(p);
+
+  // Container de check-in (vazio até clicar em "Fazer Check-in")
+  body += '<div id="checkin-container"></div>';
+
+  document.getElementById("modal-body").innerHTML = body;
+  document.getElementById("btn-save-checkin").style.display = "none";
+  document.getElementById("modal-pdv").classList.add("open");
+}
+
+function closeModal(){
+  document.getElementById("modal-pdv").classList.remove("open");
+  ACTIVE_PDV = null;
+  ACTIVE_LEAD = null;
+  CART = [];
+  CHECKIN_MODE = null;
+}
+function isModalOpen(){ return document.getElementById("modal-pdv").classList.contains("open"); }
+
+// ─────────────────────────────────────────────────────
+// Bloco Rotina
+// ─────────────────────────────────────────────────────
+function renderRotinaBlock(p){
+  var period = p.periodicidade || 30;
+  var dias = (p.diasSemana || "").split(",").map(function(x){return x.trim();}).filter(Boolean);
+  var diasBtns = ["SEG","TER","QUA","QUI","SEX","SAB"].map(function(d){
+    var on = dias.indexOf(d) >= 0 ? "on" : "";
+    return '<button type="button" class="dia-toggle '+on+'" data-dia="'+d+'" onclick="toggleDia(this)">'+d+'</button>';
+  }).join("");
+
+  return '<div class="sub-section" id="rot-section">'+
+    '<div class="ss-title">📅 Rotina de Atendimento <span class="ss-info">Salva automaticamente em CRM_ROTA</span></div>'+
+    '<div class="rot-grid">'+
+      '<div class="rot-fld">'+
+        '<label>Frequência</label>'+
+        '<select id="rot-period">'+
+          '<option value="1"'+(period===1?" selected":"")+'>Diária (1 dia)</option>'+
+          '<option value="3"'+(period===3?" selected":"")+'>Alternada (3 dias)</option>'+
+          '<option value="7"'+(period===7?" selected":"")+'>Semanal (7 dias)</option>'+
+          '<option value="14"'+(period===14?" selected":"")+'>Quinzenal (14 dias)</option>'+
+          '<option value="21"'+(period===21?" selected":"")+'>3 semanas (21 dias)</option>'+
+          '<option value="30"'+(period===30?" selected":"")+'>Mensal (30 dias)</option>'+
+          '<option value="60"'+(period===60?" selected":"")+'>Bimestral (60 dias)</option>'+
+        '</select>'+
+      '</div>'+
+      '<div class="rot-fld">'+
+        '<label>Dias da semana</label>'+
+        '<div class="dia-toggles">'+diasBtns+'</div>'+
+      '</div>'+
+    '</div>'+
+    '<button class="rot-save" onclick="salvarRotina()">💾 Salvar rotina</button>'+
+  '</div>';
+}
+
+function toggleDia(btn){
+  btn.classList.toggle("on");
+}
+
+function salvarRotina(){
+  if(!ACTIVE_PDV) return;
+  var period = parseInt(document.getElementById("rot-period").value, 10) || 30;
+  var diasOn = [];
+  document.querySelectorAll("#rot-section .dia-toggle.on").forEach(function(b){
+    diasOn.push(b.dataset.dia);
+  });
+  var diasStr = diasOn.join(",");
+
+  apiPost("save_rota", {
+    payload: {
+      cnpj: ACTIVE_PDV.cnpj,
+      vendedorSigla: CURRENT_USER.sigla,
+      diasSemana: diasStr,
+      periodicidadeDias: period
+    }
+  }).then(function(d){
+    if(d.ok){
+      toast("✅ Rotina salva!", "ok");
+      // Atualiza local
+      ROTAS_MAP[ACTIVE_PDV.cnpj] = {diasSemana: diasStr, periodicidadeDias: period};
+      ACTIVE_PDV.diasSemana = diasStr;
+      ACTIVE_PDV.periodicidade = period;
+    } else {
+      toast("Erro: "+(d.error||"resposta inválida"), "error");
+    }
+  }).catch(function(e){
+    toast("Erro ao salvar rotina: "+e.message, "error");
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Bloco Itens Frequentes (top 5 SKUs últimas 20 linhas do CNPJ)
+// ─────────────────────────────────────────────────────
+function renderItensFrequentesBlock(p){
+  var ult20 = (p.items || []).slice(-20);  // últimas N linhas de DINAMICO
+  var bySku = {};
+  ult20.forEach(function(r){
+    var cod = String(r.codigo || "").trim();
+    if(!cod) return;
+    if(!bySku[cod]) bySku[cod] = {codigo:cod, descricao:r.descricao||"", count:0, qtde:0, total:0};
+    var b = bySku[cod];
+    b.count++;
+    b.qtde += (r.qtde||0);
+    b.total += (r.total||0);
+  });
+  var arr = Object.keys(bySku).map(function(k){ return bySku[k]; });
+  arr.sort(function(a,b){
+    if(b.count !== a.count) return b.count - a.count;
+    return b.total - a.total;
+  });
+  var top = arr.slice(0, 5);
+
+  if(!top.length){
+    return '<div class="sub-section">'+
+      '<div class="ss-title">🛒 Itens Frequentes</div>'+
+      '<div style="color:var(--mu);font-size:.85rem">Sem histórico recente de compras para sugerir itens.</div>'+
+    '</div>';
+  }
+
+  var html = '<div class="sub-section">'+
+    '<div class="ss-title">🛒 Itens Frequentes <span class="ss-info">Top 5 das últimas 20 compras</span></div>'+
+    '<div class="freq-list">';
+  top.forEach(function(t, i){
+    var prod = PRODUTOS_BY_COD[t.codigo];
+    var precoSug = prod && prod.precoSugerido > 0 ? prod.precoSugerido : 0;
+    var precoStr = precoSug ? "R$ "+precoSug.toFixed(2).replace(".",",") : "—";
+    html += '<div class="freq-item">'+
+      '<div class="fi-rank">#'+(i+1)+'</div>'+
+      '<div class="fi-info">'+
+        '<div class="fi-desc">'+escapeHtml(t.descricao||t.codigo)+'</div>'+
+        '<div class="fi-meta">📦 '+escapeHtml(t.codigo)+' · comprou '+t.count+'× · total qtd '+t.qtde+' · preço sug. '+precoStr+'</div>'+
+      '</div>'+
+      '<button class="fi-add" onclick="adicionarFreqAoCart(\''+escapeHtml(t.codigo)+'\')">+ Add</button>'+
+    '</div>';
+  });
+  html += '</div></div>';
+  return html;
+}
+
+function adicionarFreqAoCart(cod){
+  if(CHECKIN_MODE !== "vendeu"){
+    iniciarCheckin();
+    setCheckinMode("vendeu");
+  }
+  var prod = PRODUTOS_BY_COD[cod];
+  if(!prod){
+    toast("Produto não encontrado no catálogo.","error");
+    return;
+  }
+  addProdutoAoCart(prod);
+  // scroll pro checkin container
+  var el = document.getElementById("checkin-container");
+  if(el && el.scrollIntoView) el.scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+// ─────────────────────────────────────────────────────
+// Check-in
+// ─────────────────────────────────────────────────────
+function iniciarCheckin(){
+  if(!ACTIVE_PDV) return;
+  CHECKIN_MODE = CHECKIN_MODE || "vendeu";
+  CART = CART || [];
+  NV_MOTIVO = NV_MOTIVO || "";
+
+  var box = document.getElementById("checkin-container");
+  box.innerHTML =
+    '<div class="sub-section" style="border-color:var(--pink)">'+
+      '<div class="ss-title">✏️ Check-in</div>'+
+      '<div class="checkin-tabs">'+
+        '<button class="checkin-tab vendeu '+(CHECKIN_MODE==="vendeu"?"active":"")+'" onclick="setCheckinMode(\'vendeu\')">🟢 Vendeu</button>'+
+        '<button class="checkin-tab naovendeu '+(CHECKIN_MODE==="naovendeu"?"active":"")+'" onclick="setCheckinMode(\'naovendeu\')">🔴 Não Vendeu</button>'+
+      '</div>'+
+      '<div class="checkin-panel '+(CHECKIN_MODE==="vendeu"?"active":"")+'" id="cp-vendeu"></div>'+
+      '<div class="checkin-panel '+(CHECKIN_MODE==="naovendeu"?"active":"")+'" id="cp-naovendeu"></div>'+
+      '<div class="obs-fld" style="margin-top:14px">'+
+        '<label>Observação (opcional)</label>'+
+        '<textarea id="checkin-obs" placeholder="Detalhes do atendimento, próximos passos, etc..."></textarea>'+
+      '</div>'+
+    '</div>';
+  renderCheckinPanel();
+  document.getElementById("btn-save-checkin").style.display = "inline-block";
+}
+
+function setCheckinMode(mode){
+  CHECKIN_MODE = mode;
+  document.querySelectorAll(".checkin-tab").forEach(function(b){
+    b.classList.remove("active");
+  });
+  if(mode === "vendeu") document.querySelector(".checkin-tab.vendeu").classList.add("active");
+  else document.querySelector(".checkin-tab.naovendeu").classList.add("active");
+  document.getElementById("cp-vendeu").classList.toggle("active", mode === "vendeu");
+  document.getElementById("cp-naovendeu").classList.toggle("active", mode === "naovendeu");
+  renderCheckinPanel();
+}
+
+function renderCheckinPanel(){
+  if(CHECKIN_MODE === "vendeu") renderVendeuPanel();
+  else renderNaoVendeuPanel();
+}
+
+function renderVendeuPanel(){
+  var box = document.getElementById("cp-vendeu");
+  var html =
+    '<div class="prod-search">'+
+      '<input type="text" id="prod-search-input" placeholder="🔍 Buscar produto por código ou descrição..." oninput="buscarProduto(this.value)" onfocus="buscarProduto(this.value)" onblur="setTimeout(function(){var s=document.getElementById(\'prod-suggest\');if(s)s.classList.remove(\'show\');},200)">'+
+    '</div>'+
+    '<div class="prod-suggest" id="prod-suggest"></div>'+
+    '<div class="cart-list" id="cart-list"></div>'+
+    '<div class="cart-total" id="cart-total" style="display:none">'+
+      '<span>Total da venda:</span>'+
+      '<b id="cart-total-val">R$ 0,00</b>'+
+    '</div>';
+  box.innerHTML = html;
+  renderCart();
+}
+
+function renderNaoVendeuPanel(){
+  var box = document.getElementById("cp-naovendeu");
+  var motivosHtml = MOTIVOS_NAO_VENDA.map(function(m){
+    var on = (m === NV_MOTIVO) ? "on" : "";
+    return '<button class="nv-motivo '+on+'" onclick="setMotivoNV(\''+escapeAttr(m)+'\')">'+escapeHtml(m)+'</button>';
+  }).join("");
+  box.innerHTML =
+    '<div style="font-size:.84rem;color:var(--mu);margin-bottom:10px">Selecione o motivo da não venda:</div>'+
+    '<div class="nv-motivos">'+motivosHtml+'</div>';
+}
+
+function setMotivoNV(m){
+  NV_MOTIVO = m;
+  renderNaoVendeuPanel();
+}
+
+function buscarProduto(q){
+  q = (q||"").toLowerCase().trim();
+  var sg = document.getElementById("prod-suggest");
+  if(!sg) return;
+  if(!q || q.length < 2){ sg.classList.remove("show"); sg.innerHTML = ""; return; }
+  var resultados = PRODUTOS.filter(function(p){
+    var blob = (p.codigo + " " + p.descricao).toLowerCase();
+    return blob.indexOf(q) >= 0;
+  }).slice(0, 12);
+  if(!resultados.length){
+    sg.innerHTML = '<div class="prod-sg-item" style="cursor:default;color:var(--mu)">Nenhum produto encontrado.</div>';
+    sg.classList.add("show");
+    return;
+  }
+  sg.innerHTML = resultados.map(function(p){
+    var precoStr = p.precoSugerido > 0 ? "R$ "+p.precoSugerido.toFixed(2).replace(".",",") : "—";
+    return '<div class="prod-sg-item" onmousedown="addProdutoPorCod(\''+escapeAttr(p.codigo)+'\')">'+
+      '<div class="sg-desc">'+escapeHtml(p.descricao||p.codigo)+'<div class="sg-cod">'+escapeHtml(p.codigo)+'</div></div>'+
+      '<div class="sg-pr">'+precoStr+'</div>'+
+    '</div>';
+  }).join("");
+  sg.classList.add("show");
+}
+
+function addProdutoPorCod(cod){
+  var p = PRODUTOS_BY_COD[cod];
+  if(!p){ toast("Produto não encontrado.","error"); return; }
+  addProdutoAoCart(p);
+  var inp = document.getElementById("prod-search-input");
+  if(inp){ inp.value = ""; inp.focus(); }
+  document.getElementById("prod-suggest").classList.remove("show");
+}
+
+function addProdutoAoCart(prod){
+  // Se já tá no carrinho, só incrementa qtde
+  var existe = CART.find(function(c){ return c.codigo === prod.codigo; });
+  if(existe){
+    existe.qtde += 1;
+  } else {
+    var precoIni = prod.precoSugerido > 0 ? prod.precoSugerido : prod.preco;
+    CART.push({
+      codigo: prod.codigo,
+      descricao: prod.descricao,
+      custo: prod.custo,
+      margem: prod.margem,
+      piso: prod.piso,
+      qtde: 1,
+      preco: precoIni,
+      abaixoPiso: false,
+      aprovacao: ""
+    });
+  }
+  recomputaCart();
+  renderCart();
+}
+
+function rmCart(cod){
+  CART = CART.filter(function(c){ return c.codigo !== cod; });
+  recomputaCart();
+  renderCart();
+}
+
+function recomputaCart(){
+  CART.forEach(function(c){
+    c.abaixoPiso = c.piso > 0 && c.preco > 0 && c.preco < c.piso;
+  });
+}
+
+function updateCartItem(cod, field, val){
+  var c = CART.find(function(x){ return x.codigo === cod; });
+  if(!c) return;
+  if(field === "qtde"){
+    c.qtde = Math.max(0, parseFloat(val) || 0);
+  } else if(field === "preco"){
+    var s = String(val).replace(/r\$/gi,"").replace(/\s+/g,"").replace(/[^\d,.\-]/g,"");
+    if(s.indexOf(",")>=0 && s.indexOf(".")>=0) s = s.replace(/\./g,"").replace(",",".");
+    else if(s.indexOf(",")>=0) s = s.replace(",",".");
+    c.preco = parseFloat(s) || 0;
+  } else if(field === "aprovacao"){
+    c.aprovacao = val;
+  }
+  recomputaCart();
+  renderCart();
+}
+
+function renderCart(){
+  var box = document.getElementById("cart-list");
+  var totalBox = document.getElementById("cart-total");
+  if(!box) return;
+  if(!CART.length){
+    box.innerHTML = '<div class="empty" style="padding:20px"><div class="em-icon" style="font-size:2rem">🛒</div><div>Carrinho vazio. Busque produtos acima ou use os "Itens Frequentes".</div></div>';
+    if(totalBox) totalBox.style.display = "none";
+    return;
+  }
+  var total = 0;
+  box.innerHTML = CART.map(function(c){
+    var sub = (c.qtde||0) * (c.preco||0);
+    total += sub;
+    var pisoStr = c.piso > 0 ? "Piso: R$ "+c.piso.toFixed(2).replace(".",",") : "Sem piso";
+    var alerta = c.abaixoPiso ? "alerta" : "";
+    var precoCls = c.abaixoPiso ? "preco-baixo" : "";
+    var aprovHtml = "";
+    if(c.abaixoPiso){
+      aprovHtml =
+        '<div class="cart-aprov show">'+
+          '<div class="ap-lbl">⚠️ Preço abaixo do piso de margem. Aprovado por gerência?</div>'+
+          '<div class="ap-radios">'+
+            '<label><input type="radio" name="ap_'+escapeAttr(c.codigo)+'" '+(c.aprovacao==="SIM"?"checked":"")+' onchange="updateCartItem(\''+escapeAttr(c.codigo)+'\',\'aprovacao\',\'SIM\')"> Sim</label>'+
+            '<label><input type="radio" name="ap_'+escapeAttr(c.codigo)+'" '+(c.aprovacao==="NAO"?"checked":"")+' onchange="updateCartItem(\''+escapeAttr(c.codigo)+'\',\'aprovacao\',\'NAO\')"> Não</label>'+
+            '<label><input type="radio" name="ap_'+escapeAttr(c.codigo)+'" '+(c.aprovacao==="NAO_CONSULTEI"?"checked":"")+' onchange="updateCartItem(\''+escapeAttr(c.codigo)+'\',\'aprovacao\',\'NAO_CONSULTEI\')"> Não consultei</label>'+
+          '</div>'+
+        '</div>';
+    }
+    return '<div class="cart-item '+alerta+'">'+
+      '<div class="cart-row">'+
+        '<div>'+
+          '<div class="cart-desc">'+escapeHtml(c.descricao||c.codigo)+'</div>'+
+          '<div class="cart-cod">'+escapeHtml(c.codigo)+'</div>'+
+        '</div>'+
+        '<input type="number" min="0" step="1" class="cart-input" value="'+c.qtde+'" onchange="updateCartItem(\''+escapeAttr(c.codigo)+'\',\'qtde\',this.value)">'+
+        '<input type="text" class="cart-input '+precoCls+'" value="'+c.preco.toFixed(2).replace(".",",")+'" onchange="updateCartItem(\''+escapeAttr(c.codigo)+'\',\'preco\',this.value)">'+
+        '<button class="cart-rm" onclick="rmCart(\''+escapeAttr(c.codigo)+'\')" title="Remover">×</button>'+
+      '</div>'+
+      '<div class="cart-piso '+(c.abaixoPiso?"alerta":"")+'">📊 '+pisoStr+' · subtotal R$ '+sub.toFixed(2).replace(".",",")+'</div>'+
+      aprovHtml+
+    '</div>';
+  }).join("");
+  if(totalBox){
+    document.getElementById("cart-total-val").textContent = "R$ " + total.toFixed(2).replace(".",",");
+    totalBox.style.display = "flex";
+  }
+}
+
+// ─────────────────────────────────────────────────────
+// Enviar check-in (save_hist)
+// ─────────────────────────────────────────────────────
+function enviarCheckin(){
+  if(!ACTIVE_PDV){ toast("Selecione um PDV primeiro.","error"); return; }
+  if(!CHECKIN_MODE){ toast("Marque Vendeu ou Não Vendeu.","error"); return; }
+
+  var obs = (document.getElementById("checkin-obs")||{value:""}).value.trim();
+
+  var payload;
+  if(CHECKIN_MODE === "vendeu"){
+    if(!CART.length){ toast("Adicione ao menos 1 produto.","error"); return; }
+    // Valida qtdes e aprovações
+    var temQtde = CART.some(function(c){ return c.qtde > 0; });
+    if(!temQtde){ toast("Informe quantidade pra ao menos 1 produto.","error"); return; }
+    var temAlertaSemAprov = CART.some(function(c){ return c.abaixoPiso && !c.aprovacao; });
+    if(temAlertaSemAprov){
+      if(!confirm("Há produtos abaixo do piso sem indicar aprovação. Enviar mesmo assim?")) return;
+    }
+    var produtos = CART.filter(function(c){ return c.qtde > 0; }).map(function(c){
+      return {
+        codigo: c.codigo, descricao: c.descricao,
+        qtde: c.qtde, preco: c.preco, total: c.qtde * c.preco,
+        custo: c.custo, margem: c.margem, piso: c.piso,
+        abaixoPiso: c.abaixoPiso,
+        aprovacao: c.aprovacao || "N_A"
+      };
+    });
+    var valorTotal = produtos.reduce(function(s,p){ return s + p.total; }, 0);
+    var algumaAprovGeral = produtos.some(function(p){ return p.abaixoPiso && p.aprovacao && p.aprovacao !== "N_A"; })
+      ? (produtos.find(function(p){ return p.abaixoPiso && p.aprovacao; })||{}).aprovacao
+      : "N_A";
+
+    payload = {
+      cnpj: ACTIVE_PDV.cnpj,
+      vendedorSigla: CURRENT_USER.sigla,
+      razaoSocial: ACTIVE_PDV.razao,
+      resultado: "VENDA",
+      valorTotal: valorTotal,
+      produtosVendidos: produtos,
+      aprovacaoGerencial: algumaAprovGeral,
+      observacao: obs,
+      idLeadOrigem: ACTIVE_LEAD ? ACTIVE_LEAD.id : ""
+    };
+  } else {
+    if(!NV_MOTIVO){ toast("Selecione o motivo da não venda.","error"); return; }
+    payload = {
+      cnpj: ACTIVE_PDV.cnpj,
+      vendedorSigla: CURRENT_USER.sigla,
+      razaoSocial: ACTIVE_PDV.razao,
+      resultado: "NAO_VENDA",
+      valorTotal: 0,
+      produtosVendidos: [],
+      justificativaNaoVenda: NV_MOTIVO,
+      aprovacaoGerencial: "N_A",
+      observacao: obs,
+      idLeadOrigem: ACTIVE_LEAD ? ACTIVE_LEAD.id : ""
+    };
+  }
+
+  document.getElementById("btn-save-checkin").disabled = true;
+  apiPost("save_hist", {payload: payload}).then(function(d){
+    document.getElementById("btn-save-checkin").disabled = false;
+    if(d.ok){
+      toast("✅ Check-in registrado!","ok");
+      closeModal();
+      // Recarrega leads (o backend pode ter virado o lead pra CONVERTIDO/PERDIDO automaticamente)
+      loadLeads().then(function(){
+        renderHome();
+        renderLeadBanner();
+      });
+    } else {
+      toast("Erro: "+(d.error||"resposta inválida"),"error");
+    }
+  }).catch(function(e){
+    document.getElementById("btn-save-checkin").disabled = false;
+    toast("Erro ao enviar: "+e.message, "error");
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Polling 30s — só leads (PDVs e DINAMICO refresh manual)
+// ─────────────────────────────────────────────────────
+function iniciarPolling(){
+  if(POLL_TIMER) clearInterval(POLL_TIMER);
+  POLL_TIMER = setInterval(function(){
+    if(isModalOpen()) return;
+    loadLeads().then(function(){
+      // Re-render se estiver na home ou na view de leads
+      if(ACTIVE_VIEW === "home") renderHome();
+      if(ACTIVE_VIEW === "leads") renderLeadsLista();
+      renderLeadBanner();
+    });
+  }, POLL_MS);
+}
+
+// ─────────────────────────────────────────────────────
+// Helpers de formatação
+// ─────────────────────────────────────────────────────
+function formatCNPJ(c){
+  c = (c||"").replace(/\D/g,"");
+  if(c.length !== 14) return c;
+  return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, "$1.$2.$3/$4-$5");
+}
+function formatTel(t){
+  t = (t||"").replace(/\D/g,"");
+  if(!t) return "";
+  if(t.length === 11) return t.replace(/^(\d{2})(\d{5})(\d{4}).*/, "($1) $2-$3");
+  if(t.length === 10) return t.replace(/^(\d{2})(\d{4})(\d{4}).*/, "($1) $2-$3");
+  return t;
+}
+function escapeHtml(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+function escapeAttr(s){
+  return String(s == null ? "" : s).replace(/'/g,"\\'").replace(/"/g,"&quot;");
+}
+function showLoader(on){ var el = document.getElementById("loader-bar"); if(el) el.classList.toggle("show", on); }
+function toast(msg, kind){
+  var el = document.getElementById("toast");
+  if(!el) return;
+  el.textContent = msg;
+  el.className = "toast " + (kind||"") + " show";
+  setTimeout(function(){ el.classList.remove("show"); }, 3500);
+}
+
+</script>
+</body>
+</html>
