@@ -125,6 +125,8 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .tag-st-cancelado{background:rgba(94,113,142,.15);color:var(--mu2);border:1px solid rgba(94,113,142,.3)}
 .tag-vd{background:rgba(34,211,238,.12);color:#60d8eb;border:1px solid rgba(34,211,238,.25)}
 .tag-orig{background:rgba(160,124,246,.12);color:#b798f8;border:1px solid rgba(160,124,246,.25)}
+.tag-tipo-novo{background:rgba(54,207,160,.12);color:var(--ok);border:1px solid rgba(54,207,160,.3)}
+.tag-tipo-existente{background:rgba(255,170,43,.12);color:var(--warn);border:1px solid rgba(255,170,43,.3)}
 
 .acoes-cell{white-space:nowrap;display:flex;gap:4px}
 .mini-btn{background:transparent;border:1px solid var(--br);color:var(--mu);padding:4px 8px;border-radius:6px;cursor:pointer;font-size:.72rem;transition:all .15s}
@@ -260,18 +262,18 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 
         <div class="fld-row">
           <div class="fld">
-            <label>Razão Social <span class="req">*</span></label>
+            <label>Razão Social</label>
             <input type="text" id="f-razao" placeholder="Ex.: ABC Comércio de Alimentos LTDA">
           </div>
           <div class="fld">
-            <label>Nome Fantasia</label>
+            <label>Nome Fantasia <span class="req">*</span></label>
             <input type="text" id="f-fantasia" placeholder="Ex.: Mercadinho do Bairro">
           </div>
         </div>
 
         <div class="fld-row">
           <div class="fld">
-            <label>Telefone</label>
+            <label>Telefone <span class="req">*</span></label>
             <input type="text" id="f-tel" maxlength="15" placeholder="(00) 0000-0000" oninput="maskTel(this)">
           </div>
           <div class="fld">
@@ -317,6 +319,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
           </div>
         </div>
 
+        <div id="banner-cliente-existente" style="display:none;background:rgba(255,170,43,.10);border:1px solid rgba(255,170,43,.45);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+          <div style="font-weight:700;color:var(--warn);font-size:.88rem;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+            <span>🔄 Lead para cliente já cadastrado</span>
+            <button type="button" onclick="cancelarModoExistente()" style="background:transparent;border:1px solid var(--br);color:var(--mu);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.74rem;font-weight:600">Cancelar</button>
+          </div>
+          <div style="font-size:.8rem;color:var(--mu);margin-top:6px">Atribuído a <b id="banner-vendedor-nome" style="color:var(--tx)">—</b> (vendedor responsável da BASE_PDV).</div>
+        </div>
+
         <div class="fld-row">
           <div class="fld">
             <label>Segmento</label>
@@ -328,8 +338,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
             <select id="f-vendedor">
               <option value="">Carregando vendedores...</option>
             </select>
-            <div class="hint">Vendedoras com <b>Recebe_Leads = SIM</b> na UUSR.</div>
+            <div class="hint" id="hint-vendedor">Vendedoras com <b>Recebe_Leads = SIM</b> na UUSR.</div>
           </div>
+        </div>
+
+        <div class="fld">
+          <label>Motivo / Campanha <span class="req">*</span></label>
+          <textarea id="f-motivo" placeholder="Por que o cliente entrou em contato? Ex.: Viu post de Páscoa no Instagram / Indicação do João da Pizzaria X / Recebeu campanha 'Hamburgueria' no WhatsApp..."></textarea>
+          <div class="hint">Importante para mensurar quais campanhas trazem mais leads.</div>
         </div>
 
         <div class="fld">
@@ -385,14 +401,15 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
         <table class="ttable" id="ttable">
           <thead>
             <tr>
-              <th style="width:14%">Data envio</th>
-              <th style="width:22%">Cliente</th>
-              <th style="width:14%">CNPJ / Contato</th>
-              <th style="width:11%">Origem</th>
+              <th style="width:13%">Data envio</th>
+              <th style="width:20%">Cliente</th>
+              <th style="width:13%">CNPJ / Contato</th>
+              <th style="width:9%">Origem</th>
+              <th style="width:8%">Tipo</th>
               <th style="width:11%">Vendedor</th>
-              <th style="width:12%">Status</th>
+              <th style="width:11%">Status</th>
               <th style="width:8%">T. Resp.</th>
-              <th style="width:8%">Ações</th>
+              <th style="width:7%">Ações</th>
             </tr>
           </thead>
           <tbody id="tbody"></tbody>
@@ -464,6 +481,10 @@ var FILTER_STATUS = "";
 var EDITING_ID   = null;
 var POLL_TIMER   = null;
 var ACTIVE_TAB   = "cadastro";
+// v3 (27/04): modo "lead pra cliente existente"
+var MODO_EXISTENTE = false;            // true quando está enviando pra cliente já cadastrado
+var EXISTENTE_DADOS = null;            // {cnpj, razao, vendedor, vendedorNome}
+var FILTER_TIPO = "";                  // filtro tipo: "" / "NOVO" / "EXISTENTE"
 
 // ─────────────────────────────────────────────────────
 // Auth guard (sessão herdada do Index_Menu)
@@ -726,8 +747,8 @@ function resetCnpjStatus(){
 }
 
 // ─────────────────────────────────────────────────────
-// Verificar CNPJ — só validação LOCAL (sem chamada ao backend)
-// A duplicidade aparece quando ela apertar "Enviar Lead"
+// Verificar CNPJ — v3: valida formato + consulta backend (check_cnpj)
+// Se já existe na BASE_PDV, oferece botão "Enviar pra [VENDEDOR]"
 // ─────────────────────────────────────────────────────
 function verificarCnpj(){
   var raw = document.getElementById("f-cnpj").value;
@@ -749,10 +770,85 @@ function verificarCnpj(){
     box.innerHTML = "<div class='st-line'>❌ CNPJ inválido (dígitos verificadores não conferem).</div>";
     return;
   }
-  box.className = "cnpj-status show ok";
-  box.innerHTML =
-    "<div class='st-line'>✅ <b>CNPJ com formato válido.</b></div>"+
-    "<div class='st-line' style='font-size:.78rem'>💡 A checagem contra a base de clientes acontece quando você apertar <b>Enviar Lead</b>.</div>";
+
+  // Formato OK — consulta backend pra ver se cliente já existe
+  box.className = "cnpj-status show loading";
+  box.innerHTML = "<div class='st-line'>⏳ Consultando BASE_PDV...</div>";
+
+  apiGet("check_cnpj", {cnpj: cnpj}).then(function(d){
+    var info = d.resultado || {};
+    if(!info.encontrado){
+      box.className = "cnpj-status show ok";
+      box.innerHTML =
+        "<div class='st-line'>✅ <b>Cliente novo</b> — CNPJ não está na BASE_PDV.</div>"+
+        "<div class='st-line' style='font-size:.78rem'>Pode prosseguir com o cadastro normal.</div>";
+      // Se estava em modo existente, sai automaticamente
+      if(MODO_EXISTENTE) cancelarModoExistente();
+      return;
+    }
+    // Cliente já existe na BASE_PDV
+    var razao = info.razao || "—";
+    var vendedor = (info.vendedor || "").toUpperCase();
+    var vendedorNome = vendedor ? (siglaToNome(vendedor) || vendedor) : "(sem vendedor atribuído)";
+    var podeAtribuir = !!vendedor;
+
+    box.className = "cnpj-status show warn";
+    box.innerHTML =
+      "<div class='st-line' style='font-weight:700'>⚠️ Cliente já cadastrado</div>"+
+      "<div class='st-line'>🏢 <b>"+escapeHtml(razao)+"</b></div>"+
+      "<div class='st-line'>👤 Vendedor responsável: <b>"+escapeHtml(vendedorNome)+"</b></div>"+
+      (podeAtribuir ?
+        "<div class='st-line' style='margin-top:8px'><button type='button' onclick=\"entrarModoExistente('"+escapeAttr(cnpj)+"','"+escapeAttr(razao)+"','"+escapeAttr(vendedor)+"')\" style='background:var(--ok);border:none;color:#0a1f17;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:800;font-size:.85rem'>📤 Enviar pra "+escapeHtml(vendedorNome)+"</button></div>" :
+        "<div class='st-line' style='font-size:.78rem;margin-top:6px;color:var(--red)'>❌ Não é possível enviar — vendedor responsável não está definido na BASE_PDV (coluna AI). Atualize a planilha primeiro.</div>");
+  }).catch(function(e){
+    box.className = "cnpj-status show err";
+    box.innerHTML = "<div class='st-line'>❌ Erro ao consultar: "+escapeHtml(e.message)+"</div>";
+  });
+}
+
+// Entra no modo "lead pra cliente existente"
+function entrarModoExistente(cnpj, razao, vendedor){
+  MODO_EXISTENTE = true;
+  EXISTENTE_DADOS = {cnpj: cnpj, razao: razao, vendedor: vendedor};
+  var vendedorNome = siglaToNome(vendedor) || vendedor;
+
+  // Mostra banner amarelo
+  document.getElementById("banner-cliente-existente").style.display = "block";
+  document.getElementById("banner-vendedor-nome").textContent = vendedorNome;
+
+  // Pré-preenche razão
+  if(razao && !document.getElementById("f-razao").value){
+    document.getElementById("f-razao").value = razao;
+  }
+
+  // Bloqueia dropdown de vendedora — adiciona a sigla do existente como opção e seleciona
+  var sel = document.getElementById("f-vendedor");
+  // Se a vendedora não está na lista de quem recebe leads, adiciona temporariamente
+  if(!Array.from(sel.options).some(function(o){ return o.value === vendedor; })){
+    var opt = document.createElement("option");
+    opt.value = vendedor;
+    opt.textContent = vendedorNome + " (responsável BASE_PDV)";
+    sel.appendChild(opt);
+  }
+  sel.value = vendedor;
+  sel.disabled = true;
+  document.getElementById("hint-vendedor").innerHTML = "🔒 Travado: lead será enviado para o <b>vendedor responsável da BASE_PDV</b>.";
+
+  toast("Modo: Lead pra cliente existente.", "");
+  // Scroll suave pro form
+  setTimeout(function(){ document.getElementById("f-fantasia").focus(); }, 200);
+}
+
+// Sai do modo existente (volta pro fluxo normal)
+function cancelarModoExistente(){
+  MODO_EXISTENTE = false;
+  EXISTENTE_DADOS = null;
+  document.getElementById("banner-cliente-existente").style.display = "none";
+  var sel = document.getElementById("f-vendedor");
+  sel.disabled = false;
+  // Repopula dropdown puro (remove a opção temporária do vendedor da AI se não recebe leads)
+  preencheSelectVendedoras();
+  document.getElementById("hint-vendedor").innerHTML = "Vendedoras com <b>Recebe_Leads = SIM</b> na UUSR.";
 }
 
 // ─────────────────────────────────────────────────────
@@ -763,8 +859,9 @@ function verificarCnpj(){
 //   {ok:false, leadAberto:true, leadId, vendedorAtual}
 // ─────────────────────────────────────────────────────
 function enviarLead(){
-  ["f-cnpj","f-razao","f-wpp","f-orig","f-vendedor"].forEach(function(id){
-    document.getElementById(id).classList.remove("err");
+  ["f-cnpj","f-fantasia","f-tel","f-wpp","f-orig","f-vendedor","f-motivo"].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.classList.remove("err");
   });
 
   var cnpj  = onlyDigits(document.getElementById("f-cnpj").value);
@@ -779,19 +876,28 @@ function enviarLead(){
   var orig  = document.getElementById("f-orig").value;
   var vend  = document.getElementById("f-vendedor").value;
   var obs   = document.getElementById("f-obs").value.trim();
+  var motivo = document.getElementById("f-motivo").value.trim();
 
   var erros = [];
   if(!isCnpjValid(cnpj)){ document.getElementById("f-cnpj").classList.add("err"); erros.push("CNPJ inválido"); }
-  if(!razao){ document.getElementById("f-razao").classList.add("err"); erros.push("Razão Social"); }
+  if(!fant){ document.getElementById("f-fantasia").classList.add("err"); erros.push("Nome Fantasia"); }
+  if(tel.length < 10){ document.getElementById("f-tel").classList.add("err"); erros.push("Telefone"); }
   if(wpp.length < 10){ document.getElementById("f-wpp").classList.add("err"); erros.push("WhatsApp"); }
   if(!orig){ document.getElementById("f-orig").classList.add("err"); erros.push("Origem"); }
   if(!vend){ document.getElementById("f-vendedor").classList.add("err"); erros.push("Vendedor"); }
+  if(!motivo){ document.getElementById("f-motivo").classList.add("err"); erros.push("Motivo/Campanha"); }
   if(erros.length){
     toast("Preencha: " + erros.join(", "), "error");
     return;
   }
 
-  // Payload em camelCase, como o backend v1.3 espera
+  // Validação de coerência: se está em MODO_EXISTENTE, CNPJ tem que bater com EXISTENTE_DADOS
+  if(MODO_EXISTENTE && EXISTENTE_DADOS && EXISTENTE_DADOS.cnpj !== cnpj){
+    toast("CNPJ mudou após verificação. Verifique o CNPJ novamente.", "error");
+    return;
+  }
+
+  // Payload em camelCase, como o backend v1.4 espera
   var payload = {
     cnpj: cnpj,
     razaoSocial: razao,
@@ -805,15 +911,22 @@ function enviarLead(){
     origem: orig,
     vendedorAtribuido: vend,
     cadastradoPor: CURRENT_USER.nome,
-    observacao: obs
+    observacao: obs,
+    motivoCampanha: motivo                           // v1.4 — campo novo
   };
+
+  // v1.4: se está em modo existente, adiciona forcar=true (deixa backend gravar como tipoLead='EXISTENTE')
+  if(MODO_EXISTENTE){
+    payload.forcar = true;
+  }
 
   document.getElementById("btn-submit").disabled = true;
   apiPost("save_lead", {payload: payload}).then(function(d){
     document.getElementById("btn-submit").disabled = false;
 
     if(d.ok && d.registro){
-      toast("✅ Lead enviado para " + (siglaToNome(vend) || vend) + "!", "ok");
+      var tipoLbl = MODO_EXISTENTE ? " (cliente existente)" : "";
+      toast("✅ Lead enviado para " + (siglaToNome(vend) || vend) + tipoLbl + "!", "ok");
       limparForm();
       loadLeads().then(function(){ setTab("enviados"); });
       return;
@@ -821,6 +934,7 @@ function enviarLead(){
 
     // Tratamento dos retornos especiais do backend
     if(d.jaCadastrado){
+      // Não deveria acontecer se forcar=true foi enviado, mas trata por segurança
       mostrarBloqueioCNPJ({
         tipo: "ja_cadastrado",
         cnpj: cnpj,
@@ -847,13 +961,16 @@ function enviarLead(){
 }
 
 function limparForm(){
-  ["f-cnpj","f-razao","f-fantasia","f-tel","f-wpp","f-end","f-cid","f-seg","f-obs"].forEach(function(id){
-    document.getElementById(id).value = "";
+  ["f-cnpj","f-razao","f-fantasia","f-tel","f-wpp","f-end","f-cid","f-seg","f-obs","f-motivo"].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.value = "";
   });
   document.getElementById("f-uf").value = "";
   document.getElementById("f-orig").value = "";
   document.getElementById("f-vendedor").value = "";
   resetCnpjStatus();
+  // v3: sai do modo existente se estiver ativo
+  if(MODO_EXISTENTE) cancelarModoExistente();
 }
 
 // Modal bloqueante quando CNPJ duplicado
@@ -988,6 +1105,10 @@ function renderLeads(){
     var st = (l.status||"NOVO").toUpperCase();
     var stTag = '<span class="tag tag-st-'+st.toLowerCase()+'">'+stLabel(st)+'</span>';
     var vdNome = siglaToNome(l.vendedorAtribuido) || l.vendedorAtribuido || "—";
+    var tipo = (l.tipoLead||"NOVO").toUpperCase();
+    var tipoTag = tipo === "EXISTENTE" ?
+      '<span class="tag tag-tipo-existente">🔄 EXISTENTE</span>' :
+      '<span class="tag tag-tipo-novo">🌱 NOVO</span>';
     var resp;
     if(l.tempoRespostaMin && l.tempoRespostaMin > 0){
       resp = formatMin(l.tempoRespostaMin);
@@ -1003,8 +1124,8 @@ function renderLeads(){
     return '<tr>'+
       '<td><div>'+escapeHtml(dtStr)+'</div></td>'+
       '<td>'+
-        '<div style="font-weight:600">'+escapeHtml(l.razaoSocial||"—")+'</div>'+
-        (l.nomeFantasia ? '<div class="muted">'+escapeHtml(l.nomeFantasia)+'</div>' : '')+
+        '<div style="font-weight:600">'+escapeHtml(l.nomeFantasia||l.razaoSocial||"—")+'</div>'+
+        (l.razaoSocial && l.nomeFantasia ? '<div class="muted">'+escapeHtml(l.razaoSocial)+'</div>' : '')+
         (l.cidade ? '<div class="muted">'+escapeHtml(l.cidade)+(l.uf?'/'+escapeHtml(l.uf):'')+'</div>' : '')+
       '</td>'+
       '<td>'+
@@ -1012,6 +1133,7 @@ function renderLeads(){
         (wpp ? '<div class="muted">📱 '+escapeHtml(wpp)+'</div>' : '')+
       '</td>'+
       '<td><span class="tag tag-orig">'+escapeHtml(l.origem||"—")+'</span></td>'+
+      '<td>'+tipoTag+'</td>'+
       '<td><span class="tag tag-vd">'+escapeHtml(vdNome)+'</span></td>'+
       '<td>'+stTag+'</td>'+
       '<td>'+resp+'</td>'+
@@ -1149,35 +1271,50 @@ function loadRanking(){
   var n = new Date();
   var mes = String(n.getMonth()+1).padStart(2,"0");
   var ano = n.getFullYear();
-  document.getElementById("rank-period-lbl").textContent = mes+"/"+ano + " (mês corrente) + histórico geral";
+  document.getElementById("rank-period-lbl").textContent = mes+"/"+ano + " (mês corrente) + histórico geral · NOVOS vs EXISTENTES";
 
   var wrap = document.getElementById("rank-content");
   wrap.innerHTML = '<div class="rank-empty">Carregando ranking...</div>';
 
-  // 1) Geral via endpoint ranking_lead
+  // 1) Geral via endpoint ranking_lead (v1.4: retorna {novos, existentes})
   apiGet("ranking_lead").then(function(d){
-    var geral = d.dados || [];
+    var dados = d.dados || {};
+    var geralNovos = (dados.novos || []);
+    var geralExistentes = (dados.existentes || []);
     // 2) Mês corrente via filtro client em LEADS já carregado
     var mesAtual = computarRankingMes();
-    renderRanking({geral: geral, mes: mesAtual});
+    renderRanking({
+      geralNovos: geralNovos,
+      geralExistentes: geralExistentes,
+      mesNovos: mesAtual.novos,
+      mesExistentes: mesAtual.existentes
+    });
   }).catch(function(e){
     console.warn("ranking_lead falhou:", e);
     var mesAtual = computarRankingMes();
-    renderRanking({geral: [], mes: mesAtual});
+    renderRanking({
+      geralNovos: [], geralExistentes: [],
+      mesNovos: mesAtual.novos, mesExistentes: mesAtual.existentes
+    });
   });
 }
 
 function computarRankingMes(){
+  // v1.4: agrega separadamente NOVOS e EXISTENTES no mês corrente
   var n = new Date();
-  var byVd = {};
+  function novoBucket(){ return {sigla:"", total:0, conv:0, perd:0, somaResp:0, nResp:0, somaAtd:0, nAtd:0}; }
+  var byVdNovo = {}, byVdExist = {};
+
   LEADS.forEach(function(l){
     var dt = new Date(l.dataHoraCadastro || 0);
     if(isNaN(dt.getTime())) return;
     if(dt.getFullYear() !== n.getFullYear() || dt.getMonth() !== n.getMonth()) return;
     var sig = (l.vendedorAtribuido||"").toUpperCase();
     if(!sig) return;
-    if(!byVd[sig]) byVd[sig] = {sigla:sig, total:0, conv:0, perd:0, somaResp:0, nResp:0, somaAtd:0, nAtd:0};
-    var b = byVd[sig];
+    var tipo = (l.tipoLead||"NOVO").toUpperCase();
+    var bucket = (tipo === "EXISTENTE") ? byVdExist : byVdNovo;
+    if(!bucket[sig]){ var b = novoBucket(); b.sigla = sig; bucket[sig] = b; }
+    var b = bucket[sig];
     b.total++;
     var st = (l.status||"NOVO").toUpperCase();
     if(st === "CONVERTIDO") b.conv++;
@@ -1185,81 +1322,143 @@ function computarRankingMes(){
     if(l.tempoRespostaMin > 0){    b.somaResp += Number(l.tempoRespostaMin); b.nResp++; }
     if(l.tempoAtendimentoMin > 0){ b.somaAtd  += Number(l.tempoAtendimentoMin); b.nAtd++; }
   });
-  return Object.keys(byVd).map(function(k){
-    var b = byVd[k];
-    return {
-      sigla: b.sigla,
-      total: b.total,
-      convertidos: b.conv,
-      perdidos: b.perd,
-      taxa_conv: b.total ? (b.conv*100/b.total) : 0,
-      tempo_resposta_medio: b.nResp ? b.somaResp/b.nResp : null,
-      tempo_atendimento_medio: b.nAtd ? b.somaAtd/b.nAtd : null
-    };
-  });
+
+  function bucketToArr(bucket){
+    return Object.keys(bucket).map(function(k){
+      var b = bucket[k];
+      return {
+        sigla: b.sigla,
+        total: b.total,
+        convertidos: b.conv,
+        perdidos: b.perd,
+        taxa_conv: b.total ? (b.conv*100/b.total) : 0,
+        tempo_resposta_medio: b.nResp ? b.somaResp/b.nResp : null,
+        tempo_atendimento_medio: b.nAtd ? b.somaAtd/b.nAtd : null
+      };
+    });
+  }
+  return {
+    novos: bucketToArr(byVdNovo),
+    existentes: bucketToArr(byVdExist)
+  };
 }
 
 function renderRanking(data){
   var wrap = document.getElementById("rank-content");
-  var alvos = VENDEDORAS.map(function(v){ return v.sigla; });
-  if(!alvos.length){
-    wrap.innerHTML = '<div class="rank-empty">Nenhuma vendedora com Recebe_Leads = SIM ainda.</div>';
+
+  // Bloco NOVOS — só vendedoras que recebem leads (Dayane/Eliane)
+  var alvosNovos = VENDEDORAS.map(function(v){ return v.sigla; });
+  // Bloco EXISTENTES — qualquer sigla que apareça nos dados
+  var alvosExist = {};
+  (data.geralExistentes || []).forEach(function(r){ if(r.vendedorSigla) alvosExist[r.vendedorSigla.toUpperCase()] = true; });
+  (data.mesExistentes || []).forEach(function(r){ if(r.sigla) alvosExist[r.sigla.toUpperCase()] = true; });
+  var alvosExistArr = Object.keys(alvosExist).sort();
+
+  if(!alvosNovos.length && !alvosExistArr.length){
+    wrap.innerHTML = '<div class="rank-empty">Sem dados de ranking ainda.</div>';
     return;
   }
 
-  // Vencedora do mês: menor tempo de resposta com leads no mês
-  var ativosMes = (data.mes||[]).filter(function(x){ return x.total > 0; });
-  ativosMes.sort(function(a,b){
-    var ta = a.tempo_resposta_medio == null ? Infinity : a.tempo_resposta_medio;
-    var tb = b.tempo_resposta_medio == null ? Infinity : b.tempo_resposta_medio;
-    if(ta !== tb) return ta - tb;
-    return (b.taxa_conv||0) - (a.taxa_conv||0);
-  });
-  var vencedoraMes = ativosMes.length ? ativosMes[0].sigla : null;
+  // Renderiza com 2 seções: 🌱 Leads Novos / 🔄 Leads de Clientes Existentes
+  var html = '';
 
-  var html = '<div class="rank-grid">';
-  alvos.forEach(function(sig){
-    var hitMes   = (data.mes||[]).find(function(r){ return (r.sigla||"").toUpperCase() === sig; });
-    var hitGeral = (data.geral||[]).find(function(r){ return (r.vendedorSigla||"").toUpperCase() === sig; });
-    var nome = siglaToNome(sig) || sig;
-    var isWin = sig === vencedoraMes;
-
-    var mesObj = hitMes || {total:0, convertidos:0, taxa_conv:0, tempo_resposta_medio:null, tempo_atendimento_medio:null};
-    var gerObj = hitGeral || {totalLeads:0, atendidos:0, tempoRespostaMedioMin:null, tempoAtendimentoMedioMin:null};
-
-    var respMes = mesObj.tempo_resposta_medio != null ? formatMin(mesObj.tempo_resposta_medio) : "—";
-    var atdMes  = mesObj.tempo_atendimento_medio != null ? formatMin(mesObj.tempo_atendimento_medio) : "—";
-    var taxaMes = (mesObj.taxa_conv != null ? mesObj.taxa_conv : 0).toFixed(1) + "%";
-
-    var respGer = gerObj.tempoRespostaMedioMin != null ? formatMin(gerObj.tempoRespostaMedioMin) : "—";
-    var atdGer  = gerObj.tempoAtendimentoMedioMin != null ? formatMin(gerObj.tempoAtendimentoMedioMin) : "—";
-
-    html +=
-      '<div class="rank-card '+(isWin?"winner":"")+'">'+
-        (isWin ? '<div class="rank-medal">🥇</div>' : '')+
-        '<div class="rank-name">'+escapeHtml(nome)+'</div>'+
-        '<div class="rank-role">vendedora · recebe leads</div>'+
-
-        '<div style="font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">📅 Mês corrente</div>'+
-        '<div class="rank-metrics" style="margin-bottom:14px">'+
-          '<div class="rank-metric good"><div class="m-lbl">⏱ T. médio resposta</div><div class="m-val">'+respMes+'</div><div class="m-sub">cadastro → visualizou</div></div>'+
-          '<div class="rank-metric"><div class="m-lbl">📞 T. médio atendimento</div><div class="m-val">'+atdMes+'</div></div>'+
-          '<div class="rank-metric"><div class="m-lbl">📨 Recebidos</div><div class="m-val">'+mesObj.total+'</div></div>'+
-          '<div class="rank-metric good"><div class="m-lbl">✅ Convertidos</div><div class="m-val">'+(mesObj.convertidos||0)+'</div></div>'+
-          '<div class="rank-metric full"><div class="m-lbl">🎯 Taxa de conversão</div><div class="m-val">'+taxaMes+'</div><div class="m-sub">'+(mesObj.convertidos||0)+' de '+mesObj.total+' leads</div></div>'+
-        '</div>'+
-
-        '<div style="font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700;border-top:1px solid var(--br);padding-top:14px">🗂 Histórico geral</div>'+
-        '<div class="rank-metrics">'+
-          '<div class="rank-metric"><div class="m-lbl">⏱ T. médio resposta</div><div class="m-val" style="font-size:1.1rem">'+respGer+'</div></div>'+
-          '<div class="rank-metric"><div class="m-lbl">📞 T. médio atendimento</div><div class="m-val" style="font-size:1.1rem">'+atdGer+'</div></div>'+
-          '<div class="rank-metric"><div class="m-lbl">📨 Total leads</div><div class="m-val" style="font-size:1.1rem">'+(gerObj.totalLeads||0)+'</div></div>'+
-          '<div class="rank-metric"><div class="m-lbl">👁 Atendidos</div><div class="m-val" style="font-size:1.1rem">'+(gerObj.atendidos||0)+'</div></div>'+
-        '</div>'+
+  // ============== SEÇÃO LEADS NOVOS ==============
+  html +=
+    '<div style="margin-bottom:24px">'+
+      '<div style="font-family:var(--fh);font-size:1.05rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px">'+
+        '🌱 Leads Novos <span style="font-size:.7rem;color:var(--mu);font-weight:600;font-family:var(--fb);background:var(--s2);padding:2px 8px;border-radius:999px">Recebe_Leads = SIM</span>'+
       '</div>';
-  });
+
+  if(!alvosNovos.length){
+    html += '<div class="rank-empty">Nenhuma vendedora com Recebe_Leads = SIM ainda.</div>';
+  } else {
+    // Vencedora do mês — leads NOVOS
+    var ativosMesN = (data.mesNovos||[]).filter(function(x){ return x.total > 0; });
+    ativosMesN.sort(function(a,b){
+      var ta = a.tempo_resposta_medio == null ? Infinity : a.tempo_resposta_medio;
+      var tb = b.tempo_resposta_medio == null ? Infinity : b.tempo_resposta_medio;
+      if(ta !== tb) return ta - tb;
+      return (b.taxa_conv||0) - (a.taxa_conv||0);
+    });
+    var vencedoraNovos = ativosMesN.length ? ativosMesN[0].sigla : null;
+
+    html += '<div class="rank-grid">';
+    alvosNovos.forEach(function(sig){
+      html += renderCardRanking(sig, data.mesNovos, data.geralNovos, sig === vencedoraNovos);
+    });
+    html += '</div>';
+  }
   html += '</div>';
+
+  // ============== SEÇÃO LEADS EXISTENTES ==============
+  html +=
+    '<div>'+
+      '<div style="font-family:var(--fh);font-size:1.05rem;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px">'+
+        '🔄 Leads de Clientes Existentes <span style="font-size:.7rem;color:var(--mu);font-weight:600;font-family:var(--fb);background:var(--s2);padding:2px 8px;border-radius:999px">Vendedor responsável BASE_PDV</span>'+
+      '</div>';
+
+  if(!alvosExistArr.length){
+    html += '<div class="rank-empty">Nenhum lead de cliente existente cadastrado ainda.</div>';
+  } else {
+    // Vencedor do mês — leads EXISTENTES
+    var ativosMesE = (data.mesExistentes||[]).filter(function(x){ return x.total > 0; });
+    ativosMesE.sort(function(a,b){
+      var ta = a.tempo_resposta_medio == null ? Infinity : a.tempo_resposta_medio;
+      var tb = b.tempo_resposta_medio == null ? Infinity : b.tempo_resposta_medio;
+      if(ta !== tb) return ta - tb;
+      return (b.taxa_conv||0) - (a.taxa_conv||0);
+    });
+    var vencedorExist = ativosMesE.length ? ativosMesE[0].sigla : null;
+
+    html += '<div class="rank-grid">';
+    alvosExistArr.forEach(function(sig){
+      html += renderCardRanking(sig, data.mesExistentes, data.geralExistentes, sig === vencedorExist);
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
   wrap.innerHTML = html;
+}
+
+// Card individual usado nos 2 grupos
+function renderCardRanking(sig, mesArr, geralArr, isWin){
+  var nome = siglaToNome(sig) || sig;
+  var hitMes = (mesArr||[]).find(function(r){ return (r.sigla||"").toUpperCase() === sig; });
+  var hitGeral = (geralArr||[]).find(function(r){ return (r.vendedorSigla||"").toUpperCase() === sig; });
+
+  var mesObj = hitMes || {total:0, convertidos:0, taxa_conv:0, tempo_resposta_medio:null, tempo_atendimento_medio:null};
+  var gerObj = hitGeral || {totalLeads:0, atendidos:0, tempoRespostaMedioMin:null, tempoAtendimentoMedioMin:null};
+
+  var respMes = mesObj.tempo_resposta_medio != null ? formatMin(mesObj.tempo_resposta_medio) : "—";
+  var atdMes  = mesObj.tempo_atendimento_medio != null ? formatMin(mesObj.tempo_atendimento_medio) : "—";
+  var taxaMes = (mesObj.taxa_conv != null ? mesObj.taxa_conv : 0).toFixed(1) + "%";
+
+  var respGer = gerObj.tempoRespostaMedioMin != null ? formatMin(gerObj.tempoRespostaMedioMin) : "—";
+  var atdGer  = gerObj.tempoAtendimentoMedioMin != null ? formatMin(gerObj.tempoAtendimentoMedioMin) : "—";
+
+  return '<div class="rank-card '+(isWin?"winner":"")+'">'+
+    (isWin ? '<div class="rank-medal">🥇</div>' : '')+
+    '<div class="rank-name">'+escapeHtml(nome)+'</div>'+
+    '<div class="rank-role">'+escapeHtml(sig)+'</div>'+
+
+    '<div style="font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700">📅 Mês corrente</div>'+
+    '<div class="rank-metrics" style="margin-bottom:14px">'+
+      '<div class="rank-metric good"><div class="m-lbl">⏱ T. resposta</div><div class="m-val">'+respMes+'</div><div class="m-sub">cadastro → visualizou</div></div>'+
+      '<div class="rank-metric"><div class="m-lbl">📞 T. atendimento</div><div class="m-val">'+atdMes+'</div></div>'+
+      '<div class="rank-metric"><div class="m-lbl">📨 Recebidos</div><div class="m-val">'+mesObj.total+'</div></div>'+
+      '<div class="rank-metric good"><div class="m-lbl">✅ Convertidos</div><div class="m-val">'+(mesObj.convertidos||0)+'</div></div>'+
+      '<div class="rank-metric full"><div class="m-lbl">🎯 Conversão</div><div class="m-val">'+taxaMes+'</div><div class="m-sub">'+(mesObj.convertidos||0)+' de '+mesObj.total+'</div></div>'+
+    '</div>'+
+
+    '<div style="font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;font-weight:700;border-top:1px solid var(--br);padding-top:14px">🗂 Histórico geral</div>'+
+    '<div class="rank-metrics">'+
+      '<div class="rank-metric"><div class="m-lbl">⏱ T. resposta</div><div class="m-val" style="font-size:1.1rem">'+respGer+'</div></div>'+
+      '<div class="rank-metric"><div class="m-lbl">📞 T. atendimento</div><div class="m-val" style="font-size:1.1rem">'+atdGer+'</div></div>'+
+      '<div class="rank-metric"><div class="m-lbl">📨 Total</div><div class="m-val" style="font-size:1.1rem">'+(gerObj.totalLeads||0)+'</div></div>'+
+      '<div class="rank-metric"><div class="m-lbl">👁 Atendidos</div><div class="m-val" style="font-size:1.1rem">'+(gerObj.atendidos||0)+'</div></div>'+
+    '</div>'+
+  '</div>';
 }
 
 // ─────────────────────────────────────────────────────
