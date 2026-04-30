@@ -609,8 +609,7 @@ function _getCol(row){
 
 function getRemData(nome){
   // Tenta pegar os dados do CSV (planilha Remuneracao)
-  // A planilha tem acentos/cedilha nas colunas: Mês/Ano, Positivação %, Prêmio R$, Observação.
-  // Usamos _getCol() que e tolerante a acentos e variacoes de maiusculas/minusculas.
+  // A planilha tem acentos/cedilha/quebras de linha nos cabecalhos. Usamos _getCol() tolerante.
   if(DR && DR.length>0){
     var row=DR.find(function(r){
       var v = _getCol(r, "Vendedor", "nome");
@@ -619,16 +618,25 @@ function getRemData(nome){
     if(row){
       var result = {
         nome: nome,
-        faturamento: parseBR(_getCol(row, "Faturamento Realizado", "faturamento") || "0"),
-        meta_fat: parseBR(_getCol(row, "Meta Faturamento", "meta_fat", "meta") || "0"),
-        margem: parseBR(_getCol(row, "Margem %", "Margem", "margem") || "0"),
-        posit_pct: parseBR(_getCol(row, "Positivação %", "Positivacao %", "posit_pct", "positivacao") || "0"),
-        novos: parseInt(String(_getCol(row, "Novos Clientes", "novos") || "0").replace(/[^0-9]/g,""))||0,
-        trocas_pct: parseBR(_getCol(row, "Trocas %", "trocas_pct", "trocas") || "0"),
+        faturamento: parseBR(_getCol(row, "Faturamento Realizado", "Faturamento\nRealizado", "faturamento") || "0"),
+        meta_fat: parseBR(_getCol(row, "Meta Faturamento", "Meta\nFaturamento", "meta_fat", "meta") || "0"),
+        pct_fat: parseBR(_getCol(row, "% Fat vs Meta", "% Fat\nvs Meta") || "0"),
+        margem: parseBR(_getCol(row, "Margem %", "Margem\n%", "Margem", "margem") || "0"),
+        posit_pct: parseBR(_getCol(row, "Positivação %", "Positivação\n%", "Positivacao %", "posit_pct", "positivacao") || "0"),
+        novos: parseInt(String(_getCol(row, "Novos Clientes", "Novos\nClientes", "novos") || "0").replace(/[^0-9]/g,""))||0,
+        trocas_pct: parseBR(_getCol(row, "Trocas %", "Trocas\n%", "trocas_pct", "trocas") || "0"),
+        // Pilares ja calculados pela planilha (% para P1-P3, R$ para P4 - pode variar)
+        p1_fat:    parseBR(_getCol(row, "P1 Fat%", "P1\nFat%") || "0"),
+        p2_marg:   parseBR(_getCol(row, "P2 Marg%", "P2\nMarg%") || "0"),
+        p3_posit:  parseBR(_getCol(row, "P3 Posit%", "P3\nPosit%") || "0"),
+        p4_novos:  parseBR(_getCol(row, "P4 Novos%", "P4\nNovos%") || "0"),
+        total_pct: parseBR(_getCol(row, "Total %", "Total\n%", "total_pct") || "0"),
+        premio_sheet: parseBR(_getCol(row, "Prêmio R$", "Prêmio\nR$", "Premio R$", "premio") || "0"),
+        tipo: _getCol(row, "Tipo Regra", "Tipo\nRegra", "tipo") || "padrao",
+        // Bonus da planilha (R$ direto)
+        over_meta:    parseBR(_getCol(row, "OVER META", "Over Meta", "over_meta") || "0"),
+        meta_global:  parseBR(_getCol(row, "META GLOBAL", "Meta Global", "meta_global") || "0"),
         mes: _getCol(row, "Mês/Ano", "Mes/Ano", "mes") || "",
-        premio_sheet: parseBR(_getCol(row, "Prêmio R$", "Premio R$", "premio") || "0"),
-        total_pct_sheet: parseBR(_getCol(row, "Total %", "total_pct") || "0"),
-        tipo: _getCol(row, "Tipo Regra", "tipo") || "padrao",
         observacao: _getCol(row, "Observação", "Observa", "observacao") || ""
       };
       console.log("[DIAG] getRemData("+nome+"):", JSON.stringify(result));
@@ -642,92 +650,340 @@ function getRemData(nome){
     nome:nome,
     faturamento:dm?dm.real:0,
     meta_fat:dm?dm.meta:0,
+    pct_fat:0,
     margem:0,
     posit_pct:0,
     novos:0,
     trocas_pct:0,
+    p1_fat:0, p2_marg:0, p3_posit:0, p4_novos:0,
+    total_pct:0, premio_sheet:0,
+    tipo:"padrao",
+    over_meta:0, meta_global:0,
     mes:"",
     observacao:""
   };
 }
 
+// ════════════════════════════════════════════════════════════════════
+// CONFIGURACAO DE REGRAS — fonte da verdade: PDF "Quadro de Premiação"
+// Cada vendedor pertence a um perfil. As regras (texto) sao apenas
+// EXIBICAO — quem calcula os valores reais e a planilha do Sheets.
+// ════════════════════════════════════════════════════════════════════
+var PERFIL_VENDEDOR = {
+  // PJ classico (Faturamento + Margem + Positivacao + Novos)
+  Lucas:  "PJ", Vera: "PJ", Eder: "PJ", Kenyo: "PJ",
+  // CLT (Margem escalonada com gates Fat/Posit + Novos)
+  Dayane: "CLT", Eliane: "CLT", Camila: "CLT",
+  // Casos especiais
+  Claudia: "KA-PJ",
+  Deane:   "DEANE"
+};
+
+// Metas individuais de OVER META (R$ de faturamento)
+// PDF: bater meta + margem >= 30% => R$ 2.000
+var OVER_META_META = {
+  Lucas:  800000,
+  Eder:   400000,
+  Vera:   400000,
+  Dayane: 250000,
+  Eliane: 400000
+};
+var OVER_META_BONUS = 2000;
+var OVER_META_MARGEM_MIN = 30;
+
+// Quem PARTICIPA da Meta Global (todos exceto Deane e Kenyo)
+var META_GLOBAL_PARTICIPA = {
+  Lucas:true, Vera:true, Eder:true, Dayane:true,
+  Eliane:true, Camila:true, Claudia:true
+  // Kenyo: false, Deane: false
+};
+// Faixas (R$ acima da meta global do time)
+var META_GLOBAL_FAIXAS = [
+  { min: 100000, bonus: 2200, label: "R$ 100K+ acima da meta = R$ 2.200" },
+  { min:  50000, bonus: 1000, label: "R$ 50K+ acima da meta = R$ 1.000" }
+];
+
+// Regras (texto descritivo por perfil x pilar). Aparece como linha "Regra: ..."
+var REGRAS_TXT = {
+  PJ: {
+    fat:   "1,00% sobre o faturamento total",
+    marg:  "<30% = 0% · 30-33% = 0,25% · 33,01-36% = 0,50% · >36,01% = 1,00%",
+    posit: "<80% = 0% · ≥80% = 0,25%",
+    novos: "<10 abert. = R$ 0 · 10-19 = R$ 20/abert. · 20+ = R$ 30/abert. (mín. R$ 300/pedido)"
+  },
+  CLT: {
+    // Dayane / Eliane (Camila usa mesmo cabecalho generico CLT)
+    fat:   "Pilar nao remunerado — gate de elegibilidade (Fat ≥ 70% e Posit ≥ 70%)",
+    marg:  "Com Fat≥70% e Posit≥70%: <27% = 0,50% · 28-29% = 0,75% · ≥30% = 1,00% · senão 0,50%",
+    posit: "Compõe gate da margem (≥70% libera faixas plenas)",
+    novos: "<10 abert. = R$ 0 · 10-19 = R$ 20/abert. · 20+ = R$ 30/abert. (mín. R$ 300/pedido)"
+  },
+  "KA-PJ": {
+    // Claudia
+    fat:   "Comissão fixa = 0,75% sobre vendas no varejo",
+    marg:  "Margem ≥ 45% sobre vendas = 0,25%",
+    posit: "Atendimento ≥ 80% da carteira mensal = 0,25%",
+    trocas:"Trocas/avarias ≤ 2% = 0,50% · 2-5% = 0,25% · >5% = sem prêmio + desconto",
+    novos: "—"
+  },
+  DEANE: {
+    fat:   "Pilar nao remunerado",
+    marg:  "<19% = 0% · 19-24% = 0,60% · 25-29% = 1,35% · ≥30% = 3,00%",
+    posit: "—",
+    novos: "<10 abert. = R$ 0 · 10-19 = R$ 20/abert. · 20+ = R$ 30/abert. (mín. R$ 300/pedido)"
+  }
+};
+
+// ════════════════════════════════════════════════════════════════════
+// calcRemuneracao — agora SO LE da planilha. Sem recalcular nada.
+// ════════════════════════════════════════════════════════════════════
 function calcRemuneracao(d){
-  var nome=d.nome.toUpperCase();
-  var fat=d.faturamento;
-  var meta=d.meta_fat;
-  var margem=d.margem;
-  var posit=d.posit_pct;
-  var novos=d.novos;
-  var trocas=d.trocas_pct;
-  var pctFat=meta>0?Math.round((fat/meta)*100):0;
+  var perfil = PERFIL_VENDEDOR[d.nome] || "PJ";
+  var regras = REGRAS_TXT[perfil] || REGRAS_TXT.PJ;
+  var fat = d.faturamento;
+  var meta = d.meta_fat;
+  var pctFat = d.pct_fat>0 ? d.pct_fat : (meta>0?Math.round((fat/meta)*100):0);
 
   var pilares=[];
-  var totalPct=0;
 
-  if(nome==="DEANE"){
-    // Apenas Margem
-    var p1=0,p1txt="",p1ok=false;
-    if(margem>=30){p1=3;p1txt="Faixa Boa (30%+) = 3,00%";p1ok=true;}
-    else if(margem>=25){p1=1.35;p1txt="Faixa Basica (25%-29%) = 1,35%";p1ok=true;}
-    else if(margem>=19){p1=0.6;p1txt="Faixa Minima (19%-24%) = 0,60%";p1ok=true;}
-    else{p1=0;p1txt="Abaixo do minimo ("+margem+"%) = 0%";}
-    pilares.push({nome:"Margem",pct:p1,desc:p1txt,ok:p1ok,base:fat});
-    totalPct=p1;
-  } else if(nome==="CLAUDIA"){
-    // Faturamento
-    var p1=0.75,p1txt="Faturamento fixo = 0,75%";
-    pilares.push({nome:"Faturamento",pct:p1,desc:p1txt,ok:true,base:fat});
-    // Margem
-    var p2=0,p2txt="",p2ok=false;
-    if(margem>=45){p2=0.25;p2txt="Margem 45%+ = 0,25%";p2ok=true;}
-    else{p2=0;p2txt="Margem abaixo de 45% ("+margem+"%) = 0%";}
-    pilares.push({nome:"Margem (45%)",pct:p2,desc:p2txt,ok:p2ok,base:fat});
-    // Trocas
-    var p3=0,p3txt="",p3ok=false;
-    if(trocas<=2){p3=0.5;p3txt="Trocas \u22642% ("+trocas+"%) = 0,50%";p3ok=true;}
-    else if(trocas<=5){p3=0.25;p3txt="Trocas 2,1%-5% ("+trocas+"%) = 0,25%";}
-    else{p3=0;p3txt="Trocas >5% ("+trocas+"%) = PERDE todos os pilares";
-      // If trocas > 5%, zero everything
-      return {pilares:[{nome:"ATENCAO",pct:0,desc:"Trocas acima de 5% ("+trocas+"%) — sem remuneracao variavel",ok:false,base:fat}],totalPct:0,premio:0,fat:fat};
-    }
-    pilares.push({nome:"Trocas",pct:p3,desc:p3txt,ok:p3ok,base:fat});
-    // Positivacao
-    var p4=0,p4txt="",p4ok=false;
-    if(posit>=80){p4=0.25;p4txt="Positivacao 80%+ ("+posit+"%) = 0,25%";p4ok=true;}
-    else{p4=0;p4txt="Positivacao abaixo de 80% ("+posit+"%) = 0%";}
-    pilares.push({nome:"Positivacao",pct:p4,desc:p4txt,ok:p4ok,base:fat});
-    totalPct=p1+p2+p3+p4;
+  if(perfil === "DEANE"){
+    // Apenas pilar Margem (planilha calcula).
+    // ATENCAO: a planilha pode colocar o valor calculado em P1 ou P2.
+    // Pegamos o que estiver entre 0 e 5 (faixa valida de pilar).
+    var p1raw = d.p1_fat, p2raw = d.p2_marg;
+    var p1ok = (p1raw>0 && p1raw<=5);
+    var p2ok = (p2raw>0 && p2raw<=5);
+    var pMarg = p2ok ? p2raw : (p1ok ? p1raw : 0);
+    pilares.push({
+      nome:"Margem",
+      pct: pMarg,
+      desc: pMarg>0
+        ? "Faixa atingida ("+formatPct(d.margem)+") = "+formatPct(pMarg)
+        : "Abaixo do mínimo ("+formatPct(d.margem)+") = 0%",
+      ok: pMarg>0,
+      base: fat,
+      valor: fat*(pMarg/100),
+      regra: regras.marg
+    });
+    // Pilar Novos Clientes (R$ fixo da planilha)
+    var p4r = d.p4_novos;
+    pilares.push({
+      nome:"Novos Clientes",
+      pct: 0,
+      desc: p4r>0 ? d.novos+" abertura(s) → R$ "+formatNum(p4r) : "Abaixo do mínimo ("+d.novos+" aberturas) = R$ 0",
+      ok: p4r>0,
+      base: 0,
+      valor: p4r,
+      tipo:"reais",
+      regra: regras.novos
+    });
+  } else if(perfil === "KA-PJ"){
+    // Claudia — 4 pilares (Fat, Margem≥45%, Trocas, Positivacao)
+    var p1raw = d.p1_fat;
+    var p1Contam = !(p1raw>=0 && p1raw<=5);
+    var p1 = p1Contam ? 0 : p1raw;
+    pilares.push({
+      nome:"Faturamento",
+      pct: p1,
+      desc: p1Contam
+        ? "Valor inválido na planilha ("+formatPct(p1raw)+") — usando Total final"
+        : (p1>0 ? "Comissão fixa = "+formatPct(p1) : "Sem comissão"),
+      ok: p1>0,
+      base: fat, valor: fat*(p1/100),
+      regra: regras.fat
+    });
+    var p2raw = d.p2_marg;
+    var p2Contam = !(p2raw>=0 && p2raw<=5);
+    var p2 = p2Contam ? 0 : p2raw;
+    pilares.push({
+      nome:"Margem ≥ 45%",
+      pct: p2,
+      desc: p2Contam
+        ? "Valor inválido na planilha ("+formatPct(p2raw)+") — usando Total final"
+        : (p2>0 ? "Margem ("+formatPct(d.margem)+") atingiu meta = "+formatPct(p2) : "Margem ("+formatPct(d.margem)+") < 45% = 0%"),
+      ok: p2>0,
+      base: fat, valor: fat*(p2/100),
+      regra: regras.marg
+    });
+    // Trocas: nao tem coluna direta, exibe pelo % de trocas
+    var pT = 0; var pTok = false; var pTdesc="";
+    if(d.trocas_pct<=2){ pT=0.5; pTok=true; pTdesc="Trocas "+formatPct(d.trocas_pct)+" ≤ 2% = 0,50%"; }
+    else if(d.trocas_pct<=5){ pT=0.25; pTok=true; pTdesc="Trocas "+formatPct(d.trocas_pct)+" entre 2-5% = 0,25%"; }
+    else { pT=0; pTdesc="Trocas "+formatPct(d.trocas_pct)+" > 5% — sem prêmio"; }
+    pilares.push({
+      nome:"Trocas/Avarias",
+      pct: pT,
+      desc: pTdesc,
+      ok: pTok,
+      base: fat, valor: fat*(pT/100),
+      regra: regras.trocas
+    });
+    var p3raw = d.p3_posit;
+    var p3Contam = !(p3raw>=0 && p3raw<=5);
+    var p3 = p3Contam ? 0 : p3raw;
+    pilares.push({
+      nome:"Positivação ≥ 80%",
+      pct: p3,
+      desc: p3Contam
+        ? "Valor inválido na planilha ("+formatPct(p3raw)+") — usando Total final"
+        : (p3>0 ? "Positivação ("+formatPct(d.posit_pct)+") ≥ 80% = "+formatPct(p3) : "Positivação ("+formatPct(d.posit_pct)+") < 80% = 0%"),
+      ok: p3>0,
+      base: fat, valor: fat*(p3/100),
+      regra: regras.posit
+    });
   } else {
-    // PADRAO: 4 pilares
-    // Pilar 1: Faturamento
-    var p1=0,p1txt="",p1ok=false;
-    if(pctFat>=90){p1=0.5;p1txt="Acima de 90% ("+pctFat+"%) = 0,50%";p1ok=true;}
-    else{p1=0.25;p1txt="Ate 90% ("+pctFat+"%) = 0,25%";p1ok=true;}
-    pilares.push({nome:"Faturamento vs Meta",pct:p1,desc:p1txt,ok:p1ok,base:fat});
-    // Pilar 2: Margem
-    var p2=0,p2txt="",p2ok=false;
-    if(margem>=30){p2=1;p2txt="Faixa Boa 30%+ ("+margem+"%) = 1,00%";p2ok=true;}
-    else if(margem>=27){p2=0.75;p2txt="Faixa Basica 27%-29% ("+margem+"%) = 0,75%";p2ok=true;}
-    else if(margem>=24){p2=0.5;p2txt="Faixa Minima 24%-26% ("+margem+"%) = 0,50%";p2ok=true;}
-    else{p2=0;p2txt="Abaixo do minimo ("+margem+"%) = 0%";}
-    pilares.push({nome:"Margem Media",pct:p2,desc:p2txt,ok:p2ok,base:fat});
-    // Pilar 3: Positivacao
-    var p3=0,p3txt="",p3ok=false;
-    if(posit>85){p3=0.5;p3txt="Acima de 86% ("+posit+"%) = 0,50%";p3ok=true;}
-    else if(posit>=70){p3=0.25;p3txt="70% a 85% ("+posit+"%) = 0,25%";p3ok=true;}
-    else{p3=0;p3txt="Abaixo de 70% ("+posit+"%) = 0%";}
-    pilares.push({nome:"Positivacao",pct:p3,desc:p3txt,ok:p3ok,base:fat});
-    // Pilar 4: Novos clientes
-    var p4=0,p4txt="",p4ok=false;
-    if(novos>=15){p4=1;p4txt="Excelente 15+ clientes ("+novos+") = 1,00%";p4ok=true;}
-    else if(novos>=8){p4=0.5;p4txt="Basico 8-14 clientes ("+novos+") = 0,50%";p4ok=true;}
-    else{p4=0;p4txt="Abaixo do minimo ("+novos+" clientes) = 0%";}
-    pilares.push({nome:"Novos Clientes",pct:p4,desc:p4txt,ok:p4ok,base:fat});
-    totalPct=p1+p2+p3+p4;
+    // PJ ou CLT — leitura direta dos pilares calculados pela planilha
+    // ATENCAO: Quando o vendedor CLT nao bate gates (Fat<70% ou Posit<70%),
+    // a planilha pode trazer P1/P2/P3 com valores brutos (margem, posit, etc.)
+    // mas o Total% e Premio R$ ficam zerados. Detectamos isso para nao exibir
+    // pilares com valores errados.
+    var planilhaZerou = (d.total_pct === 0 && d.premio_sheet === 0);
+
+    // SANITY CHECK: pilar individual > 5% e indicador de "pilar contaminado"
+    // (nenhum pilar real paga mais que 3%). Se acontece, a celula da planilha
+    // contem dado bruto (margem, posit, fat%) em vez do pilar calculado.
+    function pilarValido(v){ return v >= 0 && v <= 5; }
+    var p1Contam = !pilarValido(d.p1_fat);
+    var p2Contam = !pilarValido(d.p2_marg);
+    var p3Contam = !pilarValido(d.p3_posit);
+    var algumContam = p1Contam || p2Contam || p3Contam;
+
+    var motivoZero = "";
+    if(planilhaZerou && perfil==="CLT"){
+      motivoZero = "Não atingiu gate de elegibilidade (Fat ≥ 70% e Posit ≥ 70%)";
+    } else if(planilhaZerou){
+      motivoZero = "Não atingiu critérios mínimos do mês";
+    } else if(algumContam){
+      motivoZero = "Detalhamento dos pilares indisponível — verifique a planilha";
+    }
+
+    // Faturamento
+    var p1raw = d.p1_fat;
+    var p1 = (planilhaZerou || p1Contam) ? 0 : p1raw;
+    pilares.push({
+      nome:"Faturamento",
+      pct: p1,
+      desc: planilhaZerou
+        ? motivoZero
+        : (p1Contam
+            ? "Valor inválido na planilha ("+formatPct(p1raw)+") — usando Total final"
+            : (p1>0 ? formatPct(p1)+" sobre o faturamento" : "Sem premiação no pilar")),
+      ok: p1>0,
+      base: fat, valor: fat*(p1/100),
+      regra: regras.fat
+    });
+    // Margem
+    var p2raw = d.p2_marg;
+    var p2 = (planilhaZerou || p2Contam) ? 0 : p2raw;
+    pilares.push({
+      nome:"Margem Média",
+      pct: p2,
+      desc: planilhaZerou
+        ? "Margem do mês: "+formatPct(d.margem)+" — "+motivoZero
+        : (p2Contam
+            ? "Valor inválido na planilha ("+formatPct(p2raw)+") — usando Total final"
+            : (p2>0 ? "Margem "+formatPct(d.margem)+" → "+formatPct(p2) : "Margem "+formatPct(d.margem)+" não atinge faixas = 0%")),
+      ok: p2>0,
+      base: fat, valor: fat*(p2/100),
+      regra: regras.marg
+    });
+    // Positivacao
+    var p3raw = d.p3_posit;
+    var p3 = (planilhaZerou || p3Contam) ? 0 : p3raw;
+    pilares.push({
+      nome:"Positivação",
+      pct: p3,
+      desc: planilhaZerou
+        ? "Positivação do mês: "+formatPct(d.posit_pct)+" — "+motivoZero
+        : (p3Contam
+            ? "Valor inválido na planilha ("+formatPct(p3raw)+") — usando Total final"
+            : (p3>0 ? "Positivação "+formatPct(d.posit_pct)+" → "+formatPct(p3) : "Positivação "+formatPct(d.posit_pct)+" abaixo do mínimo = 0%")),
+      ok: p3>0,
+      base: fat, valor: fat*(p3/100),
+      regra: regras.posit
+    });
+    // Novos Clientes (R$ fixo) — esse pode ser pago mesmo com gates não batidos
+    var p4r = d.p4_novos;
+    pilares.push({
+      nome:"Novos Clientes",
+      pct: 0,
+      desc: p4r>0 ? d.novos+" abertura(s) → R$ "+formatNum(p4r) : "Abaixo do mínimo ("+d.novos+" aberturas) = R$ 0",
+      ok: p4r>0,
+      base: 0, valor: p4r,
+      tipo:"reais",
+      regra: regras.novos
+    });
   }
 
-  var premio=fat*(totalPct/100);
-  return {pilares:pilares,totalPct:totalPct,premio:premio,fat:fat,pctFat:pctFat};
+  // Bonus extras vindos da planilha
+  var bonus = [];
+  // OVER META
+  if(OVER_META_META[d.nome] !== undefined){
+    var metaOver = OVER_META_META[d.nome];
+    var falta = Math.max(0, metaOver - fat);
+    var pctOver = metaOver>0 ? Math.min(100, Math.round((fat/metaOver)*100)) : 0;
+    var atingiu = d.over_meta>0; // planilha calculou um valor
+    bonus.push({
+      tipo:"OVER_META",
+      titulo:"🚀 Over Meta",
+      atingiu: atingiu,
+      valor: d.over_meta || 0,
+      meta: metaOver,
+      atual: fat,
+      falta: falta,
+      pctProgresso: pctOver,
+      margem: d.margem,
+      regra: "Bater R$ "+formatNum(metaOver)+" em faturamento + margem ≥ "+OVER_META_MARGEM_MIN+"% = R$ "+formatNum(OVER_META_BONUS),
+      detalhe: atingiu
+        ? "Conquistou! Faturou "+formatNum(fat)+" com margem "+formatPct(d.margem)+"%."
+        : (falta>0
+            ? "Faltam R$ "+formatNum(falta)+" de faturamento" + (d.margem<OVER_META_MARGEM_MIN?" · Margem atual "+formatPct(d.margem)+"% (mín. "+OVER_META_MARGEM_MIN+"%)":"")
+            : "Faturamento atingido. Margem "+formatPct(d.margem)+"% (mín. "+OVER_META_MARGEM_MIN+"%) — verifique cálculo na planilha")
+    });
+  }
+  // META GLOBAL
+  if(META_GLOBAL_PARTICIPA[d.nome]){
+    bonus.push({
+      tipo:"META_GLOBAL",
+      titulo:"🌐 Meta Global do Time",
+      atingiu: d.meta_global>0,
+      valor: d.meta_global || 0,
+      regra: "Time bater +R$ 50K acima da meta = R$ 1.000 · +R$ 100K = R$ 2.200",
+      detalhe: d.meta_global>0
+        ? "Time atingiu o degrau — bônus R$ "+formatNum(d.meta_global)
+        : "Time ainda não atingiu o degrau de +R$ 50K acima da meta global"
+    });
+  }
+
+  // Total = soma dos pilares (sempre em R$, ja que mistura % e R$ fixo)
+  var totalPilares = pilares.reduce(function(a,p){ return a + (p.valor||0); }, 0);
+  // Cross-check: se planilha tem premio_sheet, usa ele como verdade
+  var premioFinal = d.premio_sheet>0 ? d.premio_sheet : totalPilares;
+  // Soma bonus
+  var totalBonus = bonus.reduce(function(a,b){ return a + (b.valor||0); }, 0);
+
+  return {
+    pilares: pilares,
+    bonus: bonus,
+    totalPilares: premioFinal,
+    totalBonus: totalBonus,
+    premio: premioFinal + totalBonus,
+    fat: fat,
+    pctFat: pctFat,
+    perfil: perfil,
+    totalPct: d.total_pct
+  };
+}
+
+// Helpers de formatação
+function formatPct(v){
+  if(v===0||!v) return "0%";
+  // Se for inteiro, sem decimais
+  if(Math.abs(v - Math.round(v)) < 0.01) return Math.round(v)+"%";
+  return v.toFixed(2).replace(".",",")+"%";
+}
+function formatNum(v){
+  return Math.abs(parseFloat(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
 function renderRemCard(nome){
@@ -740,62 +996,140 @@ function renderRemCard(nome){
   // Sigla robusta: dm.sigla -> SG[nome] -> 2 primeiras letras
   var siglaDisp = (dm && dm.sigla) || SG[nome] || nome.substring(0,2).toUpperCase();
 
+  // ── Pilares (com linha de regra abaixo) ──
   var pilaresHTML=r.pilares.map(function(p){
     var cor=p.ok?"#10b981":"#e63329";
     var bg=p.ok?"rgba(16,185,129,0.08)":"rgba(230,51,41,0.08)";
     var bd=p.ok?"rgba(16,185,129,0.2)":"rgba(230,51,41,0.2)";
     var icon=p.ok?"\u2714":"\u2715";
-    var premio=p.base*(p.pct/100);
-    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;">'+
-      '<div style="display:flex;align-items:center;gap:10px;">'+
-        '<span style="font-size:14px;color:'+cor+'">'+icon+'</span>'+
-        '<div>'+
-          '<div style="font-size:0.78rem;font-weight:600;color:var(--tx);">'+p.nome+'</div>'+
-          '<div style="font-size:0.68rem;color:var(--mu);margin-top:2px;">'+p.desc+'</div>'+
+    // Valor exibido a direita: % se for tipo padrao, R$ se for tipo "reais"
+    var valorDir;
+    if(p.tipo==="reais"){
+      // R$ direto (Novos Clientes)
+      valorDir = '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">R$ '+formatNum(p.valor)+'</div>'+
+                 (p.valor>0?'<div style="font-size:0.65rem;color:var(--mu);">valor fixo</div>':'');
+    } else {
+      // % + R$ correspondente
+      valorDir = '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">+'+formatPct(p.pct)+'</div>'+
+                 (p.pct>0?'<div style="font-size:0.65rem;color:var(--mu);">= '+fv(p.valor)+'</div>':'');
+    }
+    var regraHtml = p.regra
+      ? '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-left:2px solid var(--b2);border-radius:4px;font-size:0.65rem;color:var(--mu);line-height:1.5"><b style="color:var(--mu2)">Regra:</b> '+p.regra+'</div>'
+      : '';
+    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;">'+
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'+
+        '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">'+
+          '<span style="font-size:14px;color:'+cor+';flex-shrink:0">'+icon+'</span>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-size:0.78rem;font-weight:600;color:var(--tx);">'+p.nome+'</div>'+
+            '<div style="font-size:0.68rem;color:var(--mu);margin-top:2px;">'+p.desc+'</div>'+
+          '</div>'+
         '</div>'+
+        '<div style="text-align:right;flex-shrink:0;">'+valorDir+'</div>'+
       '</div>'+
-      '<div style="text-align:right;flex-shrink:0;">'+
-        '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">+'+p.pct.toFixed(2).replace(".",",")+'%</div>'+
-        (p.pct>0?'<div style="font-size:0.65rem;color:var(--mu);">= '+fv(premio)+'</div>':'')+ 
-      '</div>'+
+      regraHtml+
     '</div>';
   }).join('');
 
+  // ── Cards bonus (OVER META, META GLOBAL) ──
+  var bonusHTML = (r.bonus||[]).map(function(b){
+    var cor = b.atingiu ? "#10b981" : "#3b82f6";
+    var bg  = b.atingiu ? "rgba(16,185,129,0.08)" : "rgba(59,130,246,0.06)";
+    var bd  = b.atingiu ? "rgba(16,185,129,0.25)" : "rgba(59,130,246,0.2)";
+    var icon = b.atingiu ? "🏆" : "🎯";
+
+    var progressoHTML = "";
+    if(b.tipo==="OVER_META"){
+      var pctProg = Math.min(100, b.pctProgresso||0);
+      var corMargemOk = b.margem >= OVER_META_MARGEM_MIN;
+      var corMargem = corMargemOk ? "#10b981" : "#f59e0b";
+      progressoHTML =
+        '<div style="margin-top:10px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.65rem;color:var(--mu);margin-bottom:3px">'+
+            '<span>R$ '+formatNum(b.atual)+' / R$ '+formatNum(b.meta)+'</span>'+
+            '<span style="font-weight:700;color:'+cor+'">'+pctProg+'%</span>'+
+          '</div>'+
+          '<div style="height:6px;background:var(--s2);border-radius:4px;overflow:hidden">'+
+            '<div style="width:'+pctProg+'%;height:100%;background:'+cor+';transition:width 0.4s"></div>'+
+          '</div>'+
+          '<div style="display:flex;gap:8px;margin-top:6px;font-size:0.62rem">'+
+            '<span style="color:'+corMargem+'">● Margem '+formatPct(b.margem)+' (mín. '+OVER_META_MARGEM_MIN+'%)</span>'+
+          '</div>'+
+        '</div>';
+    }
+
+    var valorBonus = b.atingiu
+      ? '<div style="font-family:var(--fh);font-size:1.1rem;font-weight:700;color:'+cor+'">+R$ '+formatNum(b.valor)+'</div>'
+      : '<div style="font-family:var(--fh);font-size:0.85rem;font-weight:600;color:var(--mu);">Não atingido</div>';
+
+    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-size:0.82rem;font-weight:700;color:var(--tx);">'+icon+' '+b.titulo.replace(/^[🚀🌐]\s*/,'')+'</div>'+
+          '<div style="font-size:0.68rem;color:var(--mu);margin-top:3px">'+b.detalhe+'</div>'+
+        '</div>'+
+        '<div style="text-align:right;flex-shrink:0">'+valorBonus+'</div>'+
+      '</div>'+
+      progressoHTML+
+      '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-left:2px solid '+cor+';border-radius:4px;font-size:0.65rem;color:var(--mu);line-height:1.5"><b style="color:var(--mu2)">Regra:</b> '+b.regra+'</div>'+
+    '</div>';
+  }).join('');
+
+  // ── Header ──
+  var headerHTML =
+    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--br);">'+
+      '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;">'+
+        siglaDisp+
+      '</div>'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-family:var(--fh);font-size:1.2rem;font-weight:700;">'+nome+
+          '<span style="margin-left:8px;font-size:0.62rem;font-weight:600;color:var(--mu);background:var(--s2);padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px">'+r.perfil+'</span>'+
+        '</div>'+
+        '<div style="font-size:0.75rem;color:var(--mu);margin-top:2px;">Remuneração variável — '+(d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
+      '</div>'+
+      '<div style="text-align:right;flex-shrink:0">'+
+        '<div style="font-size:0.68rem;color:var(--mu);">Faturamento</div>'+
+        '<div style="font-family:var(--fh);font-size:1rem;font-weight:700;">'+fv(d.faturamento)+'</div>'+
+        (d.meta_fat>0?'<div style="font-size:0.68rem;color:var(--mu);">de '+fv(d.meta_fat)+' ('+r.pctFat+'%)</div>':'')+
+      '</div>'+
+    '</div>';
+
+  // ── Total ──
+  var totalHTML =
+    '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px 20px;">'+
+      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
+        '<div style="flex:1;min-width:200px">'+
+          '<div style="font-size:0.72rem;color:var(--mu);margin-bottom:4px;">Total da remuneração variável</div>'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+fv(r.premio)+'</div>'+
+          (r.totalBonus>0
+            ? '<div style="font-size:0.65rem;color:var(--mu);margin-top:4px;">'+fv(r.totalPilares)+' (pilares) + '+fv(r.totalBonus)+' (bônus)</div>'
+            : '')+
+          (d.observacao?'<div style="font-size:0.68rem;color:var(--mu);margin-top:6px;">Obs: '+d.observacao+'</div>':'')+
+        '</div>'+
+        '<div style="text-align:right;flex-shrink:0">'+
+          '<div style="font-size:0.72rem;color:var(--mu);">% sobre faturamento</div>'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+formatPct(r.totalPct)+'</div>'+
+          '<div style="font-size:0.65rem;color:var(--mu);">(vindo da planilha)</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+
   card.innerHTML=
     '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:14px;padding:24px;">'+
-      // Header
-      '<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--br);">'+
-        '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;">'+
-          siglaDisp+
-        '</div>'+
-        '<div>'+
-          '<div style="font-family:var(--fh);font-size:1.2rem;font-weight:700;">'+nome+'</div>'+
-          '<div style="font-size:0.75rem;color:var(--mu);margin-top:2px;">Remuneracao variavel — '+( d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
-        '</div>'+
-        '<div style="margin-left:auto;text-align:right;">'+
-          '<div style="font-size:0.68rem;color:var(--mu);">Faturamento</div>'+
-          '<div style="font-family:var(--fh);font-size:1rem;font-weight:700;">'+fv(d.faturamento)+'</div>'+
-          (d.meta_fat>0?'<div style="font-size:0.68rem;color:var(--mu);">de '+fv(d.meta_fat)+' ('+r.pctFat+'%)</div>':'')+
-        '</div>'+
-      '</div>'+
+      headerHTML +
       // Pilares
-      '<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">'+pilaresHTML+'</div>'+
+      '<div style="margin-bottom:8px;font-size:0.7rem;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:0.6px">Pilares</div>'+
+      '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:'+(bonusHTML?'18px':'20px')+';">'+pilaresHTML+'</div>'+
+      // Bonus
+      (bonusHTML
+        ? '<div style="margin-bottom:8px;font-size:0.7rem;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:0.6px">Bônus extras</div>'+
+          '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">'+bonusHTML+'</div>'
+        : '')+
       // Total
-      '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">'+
-        '<div>'+
-          '<div style="font-size:0.72rem;color:var(--mu);margin-bottom:4px;">Total da remuneracao variavel</div>'+
-          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+fv(r.premio)+'</div>'+
-          (d.observacao?'<div style="font-size:0.68rem;color:var(--mu);margin-top:4px;">Obs: '+d.observacao+'</div>':'')+
-        '</div>'+
-        '<div style="text-align:right;">'+
-          '<div style="font-size:0.72rem;color:var(--mu);">% aplicado</div>'+
-          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+r.totalPct.toFixed(2).replace(".",",")+"%</div>"+
-          '<div style="font-size:0.68rem;color:var(--mu);">sobre faturamento</div>'+
-        '</div>'+
-      '</div>'+
+      totalHTML +
       // Info note
       '<div style="margin-top:12px;font-size:0.68rem;color:var(--mu2);text-align:center;">'+
-        'Calculo automatico com base nos dados da planilha. Celio confirma os valores finais.'+
+        'Cálculos automáticos vindos da planilha. Célio confirma os valores finais.'+
       '</div>'+
     '</div>';
 }
