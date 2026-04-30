@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CRM · Minha Carteira — Q Food Company</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style>
 :root{
   --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
@@ -49,7 +50,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(34,211,238,.4)}50%{box-shadow:0 0 0 8px rgba(34,211,238,0)}}
 
 /* HOME — 3 cards grandes */
-.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.home-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
 .home-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
 .home-card:hover{border-color:var(--b2);transform:translateY(-3px);box-shadow:0 12px 30px rgba(0,0,0,.3)}
 .home-card .hc-icon{font-size:2rem;margin-bottom:10px}
@@ -485,11 +486,14 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 
 /* Responsivo */
 @media(max-width:900px){
-  .home-grid{grid-template-columns:1fr}
+  .home-grid{grid-template-columns:repeat(2,1fr)}
   .home-secondary{grid-template-columns:1fr}
   .pdv-summary{grid-template-columns:1fr}
   .pdv-block.full{grid-column:span 1}
   .cart-row{grid-template-columns:1fr 60px 90px auto}
+}
+@media(max-width:560px){
+  .home-grid{grid-template-columns:1fr}
 }
 @media(max-width:700px){
   .page-hdr{flex-wrap:wrap}
@@ -521,6 +525,131 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
   .md-period-toggle{max-width:100%}
   .md-period-toggle button{padding:9px 8px;font-size:.78rem}
 }
+
+/* ─────────────────────────────────────────────────────
+   v5.3 — FUNIL DE LEADS (Kanban)
+   ───────────────────────────────────────────────────── */
+.fl-screen .ck-screen-body{padding:0;display:flex;flex-direction:column;gap:0}
+.fl-toolbar{background:var(--sf);border-bottom:1px solid var(--br);padding:14px 24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.fl-toolbar .fl-tb-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fl-toolbar .fl-tb-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.fl-toolbar select, .fl-toolbar input[type="text"]{
+  background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;
+  color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb);min-width:200px
+}
+.fl-toolbar select:focus, .fl-toolbar input:focus{border-color:var(--blue)}
+.fl-toolbar .fl-totals{font-size:.82rem;color:var(--mu);font-weight:600}
+.fl-toolbar .fl-totals b{color:var(--tx);font-weight:800}
+
+.fl-board{flex:1;min-height:0;overflow-x:auto;overflow-y:hidden;padding:18px 24px 24px;display:flex;gap:14px;background:var(--bg)}
+.fl-col{flex:0 0 280px;display:flex;flex-direction:column;background:var(--sf);border:1px solid var(--br);border-radius:14px;max-height:100%;overflow:hidden}
+.fl-col-hdr{padding:14px 14px 12px;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative}
+.fl-col-hdr::before{content:'';position:absolute;top:0;left:0;width:100%;height:3px;background:var(--col-color, var(--mu));border-radius:14px 14px 0 0}
+.fl-col-hdr .fl-col-icon{font-size:1.1rem}
+.fl-col-hdr .fl-col-name{font-family:var(--fh);font-weight:800;font-size:.92rem;color:var(--tx);flex:1;text-transform:uppercase;letter-spacing:.4px}
+.fl-col-hdr .fl-col-count{background:var(--s2);border:1px solid var(--br);border-radius:20px;padding:3px 10px;font-size:.78rem;font-weight:800;color:var(--tx);min-width:30px;text-align:center}
+.fl-col-hdr .fl-col-valor{font-size:.7rem;color:var(--mu);font-weight:700;width:100%;margin-top:6px;text-align:right}
+.fl-col-body{flex:1;min-height:0;overflow-y:auto;padding:10px 10px 80px;display:flex;flex-direction:column;gap:8px}
+.fl-col-empty{padding:24px 12px;text-align:center;color:var(--mu2);font-size:.78rem;font-style:italic;border:1px dashed var(--br);border-radius:10px;margin:6px 0}
+
+/* Cores das colunas (lado superior) */
+.fl-col[data-stage="NOVO"]{--col-color:var(--cyan)}
+.fl-col[data-stage="CONTATADO"]{--col-color:var(--blue)}
+.fl-col[data-stage="EM_NEGOCIACAO"]{--col-color:var(--warn)}
+.fl-col[data-stage="CONVERTIDO"]{--col-color:var(--ok)}
+.fl-col[data-stage="PERDIDO"]{--col-color:var(--mu2)}
+
+/* Cards do Kanban */
+.fl-card{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 12px;cursor:grab;transition:all .15s;position:relative;border-left:3px solid transparent;user-select:none}
+.fl-card:hover{border-color:var(--b2);transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.fl-card:active{cursor:grabbing}
+.fl-card.sortable-ghost{opacity:.4;background:var(--s3)}
+.fl-card.sortable-chosen{box-shadow:0 8px 24px rgba(0,0,0,.4);border-color:var(--blue)}
+.fl-card.sortable-drag{transform:rotate(2deg);box-shadow:0 16px 40px rgba(0,0,0,.5)}
+
+.fl-card .fc-tipo{position:absolute;top:8px;right:8px;font-size:.62rem;font-weight:800;letter-spacing:.4px;padding:2px 6px;border-radius:4px;text-transform:uppercase}
+.fl-card .fc-tipo.NOVO{background:rgba(34,211,238,.15);color:var(--cyan)}
+.fl-card .fc-tipo.EXISTENTE{background:rgba(160,124,246,.15);color:var(--pur)}
+.fl-card .fc-nome{font-size:.92rem;font-weight:800;color:var(--tx);line-height:1.25;margin-right:60px;margin-bottom:4px;word-break:break-word}
+.fl-card .fc-fant{font-size:.78rem;color:var(--mu);margin-bottom:8px;word-break:break-word}
+.fl-card .fc-meta{display:flex;flex-direction:column;gap:3px;font-size:.74rem;color:var(--mu);margin-bottom:8px}
+.fl-card .fc-meta-row{display:flex;align-items:center;gap:6px}
+.fl-card .fc-meta-row .fm-ico{flex-shrink:0;width:12px;text-align:center}
+.fl-card .fc-foot{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:8px;border-top:1px dashed var(--br);margin-top:6px}
+.fl-card .fc-vendedor{font-size:.7rem;color:var(--mu);font-weight:700;background:var(--sf);padding:2px 7px;border-radius:4px;border:1px solid var(--br)}
+.fl-card .fc-dias{font-size:.72rem;font-weight:800}
+.fl-card .fc-dias.cool{color:var(--mu)}
+.fl-card .fc-dias.warn{color:var(--warn)}
+.fl-card .fc-dias.late{color:var(--red)}
+.fl-card .fc-valor{font-size:.78rem;font-weight:800;color:var(--ok);margin-bottom:6px}
+
+.fl-card.closed{opacity:.7}
+.fl-card.closed:hover{opacity:1}
+
+/* Botões inline do card (PERDIDO/CONVERTIDO) — só aparecem em estágios ativos */
+.fl-card .fc-actions{display:flex;gap:6px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--br)}
+.fl-card .fc-actions button{flex:1;padding:6px 8px;border-radius:6px;border:1px solid var(--br);background:var(--sf);color:var(--tx);font-size:.7rem;font-weight:700;cursor:pointer;transition:all .12s;font-family:var(--fb)}
+.fl-card .fc-actions button:hover{background:var(--s3);border-color:var(--b2)}
+.fl-card .fc-actions .fc-btn-perder:hover{border-color:var(--red);color:var(--red)}
+.fl-card .fc-actions .fc-btn-converter:hover{border-color:var(--ok);color:var(--ok)}
+
+/* Modais Perder / Converter */
+.fl-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;z-index:3000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(2px)}
+.fl-modal-bg.show{display:flex}
+.fl-modal{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:24px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto}
+.fl-modal h3{font-family:var(--fh);font-size:1.2rem;font-weight:800;color:var(--tx);margin-bottom:6px}
+.fl-modal .fl-mod-sub{font-size:.85rem;color:var(--mu);margin-bottom:18px}
+.fl-modal label{display:block;font-size:.82rem;font-weight:700;color:var(--tx);margin-bottom:6px;margin-top:14px}
+.fl-modal label:first-of-type{margin-top:0}
+.fl-modal select, .fl-modal input[type="text"], .fl-modal input[type="number"], .fl-modal textarea{
+  width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 12px;
+  color:var(--tx);font-size:.9rem;outline:none;font-family:var(--fb)
+}
+.fl-modal select:focus, .fl-modal input:focus, .fl-modal textarea:focus{border-color:var(--blue)}
+.fl-modal textarea{resize:vertical;min-height:70px;font-family:var(--fb)}
+.fl-modal .fl-mod-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.fl-modal .fl-mod-actions button{padding:10px 18px;border-radius:8px;cursor:pointer;font-weight:800;font-size:.85rem;border:none;font-family:var(--fb)}
+.fl-modal .fl-btn-cancel{background:var(--s2);border:1px solid var(--br);color:var(--tx)}
+.fl-modal .fl-btn-cancel:hover{background:var(--s3)}
+.fl-modal .fl-btn-confirm-red{background:var(--red);color:#fff}
+.fl-modal .fl-btn-confirm-red:hover{filter:brightness(1.1)}
+.fl-modal .fl-btn-confirm-green{background:var(--ok);color:#0c1827}
+.fl-modal .fl-btn-confirm-green:hover{filter:brightness(1.1)}
+
+.fl-rota-box{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:12px;margin-top:8px}
+.fl-rota-summary{font-size:.85rem;color:var(--tx);font-weight:600}
+.fl-rota-summary b{color:var(--ok)}
+.fl-rota-toggle{background:none;border:none;color:var(--blue);font-size:.78rem;font-weight:700;cursor:pointer;padding:6px 0 0;text-decoration:underline;font-family:var(--fb)}
+.fl-rota-detail{display:none;margin-top:12px;padding-top:12px;border-top:1px dashed var(--br)}
+.fl-rota-detail.show{display:block}
+.fl-dias-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px}
+.fl-dias-grid label{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;font-size:.72rem;font-weight:700;margin:0;padding:8px 4px;background:var(--sf);border:1px solid var(--br);border-radius:6px;transition:all .12s}
+.fl-dias-grid label.checked{background:var(--blue);border-color:var(--blue);color:#fff}
+.fl-dias-grid input{margin:0}
+
+/* Card "fechado" (CONVERTIDO/PERDIDO) ações simples */
+.fl-card-fechado-foot{display:flex;justify-content:space-between;align-items:center;gap:6px;padding-top:8px;border-top:1px dashed var(--br);margin-top:6px;font-size:.7rem;color:var(--mu)}
+.fl-card-fechado-foot .ff-data{color:var(--mu)}
+.fl-card-fechado-foot .ff-motivo{color:var(--red);font-style:italic;flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Responsividade — celular: colunas mais estreitas */
+@media (max-width: 720px){
+  .fl-toolbar{padding:12px 14px;gap:10px}
+  .fl-toolbar select, .fl-toolbar input[type="text"]{min-width:0;width:100%;flex:1 1 100%}
+  .fl-toolbar .fl-tb-right{margin-left:0;width:100%}
+  .fl-toolbar .fl-totals{font-size:.75rem;width:100%;text-align:center}
+  .fl-board{padding:14px 12px 18px;gap:10px}
+  .fl-col{flex:0 0 250px}
+  .fl-col-hdr{padding:12px 12px 10px}
+  .fl-col-body{padding:8px 8px 60px}
+  .fl-card{padding:10px 10px}
+  .fl-card .fc-nome{font-size:.88rem}
+  .fl-modal{padding:20px}
+}
+
+/* Card "atual" da home — funil */
+.home-card.funil{border-left:4px solid var(--pur)}
+.home-card.funil .hc-count{color:var(--pur)}
 </style>
 </head>
 <body>
@@ -590,6 +719,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
           <div class="hc-count" id="hc-leads">0</div>
           <div class="hc-label">Leads novos</div>
           <div class="hc-sub" id="hc-leads-sub">do Marketing</div>
+        </div>
+        <div class="home-card funil" onclick="abrirFunil()">
+          <div class="hc-icon">🎯</div>
+          <div class="hc-count" id="hc-funil">0</div>
+          <div class="hc-label">Funil de Leads</div>
+          <div class="hc-sub" id="hc-funil-sub">Kanban · arraste pra mover</div>
         </div>
       </div>
 
@@ -684,6 +819,89 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
   </div>
 </div>
 
+<!-- v5.3 — FUNIL DE LEADS (Kanban) — tela própria fullscreen -->
+<div class="ck-screen fl-screen" id="fl-screen">
+  <div class="ck-screen-hdr">
+    <button class="ck-back" onclick="fecharFunil()">← Voltar</button>
+    <div class="ck-screen-title">
+      <h2 id="fl-screen-h2">🎯 Funil de Leads</h2>
+      <div class="ck-pdv-mini" id="fl-screen-sub">Arraste os cards entre as colunas</div>
+    </div>
+  </div>
+
+  <!-- Toolbar com filtros -->
+  <div class="fl-toolbar">
+    <div class="fl-tb-left">
+      <select id="fl-vd-filter" onchange="onFunilFilterChange(this.value)" style="display:none"></select>
+      <input type="text" id="fl-search" placeholder="🔍 Buscar lead..." oninput="renderFunil()">
+    </div>
+    <div class="fl-tb-right">
+      <span class="fl-totals" id="fl-totals">—</span>
+    </div>
+  </div>
+
+  <!-- Board Kanban -->
+  <div class="fl-board" id="fl-board"></div>
+</div>
+
+<!-- v5.3 — Modal PERDER lead -->
+<div class="fl-modal-bg" id="fl-modal-perder-bg">
+  <div class="fl-modal">
+    <h3>❌ Marcar como Perdido</h3>
+    <div class="fl-mod-sub" id="fl-perder-lead-nome">—</div>
+    <label>Motivo da perda <span style="color:var(--red)">*</span></label>
+    <select id="fl-perder-motivo">
+      <option value="">— Selecione —</option>
+      <option value="Sem interesse">Sem interesse</option>
+      <option value="Preço">Preço fora do orçamento</option>
+      <option value="Concorrente">Já compra do concorrente</option>
+      <option value="Sem retorno">Sem retorno (não responde)</option>
+      <option value="Mix não atende">Mix não atende</option>
+      <option value="Pagamento">Condição de pagamento</option>
+      <option value="Localização">Logística/região</option>
+      <option value="Outro">Outro</option>
+    </select>
+    <label id="fl-perder-obs-label" style="display:none">Detalhe (opcional)</label>
+    <textarea id="fl-perder-obs" placeholder="Detalhe o motivo..." style="display:none"></textarea>
+    <div class="fl-mod-actions">
+      <button class="fl-btn-cancel" onclick="fecharModalPerder()">Cancelar</button>
+      <button class="fl-btn-confirm-red" onclick="confirmarPerder()">Marcar como perdido</button>
+    </div>
+  </div>
+</div>
+
+<!-- v5.3 — Modal CONVERTER lead -->
+<div class="fl-modal-bg" id="fl-modal-converter-bg">
+  <div class="fl-modal">
+    <h3>✅ Converter em PDV</h3>
+    <div class="fl-mod-sub" id="fl-converter-lead-nome">—</div>
+    <div class="fl-rota-box">
+      <div class="fl-rota-summary" id="fl-rota-summary">
+        Vai criar rota: <b>SEG–SEX</b>, periodicidade <b>15 dias</b>
+      </div>
+      <button class="fl-rota-toggle" type="button" onclick="toggleRotaDetail()">⚙️ Customizar rota</button>
+      <div class="fl-rota-detail" id="fl-rota-detail">
+        <label>Dias da semana</label>
+        <div class="fl-dias-grid">
+          <label><input type="checkbox" value="DOM" data-fldia> DOM</label>
+          <label><input type="checkbox" value="SEG" data-fldia checked> SEG</label>
+          <label><input type="checkbox" value="TER" data-fldia checked> TER</label>
+          <label><input type="checkbox" value="QUA" data-fldia checked> QUA</label>
+          <label><input type="checkbox" value="QUI" data-fldia checked> QUI</label>
+          <label><input type="checkbox" value="SEX" data-fldia checked> SEX</label>
+          <label><input type="checkbox" value="SAB" data-fldia> SAB</label>
+        </div>
+        <label>Periodicidade (dias)</label>
+        <input type="number" id="fl-rota-periodicidade" min="1" max="60" value="15">
+      </div>
+    </div>
+    <div class="fl-mod-actions">
+      <button class="fl-btn-cancel" onclick="fecharModalConverter()">Cancelar</button>
+      <button class="fl-btn-confirm-green" onclick="confirmarConverter()">Converter em PDV</button>
+    </div>
+  </div>
+</div>
+
 <!-- Check-in Screen — v4: tela própria fullscreen sobre o modal -->
 <div class="ck-screen" id="ck-screen">
   <div class="ck-screen-hdr">
@@ -734,7 +952,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 <script>
 /* ============================================================
    Q FOOD COMPANY — CRM · MINHA CARTEIRA (VENDEDOR)
-   Backend v1.3 + leitura CSV BASE_PDV/PRODUTO_GIRO no client
+   Backend v1.5.0 + leitura CSV BASE_PDV/PRODUTO_GIRO no client
    v5.1 (29/04/2026): fix do CSS quebrado da .ck-screen (botões fantasmas
                       no carregamento), trava de dias da semana por
                       frequência selecionada, mensagem de erro melhor no
@@ -745,6 +963,17 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
                       visão admin (consolidada ou por vendedora).
                       Bônus: define onlyDigits() defensivamente (estava
                       sendo chamada sem definição no carregarHistoricoPDV).
+   v5.3 (29/04/2026): FUNIL DE LEADS (Kanban com drag & drop). 5 estágios:
+                      NOVO → CONTATADO → EM_NEGOCIACAO → CONVERTIDO/PERDIDO.
+                      4º card "Funil" na home, tela fullscreen com 5 colunas,
+                      drag&drop livre entre os 3 ATIVOS via SortableJS, modais
+                      de Perder (motivo obrigatório) e Converter (cria rota
+                      com SEG-SEX/15d default, customizável). Filtro por
+                      vendedor pra admin. Busca textual nos cards. Indicador
+                      visual de "lead parado" (cool/warn/late por dias).
+                      Backend: novos endpoints kanban_leads, mover_lead,
+                      perder_lead, converter_lead. Mapeamento A3 (Estagio_Funil
+                      é fonte da verdade; Status legado é derivado).
    ============================================================ */
 var WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec";
 var BASE_PDV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1880583941&single=true&output=csv";
@@ -1384,6 +1613,23 @@ function renderHome(){
   } else {
     document.getElementById("hc-leads-sub").textContent = CURRENT_USER.recebeLeads || leadsNovos.length > 0 ?
       "do Marketing" : "(você não recebe leads)";
+  }
+
+  // v5.3 — Funil de Leads (cards ATIVOS: NOVO + CONTATADO + EM_NEGOCIACAO)
+  var leadsAtivos = leadsP.filter(function(l){
+    var e = (l.estagioFunil || estagioFromStatusFront(l.status) || "NOVO").toUpperCase();
+    return e === "NOVO" || e === "CONTATADO" || e === "EM_NEGOCIACAO";
+  });
+  var elFunil = document.getElementById("hc-funil");
+  if(elFunil) elFunil.textContent = leadsAtivos.length;
+  var elFunilSub = document.getElementById("hc-funil-sub");
+  if(elFunilSub){
+    if(CURRENT_USER.isAdmin){
+      elFunilSub.textContent = ADMIN_FILTER_SIGLA ?
+        ("Funil de " + siglaParaNomeAmigavel(ADMIN_FILTER_SIGLA)) : "Kanban · todas";
+    } else {
+      elFunilSub.textContent = "Kanban · arraste pra mover";
+    }
   }
 }
 
@@ -3304,6 +3550,456 @@ function toast(msg, kind){
   el.textContent = msg;
   el.className = "toast " + (kind||"") + " show";
   setTimeout(function(){ el.classList.remove("show"); }, 3500);
+}
+
+// ═════════════════════════════════════════════════════════════
+// v5.3 — FUNIL DE LEADS (Kanban com drag & drop)
+// ═════════════════════════════════════════════════════════════
+
+var FL_DATA = null;             // {estagios, contagens, valoresEstimados, filtroVendedor, vendedoresDisponiveis}
+var FL_LEAD_PERDER = null;      // lead em modal de perder
+var FL_LEAD_CONVERTER = null;   // lead em modal de converter
+var FL_SORTABLES = [];          // instâncias do SortableJS
+var FL_FILTRO_VD = "";          // filtro de vendedor (admin)
+
+var FL_ESTAGIOS = [
+  {key:"NOVO",          icon:"🆕", label:"Novo",          color:"var(--cyan)"},
+  {key:"CONTATADO",     icon:"📞", label:"Contatado",     color:"var(--blue)"},
+  {key:"EM_NEGOCIACAO", icon:"💬", label:"Em Negociação", color:"var(--warn)"},
+  {key:"CONVERTIDO",    icon:"✅", label:"Convertido",    color:"var(--ok)"},
+  {key:"PERDIDO",       icon:"❌", label:"Perdido",       color:"var(--mu2)"}
+];
+
+// Mapeia status legado → estágio (caso o backend não tenha sido migrado ainda)
+function estagioFromStatusFront(status){
+  var s = String(status||"").toUpperCase();
+  if(s === "VISUALIZADO") return "CONTATADO";
+  if(s === "EM_ATENDIMENTO") return "EM_NEGOCIACAO";
+  if(s === "CONVERTIDO") return "CONVERTIDO";
+  if(s === "PERDIDO") return "PERDIDO";
+  return "NOVO";
+}
+
+function abrirFunil(){
+  document.getElementById("fl-screen").classList.add("open");
+  loadFunil();
+}
+
+function fecharFunil(){
+  document.getElementById("fl-screen").classList.remove("open");
+  // Destrói sortables pra evitar leak
+  FL_SORTABLES.forEach(function(s){ try{ s.destroy(); }catch(e){} });
+  FL_SORTABLES = [];
+}
+
+function onFunilFilterChange(sigla){
+  FL_FILTRO_VD = sigla || "";
+  loadFunil();
+}
+
+function loadFunil(){
+  setLoadingMsg("Carregando funil de leads...");
+  var params = {};
+  if(CURRENT_USER && CURRENT_USER.isAdmin && FL_FILTRO_VD){
+    params.vendedor = FL_FILTRO_VD;
+  }
+  return apiGet("kanban_leads", params).then(function(d){
+    FL_DATA = d.dados || {estagios:{}, contagens:{}, valoresEstimados:{}, vendedoresDisponiveis:[]};
+    // Atualiza dropdown de admin (1ª vez)
+    preencheDropdownFunilAdmin();
+    renderFunil();
+  }).catch(function(e){
+    toast("Erro ao carregar funil: " + e.message, "error");
+    console.error(e);
+  });
+}
+
+function preencheDropdownFunilAdmin(){
+  var sel = document.getElementById("fl-vd-filter");
+  if(!sel || !CURRENT_USER) return;
+  if(!CURRENT_USER.isAdmin){
+    sel.style.display = "none";
+    return;
+  }
+  sel.style.display = "inline-block";
+  var disponiveis = (FL_DATA && FL_DATA.vendedoresDisponiveis) || [];
+  sel.innerHTML = '<option value="">👥 Todas vendedoras</option>' +
+    disponiveis.map(function(sig){
+      var s = (sig === FL_FILTRO_VD) ? " selected" : "";
+      return '<option value="'+escapeAttr(sig)+'"'+s+'>'+escapeHtml(siglaParaNomeAmigavel(sig))+'</option>';
+    }).join("");
+}
+
+function renderFunil(){
+  if(!FL_DATA) return;
+  var board = document.getElementById("fl-board");
+  if(!board) return;
+
+  // Destrói sortables antigos antes de re-renderizar
+  FL_SORTABLES.forEach(function(s){ try{ s.destroy(); }catch(e){} });
+  FL_SORTABLES = [];
+
+  var q = (document.getElementById("fl-search").value || "").toLowerCase().trim();
+  var totaisAtivos = 0, valorTotal = 0;
+
+  board.innerHTML = FL_ESTAGIOS.map(function(stg){
+    var leads = (FL_DATA.estagios[stg.key] || []).slice();
+    // Filtro de busca
+    if(q){
+      leads = leads.filter(function(l){
+        var blob = [l.razaoSocial, l.nomeFantasia, l.cnpj, l.cidade, l.uf, l.segmento, l.vendedorAtribuido].join(" ").toLowerCase();
+        return blob.indexOf(q) >= 0;
+      });
+    }
+    var count = leads.length;
+    var valor = (FL_DATA.valoresEstimados && FL_DATA.valoresEstimados[stg.key]) || 0;
+    if(stg.key === "NOVO" || stg.key === "CONTATADO" || stg.key === "EM_NEGOCIACAO"){
+      totaisAtivos += count;
+      valorTotal += valor;
+    }
+
+    var valorTxt = valor > 0 ? "R$ " + valor.toLocaleString("pt-BR", {minimumFractionDigits:0, maximumFractionDigits:0}) : "";
+
+    var bodyHtml;
+    if(!leads.length){
+      bodyHtml = '<div class="fl-col-empty">— vazio —</div>';
+    } else {
+      bodyHtml = leads.map(function(l){ return renderFunilCard(l, stg.key); }).join("");
+    }
+
+    return '<div class="fl-col" data-stage="'+stg.key+'">' +
+      '<div class="fl-col-hdr">' +
+        '<span class="fl-col-icon">'+stg.icon+'</span>' +
+        '<span class="fl-col-name">'+stg.label+'</span>' +
+        '<span class="fl-col-count">'+count+'</span>' +
+        (valorTxt ? '<div class="fl-col-valor">'+escapeHtml(valorTxt)+'</div>' : '') +
+      '</div>' +
+      '<div class="fl-col-body" id="fl-body-'+stg.key+'" data-stage="'+stg.key+'">' +
+        bodyHtml +
+      '</div>' +
+    '</div>';
+  }).join("");
+
+  // Atualiza totais no topo
+  var elTot = document.getElementById("fl-totals");
+  if(elTot){
+    var msg = "<b>"+totaisAtivos+"</b> leads ativos";
+    if(valorTotal > 0){
+      msg += " · <b>R$ "+valorTotal.toLocaleString("pt-BR", {minimumFractionDigits:0, maximumFractionDigits:0})+"</b> em pipeline";
+    }
+    elTot.innerHTML = msg;
+  }
+
+  // Inicializa SortableJS em cada coluna
+  initFunilSortables();
+}
+
+function renderFunilCard(l, estagioAtual){
+  var fechado = (estagioAtual === "CONVERTIDO" || estagioAtual === "PERDIDO");
+  var nome = l.nomeFantasia || l.razaoSocial || "—";
+  var fant = (l.razaoSocial && l.nomeFantasia && l.razaoSocial !== l.nomeFantasia) ? l.razaoSocial : "";
+
+  var tipoBadge = l.tipoLead === "EXISTENTE" ?
+    '<span class="fc-tipo EXISTENTE">cli</span>' :
+    '<span class="fc-tipo NOVO">novo</span>';
+
+  // Meta linhas
+  var meta = '';
+  if(l.cidade || l.uf){
+    meta += '<div class="fc-meta-row"><span class="fm-ico">📍</span><span>'+escapeHtml((l.cidade||"")+(l.uf?'/'+l.uf:''))+'</span></div>';
+  }
+  var contato = l.whatsapp || l.telefone;
+  if(contato){
+    meta += '<div class="fc-meta-row"><span class="fm-ico">📱</span><span>'+escapeHtml(formatTel(contato))+'</span></div>';
+  }
+  if(l.segmento){
+    meta += '<div class="fc-meta-row"><span class="fm-ico">🏢</span><span>'+escapeHtml(l.segmento)+'</span></div>';
+  }
+
+  var valorHtml = '';
+  if(l.valorEstimado && l.valorEstimado > 0){
+    valorHtml = '<div class="fc-valor">💰 R$ '+l.valorEstimado.toLocaleString("pt-BR", {minimumFractionDigits:0, maximumFractionDigits:0})+'</div>';
+  }
+
+  var dias = l.diasNoEstagio || 0;
+  var diasCls = "cool";
+  if(dias >= 7) diasCls = "late";
+  else if(dias >= 3) diasCls = "warn";
+  var diasTxt = dias === 0 ? "hoje" : (dias + "d");
+
+  var siglaLabel = '';
+  if(CURRENT_USER && CURRENT_USER.isAdmin && l.vendedorAtribuido){
+    siglaLabel = '<span class="fc-vendedor">👤 '+escapeHtml(siglaParaNomeAmigavel(l.vendedorAtribuido))+'</span>';
+  }
+
+  var actionsHtml = '';
+  if(!fechado){
+    actionsHtml =
+      '<div class="fc-actions">' +
+        '<button class="fc-btn-perder" onclick="event.stopPropagation();abrirModalPerder(\''+escapeAttr(l.id)+'\')">❌ Perder</button>' +
+        '<button class="fc-btn-converter" onclick="event.stopPropagation();abrirModalConverter(\''+escapeAttr(l.id)+'\')">✅ Converter</button>' +
+      '</div>';
+  } else {
+    var motivo = "";
+    if(estagioAtual === "PERDIDO" && l.resultadoFinal){
+      motivo = l.resultadoFinal.replace(/^PERDIDO:\s*/i, "");
+    }
+    var dataFech = l.dataMudancaEstagio ? formatDataCurta(l.dataMudancaEstagio) : "—";
+    actionsHtml =
+      '<div class="fl-card-fechado-foot">' +
+        '<span class="ff-data">📅 '+escapeHtml(dataFech)+'</span>' +
+        (motivo ? '<span class="ff-motivo" title="'+escapeAttr(motivo)+'">'+escapeHtml(motivo)+'</span>' : '') +
+      '</div>';
+  }
+
+  return '<div class="fl-card '+(fechado?"closed":"")+'" data-id="'+escapeAttr(l.id)+'" onclick="abrirLead(\''+escapeAttr(l.id)+'\')">' +
+    tipoBadge +
+    '<div class="fc-nome">'+escapeHtml(nome)+'</div>' +
+    (fant ? '<div class="fc-fant">'+escapeHtml(fant)+'</div>' : '') +
+    valorHtml +
+    '<div class="fc-meta">'+meta+'</div>' +
+    (!fechado ?
+      '<div class="fc-foot">' + siglaLabel + '<span class="fc-dias '+diasCls+'">⏱ '+diasTxt+'</span></div>'
+      : '') +
+    actionsHtml +
+  '</div>';
+}
+
+function formatDataCurta(iso){
+  if(!iso) return "—";
+  try {
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("pt-BR", {day:"2-digit", month:"2-digit", year:"2-digit"});
+  } catch(e){ return "—"; }
+}
+
+function initFunilSortables(){
+  if(typeof Sortable === "undefined"){
+    console.warn("SortableJS não carregou — drag&drop desabilitado");
+    return;
+  }
+  // Estágios ATIVOS aceitam drop. PERDIDO/CONVERTIDO bloqueiam (precisa modal).
+  var estagiosAtivos = ["NOVO","CONTATADO","EM_NEGOCIACAO"];
+  estagiosAtivos.forEach(function(stg){
+    var el = document.getElementById("fl-body-"+stg);
+    if(!el) return;
+    var s = Sortable.create(el, {
+      group: {name:"fl-funil", pull:true, put:function(to, from, dragEl){
+        // Só permite drop em ATIVOS
+        var toStg = to.el.getAttribute("data-stage");
+        return estagiosAtivos.indexOf(toStg) >= 0;
+      }},
+      animation: 180,
+      ghostClass: "sortable-ghost",
+      chosenClass: "sortable-chosen",
+      dragClass: "sortable-drag",
+      forceFallback: false,
+      onEnd: onFunilDragEnd
+    });
+    FL_SORTABLES.push(s);
+  });
+
+  // Estágios FECHADOS: pode arrastar pra fora (caso fechado por engano e quer reabrir? — NÃO,
+  // backend bloqueia. Então deixa também sem pull pra evitar confusão visual.)
+  ["CONVERTIDO","PERDIDO"].forEach(function(stg){
+    var el = document.getElementById("fl-body-"+stg);
+    if(!el) return;
+    var s = Sortable.create(el, {
+      group: {name:"fl-funil", pull:false, put:false},
+      animation: 180,
+      sort: false
+    });
+    FL_SORTABLES.push(s);
+  });
+}
+
+function onFunilDragEnd(evt){
+  var leadId = evt.item.getAttribute("data-id");
+  var fromStg = evt.from.getAttribute("data-stage");
+  var toStg = evt.to.getAttribute("data-stage");
+  if(!leadId || !toStg || fromStg === toStg) return;
+
+  // Otimismo: a UI já moveu o card. Se der erro, recarrega.
+  apiPost("mover_lead", {payload:{id: leadId, novoEstagio: toStg}}).then(function(d){
+    if(d.ok){
+      toast("Lead movido pra " + toStg.replace("_"," ").toLowerCase(), "success");
+      // Atualiza estado local também (pra não precisar re-fetch sempre)
+      atualizarLeadLocal(d.registro);
+      // Atualiza contadores via reload light
+      loadFunil();
+      // Atualiza LEADS_MEUS pra refletir no Home/lista de leads
+      var idx = LEADS_MEUS.findIndex(function(x){ return x.id === leadId; });
+      if(idx >= 0) LEADS_MEUS[idx] = d.registro;
+    } else {
+      toast(d.error || "Falha ao mover", "error");
+      loadFunil(); // rollback visual via re-fetch
+    }
+  }).catch(function(e){
+    toast("Erro: " + e.message, "error");
+    loadFunil();
+  });
+}
+
+function atualizarLeadLocal(lead){
+  if(!lead || !lead.id || !FL_DATA) return;
+  // Remove de qualquer estágio anterior e coloca no novo
+  Object.keys(FL_DATA.estagios).forEach(function(k){
+    FL_DATA.estagios[k] = FL_DATA.estagios[k].filter(function(l){ return l.id !== lead.id; });
+  });
+  var stg = (lead.estagioFunil || "NOVO").toUpperCase();
+  if(!FL_DATA.estagios[stg]) FL_DATA.estagios[stg] = [];
+  FL_DATA.estagios[stg].unshift(lead);
+}
+
+// ─────────────────────────────────────────────────────
+// Modal PERDER
+// ─────────────────────────────────────────────────────
+function abrirModalPerder(leadId){
+  var lead = encontraLead(leadId);
+  if(!lead){ toast("Lead não encontrado", "error"); return; }
+  FL_LEAD_PERDER = lead;
+  document.getElementById("fl-perder-lead-nome").textContent = lead.nomeFantasia || lead.razaoSocial || lead.cnpj;
+  document.getElementById("fl-perder-motivo").value = "";
+  document.getElementById("fl-perder-obs").value = "";
+  document.getElementById("fl-perder-obs").style.display = "none";
+  document.getElementById("fl-perder-obs-label").style.display = "none";
+  // Quando muda o motivo, mostra textarea se for "Outro"
+  document.getElementById("fl-perder-motivo").onchange = function(){
+    var v = this.value;
+    var show = (v === "Outro");
+    document.getElementById("fl-perder-obs").style.display = show ? "block" : "none";
+    document.getElementById("fl-perder-obs-label").style.display = show ? "block" : "none";
+  };
+  document.getElementById("fl-modal-perder-bg").classList.add("show");
+}
+
+function fecharModalPerder(){
+  document.getElementById("fl-modal-perder-bg").classList.remove("show");
+  FL_LEAD_PERDER = null;
+}
+
+function confirmarPerder(){
+  if(!FL_LEAD_PERDER){ fecharModalPerder(); return; }
+  var motivo = document.getElementById("fl-perder-motivo").value;
+  if(!motivo){ toast("Selecione um motivo", "warn"); return; }
+  var obs = document.getElementById("fl-perder-obs").value.trim();
+  var motivoFinal = (motivo === "Outro" && obs) ? obs : motivo;
+  if(motivo === "Outro" && !obs){ toast("Detalhe o motivo", "warn"); return; }
+
+  var leadId = FL_LEAD_PERDER.id;
+  apiPost("perder_lead", {payload:{id: leadId, motivo: motivoFinal}}).then(function(d){
+    if(d.ok){
+      toast("Lead marcado como perdido", "success");
+      fecharModalPerder();
+      var idx = LEADS_MEUS.findIndex(function(x){ return x.id === leadId; });
+      if(idx >= 0) LEADS_MEUS[idx] = d.registro;
+      loadFunil();
+    } else {
+      toast(d.error || "Falha", "error");
+    }
+  }).catch(function(e){
+    toast("Erro: " + e.message, "error");
+  });
+}
+
+// ─────────────────────────────────────────────────────
+// Modal CONVERTER
+// ─────────────────────────────────────────────────────
+function abrirModalConverter(leadId){
+  var lead = encontraLead(leadId);
+  if(!lead){ toast("Lead não encontrado", "error"); return; }
+  FL_LEAD_CONVERTER = lead;
+  document.getElementById("fl-converter-lead-nome").textContent = lead.nomeFantasia || lead.razaoSocial || lead.cnpj;
+  // Reset detail (recolhido por padrão)
+  document.getElementById("fl-rota-detail").classList.remove("show");
+  // Reset dias (SEG-SEX padrão)
+  var diasPadrao = ["SEG","TER","QUA","QUI","SEX"];
+  document.querySelectorAll("[data-fldia]").forEach(function(cb){
+    cb.checked = diasPadrao.indexOf(cb.value) >= 0;
+    cb.onchange = atualizarRotaSummary;
+  });
+  document.getElementById("fl-rota-periodicidade").value = "15";
+  document.getElementById("fl-rota-periodicidade").oninput = atualizarRotaSummary;
+  atualizarRotaSummary();
+  document.getElementById("fl-modal-converter-bg").classList.add("show");
+}
+
+function fecharModalConverter(){
+  document.getElementById("fl-modal-converter-bg").classList.remove("show");
+  FL_LEAD_CONVERTER = null;
+}
+
+function toggleRotaDetail(){
+  document.getElementById("fl-rota-detail").classList.toggle("show");
+}
+
+function atualizarRotaSummary(){
+  var dias = [];
+  document.querySelectorAll("[data-fldia]").forEach(function(cb){
+    // Aplica/remove classe .checked no label pai (compat sem :has())
+    var label = cb.closest("label");
+    if(label){
+      if(cb.checked) label.classList.add("checked");
+      else label.classList.remove("checked");
+    }
+    if(cb.checked) dias.push(cb.value);
+  });
+  var per = parseInt(document.getElementById("fl-rota-periodicidade").value, 10) || 15;
+  var diasTxt = dias.length === 0 ? "—" :
+    (dias.length === 5 && dias.indexOf("SEG")>=0 && dias.indexOf("SEX")>=0 && dias.indexOf("SAB")<0 && dias.indexOf("DOM")<0) ? "SEG–SEX" :
+    dias.join(",");
+  document.getElementById("fl-rota-summary").innerHTML =
+    "Vai criar rota: <b>"+escapeHtml(diasTxt)+"</b>, periodicidade <b>"+per+" dias</b>";
+}
+
+function confirmarConverter(){
+  if(!FL_LEAD_CONVERTER){ fecharModalConverter(); return; }
+  var dias = [];
+  document.querySelectorAll("[data-fldia]").forEach(function(cb){
+    if(cb.checked) dias.push(cb.value);
+  });
+  if(dias.length === 0){ toast("Selecione ao menos um dia da semana", "warn"); return; }
+  var per = parseInt(document.getElementById("fl-rota-periodicidade").value, 10);
+  if(!per || per < 1){ toast("Periodicidade inválida", "warn"); return; }
+
+  var leadId = FL_LEAD_CONVERTER.id;
+  var payload = {
+    id: leadId,
+    criarRota: true,
+    diasSemana: dias.join(","),
+    periodicidadeDias: per
+  };
+  apiPost("converter_lead", {payload: payload}).then(function(d){
+    if(d.ok){
+      toast("Lead convertido em PDV! 🎉", "success");
+      fecharModalConverter();
+      var idx = LEADS_MEUS.findIndex(function(x){ return x.id === leadId; });
+      if(idx >= 0) LEADS_MEUS[idx] = d.registro;
+      // Recarrega rotas pra o PDV aparecer na carteira
+      if(typeof loadRotas === "function"){
+        loadRotas().catch(function(){});
+      }
+      loadFunil();
+    } else {
+      toast(d.error || "Falha", "error");
+    }
+  }).catch(function(e){
+    toast("Erro: " + e.message, "error");
+  });
+}
+
+function encontraLead(leadId){
+  if(!FL_DATA) return null;
+  var keys = Object.keys(FL_DATA.estagios);
+  for(var i = 0; i < keys.length; i++){
+    var arr = FL_DATA.estagios[keys[i]];
+    for(var j = 0; j < arr.length; j++){
+      if(arr[j].id === leadId) return arr[j];
+    }
+  }
+  // fallback: tenta no LEADS_MEUS
+  return LEADS_MEUS.find(function(l){ return l.id === leadId; }) || null;
 }
 
 </script>
