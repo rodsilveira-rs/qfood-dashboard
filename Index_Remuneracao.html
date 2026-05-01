@@ -382,24 +382,55 @@ function fv(v){
   return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function parseBR(v){
-  if(!v||v==="") return 0;
+  if(v===null || v===undefined || v==="" || v==="-") return 0;
+  // Aceita number direto
+  if(typeof v === "number") return v;
   var s=String(v).trim();
-  var isPercent=s.indexOf("%")>-1;
-  s=s.replace(/%/g,"").trim();
-  // Handle Brazilian format: 1.234.567,89 -> 1234567.89
-  if(s.indexOf(",")>-1 && s.indexOf(".")>-1){
-    s=s.replace(/\./g,"").replace(",",".");
-  } else if(s.indexOf(",")>-1){
-    s=s.replace(",",".");
+  if(!s || s==="-") return 0;
+
+  // Detecta marcadores de formato ANTES de qualquer remoção
+  var isPercent = s.indexOf("%")>-1;
+  var isCurrency = s.indexOf("R$")>-1 || s.toLowerCase().indexOf("r$")>-1;
+
+  // Remove tudo que nao for digito, virgula, ponto ou sinal de menos
+  s = s.replace(/[Rr]\$/g, "").replace(/[^\d,.\-]/g, "").trim();
+  if(!s) return 0;
+
+  // Determina separador decimal:
+  // - Brazilian: 1.234.567,89  (ponto = milhar, virgula = decimal)
+  // - English:   1,234,567.89  (virgula = milhar, ponto = decimal)
+  // Heuristica: o ULTIMO separador eh o decimal.
+  var lastComma = s.lastIndexOf(",");
+  var lastDot   = s.lastIndexOf(".");
+  if(lastComma>-1 && lastDot>-1){
+    if(lastComma > lastDot){
+      // Formato BR: 1.234,56
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      // Formato EN: 1,234.56
+      s = s.replace(/,/g, "");
+    }
+  } else if(lastComma>-1){
+    // So tem virgula -> decimal BR
+    s = s.replace(",", ".");
   }
-  var n=parseFloat(s)||0;
-  // If it came as a % string like "30%", return 30
-  // If it came as decimal like 0.30, convert to 30
-  if(!isPercent && n>0 && n<1.5 && s.indexOf(".")<0 && s.indexOf(",")<0){
-    // plain small integer like "0" - keep as is
-  } else if(!isPercent && n>0 && n<=1.5){
-    // decimal representation like 0.30 -> 30
-    n=n*100;
+  // (so tem ponto -> ja eh decimal en, deixa como esta)
+
+  var n = parseFloat(s);
+  if(isNaN(n)) return 0;
+
+  // Se for moeda (R$), retorna direto sem converter
+  if(isCurrency) return n;
+
+  // Se for percentual explicito (com sinal %), retorna como esta (ex: "30%" -> 30)
+  if(isPercent) return n;
+
+  // Sem marcador: heuristica para decimal puro vindo do Sheets
+  // Sheets exporta percentuais como decimal: 0.0125 (1.25%) ou 0.7 (70%)
+  // Se 0 < n <= 1.5 sem marcador algum, multiplica por 100 (interpreta como %)
+  // Exclui 0 (e' 0%, nao precisa converter) e numeros >1.5 (sao valores absolutos como qtde)
+  if(n>0 && n<=1.5){
+    n = n * 100;
   }
   return n;
 }
