@@ -4,14 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Q Food — Remuneração Variável</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&family=DM+Sans:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
   --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
   --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
   --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;
-  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+  --fh:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --fb:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html{font-size:16px;scroll-behavior:smooth;}
@@ -870,7 +873,7 @@ function calcRemuneracao(d){
     // pilares com valores errados.
     var planilhaZerou = (d.total_pct === 0 && d.premio_sheet === 0);
 
-    // SANITY CHECK: pilar individual > 5% e indicador de "pilar contaminado"
+    // SANITY CHECK: pilar individual > 5% indica "pilar contaminado"
     // (nenhum pilar real paga mais que 3%). Se acontece, a celula da planilha
     // contem dado bruto (margem, posit, fat%) em vez do pilar calculado.
     function pilarValido(v){ return v >= 0 && v <= 5; }
@@ -879,69 +882,170 @@ function calcRemuneracao(d){
     var p3Contam = !pilarValido(d.p3_posit);
     var algumContam = p1Contam || p2Contam || p3Contam;
 
+    // ── INFERÊNCIA DE PILARES (quando há contaminação + premio>0) ──
+    // Reaplica as faixas de TIERS para deduzir o que cada pilar PAGOU,
+    // baseado nos valores reais (margem, posit, fat) e no perfil (PJ/CLT).
+    // Ex: Eliane CLT margem 29% bateu faixa 28-29% = 0,75% → R$ 2.073,64
+    var p1Inferido = null, p2Inferido = null, p3Inferido = null;
+    var inferiu = false;
+    if(algumContam && !planilhaZerou && d.premio_sheet>0){
+      // Para CLT: precisa bater gates Fat≥70% e Posit≥70%. Se bateu, calcula margem.
+      // Para PJ:  cada pilar e' independente.
+      var bateuGateCLT = (perfil==="CLT" && pctFat>=70 && d.posit_pct>=70);
+
+      if(perfil==="CLT"){
+        // Faturamento e Positivação não pagam — são gates.
+        // Se bateu gate, mostra como passou; se nao, fica vermelho.
+        p1Inferido = { pct:0, ok:bateuGateCLT, gate:true, motivo: bateuGateCLT
+          ? "Gate Fat ≥70% atingido ("+formatPct(pctFat)+") — libera pilares"
+          : "Faturamento "+formatPct(pctFat)+" abaixo do gate de 70%" };
+        p3Inferido = { pct:0, ok:bateuGateCLT, gate:true, motivo: bateuGateCLT
+          ? "Gate Posit ≥70% atingido ("+formatPct(d.posit_pct)+") — libera pilares"
+          : "Positivação "+formatPct(d.posit_pct)+" abaixo do gate de 70%" };
+        // Margem: se bateu gate, deduz pela faixa CLT
+        if(bateuGateCLT){
+          var pctMargCLT = 0;
+          if(d.margem>=30) pctMargCLT = 1;
+          else if(d.margem>=28) pctMargCLT = 0.75;
+          else pctMargCLT = 0.5; // <27% (ainda assim libera 0,5% por gate batido)
+          p2Inferido = { pct:pctMargCLT, ok:pctMargCLT>0, gate:false, motivo: "Margem "+formatPct(d.margem)+" → "+formatPct(pctMargCLT)+" sobre faturamento" };
+        } else {
+          p2Inferido = { pct:0, ok:false, gate:false, motivo: "Margem "+formatPct(d.margem)+" — sem gate liberado" };
+        }
+      } else if(perfil==="PJ"){
+        // PJ: pilares independentes.
+        // Faturamento PJ: 1% sobre todo faturamento (regra fixa do PDF Lucas/Vera/Eder/Kenyo)
+        p1Inferido = { pct:1, ok:true, gate:false, motivo: "1,00% sobre faturamento" };
+        // Margem PJ
+        var pctMargPJ = 0;
+        if(d.margem>=36.01) pctMargPJ = 1;
+        else if(d.margem>=33.01) pctMargPJ = 0.5;
+        else if(d.margem>=30) pctMargPJ = 0.25;
+        p2Inferido = { pct:pctMargPJ, ok:pctMargPJ>0, gate:false,
+          motivo: pctMargPJ>0
+            ? "Margem "+formatPct(d.margem)+" → "+formatPct(pctMargPJ)
+            : "Margem "+formatPct(d.margem)+" abaixo de 30%" };
+        // Posit PJ
+        var pctPositPJ = d.posit_pct>=80 ? 0.25 : 0;
+        p3Inferido = { pct:pctPositPJ, ok:pctPositPJ>0, gate:false,
+          motivo: pctPositPJ>0
+            ? "Positivação "+formatPct(d.posit_pct)+" ≥ 80% = 0,25%"
+            : "Positivação "+formatPct(d.posit_pct)+" abaixo de 80%" };
+      }
+
+      // Cross-check: soma dos pilares inferidos deve bater com Total%
+      var totalInferido = (p1Inferido?p1Inferido.pct:0) + (p2Inferido?p2Inferido.pct:0) + (p3Inferido?p3Inferido.pct:0);
+      // Tolerancia 0.1% (arredondamentos)
+      if(Math.abs(totalInferido - d.total_pct) <= 0.15){
+        inferiu = true; // OK, podemos confiar na inferencia
+      } else {
+        // Inferencia divergiu da planilha — mantem o comportamento legado
+        p1Inferido = p2Inferido = p3Inferido = null;
+        inferiu = false;
+      }
+    }
+
     var motivoZero = "";
     if(planilhaZerou && perfil==="CLT"){
       motivoZero = "Não atingiu gate de elegibilidade (Fat ≥ 70% e Posit ≥ 70%)";
     } else if(planilhaZerou){
       motivoZero = "Não atingiu critérios mínimos do mês";
-    } else if(algumContam){
+    } else if(algumContam && !inferiu){
       motivoZero = "Detalhamento dos pilares indisponível — verifique a planilha";
     }
 
-    // Faturamento
+    // ── Faturamento ──
     var p1raw = d.p1_fat;
-    var p1 = (planilhaZerou || p1Contam) ? 0 : p1raw;
-    pilares.push({
-      nome:"Faturamento",
-      pct: p1,
-      desc: planilhaZerou
+    var p1, p1desc, p1ok, p1contam;
+    if(inferiu && p1Inferido){
+      p1 = p1Inferido.pct;
+      p1desc = p1Inferido.motivo;
+      p1ok = p1Inferido.ok;
+      p1contam = false;
+    } else {
+      p1 = (planilhaZerou || p1Contam) ? 0 : p1raw;
+      p1desc = planilhaZerou
         ? motivoZero
         : (p1Contam
             ? "Valor inválido na planilha ("+formatPct(p1raw)+") — usando Total final"
-            : (p1>0 ? formatPct(p1)+" sobre o faturamento" : "Sem premiação no pilar")),
-      ok: p1>0,
-      contaminado: p1Contam && !planilhaZerou,
+            : (p1>0 ? formatPct(p1)+" sobre o faturamento" : "Sem premiação no pilar"));
+      p1ok = p1>0;
+      p1contam = p1Contam && !planilhaZerou;
+    }
+    pilares.push({
+      nome:"Faturamento",
+      pct: p1,
+      desc: p1desc,
+      ok: p1ok,
+      contaminado: p1contam,
+      gateOnly: !!(p1Inferido && p1Inferido.gate),
       base: fat, valor: fat*(p1/100),
       regra: regras.fat,
       tipoMetrica: "fat",
       valorMetrica: pctFat
     });
-    // Margem
+
+    // ── Margem ──
     var p2raw = d.p2_marg;
-    var p2 = (planilhaZerou || p2Contam) ? 0 : p2raw;
-    pilares.push({
-      nome:"Margem Média",
-      pct: p2,
-      desc: planilhaZerou
+    var p2, p2desc, p2ok, p2contam;
+    if(inferiu && p2Inferido){
+      p2 = p2Inferido.pct;
+      p2desc = p2Inferido.motivo;
+      p2ok = p2Inferido.ok;
+      p2contam = false;
+    } else {
+      p2 = (planilhaZerou || p2Contam) ? 0 : p2raw;
+      p2desc = planilhaZerou
         ? "Margem do mês: "+formatPct(d.margem)+" — "+motivoZero
         : (p2Contam
             ? "Valor inválido na planilha ("+formatPct(p2raw)+") — usando Total final"
-            : (p2>0 ? "Margem "+formatPct(d.margem)+" → "+formatPct(p2) : "Margem "+formatPct(d.margem)+" não atinge faixas = 0%")),
-      ok: p2>0,
-      contaminado: p2Contam && !planilhaZerou,
+            : (p2>0 ? "Margem "+formatPct(d.margem)+" → "+formatPct(p2) : "Margem "+formatPct(d.margem)+" não atinge faixas = 0%"));
+      p2ok = p2>0;
+      p2contam = p2Contam && !planilhaZerou;
+    }
+    pilares.push({
+      nome:"Margem Média",
+      pct: p2,
+      desc: p2desc,
+      ok: p2ok,
+      contaminado: p2contam,
       base: fat, valor: fat*(p2/100),
       regra: regras.marg,
       tipoMetrica: "marg",
       valorMetrica: d.margem
     });
-    // Positivacao
+
+    // ── Positivação ──
     var p3raw = d.p3_posit;
-    var p3 = (planilhaZerou || p3Contam) ? 0 : p3raw;
-    pilares.push({
-      nome:"Positivação",
-      pct: p3,
-      desc: planilhaZerou
+    var p3, p3desc, p3ok, p3contam;
+    if(inferiu && p3Inferido){
+      p3 = p3Inferido.pct;
+      p3desc = p3Inferido.motivo;
+      p3ok = p3Inferido.ok;
+      p3contam = false;
+    } else {
+      p3 = (planilhaZerou || p3Contam) ? 0 : p3raw;
+      p3desc = planilhaZerou
         ? "Positivação do mês: "+formatPct(d.posit_pct)+" — "+motivoZero
         : (p3Contam
             ? "Valor inválido na planilha ("+formatPct(p3raw)+") — usando Total final"
-            : (p3>0 ? "Positivação "+formatPct(d.posit_pct)+" → "+formatPct(p3) : "Positivação "+formatPct(d.posit_pct)+" abaixo do mínimo = 0%")),
-      ok: p3>0,
-      contaminado: p3Contam && !planilhaZerou,
+            : (p3>0 ? "Positivação "+formatPct(d.posit_pct)+" → "+formatPct(p3) : "Positivação "+formatPct(d.posit_pct)+" abaixo do mínimo = 0%"));
+      p3ok = p3>0;
+      p3contam = p3Contam && !planilhaZerou;
+    }
+    pilares.push({
+      nome:"Positivação",
+      pct: p3,
+      desc: p3desc,
+      ok: p3ok,
+      contaminado: p3contam,
+      gateOnly: !!(p3Inferido && p3Inferido.gate),
       base: fat, valor: fat*(p3/100),
       regra: regras.posit,
       tipoMetrica: "posit",
       valorMetrica: d.posit_pct
     });
+
     // Novos Clientes (R$ fixo) — esse pode ser pago mesmo com gates não batidos
     var p4r = d.p4_novos;
     pilares.push({
@@ -1073,6 +1177,9 @@ function calcRemuneracao(d){
     if(p.contaminado){
       // Pilar com dado contaminado na planilha — neutro (azul)
       p.status = "blue";
+    } else if(p.gateOnly){
+      // Pilar de gate (Faturamento/Positivação CLT) — verde se liberado, vermelho se não
+      p.status = p.ok ? "green" : "red";
     } else if(p.ok){
       p.status = "green";
     } else if(distancia > 0 && distancia <= limiar){
@@ -1082,9 +1189,13 @@ function calcRemuneracao(d){
     }
     // Cor do status
     p.cor = COR_STATUS[p.status];
-    p.badge = p.contaminado
-      ? { txt:"Verificar", icon:"!" }
-      : BADGE_INFO[p.status];
+    if(p.contaminado){
+      p.badge = { txt:"Verificar", icon:"!" };
+    } else if(p.gateOnly){
+      p.badge = p.ok ? { txt:"Liberado", icon:"✓" } : { txt:"Não liberado", icon:"○" };
+    } else {
+      p.badge = BADGE_INFO[p.status];
+    }
   });
 
   return {
@@ -1284,7 +1395,18 @@ function renderPilarHTML(p, opts){
 
   // Valor principal: % com R$ embaixo, OU R$ direto se for "reais"
   var valorPrincipalHTML, valorBaseHTML;
-  if(p.tipo === "reais"){
+  if(p.gateOnly){
+    // Pilar de gate (CLT Faturamento/Positivação): nao paga, so libera ou nao
+    var statusTxt = p.ok ? "Liberado" : "Bloqueado";
+    var statusEmoji = p.ok ? "✓" : "✗";
+    valorPrincipalHTML =
+      '<div style="font-family:var(--fh);font-size:'+(compact?'1.4rem':'1.7rem')+';font-weight:800;color:'+c.primaria+';line-height:1;letter-spacing:-0.02em;display:flex;align-items:baseline;gap:8px">'+
+        '<span style="font-size:0.85em">'+statusEmoji+'</span>'+
+        '<span>'+statusTxt+'</span>'+
+      '</div>'+
+      '<div style="font-family:var(--fh);font-size:0.78rem;font-weight:500;color:var(--mu);margin-top:6px">Pilar não remunera — gate de elegibilidade</div>';
+    valorBaseHTML = '';
+  } else if(p.tipo === "reais"){
     // Novos Clientes: R$ direto, sem %
     valorPrincipalHTML =
       '<div style="font-family:var(--fh);font-size:'+(compact?'1.5rem':'2rem')+';font-weight:800;color:'+c.primaria+';line-height:1;letter-spacing:-0.02em">'+
@@ -1431,40 +1553,50 @@ function renderRemCardCompleto(nome, opts){
   }).join('');
 
   // Header — destaque no nome + perfil + faturamento
+  // Tipografia arejada: line-height generoso, letter-spacing positivo no nome,
+  // hierarquia clara entre os 3 blocos (avatar / nome / faturamento)
   var headerHTML =
-    '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.06)">'+
-      '<div class="mav2 '+av+'" style="width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800">'+siglaDisp+'</div>'+
+    '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.08)">'+
+      // Avatar maior e com leve glow
+      '<div class="mav2 '+av+'" style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:1.15rem;font-weight:700;letter-spacing:0.02em;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.08)">'+siglaDisp+'</div>'+
+      // Bloco central: nome + perfil + subtitulo
       '<div style="min-width:0">'+
-        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
-          '<div style="font-family:var(--fh);font-size:1.5rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em">'+nome+'</div>'+
-          '<span style="font-size:0.62rem;font-weight:700;color:var(--mu);background:var(--s2);padding:3px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;border:1px solid var(--br)">'+r.perfil+'</span>'+
+        '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+
+          // NOME — hierarquia maxima, letter-spacing leve negativo (bom para fontes grandes)
+          '<div style="font-family:var(--fh);font-size:2rem;font-weight:700;color:var(--tx);letter-spacing:-0.015em;line-height:1.1">'+nome+'</div>'+
+          // Tag de perfil
+          '<span style="font-family:var(--fh);font-size:0.62rem;font-weight:700;color:var(--mu);background:var(--s2);padding:5px 12px;border-radius:99px;text-transform:uppercase;letter-spacing:0.08em;border:1px solid var(--br)">'+r.perfil+'</span>'+
         '</div>'+
-        '<div style="font-size:0.78rem;color:var(--mu);margin-top:4px">Remuneração variável · '+(d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
+        // Subtitulo arejado
+        '<div style="font-size:0.85rem;color:var(--mu);margin-top:8px;letter-spacing:0.005em;font-weight:400">Remuneração variável <span style="opacity:0.4;margin:0 6px">·</span> '+(d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
       '</div>'+
-      '<div style="text-align:right">'+
-        '<div style="font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Faturamento</div>'+
-        '<div style="font-family:var(--fh);font-size:1.25rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em;margin-top:2px">'+fv(d.faturamento)+'</div>'+
-        (d.meta_fat>0?'<div style="font-size:0.7rem;color:var(--mu);margin-top:2px">de '+fv(d.meta_fat)+' · <span style="font-weight:700;color:'+(r.pctFat>=100?'#10b981':r.pctFat>=70?'#f59e0b':'var(--mu)')+'">'+r.pctFat+'%</span></div>':'')+
+      // Bloco direito: faturamento (CTA visual)
+      '<div style="text-align:right;padding-left:24px;border-left:1px solid rgba(255,255,255,0.06)">'+
+        '<div style="font-family:var(--fh);font-size:0.62rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-bottom:6px">Faturamento</div>'+
+        '<div style="font-family:var(--fh);font-size:1.55rem;font-weight:700;color:var(--tx);letter-spacing:-0.015em;line-height:1.05">'+fv(d.faturamento)+'</div>'+
+        (d.meta_fat>0
+          ? '<div style="font-size:0.78rem;color:var(--mu);margin-top:6px;letter-spacing:0.005em">de '+fv(d.meta_fat)+' <span style="opacity:0.4;margin:0 4px">·</span> <span style="font-weight:700;color:'+(r.pctFat>=100?'#10b981':r.pctFat>=70?'#f59e0b':'#e63329')+'">'+r.pctFat+'%</span></div>'
+          : '')+
       '</div>'+
     '</div>';
 
   // Total — destaque máximo
   var totalHTML =
-    '<div style="background:linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06));border:1px solid rgba(16,185,129,0.3);border-radius:16px;padding:24px;margin-top:24px;position:relative;overflow:hidden">'+
-      '<div style="position:absolute;top:0;right:0;width:140px;height:140px;background:radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%);pointer-events:none"></div>'+
-      '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative">'+
-        '<div style="flex:1;min-width:200px">'+
-          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.7px;font-weight:700;margin-bottom:6px">Total da remuneração variável</div>'+
-          '<div style="font-family:var(--fh);font-size:2.6rem;font-weight:800;color:#10b981;line-height:1;letter-spacing:-0.03em">'+fv(r.premio)+'</div>'+
+    '<div style="background:linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.04));border:1px solid rgba(16,185,129,0.3);border-radius:18px;padding:28px 32px;margin-top:28px;position:relative;overflow:hidden">'+
+      '<div style="position:absolute;top:-20px;right:-20px;width:180px;height:180px;background:radial-gradient(circle, rgba(16,185,129,0.18), transparent 70%);pointer-events:none"></div>'+
+      '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;position:relative">'+
+        '<div style="flex:1;min-width:240px">'+
+          '<div style="font-family:var(--fh);font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.14em;font-weight:700;margin-bottom:10px">Total da remuneração variável</div>'+
+          '<div style="font-family:var(--fh);font-size:2.8rem;font-weight:700;color:#10b981;line-height:1;letter-spacing:-0.025em">'+fv(r.premio)+'</div>'+
           (r.totalBonus>0
-            ? '<div style="font-size:0.72rem;color:var(--mu);margin-top:8px">'+fv(r.totalPilares)+' (pilares) <span style="opacity:0.5;margin:0 4px">+</span> '+fv(r.totalBonus)+' (bônus)</div>'
+            ? '<div style="font-size:0.78rem;color:var(--mu);margin-top:12px;letter-spacing:0.005em">'+fv(r.totalPilares)+' (pilares) <span style="opacity:0.4;margin:0 6px">+</span> '+fv(r.totalBonus)+' (bônus)</div>'
             : '')+
-          (d.observacao?'<div style="font-size:0.72rem;color:var(--mu);margin-top:8px;font-style:italic">Obs: '+d.observacao+'</div>':'')+
+          (d.observacao?'<div style="font-size:0.78rem;color:var(--mu);margin-top:10px;font-style:italic;line-height:1.5">Obs: '+d.observacao+'</div>':'')+
         '</div>'+
-        '<div style="text-align:right;padding-left:20px;border-left:1px solid rgba(16,185,129,0.2)">'+
-          '<div style="font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">% sobre faturamento</div>'+
-          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:#10b981;letter-spacing:-0.02em;margin-top:2px">'+formatPct(r.totalPct)+'</div>'+
-          '<div style="font-size:0.65rem;color:var(--mu);margin-top:2px;opacity:0.7">vindo da planilha</div>'+
+        '<div style="text-align:right;padding-left:24px;border-left:1px solid rgba(16,185,129,0.2)">'+
+          '<div style="font-family:var(--fh);font-size:0.62rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-bottom:6px">% sobre faturamento</div>'+
+          '<div style="font-family:var(--fh);font-size:1.9rem;font-weight:700;color:#10b981;letter-spacing:-0.015em;line-height:1">'+formatPct(r.totalPct)+'</div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);margin-top:6px;opacity:0.7;letter-spacing:0.005em">vindo da planilha</div>'+
         '</div>'+
       '</div>'+
     '</div>';
