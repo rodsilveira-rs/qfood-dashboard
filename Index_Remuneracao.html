@@ -560,26 +560,14 @@ function buildRemuneracao(){
   var selDiv = document.getElementById("rem-selector");
   var btnsDiv = document.getElementById("rem-btns");
 
-  // Get list of vendors with data
-  var vendores=["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
-
   if(isAdmin){
-    selDiv.style.display="block";
-    btnsDiv.innerHTML="";
-    vendores.forEach(function(v){
-      var btn=document.createElement("button");
-      btn.style.cssText="background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:7px 14px;cursor:pointer;font-size:0.78rem;transition:all 0.2s;";
-      btn.textContent=v;
-      btn.onmouseover=function(){this.style.color="var(--tx)";this.style.borderColor="var(--b2)";};
-      btn.onmouseout=function(){this.style.color="var(--mu)";this.style.borderColor="var(--br)";};
-      btn.onclick=function(){renderRemCard(v);};
-      btnsDiv.appendChild(btn);
-    });
-    // Default: show first vendor
-    renderRemCard(vendores[0]);
+    // Modo Gestor: oculta botoes + renderiza grid de mini-cards
+    if(selDiv) selDiv.style.display="none";
+    if(btnsDiv) btnsDiv.innerHTML="";
+    renderRemTeamGrid();
   } else {
-    // Vendedor: show only own card
-    selDiv.style.display="none";
+    // Vendedor: card unico do proprio
+    if(selDiv) selDiv.style.display="none";
     var myNome = CURRENT_USER ? CURRENT_USER.nome : "";
     renderRemCard(myNome);
   }
@@ -763,7 +751,9 @@ function calcRemuneracao(d){
       ok: pMarg>0,
       base: fat,
       valor: fat*(pMarg/100),
-      regra: regras.marg
+      regra: regras.marg,
+      tipoMetrica: "marg",
+      valorMetrica: d.margem
     });
     // Pilar Novos Clientes (R$ fixo da planilha)
     var p4r = d.p4_novos;
@@ -775,7 +765,9 @@ function calcRemuneracao(d){
       base: 0,
       valor: p4r,
       tipo:"reais",
-      regra: regras.novos
+      regra: regras.novos,
+      tipoMetrica: "novos",
+      valorMetrica: d.novos
     });
   } else if(perfil === "KA-PJ"){
     // Claudia — 4 pilares (Fat, Margem≥45%, Trocas, Positivacao)
@@ -790,7 +782,9 @@ function calcRemuneracao(d){
         : (p1>0 ? "Comissão fixa = "+formatPct(p1) : "Sem comissão"),
       ok: p1>0,
       base: fat, valor: fat*(p1/100),
-      regra: regras.fat
+      regra: regras.fat,
+      tipoMetrica: "fat",
+      valorMetrica: pctFat
     });
     var p2raw = d.p2_marg;
     var p2Contam = !(p2raw>=0 && p2raw<=5);
@@ -803,7 +797,9 @@ function calcRemuneracao(d){
         : (p2>0 ? "Margem ("+formatPct(d.margem)+") atingiu meta = "+formatPct(p2) : "Margem ("+formatPct(d.margem)+") < 45% = 0%"),
       ok: p2>0,
       base: fat, valor: fat*(p2/100),
-      regra: regras.marg
+      regra: regras.marg,
+      tipoMetrica: "marg",
+      valorMetrica: d.margem
     });
     // Trocas: nao tem coluna direta, exibe pelo % de trocas
     var pT = 0; var pTok = false; var pTdesc="";
@@ -816,7 +812,9 @@ function calcRemuneracao(d){
       desc: pTdesc,
       ok: pTok,
       base: fat, valor: fat*(pT/100),
-      regra: regras.trocas
+      regra: regras.trocas,
+      tipoMetrica: "trocas",
+      valorMetrica: d.trocas_pct
     });
     var p3raw = d.p3_posit;
     var p3Contam = !(p3raw>=0 && p3raw<=5);
@@ -829,7 +827,9 @@ function calcRemuneracao(d){
         : (p3>0 ? "Positivação ("+formatPct(d.posit_pct)+") ≥ 80% = "+formatPct(p3) : "Positivação ("+formatPct(d.posit_pct)+") < 80% = 0%"),
       ok: p3>0,
       base: fat, valor: fat*(p3/100),
-      regra: regras.posit
+      regra: regras.posit,
+      tipoMetrica: "posit",
+      valorMetrica: d.posit_pct
     });
   } else {
     // PJ ou CLT — leitura direta dos pilares calculados pela planilha
@@ -869,8 +869,11 @@ function calcRemuneracao(d){
             ? "Valor inválido na planilha ("+formatPct(p1raw)+") — usando Total final"
             : (p1>0 ? formatPct(p1)+" sobre o faturamento" : "Sem premiação no pilar")),
       ok: p1>0,
+      contaminado: p1Contam && !planilhaZerou,
       base: fat, valor: fat*(p1/100),
-      regra: regras.fat
+      regra: regras.fat,
+      tipoMetrica: "fat",
+      valorMetrica: pctFat
     });
     // Margem
     var p2raw = d.p2_marg;
@@ -884,8 +887,11 @@ function calcRemuneracao(d){
             ? "Valor inválido na planilha ("+formatPct(p2raw)+") — usando Total final"
             : (p2>0 ? "Margem "+formatPct(d.margem)+" → "+formatPct(p2) : "Margem "+formatPct(d.margem)+" não atinge faixas = 0%")),
       ok: p2>0,
+      contaminado: p2Contam && !planilhaZerou,
       base: fat, valor: fat*(p2/100),
-      regra: regras.marg
+      regra: regras.marg,
+      tipoMetrica: "marg",
+      valorMetrica: d.margem
     });
     // Positivacao
     var p3raw = d.p3_posit;
@@ -899,8 +905,11 @@ function calcRemuneracao(d){
             ? "Valor inválido na planilha ("+formatPct(p3raw)+") — usando Total final"
             : (p3>0 ? "Positivação "+formatPct(d.posit_pct)+" → "+formatPct(p3) : "Positivação "+formatPct(d.posit_pct)+" abaixo do mínimo = 0%")),
       ok: p3>0,
+      contaminado: p3Contam && !planilhaZerou,
       base: fat, valor: fat*(p3/100),
-      regra: regras.posit
+      regra: regras.posit,
+      tipoMetrica: "posit",
+      valorMetrica: d.posit_pct
     });
     // Novos Clientes (R$ fixo) — esse pode ser pago mesmo com gates não batidos
     var p4r = d.p4_novos;
@@ -911,7 +920,9 @@ function calcRemuneracao(d){
       ok: p4r>0,
       base: 0, valor: p4r,
       tipo:"reais",
-      regra: regras.novos
+      regra: regras.novos,
+      tipoMetrica: "novos",
+      valorMetrica: d.novos
     });
   }
 
@@ -962,6 +973,89 @@ function calcRemuneracao(d){
   // Soma bonus
   var totalBonus = bonus.reduce(function(a,b){ return a + (b.valor||0); }, 0);
 
+  // ── Pos-processamento: enriquece cada pilar com barra de progresso + status ──
+  pilares.forEach(function(p){
+    // Arredonda valorMetrica para evitar floats ugly tipo 28.99999996
+    if(typeof p.valorMetrica === "number"){
+      p.valorMetrica = Math.round(p.valorMetrica * 100) / 100;
+    }
+    var tipoBarra = p.tipoMetrica==="novos" ? "novos_aberturas" : p.tipoMetrica;
+    var tiers = _getTiers(perfil, tipoBarra);
+    var valor = p.valorMetrica || 0;
+
+    // CASO ESPECIAL 1: Faturamento PJ (faixa única "1% sobre tudo")
+    // → mostra progresso vs meta de faturamento (% Fat vs Meta)
+    if(p.tipoMetrica === "fat" && (perfil === "PJ" || perfil === "KA-PJ")){
+      var pctMeta = p.valorMetrica||0; // % do faturamento vs meta
+      p.barra = {
+        pct: Math.min(100, pctMeta),
+        falta: Math.max(0, 100-pctMeta),
+        faltaTxt: pctMeta>=100 ? "Meta superada!" : "Faltam "+(100-pctMeta).toFixed(1).replace(".",",")+"pp para a meta",
+        atualLabel: tiers[0] ? tiers[0].label : "1% sobre faturamento",
+        proxLabel: pctMeta>=100 ? null : "Bater 100% da meta",
+        maxAtingido: pctMeta>=100
+      };
+    }
+    // CASO ESPECIAL 1B: Faturamento/Positivação CLT (gate de elegibilidade)
+    // → barra mostra distância para o gate de 70%
+    else if(perfil === "CLT" && (p.tipoMetrica === "fat" || p.tipoMetrica === "posit")){
+      var gate = 70;
+      var pctVal = valor;
+      var pctBarra = Math.round(Math.min(100, (pctVal/gate)*100));
+      var passou = pctVal >= gate;
+      p.barra = {
+        pct: passou ? 100 : pctBarra,
+        falta: passou ? 0 : (gate - pctVal),
+        faltaTxt: passou
+          ? "Gate liberado ("+formatPct(pctVal)+" ≥ 70%)"
+          : "Faltam "+(gate-pctVal).toFixed(1).replace(".",",")+"pp para liberar o gate",
+        atualLabel: passou ? "Gate ≥70% liberado" : "Abaixo do gate de 70%",
+        proxLabel: passou ? null : "Bater 70% para liberar pilares",
+        maxAtingido: false // gate não é "máximo", é só liberação
+      };
+    }
+    // CASO ESPECIAL 2: Trocas/Avarias (faixas decrescentes — ficar abaixo é melhor)
+    // → barra mostra "distância do limite ruim"
+    else if(p.tipoMetrica === "trocas"){
+      // Limite ruim = 5% (acima disso perde tudo)
+      var limiteRuim = 5;
+      var pctSeguranca = Math.round(Math.max(0, Math.min(100, ((limiteRuim - valor)/limiteRuim)*100)));
+      var lblFaixaAtual = valor<=2 ? "Faixa segura (≤2%)" : valor<=5 ? "Atenção (2-5%)" : "Crítico (>5%)";
+      var lblProx = valor<=2 ? null : (valor<=5 ? "Voltar para ≤2%" : "Reduzir para ≤5%");
+      p.barra = {
+        pct: pctSeguranca,
+        falta: 0,
+        faltaTxt: valor<=2 ? "Margem de segurança · "+pctSeguranca.toFixed(0)+"%" : (lblProx||""),
+        atualLabel: lblFaixaAtual,
+        proxLabel: lblProx,
+        maxAtingido: valor<=2
+      };
+    }
+    // CASO PADRÃO: faixas crescentes
+    else {
+      p.barra = _barraProgresso(p.tipoMetrica, valor, tiers);
+    }
+
+    // Determina status
+    var limiar = QUASE_LA[p.tipoMetrica] || 0;
+    var distancia = p.barra.falta;
+    if(p.contaminado){
+      // Pilar com dado contaminado na planilha — neutro (azul)
+      p.status = "blue";
+    } else if(p.ok){
+      p.status = "green";
+    } else if(distancia > 0 && distancia <= limiar){
+      p.status = "yellow";
+    } else {
+      p.status = "red";
+    }
+    // Cor do status
+    p.cor = COR_STATUS[p.status];
+    p.badge = p.contaminado
+      ? { txt:"Verificar", icon:"!" }
+      : BADGE_INFO[p.status];
+  });
+
   return {
     pilares: pilares,
     bonus: bonus,
@@ -986,57 +1080,279 @@ function formatNum(v){
   return Math.abs(parseFloat(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 
-function renderRemCard(nome){
-  var d=getRemData(nome);
-  var r=calcRemuneracao(d);
-  var card=document.getElementById("rem-card");
+// ════════════════════════════════════════════════════════════════════
+// NEXT TIER — Calcula a próxima faixa de cada pilar para mostrar
+// progresso e status "Quase lá".
+// ════════════════════════════════════════════════════════════════════
 
-  var dm=DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
-  var av=dm?dm.av:"avLB";
-  // Sigla robusta: dm.sigla -> SG[nome] -> 2 primeiras letras
+// Faixas por perfil x pilar (do PDF "Quadro de Premiação")
+// Cada faixa tem: min (limite inferior em %), bonus (% premio), label
+var TIERS = {
+  PJ: {
+    fat:   [{min:0, bonus:1, label:"1,00% sobre todo faturamento"}], // unica faixa
+    marg:  [
+      {min:0,    bonus:0,    label:"Sem premio"},
+      {min:30,   bonus:0.25, label:"30-33% libera 0,25%"},
+      {min:33.01,bonus:0.5,  label:"33-36% libera 0,50%"},
+      {min:36.01,bonus:1,    label:"36%+ libera 1,00%"}
+    ],
+    posit: [
+      {min:0,  bonus:0,    label:"Sem premio"},
+      {min:80, bonus:0.25, label:"80%+ libera 0,25%"}
+    ],
+    novos_aberturas: [
+      {min:0,  bonus:0, valor:0,   label:"Sem premio"},
+      {min:10, bonus:0, valor:20,  label:"10-19 abert. → R$ 20 cada"},
+      {min:20, bonus:0, valor:30,  label:"20+ abert. → R$ 30 cada"}
+    ]
+  },
+  CLT: {
+    fat:   [{min:70, bonus:0, label:"≥70% libera os pilares"}], // gate
+    marg:  [
+      {min:0,  bonus:0,    label:"Sem gate"},
+      {min:0,  bonus:0.5,  label:"<27% libera 0,50%"},
+      {min:28, bonus:0.75, label:"28-29% libera 0,75%"},
+      {min:30, bonus:1,    label:"30%+ libera 1,00%"}
+    ],
+    posit: [{min:70, bonus:0, label:"≥70% libera as faixas plenas"}],
+    novos_aberturas: [
+      {min:0,  bonus:0, valor:0,  label:"Sem premio"},
+      {min:10, bonus:0, valor:20, label:"10-19 abert. → R$ 20 cada"},
+      {min:20, bonus:0, valor:30, label:"20+ abert. → R$ 30 cada"}
+    ]
+  },
+  "KA-PJ": {
+    fat:   [{min:0, bonus:0.75, label:"Comissao fixa de 0,75%"}],
+    marg:  [
+      {min:0,  bonus:0,    label:"Sem premio"},
+      {min:45, bonus:0.25, label:"45%+ libera 0,25%"}
+    ],
+    posit: [
+      {min:0,  bonus:0,    label:"Sem premio"},
+      {min:80, bonus:0.25, label:"80%+ libera 0,25%"}
+    ],
+    trocas: [
+      {min:0, bonus:0.5,  label:"≤2% mantém 0,50%"},
+      {min:2, bonus:0.25, label:"2-5% libera 0,25%"},
+      {min:5, bonus:0,    label:">5% perde tudo"}
+    ]
+  },
+  DEANE: {
+    marg: [
+      {min:0,  bonus:0,    label:"Sem premio"},
+      {min:19, bonus:0.6,  label:"19-24% libera 0,60%"},
+      {min:25, bonus:1.35, label:"25-29% libera 1,35%"},
+      {min:30, bonus:3,    label:"30%+ libera 3,00%"}
+    ],
+    novos_aberturas: [
+      {min:0,  bonus:0, valor:0,  label:"Sem premio"},
+      {min:10, bonus:0, valor:20, label:"10-19 abert. → R$ 20 cada"},
+      {min:20, bonus:0, valor:30, label:"20+ abert. → R$ 30 cada"}
+    ]
+  }
+};
+
+// Limiares de "Quase lá" (faltando pra próxima faixa)
+var QUASE_LA = {
+  marg:    2,    // 2 pontos percentuais
+  posit:   5,    // 5 pontos percentuais
+  fat:     10,   // 10% da meta (em pontos da %)
+  novos:   2     // 2 aberturas
+};
+
+// Encontra a faixa atual e a próxima dado um valor e a config de tiers
+function _proxFaixa(tiers, valorAtual){
+  if(!tiers || !tiers.length) return { atual:null, prox:null, idx:-1 };
+  var idx = -1;
+  for(var i=tiers.length-1; i>=0; i--){
+    if(valorAtual >= tiers[i].min){ idx = i; break; }
+  }
+  var atual = idx>=0 ? tiers[idx] : null;
+  var prox  = (idx>=0 && idx<tiers.length-1) ? tiers[idx+1] : null;
+  return { atual:atual, prox:prox, idx:idx };
+}
+
+// Status do pilar: 'green' (atingiu) | 'yellow' (quase la) | 'red' (longe) | 'blue' (bonus)
+function statusPilar(opts){
+  // opts: { tipo, atingiu, valorAtual, distQuaseLa }
+  if(opts.atingiu) return "green";
+  if(opts.distQuaseLa !== undefined && opts.distQuaseLa <= opts.limiar) return "yellow";
+  return "red";
+}
+
+// Cores por status
+var COR_STATUS = {
+  green:  { primaria:"#10b981", bg:"rgba(16,185,129,0.08)", bd:"rgba(16,185,129,0.25)", barra:"#10b981" },
+  yellow: { primaria:"#f59e0b", bg:"rgba(245,158,11,0.08)", bd:"rgba(245,158,11,0.28)", barra:"#f59e0b" },
+  red:    { primaria:"#e63329", bg:"rgba(230,51,41,0.06)",  bd:"rgba(230,51,41,0.22)",  barra:"#e63329" },
+  blue:   { primaria:"#3b82f6", bg:"rgba(59,130,246,0.06)", bd:"rgba(59,130,246,0.22)", barra:"#3b82f6" }
+};
+
+// Texto e ícone do badge de status
+var BADGE_INFO = {
+  green:  { txt:"Atingido",     icon:"✓" },
+  yellow: { txt:"Quase lá",     icon:"⚡" },
+  red:    { txt:"Não atingiu",  icon:"○" },
+  blue:   { txt:"Bônus",        icon:"★" }
+};
+
+// Calcula barra de progresso entre faixa atual e proxima
+// Retorna: { pct, falta, faltaTxt, atualLabel, proxLabel }
+function _barraProgresso(tipo, valor, tiers){
+  var pf = _proxFaixa(tiers, valor);
+  if(!pf.prox){
+    // Já está na faixa máxima
+    return {
+      pct: 100,
+      falta: 0,
+      faltaTxt: "Faixa máxima atingida",
+      atualLabel: pf.atual ? pf.atual.label : "—",
+      proxLabel: null,
+      maxAtingido: true
+    };
+  }
+  var minAtual = pf.atual ? pf.atual.min : 0;
+  var minProx  = pf.prox.min;
+  var span = minProx - minAtual;
+  var prog = valor - minAtual;
+  var pct = span>0 ? Math.max(0, Math.min(100, Math.round((prog/span)*100))) : 0;
+  var falta = Math.max(0, minProx - valor);
+  var faltaTxt = "";
+  if(tipo==="marg" || tipo==="posit" || tipo==="fat" || tipo==="trocas"){
+    faltaTxt = "Falta "+falta.toFixed(1).replace(".",",")+"pp";
+  } else if(tipo==="novos"){
+    faltaTxt = "Falta "+Math.ceil(falta)+" abertura(s)";
+  }
+  return {
+    pct: pct,
+    falta: falta,
+    faltaTxt: faltaTxt,
+    atualLabel: pf.atual ? pf.atual.label : "—",
+    proxLabel: pf.prox.label,
+    maxAtingido: false
+  };
+}
+
+// Helper: pega tiers de um perfil x tipo (com fallback gracioso)
+function _getTiers(perfil, tipo){
+  return (TIERS[perfil] && TIERS[perfil][tipo]) || [];
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RENDER — versão redesenhada
+// Hierarquia visual: ganho enorme · contexto médio · regra discreta
+// Status semânticos: green (atingido) · yellow (quase lá) · red · blue (bonus)
+// ════════════════════════════════════════════════════════════════════
+
+// Renderiza um pilar individual (reusado pelo card + modal)
+function renderPilarHTML(p, opts){
+  opts = opts || {};
+  var compact = !!opts.compact;
+  var c = p.cor || COR_STATUS.red;
+  var b = p.badge || BADGE_INFO.red;
+
+  // Valor principal: % com R$ embaixo, OU R$ direto se for "reais"
+  var valorPrincipalHTML, valorBaseHTML;
+  if(p.tipo === "reais"){
+    // Novos Clientes: R$ direto, sem %
+    valorPrincipalHTML =
+      '<div style="font-family:var(--fh);font-size:'+(compact?'1.5rem':'2rem')+';font-weight:800;color:'+c.primaria+';line-height:1;letter-spacing:-0.02em">'+
+        (p.valor>0?'+R$ '+formatNum(p.valor):'R$ 0,00')+
+      '</div>';
+    valorBaseHTML = p.valor>0
+      ? '<div style="font-size:0.7rem;color:var(--mu);margin-top:6px"><span style="opacity:0.6">ⓘ</span> '+(p.valorMetrica||0)+' aberturas × R$ '+(p.valor/Math.max(1,p.valorMetrica||1)).toFixed(0)+'</div>'
+      : '';
+  } else {
+    // Pilar normal: % grande + R$
+    valorPrincipalHTML =
+      '<div style="font-family:var(--fh);font-size:'+(compact?'1.5rem':'2rem')+';font-weight:800;color:'+c.primaria+';line-height:1;letter-spacing:-0.02em">'+
+        (p.pct>0 ? '+'+formatPct(p.pct) : '0%')+
+      '</div>'+
+      (p.pct>0
+        ? '<div style="font-family:var(--fh);font-size:'+(compact?'0.85rem':'1rem')+';font-weight:600;color:var(--tx);margin-top:4px">= R$ '+formatNum(p.valor)+'</div>'
+        : '');
+    valorBaseHTML = p.pct>0
+      ? '<div style="font-size:0.7rem;color:var(--mu);margin-top:6px"><span style="opacity:0.6">ⓘ</span> Base: R$ '+formatNum(p.base)+' (faturamento)</div>'
+      : '';
+  }
+
+  // Contexto da métrica
+  var ctxLabel = "";
+  if(p.tipoMetrica==="marg")       ctxLabel = "Margem atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong>";
+  else if(p.tipoMetrica==="posit") ctxLabel = "Positivação atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong>";
+  else if(p.tipoMetrica==="fat")   ctxLabel = "Faturamento atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong> da meta";
+  else if(p.tipoMetrica==="novos") ctxLabel = "Aberturas no mês: <strong style=\"color:var(--tx)\">"+(p.valorMetrica||0)+"</strong>";
+  else if(p.tipoMetrica==="trocas")ctxLabel = "Trocas no mês: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong>";
+
+  // Barra de progresso (sempre visível)
+  var barraHTML = "";
+  if(p.barra){
+    var barraColor = p.status==="green" ? "#10b981" : (p.status==="yellow" ? "#f59e0b" : "#6b7280");
+    var faltaTxt = p.barra.maxAtingido
+      ? '<span style="color:#10b981;font-weight:600">★ Faixa máxima atingida</span>'
+      : (p.barra.proxLabel
+          ? '<span style="color:var(--mu)">Próxima: <span style="color:var(--tx);font-weight:600">'+p.barra.proxLabel+'</span> · '+p.barra.faltaTxt+'</span>'
+          : '<span style="color:var(--mu)">'+p.barra.atualLabel+'</span>');
+    barraHTML =
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.06)">'+
+        '<div style="height:5px;background:var(--s2);border-radius:99px;overflow:hidden;margin-bottom:8px;position:relative">'+
+          '<div style="width:'+(p.barra.maxAtingido?100:p.barra.pct)+'%;height:100%;background:linear-gradient(90deg, '+barraColor+'aa, '+barraColor+');border-radius:99px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1)"></div>'+
+        '</div>'+
+        '<div style="font-size:0.65rem;line-height:1.5">'+faltaTxt+'</div>'+
+      '</div>';
+  }
+
+  // Regra discreta no rodapé
+  var regraHTML = p.regra
+    ? '<div style="margin-top:12px;padding:8px 10px;background:rgba(255,255,255,0.02);border-left:2px solid rgba(255,255,255,0.08);border-radius:3px;font-size:0.62rem;color:var(--mu);line-height:1.55">'+
+        '<span style="opacity:0.7;font-weight:700;letter-spacing:0.4px;margin-right:4px">REGRA</span>'+p.regra+
+      '</div>'
+    : '';
+
+  // Card layout
+  return ''+
+    '<div style="background:'+c.bg+';border:1px solid '+c.bd+';border-radius:14px;padding:'+(compact?'14px 16px':'18px 20px')+';position:relative;transition:transform 0.2s, border-color 0.2s">'+
+      // Header: nome + badge
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">'+
+        '<div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">'+
+          '<span style="font-family:var(--fh);font-size:'+(compact?'0.85rem':'0.92rem')+';font-weight:700;color:var(--tx);letter-spacing:-0.01em">'+p.nome+'</span>'+
+        '</div>'+
+        '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;background:'+c.primaria+'22;color:'+c.primaria+';font-size:0.62rem;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;flex-shrink:0">'+
+          '<span style="font-size:0.7rem">'+b.icon+'</span>'+b.txt+
+        '</span>'+
+      '</div>'+
+      // Valor principal grande
+      valorPrincipalHTML+
+      valorBaseHTML+
+      // Contexto da métrica
+      (ctxLabel ? '<div style="font-size:0.78rem;color:var(--mu);margin-top:10px;line-height:1.5">'+ctxLabel+'</div>' : '')+
+      // Barra de progresso
+      barraHTML+
+      // Regra discreta
+      regraHTML+
+    '</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// CARD COMPLETO (vendedor ou detalhe modal)
+// ════════════════════════════════════════════════════════════════════
+function renderRemCardCompleto(nome, opts){
+  opts = opts || {};
+  var d = getRemData(nome);
+  var r = calcRemuneracao(d);
+
+  var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var av = dm?dm.av:"avLB";
   var siglaDisp = (dm && dm.sigla) || SG[nome] || nome.substring(0,2).toUpperCase();
 
-  // ── Pilares (com linha de regra abaixo) ──
-  var pilaresHTML=r.pilares.map(function(p){
-    var cor=p.ok?"#10b981":"#e63329";
-    var bg=p.ok?"rgba(16,185,129,0.08)":"rgba(230,51,41,0.08)";
-    var bd=p.ok?"rgba(16,185,129,0.2)":"rgba(230,51,41,0.2)";
-    var icon=p.ok?"\u2714":"\u2715";
-    // Valor exibido a direita: % se for tipo padrao, R$ se for tipo "reais"
-    var valorDir;
-    if(p.tipo==="reais"){
-      // R$ direto (Novos Clientes)
-      valorDir = '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">R$ '+formatNum(p.valor)+'</div>'+
-                 (p.valor>0?'<div style="font-size:0.65rem;color:var(--mu);">valor fixo</div>':'');
-    } else {
-      // % + R$ correspondente
-      valorDir = '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:'+cor+'">+'+formatPct(p.pct)+'</div>'+
-                 (p.pct>0?'<div style="font-size:0.65rem;color:var(--mu);">= '+fv(p.valor)+'</div>':'');
-    }
-    var regraHtml = p.regra
-      ? '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-left:2px solid var(--b2);border-radius:4px;font-size:0.65rem;color:var(--mu);line-height:1.5"><b style="color:var(--mu2)">Regra:</b> '+p.regra+'</div>'
-      : '';
-    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;">'+
-      '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'+
-        '<div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">'+
-          '<span style="font-size:14px;color:'+cor+';flex-shrink:0">'+icon+'</span>'+
-          '<div style="flex:1;min-width:0">'+
-            '<div style="font-size:0.78rem;font-weight:600;color:var(--tx);">'+p.nome+'</div>'+
-            '<div style="font-size:0.68rem;color:var(--mu);margin-top:2px;">'+p.desc+'</div>'+
-          '</div>'+
-        '</div>'+
-        '<div style="text-align:right;flex-shrink:0;">'+valorDir+'</div>'+
-      '</div>'+
-      regraHtml+
-    '</div>';
-  }).join('');
+  // Pilares em grid 2 colunas
+  var pilaresHTML = r.pilares.map(function(p){ return renderPilarHTML(p); }).join('');
 
-  // ── Cards bonus (OVER META, META GLOBAL) ──
+  // Bonus cards
   var bonusHTML = (r.bonus||[]).map(function(b){
-    var cor = b.atingiu ? "#10b981" : "#3b82f6";
-    var bg  = b.atingiu ? "rgba(16,185,129,0.08)" : "rgba(59,130,246,0.06)";
-    var bd  = b.atingiu ? "rgba(16,185,129,0.25)" : "rgba(59,130,246,0.2)";
-    var icon = b.atingiu ? "🏆" : "🎯";
+    var c = b.atingiu ? COR_STATUS.green : COR_STATUS.blue;
+    var statusBadge = b.atingiu ? BADGE_INFO.green : BADGE_INFO.blue;
+    var icon = b.tipo==="OVER_META" ? "🚀" : "🌐";
 
     var progressoHTML = "";
     if(b.tipo==="OVER_META"){
@@ -1044,94 +1360,248 @@ function renderRemCard(nome){
       var corMargemOk = b.margem >= OVER_META_MARGEM_MIN;
       var corMargem = corMargemOk ? "#10b981" : "#f59e0b";
       progressoHTML =
-        '<div style="margin-top:10px">'+
-          '<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.65rem;color:var(--mu);margin-bottom:3px">'+
-            '<span>R$ '+formatNum(b.atual)+' / R$ '+formatNum(b.meta)+'</span>'+
-            '<span style="font-weight:700;color:'+cor+'">'+pctProg+'%</span>'+
+        '<div style="margin-top:14px">'+
+          '<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.72rem;color:var(--mu);margin-bottom:6px">'+
+            '<span><strong style="color:var(--tx)">R$ '+formatNum(b.atual)+'</strong> de R$ '+formatNum(b.meta)+'</span>'+
+            '<span style="font-family:var(--fh);font-weight:800;color:'+c.primaria+';font-size:0.95rem">'+pctProg+'%</span>'+
           '</div>'+
-          '<div style="height:6px;background:var(--s2);border-radius:4px;overflow:hidden">'+
-            '<div style="width:'+pctProg+'%;height:100%;background:'+cor+';transition:width 0.4s"></div>'+
+          '<div style="height:6px;background:var(--s2);border-radius:99px;overflow:hidden;margin-bottom:8px">'+
+            '<div style="width:'+pctProg+'%;height:100%;background:linear-gradient(90deg, '+c.primaria+'aa, '+c.primaria+');border-radius:99px;transition:width 0.6s"></div>'+
           '</div>'+
-          '<div style="display:flex;gap:8px;margin-top:6px;font-size:0.62rem">'+
-            '<span style="color:'+corMargem+'">● Margem '+formatPct(b.margem)+' (mín. '+OVER_META_MARGEM_MIN+'%)</span>'+
+          '<div style="display:flex;align-items:center;gap:6px;font-size:0.7rem">'+
+            '<span style="color:'+corMargem+';font-weight:600">●</span>'+
+            '<span style="color:var(--mu)">Margem atual: <strong style="color:'+corMargem+'">'+formatPct(b.margem)+'</strong> (mín. '+OVER_META_MARGEM_MIN+'%)</span>'+
           '</div>'+
         '</div>';
     }
 
     var valorBonus = b.atingiu
-      ? '<div style="font-family:var(--fh);font-size:1.1rem;font-weight:700;color:'+cor+'">+R$ '+formatNum(b.valor)+'</div>'
-      : '<div style="font-family:var(--fh);font-size:0.85rem;font-weight:600;color:var(--mu);">Não atingido</div>';
+      ? '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:'+c.primaria+';line-height:1;letter-spacing:-0.02em">+R$ '+formatNum(b.valor)+'</div>'
+      : '<div style="font-family:var(--fh);font-size:1.2rem;font-weight:700;color:var(--mu);line-height:1">Não atingido</div>';
 
-    return '<div style="background:'+bg+';border:1px solid '+bd+';border-radius:10px;padding:14px 16px;">'+
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">'+
-        '<div style="flex:1;min-width:0">'+
-          '<div style="font-size:0.82rem;font-weight:700;color:var(--tx);">'+icon+' '+b.titulo.replace(/^[🚀🌐]\s*/,'')+'</div>'+
-          '<div style="font-size:0.68rem;color:var(--mu);margin-top:3px">'+b.detalhe+'</div>'+
+    return ''+
+      '<div style="background:'+c.bg+';border:1px solid '+c.bd+';border-radius:14px;padding:18px 20px;position:relative">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">'+
+          '<div style="display:flex;align-items:center;gap:8px">'+
+            '<span style="font-size:1.1rem">'+icon+'</span>'+
+            '<span style="font-family:var(--fh);font-size:0.92rem;font-weight:700;color:var(--tx);letter-spacing:-0.01em">'+b.titulo.replace(/^[🚀🌐]\s*/,'')+'</span>'+
+          '</div>'+
+          '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:99px;background:'+c.primaria+'22;color:'+c.primaria+';font-size:0.62rem;font-weight:700;letter-spacing:0.3px;text-transform:uppercase">'+
+            '<span style="font-size:0.7rem">'+statusBadge.icon+'</span>'+statusBadge.txt+
+          '</span>'+
         '</div>'+
-        '<div style="text-align:right;flex-shrink:0">'+valorBonus+'</div>'+
-      '</div>'+
-      progressoHTML+
-      '<div style="margin-top:8px;padding:6px 10px;background:rgba(255,255,255,0.03);border-left:2px solid '+cor+';border-radius:4px;font-size:0.65rem;color:var(--mu);line-height:1.5"><b style="color:var(--mu2)">Regra:</b> '+b.regra+'</div>'+
-    '</div>';
+        valorBonus+
+        '<div style="font-size:0.78rem;color:var(--mu);margin-top:10px;line-height:1.5">'+b.detalhe+'</div>'+
+        progressoHTML+
+        '<div style="margin-top:12px;padding:8px 10px;background:rgba(255,255,255,0.02);border-left:2px solid '+c.primaria+'66;border-radius:3px;font-size:0.62rem;color:var(--mu);line-height:1.55">'+
+          '<span style="opacity:0.7;font-weight:700;letter-spacing:0.4px;margin-right:4px">REGRA</span>'+b.regra+
+        '</div>'+
+      '</div>';
   }).join('');
 
-  // ── Header ──
+  // Header — destaque no nome + perfil + faturamento
   var headerHTML =
-    '<div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--br);">'+
-      '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;">'+
-        siglaDisp+
-      '</div>'+
-      '<div style="flex:1;min-width:0">'+
-        '<div style="font-family:var(--fh);font-size:1.2rem;font-weight:700;">'+nome+
-          '<span style="margin-left:8px;font-size:0.62rem;font-weight:600;color:var(--mu);background:var(--s2);padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px">'+r.perfil+'</span>'+
+    '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:18px;align-items:center;margin-bottom:24px;padding-bottom:20px;border-bottom:1px solid rgba(255,255,255,0.06)">'+
+      '<div class="mav2 '+av+'" style="width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800">'+siglaDisp+'</div>'+
+      '<div style="min-width:0">'+
+        '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+          '<div style="font-family:var(--fh);font-size:1.5rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em">'+nome+'</div>'+
+          '<span style="font-size:0.62rem;font-weight:700;color:var(--mu);background:var(--s2);padding:3px 10px;border-radius:10px;text-transform:uppercase;letter-spacing:0.5px;border:1px solid var(--br)">'+r.perfil+'</span>'+
         '</div>'+
-        '<div style="font-size:0.75rem;color:var(--mu);margin-top:2px;">Remuneração variável — '+(d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
+        '<div style="font-size:0.78rem;color:var(--mu);margin-top:4px">Remuneração variável · '+(d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
       '</div>'+
-      '<div style="text-align:right;flex-shrink:0">'+
-        '<div style="font-size:0.68rem;color:var(--mu);">Faturamento</div>'+
-        '<div style="font-family:var(--fh);font-size:1rem;font-weight:700;">'+fv(d.faturamento)+'</div>'+
-        (d.meta_fat>0?'<div style="font-size:0.68rem;color:var(--mu);">de '+fv(d.meta_fat)+' ('+r.pctFat+'%)</div>':'')+
+      '<div style="text-align:right">'+
+        '<div style="font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Faturamento</div>'+
+        '<div style="font-family:var(--fh);font-size:1.25rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em;margin-top:2px">'+fv(d.faturamento)+'</div>'+
+        (d.meta_fat>0?'<div style="font-size:0.7rem;color:var(--mu);margin-top:2px">de '+fv(d.meta_fat)+' · <span style="font-weight:700;color:'+(r.pctFat>=100?'#10b981':r.pctFat>=70?'#f59e0b':'var(--mu)')+'">'+r.pctFat+'%</span></div>':'')+
       '</div>'+
     '</div>';
 
-  // ── Total ──
+  // Total — destaque máximo
   var totalHTML =
-    '<div style="background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px 20px;">'+
-      '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">'+
+    '<div style="background:linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.06));border:1px solid rgba(16,185,129,0.3);border-radius:16px;padding:24px;margin-top:24px;position:relative;overflow:hidden">'+
+      '<div style="position:absolute;top:0;right:0;width:140px;height:140px;background:radial-gradient(circle, rgba(16,185,129,0.15), transparent 70%);pointer-events:none"></div>'+
+      '<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;position:relative">'+
         '<div style="flex:1;min-width:200px">'+
-          '<div style="font-size:0.72rem;color:var(--mu);margin-bottom:4px;">Total da remuneração variável</div>'+
-          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+fv(r.premio)+'</div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.7px;font-weight:700;margin-bottom:6px">Total da remuneração variável</div>'+
+          '<div style="font-family:var(--fh);font-size:2.6rem;font-weight:800;color:#10b981;line-height:1;letter-spacing:-0.03em">'+fv(r.premio)+'</div>'+
           (r.totalBonus>0
-            ? '<div style="font-size:0.65rem;color:var(--mu);margin-top:4px;">'+fv(r.totalPilares)+' (pilares) + '+fv(r.totalBonus)+' (bônus)</div>'
+            ? '<div style="font-size:0.72rem;color:var(--mu);margin-top:8px">'+fv(r.totalPilares)+' (pilares) <span style="opacity:0.5;margin:0 4px">+</span> '+fv(r.totalBonus)+' (bônus)</div>'
             : '')+
-          (d.observacao?'<div style="font-size:0.68rem;color:var(--mu);margin-top:6px;">Obs: '+d.observacao+'</div>':'')+
+          (d.observacao?'<div style="font-size:0.72rem;color:var(--mu);margin-top:8px;font-style:italic">Obs: '+d.observacao+'</div>':'')+
         '</div>'+
-        '<div style="text-align:right;flex-shrink:0">'+
-          '<div style="font-size:0.72rem;color:var(--mu);">% sobre faturamento</div>'+
-          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:700;color:#10b981;">'+formatPct(r.totalPct)+'</div>'+
-          '<div style="font-size:0.65rem;color:var(--mu);">(vindo da planilha)</div>'+
+        '<div style="text-align:right;padding-left:20px;border-left:1px solid rgba(16,185,129,0.2)">'+
+          '<div style="font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:600">% sobre faturamento</div>'+
+          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:#10b981;letter-spacing:-0.02em;margin-top:2px">'+formatPct(r.totalPct)+'</div>'+
+          '<div style="font-size:0.65rem;color:var(--mu);margin-top:2px;opacity:0.7">vindo da planilha</div>'+
         '</div>'+
       '</div>'+
     '</div>';
 
-  card.innerHTML=
-    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:14px;padding:24px;">'+
+  return ''+
+    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:18px;padding:'+(opts.modal?'28px':'24px')+';box-shadow:0 4px 24px rgba(0,0,0,0.2)">'+
       headerHTML +
-      // Pilares
-      '<div style="margin-bottom:8px;font-size:0.7rem;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:0.6px">Pilares</div>'+
-      '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:'+(bonusHTML?'18px':'20px')+';">'+pilaresHTML+'</div>'+
-      // Bonus
+      '<div style="margin-bottom:10px;font-size:0.66rem;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:0.7px">Pilares de remuneração</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px">'+pilaresHTML+'</div>'+
       (bonusHTML
-        ? '<div style="margin-bottom:8px;font-size:0.7rem;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:0.6px">Bônus extras</div>'+
-          '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">'+bonusHTML+'</div>'
+        ? '<div style="margin-top:24px;margin-bottom:10px;font-size:0.66rem;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:0.7px">Bônus extras</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px">'+bonusHTML+'</div>'
         : '')+
-      // Total
       totalHTML +
-      // Info note
-      '<div style="margin-top:12px;font-size:0.68rem;color:var(--mu2);text-align:center;">'+
-        'Cálculos automáticos vindos da planilha. Célio confirma os valores finais.'+
+      '<div style="margin-top:16px;font-size:0.66rem;color:var(--mu2);text-align:center;opacity:0.7">'+
+        'Cálculos automáticos vindos da planilha do time. Célio confirma os valores finais.'+
       '</div>'+
     '</div>';
+}
+
+// Wrapper compatível com chamadas antigas (renderiza dentro do #rem-card)
+function renderRemCard(nome){
+  var card = document.getElementById("rem-card");
+  if(card) card.innerHTML = renderRemCardCompleto(nome);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MINI-CARD (grid de gestores)
+// ════════════════════════════════════════════════════════════════════
+function renderMiniCard(nome){
+  var d = getRemData(nome);
+  var r = calcRemuneracao(d);
+  var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var av = dm?dm.av:"avLB";
+  var siglaDisp = (dm && dm.sigla) || SG[nome] || nome.substring(0,2).toUpperCase();
+
+  // Conta pilares atingidos
+  var pAtingidos = r.pilares.filter(function(p){ return p.ok; }).length;
+  var pTotal = r.pilares.length;
+  var bonusGanhos = (r.bonus||[]).filter(function(b){ return b.atingiu; }).length;
+
+  // Cor do prêmio (verde se > 0, mu se 0)
+  var corPremio = r.premio>0 ? "#10b981" : "var(--mu)";
+
+  // Indicador rápido: % faturado
+  var corPctFat = r.pctFat>=100 ? "#10b981" : r.pctFat>=70 ? "#f59e0b" : "#e63329";
+
+  return ''+
+    '<div onclick="abrirModalRem(\''+nome+'\')" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px;cursor:pointer;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden" '+
+        'onmouseover="this.style.borderColor=\'var(--b2)\';this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 8px 24px rgba(0,0,0,0.25)\'" '+
+        'onmouseout="this.style.borderColor=\'var(--br)\';this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\'">'+
+      // Header: avatar + nome + perfil
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
+        '<div class="mav2 '+av+'" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0">'+siglaDisp+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-family:var(--fh);font-size:1rem;font-weight:800;color:var(--tx);letter-spacing:-0.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nome+'</div>'+
+          '<div style="font-size:0.6rem;color:var(--mu);font-weight:600;letter-spacing:0.3px;text-transform:uppercase;margin-top:2px">'+r.perfil+'</div>'+
+        '</div>'+
+      '</div>'+
+      // Prêmio principal
+      '<div style="margin-bottom:14px">'+
+        '<div style="font-size:0.6rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:2px">Prêmio do mês</div>'+
+        '<div style="font-family:var(--fh);font-size:1.5rem;font-weight:800;color:'+corPremio+';line-height:1;letter-spacing:-0.02em">'+fv(r.premio)+'</div>'+
+      '</div>'+
+      // Barra: % faturamento vs meta
+      '<div style="margin-bottom:12px">'+
+        '<div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.65rem;color:var(--mu);margin-bottom:4px">'+
+          '<span>Faturamento</span>'+
+          '<span style="font-weight:700;color:'+corPctFat+'">'+r.pctFat+'%</span>'+
+        '</div>'+
+        '<div style="height:4px;background:var(--s2);border-radius:99px;overflow:hidden">'+
+          '<div style="width:'+Math.min(100,r.pctFat)+'%;height:100%;background:'+corPctFat+';border-radius:99px;transition:width 0.6s"></div>'+
+        '</div>'+
+      '</div>'+
+      // Stats: pilares atingidos / bonus
+      '<div style="display:flex;gap:8px;font-size:0.7rem">'+
+        '<span style="color:var(--mu)"><strong style="color:#10b981;font-weight:700">'+pAtingidos+'/'+pTotal+'</strong> pilares</span>'+
+        (r.bonus && r.bonus.length>0
+          ? '<span style="color:var(--mu)">·</span><span style="color:var(--mu)"><strong style="color:#3b82f6;font-weight:700">'+bonusGanhos+'/'+r.bonus.length+'</strong> bônus</span>'
+          : '')+
+      '</div>'+
+      // CTA
+      '<div style="margin-top:14px;padding-top:12px;border-top:1px dashed rgba(255,255,255,0.06);font-size:0.7rem;color:var(--mu);display:flex;align-items:center;justify-content:space-between">'+
+        '<span>Ver detalhes</span>'+
+        '<span style="opacity:0.6">→</span>'+
+      '</div>'+
+    '</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODAL FULL-SCREEN (Modo Gestor)
+// ════════════════════════════════════════════════════════════════════
+function abrirModalRem(nome){
+  // Cria/reusa overlay
+  var overlay = document.getElementById('rem-modal-overlay');
+  if(!overlay){
+    overlay = document.createElement('div');
+    overlay.id = 'rem-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);z-index:9998;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;animation:remFadeIn 0.2s ease-out';
+    overlay.onclick = function(e){ if(e.target===overlay) fecharModalRem(); };
+    document.body.appendChild(overlay);
+
+    // Injeta animação CSS uma vez
+    if(!document.getElementById('rem-modal-styles')){
+      var st = document.createElement('style');
+      st.id = 'rem-modal-styles';
+      st.textContent = '@keyframes remFadeIn{from{opacity:0}to{opacity:1}}@keyframes remSlideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}';
+      document.head.appendChild(st);
+    }
+  }
+
+  overlay.innerHTML = ''+
+    '<div style="width:100%;max-width:980px;animation:remSlideUp 0.3s cubic-bezier(0.4,0,0.2,1)">'+
+      '<div style="display:flex;justify-content:flex-end;margin-bottom:8px">'+
+        '<button onclick="fecharModalRem()" style="background:var(--sf);border:1px solid var(--br);color:var(--tx);width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;transition:all 0.2s" onmouseover="this.style.borderColor=\'var(--b2)\'" onmouseout="this.style.borderColor=\'var(--br)\'">×</button>'+
+      '</div>'+
+      renderRemCardCompleto(nome, {modal:true})+
+    '</div>';
+  overlay.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function fecharModalRem(){
+  var overlay = document.getElementById('rem-modal-overlay');
+  if(overlay) overlay.style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// TEAM GRID (visão admin)
+// ════════════════════════════════════════════════════════════════════
+function renderRemTeamGrid(){
+  var card = document.getElementById('rem-card');
+  if(!card) return;
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
+
+  // KPIs do time
+  var totalTime = 0;
+  var totalAtingidos = 0;
+  vendores.forEach(function(n){
+    var rd = calcRemuneracao(getRemData(n));
+    totalTime += rd.premio||0;
+    if(rd.premio>0) totalAtingidos++;
+  });
+
+  var grid = vendores.map(function(n){ return renderMiniCard(n); }).join('');
+
+  card.innerHTML = ''+
+    // Header com KPIs do time
+    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:16px;padding:20px 24px;margin-bottom:18px">'+
+      '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">'+
+        '<div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:2px">Total da equipe</div>'+
+          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:#10b981;letter-spacing:-0.02em;line-height:1">'+fv(totalTime)+'</div>'+
+        '</div>'+
+        '<div style="height:36px;width:1px;background:var(--br)"></div>'+
+        '<div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:2px">Vendedores</div>'+
+          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em;line-height:1">'+totalAtingidos+'<span style="font-size:1rem;color:var(--mu);font-weight:600">/'+vendores.length+'</span></div>'+
+          '<div style="font-size:0.65rem;color:var(--mu);margin-top:2px">com prêmio no mês</div>'+
+        '</div>'+
+        '<div style="margin-left:auto;font-size:0.72rem;color:var(--mu);text-align:right;max-width:280px">'+
+          '<span style="opacity:0.6">💡 </span>Clique em qualquer vendedor para ver o detalhamento completo, com regras e progresso em cada pilar'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    // Grid 3 colunas
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:14px">'+grid+'</div>';
 }
 
 // Inicializacao: carrega Meta + Remuneracao ao abrir a pagina
