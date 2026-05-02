@@ -1004,9 +1004,14 @@ async function go(){
     });
     DS=csv(t2).map(function(r){
       var s=sgFor(r.sigla||r.nome||r.vendedor||"");
+      // IMPORTANTE: dia_atual=0 e dias_uteis=0 sao valores VALIDOS (mes nao iniciado).
+      // Por isso parseamos sem o ||1 (que confundia 0 com fallback).
+      var duRaw=r.dias_uteis||r.DIAS_UTEIS;
+      var daRaw=r.dia_atual||r.DIA_ATUAL;
+      var du=duRaw!==undefined&&duRaw!==""?parseInt(duRaw)||0:0;
+      var da=daRaw!==undefined&&daRaw!==""?parseInt(daRaw)||0:0;
       return {s:s,ms:parseBR(r.meta_sem),real:parseBR(r.realizado),
-        du:parseInt(r.dias_uteis||r.DIAS_UTEIS||"0")||1,
-        da:parseInt(r.dia_atual||r.DIA_ATUAL||"0")||1,
+        du:du, da:da,
         sa:parseBR(r.saldo_anterior)};
     });
     DP=csv(t3).map(function(r){
@@ -1829,37 +1834,91 @@ document.getElementById("ov").addEventListener("click",function(e){if(e.target==
 document.addEventListener("keydown",function(e){if(e.key==="Escape")cm();});
 
 // ---- BUILD TEND (Tendencia de fechamento do mes) ----
+// FONTE DA VERDADE: dias_uteis e dia_atual da aba META_SEMANAL (coluna D e E).
+// dia_atual=0  -> mes nao iniciado (sem projecao/ritmo)
+// 0<dia_atual<dias_uteis -> mes em andamento (projeta)
+// dia_atual=dias_uteis    -> mes fechado (mostra resultado final, sem projecao)
 function buildTend(){
-  // Uses dias_uteis and dia_atual from DM (META_MENSAL sheet)
-  // If not in sheet, use defaults
   var tm=DM.reduce(function(s,v){return s+v.meta;},0);
   var tr=DM.reduce(function(s,v){return s+v.real;},0);
-  // Get dias from first row that has them, or use defaults
-  var du=0, da=0;
-  // Try META_SEMANAL first (more likely to have dias_uteis/dia_atual)
-  DS.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
-  // Fallback to META_MENSAL
-  if(du===0) DM.forEach(function(v){if(v.du&&v.du>0&&du===0){du=v.du;da=v.da;}});
-  if(du===0){du=22;da=18;} // fallback defaults
+
+  // Pega dias do META_SEMANAL primeiro (preferencial). Fallback: META_MENSAL.
+  var du=0, da=0, encontrou=false;
+  for(var i=0;i<DS.length;i++){
+    if(DS[i].du>0){ du=DS[i].du; da=DS[i].da||0; encontrou=true; break; }
+  }
+  if(!encontrou){
+    for(var j=0;j<DM.length;j++){
+      if(DM[j].du>0){ du=DM[j].du; da=DM[j].da||0; encontrou=true; break; }
+    }
+  }
+  if(!encontrou){ du=22; da=0; } // ultimo recurso, mes nao iniciado
+
+  // Travas de sanidade
+  if(da<0) da=0;
+  if(da>du) da=du;
+
   var diasRest=Math.max(du-da,0);
-  var metaDia=tm/du;
-  var mediaAtual=da>0?tr/da:0;
-  var projecao=tr+(mediaAtual*diasRest);
-  var pMetaDia=metaDia>0?Math.round((mediaAtual/metaDia)*100):0;
-  var colMedia=pMetaDia>=100?"#10b981":pMetaDia>=80?"#3b82f6":"#f59e0b";
-  var colProj=projecao>=tm?"#10b981":"#f59e0b";
-  var ritmoText=pMetaDia>=100?"Acima do ritmo":pMetaDia>=85?"No ritmo":"Abaixo do ritmo";
-  var colRitmo=pMetaDia>=100?"#10b981":pMetaDia>=85?"#3b82f6":"#f59e0b";
+  var metaDia=du>0?tm/du:0;
+  var mesNaoIniciado = da===0;
+  var mesFechado     = da===du && du>0;
+  var mesEmAndamento = da>0 && da<du;
+
+  var mediaAtual = mesNaoIniciado ? 0 : tr/da;
+  var projecao;
+  if(mesNaoIniciado)      projecao = 0;
+  else if(mesFechado)     projecao = tr;            // ja fechou — resultado e o realizado
+  else                    projecao = tr + (mediaAtual*diasRest);
+  var pMetaDia=metaDia>0 && !mesNaoIniciado ? Math.round((mediaAtual/metaDia)*100) : 0;
+
+  var colMedia = mesNaoIniciado ? "#6b7ea8"
+               : pMetaDia>=100  ? "#10b981"
+               : pMetaDia>=80   ? "#3b82f6"
+               : pMetaDia>=60   ? "#f59e0b" : "#e63329";
+  var colProj  = mesNaoIniciado ? "#6b7ea8"
+               : projecao>=tm   ? "#10b981"
+               : projecao>=tm*0.85 ? "#f59e0b" : "#e63329";
+  var ritmoText, colRitmo;
+  if(mesNaoIniciado){ ritmoText="Mes nao iniciado"; colRitmo="#6b7ea8"; }
+  else if(mesFechado){
+    ritmoText = tr>=tm ? "Meta batida" : "Meta nao atingida";
+    colRitmo  = tr>=tm ? "#10b981" : "#e63329";
+  }
+  else if(pMetaDia>=100){ ritmoText="Acima do ritmo"; colRitmo="#10b981"; }
+  else if(pMetaDia>=85){  ritmoText="No ritmo";       colRitmo="#3b82f6"; }
+  else if(pMetaDia>=60){  ritmoText="Abaixo do ritmo";colRitmo="#f59e0b"; }
+  else {                  ritmoText="Critico";        colRitmo="#e63329"; }
+
   var el;
   el=document.getElementById("tend-meta-dia"); if(el) el.textContent=fv(metaDia);
   el=document.getElementById("tend-dias-info"); if(el) el.textContent=du+" dias uteis no mes";
-  el=document.getElementById("tend-media-atual"); if(el){ el.textContent=fv(mediaAtual); el.style.color=colMedia; }
-  el=document.getElementById("tend-dias-rest"); if(el) el.textContent=diasRest+" dias restantes (dia "+da+" de "+du+")";
-  el=document.getElementById("tend-projecao"); if(el){ el.textContent=fv(projecao); el.style.color=colProj; }
-  var vsStr=projecao>=tm?("+" +fv(projecao-tm)+" acima da meta"):("-"+fv(tm-projecao)+" abaixo da meta");
+
+  el=document.getElementById("tend-media-atual");
+  if(el){ el.textContent = mesNaoIniciado ? "—" : fv(mediaAtual); el.style.color=colMedia; }
+
+  el=document.getElementById("tend-dias-rest");
+  if(el){
+    if(mesNaoIniciado)      el.textContent = "aguardando inicio do mes";
+    else if(mesFechado)     el.textContent = "mes fechado ("+du+" de "+du+")";
+    else                    el.textContent = diasRest+" dias restantes (dia "+da+" de "+du+")";
+  }
+
+  el=document.getElementById("tend-projecao");
+  if(el){ el.textContent = mesNaoIniciado ? "—" : fv(projecao); el.style.color=colProj; }
+
+  var vsStr;
+  if(mesNaoIniciado)      vsStr = "";
+  else if(mesFechado)     vsStr = tr>=tm ? ("+"+fv(tr-tm)+" acima da meta") : ("-"+fv(tm-tr)+" abaixo da meta");
+  else                    vsStr = projecao>=tm ? ("+"+fv(projecao-tm)+" acima da meta") : ("-"+fv(tm-projecao)+" abaixo da meta");
   el=document.getElementById("tend-projecao-vs"); if(el){ el.textContent=vsStr; el.style.color=colProj; }
+
   el=document.getElementById("tend-ritmo"); if(el){ el.textContent=ritmoText; el.style.color=colRitmo; }
-  el=document.getElementById("tend-ritmo-sub"); if(el) el.textContent=pMetaDia+"% da media necessaria";
+  el=document.getElementById("tend-ritmo-sub");
+  if(el){
+    if(mesNaoIniciado)      el.textContent = "";
+    else if(mesFechado)     el.textContent = pc(tr,tm)+"% da meta atingido";
+    else                    el.textContent = pMetaDia+"% da media necessaria";
+  }
 }
 
 
