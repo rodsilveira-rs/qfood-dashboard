@@ -1412,8 +1412,14 @@ function brisk(){
 function buildHist(){
   document.getElementById("hist-loading").style.display="none";
 
-  // Use fallback data from PDFs (always available)
+  // Prioriza dados do CSV (Google Sheets - aba GERENCIAL); cai no fallback se vazio/erro
   var rows = HIST_FALLBACK;
+  if(DH && DH.length > 0){
+    try{
+      var parsed = parseHistCSV(DH);
+      if(parsed && parsed.length > 0) rows = parsed;
+    }catch(e){ console.warn("HIST CSV parse falhou, usando fallback:", e.message); }
+  }
 
   var mOrder={JAN:1,FEV:2,MAR:3,ABR:4,MAI:5,JUN:6,JUL:7,AGO:8,SET:9,OUT:10,NOV:11,DEZ:12};
   var colors={LUCAS:"#60a5fa",VERA:"#06d6a0",DAYANE:"#f59e0b",ELIANE:"#a78bfa",EDER:"#fb923c",CLAUDIA:"#ef4444",CAMILA:"#10b981",KENYO:"#818cf8",DEANE:"#2dd4bf",VAREJO:"#94a3b8"};
@@ -1571,17 +1577,39 @@ function buildHist(){
 }
 
 function parseHistCSV(rows){
+  // Aceita chaves com ou sem acento, em vários formatos (defensivo)
+  function pick(r, keys){
+    for(var i=0;i<keys.length;i++){ if(r[keys[i]]!==undefined && r[keys[i]]!=="") return r[keys[i]]; }
+    return "";
+  }
+  function num(s){
+    if(s===null||s===undefined||s==="") return 0;
+    var t=String(s).trim().replace(/%/g,"");
+    // Formato BR: 1.234,56 ; ou US: 1234.56 ; ou puro: 1234
+    if(t.indexOf(",")>-1 && t.indexOf(".")>-1){ t=t.replace(/\./g,"").replace(",","."); }
+    else if(t.indexOf(",")>-1){ t=t.replace(",","."); }
+    var n=parseFloat(t); return isNaN(n)?0:n;
+  }
+  function pctNum(s){
+    // Aceita "88", "88%", "0,88", "0.88" -> sempre devolve inteiro 0..150
+    var n=num(s);
+    if(n>0 && n<=1.5) n=n*100;       // veio como decimal (0.88)
+    return Math.round(n);
+  }
   return rows.map(function(r){
-    var mes=r["MES"]||r["mes"]||r["MÊS"]||"";
-    var ano=parseInt(r["ANO"]||r["ano"]||"0")||0;
-    var vend=(r["VENDEDORES"]||r["vendedores"]||r["Vendedor"]||"").toUpperCase();
-    var meta=parseFloat((r["META"]||"0").toString().replace(/\./g,"").replace(",","."))||0;
-    var venda=parseFloat((r["VENDA"]||"0").toString().replace(/\./g,"").replace(",","."))||0;
-    var pct=parseInt((r["%_ATINGIDO_MES"]||r["% ATINGIDO MES"]||r["PERC_ATINGIDO"]||"0").toString().replace("%",""))||0;
-    var posit=parseInt(r["POSITIVADOS"]||r["positivados"]||"0")||0;
-    var ativos=parseInt(r["ATIVOS"]||r["ativos"]||"0")||0;
-    var ppct=parseInt((r["% POSITIVAC"]||r["%_POSITIVAC"]||r["% POSITIVACAO"]||"0").toString().replace("%",""))||0;
-    return {mes:mes,ano:ano,vend:vend,meta:meta,venda:venda,pct:pct,posit:posit,ativos:ativos,ppct:ppct};
+    var mes=String(pick(r,["MÊS","MES","mes","Mês"])).trim().toUpperCase();
+    var ano=parseInt(pick(r,["ANO","ano","Ano"])||"0")||0;
+    var vend=String(pick(r,["VENDEDORES","vendedores","Vendedor","VENDEDOR"])).trim().toUpperCase();
+    var meta=num(pick(r,["META","meta","Meta"]));
+    var venda=num(pick(r,["VENDA","venda","Venda"]));
+    var pct=pctNum(pick(r,["% ATINGIDO MÊS","% ATINGIDO MES","%_ATINGIDO_MES","PERC_ATINGIDO","% Atingido Mês"]));
+    var posit=parseInt(num(pick(r,["POSITIVADOS","positivados","Positivados"])))||0;
+    var ativos=parseInt(num(pick(r,["ATIVOS","ativos","Ativos"])))||0;
+    var ppct=pctNum(pick(r,["% POSITIVAÇÃO","% POSITIVACAO","% POSITIVAC","%_POSITIVAC","% Positivação"]));
+    var margem=pctNum(pick(r,["MARGEM","margem","Margem"]));
+    var markup=pctNum(pick(r,["MARKUP","markup","Markup"]));
+    var abertura=parseInt(num(pick(r,["ABERTURA","abertura","Abertura"])))||0;
+    return {mes:mes,ano:ano,vend:vend,meta:meta,venda:venda,pct:pct,posit:posit,ativos:ativos,ppct:ppct,margem:margem,markup:markup,abertura:abertura};
   }).filter(function(r){return r.vend&&r.mes&&r.ano>0;});
 }
 
@@ -1695,7 +1723,61 @@ function buildSOP(){
   sopBuilt=true;
 }
 
-function parseSopCSV(rows){ return SOP_FALLBACK; }
+function parseSopCSV(rows){
+  // Layout: cada linha tem Ano, Tipo, Janeiro, fevereiro, Março, Abril, ... Dezembro
+  // Categorias: Realizado (2024/2025/2026), Meta (2026), MARGEM (2025/2026), PDV/POSIT/DROP S. (25/26)
+  var monthKeys=["Janeiro","fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  function num(s){
+    if(s===null||s===undefined||s==="") return 0;
+    var t=String(s).trim().replace(/%/g,"");
+    if(t.indexOf(",")>-1 && t.indexOf(".")>-1){ t=t.replace(/\./g,"").replace(",","."); }
+    else if(t.indexOf(",")>-1){ t=t.replace(",","."); }
+    var n=parseFloat(t); return isNaN(n)?0:n;
+  }
+  function getRow(matchAno, matchTipo){
+    // matchAno e matchTipo aceitos como string parcial (case-insensitive, sem espaços extras)
+    var aTarget=String(matchAno).trim().toUpperCase();
+    var tTarget=String(matchTipo).trim().toUpperCase();
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      var a=String(r["Ano"]||r["ANO"]||r["ano"]||"").trim().toUpperCase();
+      var t=String(r["Tipo"]||r["TIPO"]||r["tipo"]||"").trim().toUpperCase();
+      if(a===aTarget && t===tTarget) return r;
+    }
+    return null;
+  }
+  function rowToArr(r){
+    if(!r) return [0,0,0,0,0,0,0,0,0,0,0,0];
+    return monthKeys.map(function(k){ return num(r[k]); });
+  }
+  function pctArr(r){
+    // Para % MARGEM no sheet vem como 0.30 (decimal). Multiplica * 100 se < 1.5
+    return rowToArr(r).map(function(v){ return v>0 && v<=1.5 ? Math.round(v*100) : Math.round(v); });
+  }
+  var result = {
+    labels:["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"],
+    fat2024: rowToArr(getRow("2024","Realizado")),
+    fat2025: rowToArr(getRow("2025","Realizado")),
+    fat2026: rowToArr(getRow("2026","Realizado")),
+    meta2026: rowToArr(getRow("2026","Meta")),
+    mg2025: pctArr(getRow("MARGEM","2025")),
+    mg2026: pctArr(getRow("MARGEM","2026")),
+    pdv25: rowToArr(getRow("","PDV 25")),
+    pdv26: rowToArr(getRow("","PDV 26")),
+    posit25: pctArr(getRow("","% POSIT")),  // primeiro % POSIT é 25
+    posit26: [0,0,0,0,0,0,0,0,0,0,0,0],     // será sobrescrito abaixo
+    drop25: rowToArr(getRow("","DROP S.")), // primeiro DROP S. é 25
+    drop26: [0,0,0,0,0,0,0,0,0,0,0,0]       // será sobrescrito abaixo
+  };
+  // Captura SEGUNDA ocorrência de % POSIT (é 26) e SEGUNDA de DROP S. (é 26)
+  var seenPosit=0, seenDrop=0;
+  for(var i=0;i<rows.length;i++){
+    var t=String(rows[i]["Tipo"]||rows[i]["TIPO"]||rows[i]["tipo"]||"").trim().toUpperCase();
+    if(t==="% POSIT"){ seenPosit++; if(seenPosit===2) result.posit26=pctArr(rows[i]); }
+    if(t==="DROP S."){ seenDrop++;  if(seenDrop===2)  result.drop26 =rowToArr(rows[i]); }
+  }
+  return result;
+}
 
 // ---- MODAL ----
 function om(sig){
