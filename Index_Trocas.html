@@ -173,8 +173,13 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
     <div class="m-body">
       <div id="alert-novo"></div>
       <div class="fr">
-        <div class="fg"><label class="req">Cliente</label><input type="text" id="x-cliente_nome"></div>
-        <div class="fg"><label>Telefone</label><input type="text" id="x-cliente_telefone"></div>
+        <div class="fg" style="position:relative">
+          <label class="req">Cliente (digite parte do nome)</label>
+          <input type="text" id="x-cliente_nome" placeholder="Ex: Padaria São José" autocomplete="off">
+          <input type="hidden" id="x-cliente_id">
+          <div id="cliente-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--sf);border:1px solid var(--b2);border-radius:8px;margin-top:4px;max-height:240px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>
+        </div>
+        <div class="fg"><label>Telefone</label><input type="text" id="x-cliente_telefone" placeholder="(27) 99999-9999"></div>
       </div>
       <div class="fr">
         <div class="fg"><label class="req">NF de Origem</label><input type="text" id="x-nf_origem"></div>
@@ -206,11 +211,27 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         <div class="fg"><label>Tipo de documento</label><select id="x-tipo_documento"></select></div>
       </div>
       <div class="fg">
-        <label>URL do documento anexo (Drive/foto)</label>
-        <input type="url" id="x-documento_anexo_url" placeholder="https://drive.google.com/...">
-        <small style="color:var(--mu2);font-size:0.72rem;display:block;margin-top:4px">
-          Anexe a NF de devolução do cliente OU foto do formulário interno assinado
-        </small>
+        <label>Anexo (foto da NF de devolução ou formulário assinado)</label>
+        <div id="anexo-area" style="background:var(--s2);border:1px dashed var(--b2);border-radius:8px;padding:14px;text-align:center;">
+          <div id="anexo-empty">
+            <input type="file" id="x-anexo-file" accept="image/*" capture="environment" style="display:none" onchange="iniciarUpload(this)">
+            <button type="button" class="btn-sec" onclick="document.getElementById('x-anexo-file').click()" style="margin-bottom:8px">📷 Tirar foto / Escolher imagem</button>
+            <div style="color:var(--mu2);font-size:0.72rem">Ou cole um link do Drive abaixo:</div>
+            <input type="url" id="x-documento_anexo_url" placeholder="https://drive.google.com/..." style="margin-top:6px;font-size:0.78rem">
+          </div>
+          <div id="anexo-uploading" style="display:none;color:var(--warn);font-size:0.85rem;padding:10px;">
+            ⏳ Enviando foto... <span id="anexo-progress">0%</span>
+          </div>
+          <div id="anexo-success" style="display:none;color:var(--ok);font-size:0.85rem;padding:8px;text-align:left;">
+            <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+              <div>
+                ✓ <strong id="anexo-nome">arquivo.jpg</strong>
+                <a id="anexo-link" href="#" target="_blank" style="color:var(--blue);font-size:0.75rem;display:block;margin-top:2px">Ver anexo</a>
+              </div>
+              <button type="button" class="btn-rm" onclick="removerAnexo()" style="padding:4px 10px">×</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="fg"><label>Observações</label><textarea id="x-obs_comercial"></textarea></div>
       <div class="action-row">
@@ -249,7 +270,148 @@ document.addEventListener("DOMContentLoaded", function(){
   }
   document.getElementById("app").style.display = "block";
   init();
+  setupAutocomplete();
 });
+
+// ─── AUTOCOMPLETE DE CLIENTE (BASE_PDV) ───
+var autocompleteTimer = null;
+
+function setupAutocomplete(){
+  var input = document.getElementById("x-cliente_nome");
+  var suggest = document.getElementById("cliente-suggest");
+  if (!input) return;
+
+  input.addEventListener("input", function(){
+    var termo = input.value.trim();
+    if (autocompleteTimer) clearTimeout(autocompleteTimer);
+
+    // Limpa cliente_id quando o usuário começa a digitar de novo
+    document.getElementById("x-cliente_id").value = "";
+
+    if (termo.length < 2){
+      suggest.style.display = "none";
+      suggest.innerHTML = "";
+      return;
+    }
+
+    autocompleteTimer = setTimeout(function(){ buscarClientes(termo); }, 350);
+  });
+
+  // Esconde dropdown quando clica fora
+  document.addEventListener("click", function(e){
+    if (e.target.id !== "x-cliente_nome" && !suggest.contains(e.target)){
+      suggest.style.display = "none";
+    }
+  });
+}
+
+async function buscarClientes(termo){
+  var suggest = document.getElementById("cliente-suggest");
+  try {
+    var resp = await api("GET", {action:"buscar_cliente", email:SESSAO.email, q:termo});
+    if (!resp.ok || !resp.dados || resp.dados.length === 0){
+      suggest.innerHTML = '<div style="padding:12px;color:var(--mu2);font-size:0.78rem;text-align:center">Nenhum cliente encontrado. Você pode digitar o nome manualmente.</div>';
+      suggest.style.display = "block";
+      return;
+    }
+
+    suggest.innerHTML = resp.dados.map(function(c){
+      var fone = c.telefone || c.whatsapp || "";
+      return '<div style="padding:10px 14px;border-bottom:1px solid var(--br);cursor:pointer;font-size:0.82rem" '+
+        'onmouseover="this.style.background=\'var(--s3)\'" '+
+        'onmouseout="this.style.background=\'transparent\'" '+
+        'onclick="selecionarCliente('+JSON.stringify(c).replace(/"/g, '&quot;')+')">'+
+        '<div style="font-weight:600;color:var(--tx)">'+escapeHtml(c.nomeFantasia||c.razao)+'</div>'+
+        '<div style="font-size:0.72rem;color:var(--mu);margin-top:2px">'+
+          (c.cnpj ? formatCnpj(c.cnpj) : '')+
+          (fone ? ' · '+fone : '')+
+          (c.cidade ? ' · '+c.cidade+'/'+c.uf : '')+
+        '</div>'+
+      '</div>';
+    }).join("");
+    suggest.style.display = "block";
+  } catch(e){
+    suggest.innerHTML = '<div style="padding:12px;color:var(--red);font-size:0.78rem">Erro: '+e.message+'</div>';
+    suggest.style.display = "block";
+  }
+}
+
+function selecionarCliente(c){
+  document.getElementById("x-cliente_nome").value = c.nomeFantasia || c.razao;
+  document.getElementById("x-cliente_id").value = c.cnpj || "";
+  document.getElementById("x-cliente_telefone").value = c.telefone || c.whatsapp || "";
+  document.getElementById("cliente-suggest").style.display = "none";
+}
+
+function formatCnpj(c){
+  var s = String(c||"").replace(/\D/g,"");
+  if (s.length === 14) return s.slice(0,2)+"."+s.slice(2,5)+"."+s.slice(5,8)+"/"+s.slice(8,12)+"-"+s.slice(12);
+  if (s.length === 11) return s.slice(0,3)+"."+s.slice(3,6)+"."+s.slice(6,9)+"-"+s.slice(9);
+  return c;
+}
+
+// ─── UPLOAD DE ANEXO ───
+async function iniciarUpload(inputFile){
+  var file = inputFile.files[0];
+  if (!file) return;
+
+  // Limite de tamanho (10MB)
+  if (file.size > 10 * 1024 * 1024){
+    alert("Arquivo muito grande. Máximo 10 MB.");
+    return;
+  }
+
+  document.getElementById("anexo-empty").style.display = "none";
+  document.getElementById("anexo-uploading").style.display = "block";
+  document.getElementById("anexo-success").style.display = "none";
+  document.getElementById("anexo-progress").textContent = "lendo arquivo...";
+
+  try {
+    // Lê arquivo como dataUrl (base64)
+    var dataUrl = await lerArquivoComoDataUrl(file);
+    document.getElementById("anexo-progress").textContent = "enviando...";
+
+    var resp = await api("POST", {}, {
+      action: "upload_anexo",
+      payload: {
+        email: SESSAO.email,
+        dataUrl: dataUrl,
+        nomeArquivo: file.name
+      }
+    });
+
+    if (!resp.ok) throw new Error(resp.error);
+
+    // Sucesso!
+    document.getElementById("x-documento_anexo_url").value = resp.dados.url;
+    document.getElementById("anexo-nome").textContent = resp.dados.nome;
+    document.getElementById("anexo-link").href = resp.dados.url;
+    document.getElementById("anexo-uploading").style.display = "none";
+    document.getElementById("anexo-success").style.display = "block";
+  } catch(e){
+    alert("Erro ao enviar foto: " + e.message);
+    document.getElementById("anexo-empty").style.display = "block";
+    document.getElementById("anexo-uploading").style.display = "none";
+    inputFile.value = "";
+  }
+}
+
+function lerArquivoComoDataUrl(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result); };
+    reader.onerror = function(){ reject(new Error("Erro ao ler arquivo")); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function removerAnexo(){
+  document.getElementById("x-documento_anexo_url").value = "";
+  document.getElementById("x-anexo-file").value = "";
+  document.getElementById("anexo-empty").style.display = "block";
+  document.getElementById("anexo-success").style.display = "none";
+  document.getElementById("anexo-uploading").style.display = "none";
+}
 
 async function init(){ await carregarConfig(); await recarregar(); }
 
@@ -355,10 +517,12 @@ function cardHtml(p, num){
 
 function abrirNovoChamado(){
   document.getElementById("alert-novo").innerHTML = "";
-  ["cliente_nome","cliente_telefone","nf_origem","data_nf_origem","tipo_processo","motivo",
+  ["cliente_nome","cliente_id","cliente_telefone","nf_origem","data_nf_origem","tipo_processo","motivo",
    "motivo_descricao","cliente_emite_nf","tipo_documento","documento_anexo_url","obs_comercial"]
    .forEach(function(c){ var el = document.getElementById("x-"+c); if(el) el.value = ""; });
   document.getElementById("itens-list").innerHTML = "";
+  removerAnexo();
+  document.getElementById("cliente-suggest").style.display = "none";
   addItem();
   abrir("m-novo");
 }
@@ -406,6 +570,7 @@ async function salvarNovo(avancarFlag){
 
   var payload = {
     email: SESSAO.email,
+    cliente_id: document.getElementById("x-cliente_id").value,
     cliente_nome: document.getElementById("x-cliente_nome").value,
     cliente_telefone: document.getElementById("x-cliente_telefone").value,
     nf_origem: document.getElementById("x-nf_origem").value,
