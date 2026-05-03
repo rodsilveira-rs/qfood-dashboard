@@ -182,9 +182,26 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         <div class="fg"><label>Telefone</label><input type="text" id="x-cliente_telefone" placeholder="(27) 99999-9999"></div>
       </div>
       <div class="fr">
-        <div class="fg"><label class="req">NF de Origem</label><input type="text" id="x-nf_origem"></div>
+        <div class="fg" style="position:relative">
+          <label class="req">NF de Origem</label>
+          <input type="text" id="x-nf_origem" placeholder="Ex: 12345" autocomplete="off">
+          <div id="nf-status" style="font-size:0.7rem;margin-top:4px;min-height:14px;color:var(--mu)"></div>
+        </div>
         <div class="fg"><label>Data da NF</label><input type="date" id="x-data_nf_origem"></div>
       </div>
+
+      <!-- Card de informações da NF (preenchido após busca bem-sucedida) -->
+      <div id="nf-card" style="display:none;background:var(--s2);border:1px solid var(--ok);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:var(--fh);font-weight:700;font-size:0.82rem;color:var(--ok)">✓ NF encontrada no Controle de Entregas</div>
+          <button type="button" class="btn-rm" onclick="limparNF()" style="padding:2px 8px;font-size:0.85rem">×</button>
+        </div>
+        <div id="nf-card-body" style="font-size:0.78rem;color:var(--tx);line-height:1.6"></div>
+      </div>
+
+      <!-- Aviso de NF não encontrada / bloqueio -->
+      <div id="nf-bloqueio" style="display:none" class="alert alert-err"></div>
+
       <div class="fr">
         <div class="fg"><label class="req">Tipo</label>
           <select id="x-tipo_processo" onchange="atualizarDocOpts()">
@@ -271,6 +288,7 @@ document.addEventListener("DOMContentLoaded", function(){
   document.getElementById("app").style.display = "block";
   init();
   setupAutocomplete();
+  setupNFLookup();
 });
 
 // ─── AUTOCOMPLETE DE CLIENTE (BASE_PDV) ───
@@ -525,6 +543,11 @@ function abrirNovoChamado(){
   document.getElementById("itens-list").innerHTML = "";
   removerAnexo();
   document.getElementById("cliente-suggest").style.display = "none";
+  // Reset estado da NF
+  document.getElementById("nf-card").style.display = "none";
+  document.getElementById("nf-bloqueio").style.display = "none";
+  document.getElementById("nf-status").textContent = "";
+  NF_VALIDA = false;
   addItem();
   abrir("m-novo");
 }
@@ -674,6 +697,251 @@ function selecionarProduto(divItem, p){
   if (inputQtd) inputQtd.focus();
 }
 
+// ─── LOOKUP DE NF NO CONTROLE_ENTREGAS_Q_FOOD ───
+// URL pública CSV da aba REGISTRO
+var NF_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739535201&single=true&output=csv";
+
+var NF_BASE = null;       // cache em memória da sessão
+var NF_VALIDA = false;    // flag: NF atual foi validada com sucesso
+var nfTimer = null;
+
+// Mapeamento das colunas (0-based)
+var NF_COL = {
+  TIPO: 0, ID_FISCAL: 1, NF: 2, ROMANEIO: 5, DATA_REG: 6, VEICULO: 7,
+  MOTORISTA: 8, EMISSAO: 9, PEDIDO: 10, RAZAO: 11, VENDEDOR: 12,
+  TIPO_PEDIDO: 13, BAIRRO: 14, CIDADE: 15, VOLUME: 16, TOTAL: 17,
+  ATENDENTE: 18, FORMA_PGTO: 19, RECEBEDOR: 20, OCORRENCIA_FLAG: 21,
+  REG_OCORRENCIA: 22, OBS_ENTREGA: 23, FOTO_CANHOTO: 24, FOTO_1: 25,
+  FOTO_2: 26, FOTO_3: 27, FOTO_4: 28
+};
+
+function setupNFLookup(){
+  var input = document.getElementById("x-nf_origem");
+  if (!input) return;
+
+  input.addEventListener("input", function(){
+    var nf = input.value.trim();
+    NF_VALIDA = false;
+    if (nfTimer) clearTimeout(nfTimer);
+
+    var status = document.getElementById("nf-status");
+    var card = document.getElementById("nf-card");
+    var bloq = document.getElementById("nf-bloqueio");
+
+    card.style.display = "none";
+    bloq.style.display = "none";
+
+    if (!nf || nf.length < 3){
+      status.textContent = "";
+      status.style.color = "var(--mu)";
+      return;
+    }
+
+    status.textContent = "🔍 buscando NF...";
+    status.style.color = "var(--mu)";
+
+    nfTimer = setTimeout(function(){ buscarNF(nf); }, 500);
+  });
+}
+
+async function carregarBaseNF(){
+  if (NF_BASE !== null) return NF_BASE;
+  try {
+    var resp = await fetch(NF_CSV_URL);
+    var texto = await resp.text();
+    NF_BASE = parseCSV(texto);
+    return NF_BASE;
+  } catch(e){
+    console.error("Erro ao carregar base de NFs:", e);
+    NF_BASE = [];
+    return NF_BASE;
+  }
+}
+
+// Parser de CSV simples — lida com aspas e vírgulas dentro de campos
+function parseCSV(texto){
+  var linhas = [];
+  var linha = [];
+  var campo = "";
+  var dentroAspas = false;
+  for (var i = 0; i < texto.length; i++){
+    var c = texto[i];
+    if (dentroAspas){
+      if (c === '"' && texto[i+1] === '"'){ campo += '"'; i++; }
+      else if (c === '"'){ dentroAspas = false; }
+      else { campo += c; }
+    } else {
+      if (c === '"'){ dentroAspas = true; }
+      else if (c === ','){ linha.push(campo); campo = ""; }
+      else if (c === '\n'){ linha.push(campo); linhas.push(linha); linha = []; campo = ""; }
+      else if (c === '\r'){ /* ignore */ }
+      else { campo += c; }
+    }
+  }
+  if (campo || linha.length){ linha.push(campo); linhas.push(linha); }
+  return linhas.slice(1); // pula cabeçalho
+}
+
+async function buscarNF(numNf){
+  var status = document.getElementById("nf-status");
+  var card = document.getElementById("nf-card");
+  var bloq = document.getElementById("nf-bloqueio");
+
+  var base = await carregarBaseNF();
+  var numStr = String(numNf).replace(/\D/g, "");
+
+  // Busca exata pelo número (coluna C, índice 2)
+  var encontrada = null;
+  for (var i = 0; i < base.length; i++){
+    var nfLinha = String(base[i][NF_COL.NF] || "").replace(/\D/g, "");
+    if (nfLinha && nfLinha === numStr){
+      encontrada = base[i];
+      break;
+    }
+  }
+
+  if (!encontrada){
+    status.textContent = "";
+    bloq.innerHTML = '⛔ <strong>NF '+escapeHtml(numNf)+' não encontrada</strong> no Controle de Entregas.<br>'+
+                     '<span style="font-size:0.78rem">Verifique se digitou corretamente ou se a entrega foi registrada pelo entregador.</span>';
+    bloq.style.display = "block";
+    NF_VALIDA = false;
+    return;
+  }
+
+  // Achou! Preenche o card e os campos
+  NF_VALIDA = true;
+  status.textContent = "✓ NF validada";
+  status.style.color = "var(--ok)";
+
+  var pegaCampo = function(idx){ return String(encontrada[idx] || "").trim(); };
+
+  // Auto-preenche campos do formulário
+  var razao = pegaCampo(NF_COL.RAZAO);
+  var emissao = pegaCampo(NF_COL.EMISSAO);
+
+  if (razao){
+    document.getElementById("x-cliente_nome").value = razao;
+    // Tenta achar CNPJ desse cliente via busca de cliente também (background)
+    buscarClienteSilencioso(razao);
+  }
+
+  if (emissao){
+    var dataIso = converterDataParaIso(emissao);
+    if (dataIso) document.getElementById("x-data_nf_origem").value = dataIso;
+  }
+
+  // Monta card visual com TODAS as informações
+  var ocorrenciaFlag = pegaCampo(NF_COL.OCORRENCIA_FLAG).toUpperCase();
+  var regOcorrencia = pegaCampo(NF_COL.REG_OCORRENCIA);
+  var obsEntrega = pegaCampo(NF_COL.OBS_ENTREGA);
+  var motorista = pegaCampo(NF_COL.MOTORISTA);
+  var pedido = pegaCampo(NF_COL.PEDIDO);
+  var volume = pegaCampo(NF_COL.VOLUME);
+  var total = pegaCampo(NF_COL.TOTAL);
+  var dataReg = pegaCampo(NF_COL.DATA_REG);
+  var recebedor = pegaCampo(NF_COL.RECEBEDOR);
+  var fotoCanhoto = pegaCampo(NF_COL.FOTO_CANHOTO);
+  var foto1 = pegaCampo(NF_COL.FOTO_1);
+  var foto2 = pegaCampo(NF_COL.FOTO_2);
+  var foto3 = pegaCampo(NF_COL.FOTO_3);
+  var foto4 = pegaCampo(NF_COL.FOTO_4);
+
+  var temOcorrencia = (ocorrenciaFlag === "SIM" || ocorrenciaFlag === "S" || regOcorrencia.length > 0);
+
+  var html = '';
+
+  // Bloco principal
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:10px">';
+  if (razao)     html += '<div><strong style="color:var(--mu)">🏪 Cliente:</strong><br>'+escapeHtml(razao)+'</div>';
+  if (emissao)   html += '<div><strong style="color:var(--mu)">📅 Emissão:</strong><br>'+escapeHtml(emissao)+'</div>';
+  if (motorista) html += '<div><strong style="color:var(--mu)">🚚 Motorista:</strong><br>'+escapeHtml(motorista)+'</div>';
+  if (dataReg)   html += '<div><strong style="color:var(--mu)">📆 Entregue em:</strong><br>'+escapeHtml(dataReg)+'</div>';
+  if (pedido)    html += '<div><strong style="color:var(--mu)">📋 Pedido:</strong> '+escapeHtml(pedido)+'</div>';
+  if (volume)    html += '<div><strong style="color:var(--mu)">📦 Volume:</strong> '+escapeHtml(volume)+'</div>';
+  if (total)     html += '<div><strong style="color:var(--mu)">💰 Total:</strong> R$ '+escapeHtml(total)+'</div>';
+  if (recebedor) html += '<div><strong style="color:var(--mu)">✍️ Recebedor:</strong><br>'+escapeHtml(recebedor)+'</div>';
+  html += '</div>';
+
+  // Ocorrência (em destaque se houver)
+  if (temOcorrencia){
+    html += '<div style="background:rgba(255,170,43,0.10);border-left:3px solid #ffaa2b;padding:10px;border-radius:6px;margin-top:8px">';
+    html += '<div style="font-weight:700;color:#ffaa2b;font-size:0.78rem;margin-bottom:4px">⚠️ Esta entrega teve ocorrência</div>';
+    if (regOcorrencia) html += '<div style="margin-top:4px"><strong style="color:var(--mu)">Registro:</strong> '+escapeHtml(regOcorrencia)+'</div>';
+    if (obsEntrega)    html += '<div style="margin-top:4px"><strong style="color:var(--mu)">Observações:</strong> '+escapeHtml(obsEntrega)+'</div>';
+    html += '</div>';
+  } else if (obsEntrega){
+    html += '<div style="margin-top:8px;font-size:0.76rem;color:var(--mu)"><strong>Obs entrega:</strong> '+escapeHtml(obsEntrega)+'</div>';
+  }
+
+  // Fotos
+  var fotos = [
+    {label: "Canhoto assinado", url: fotoCanhoto, icone: "📝"},
+    {label: "Foto 1", url: foto1, icone: "📷"},
+    {label: "Foto 2", url: foto2, icone: "📷"},
+    {label: "Foto 3", url: foto3, icone: "📷"},
+    {label: "Foto 4", url: foto4, icone: "📷"}
+  ].filter(function(f){ return f.url && f.url.indexOf("http") === 0; });
+
+  if (fotos.length > 0){
+    html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--br)">';
+    html += '<div style="font-size:0.74rem;color:var(--mu);margin-bottom:6px;font-weight:600">FOTOS DA ENTREGA</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+    fotos.forEach(function(f){
+      html += '<a href="'+f.url+'" target="_blank" style="background:var(--s3);color:var(--blue);padding:4px 10px;border-radius:6px;font-size:0.74rem;text-decoration:none;border:1px solid var(--br)">'+f.icone+' '+f.label+'</a>';
+    });
+    html += '</div></div>';
+  }
+
+  document.getElementById("nf-card-body").innerHTML = html;
+  card.style.display = "block";
+}
+
+function limparNF(){
+  document.getElementById("x-nf_origem").value = "";
+  document.getElementById("x-data_nf_origem").value = "";
+  document.getElementById("nf-card").style.display = "none";
+  document.getElementById("nf-bloqueio").style.display = "none";
+  document.getElementById("nf-status").textContent = "";
+  NF_VALIDA = false;
+}
+
+// Busca cliente em background pra pegar o CNPJ (preenche cliente_id)
+async function buscarClienteSilencioso(razao){
+  try {
+    var resp = await api("GET", {action:"buscar_cliente", email:SESSAO.email, q:razao});
+    if (resp.ok && resp.dados && resp.dados.length > 0){
+      // Pega o primeiro match (mais provável)
+      var c = resp.dados[0];
+      document.getElementById("x-cliente_id").value = c.cnpj || "";
+      if (!document.getElementById("x-cliente_telefone").value){
+        document.getElementById("x-cliente_telefone").value = c.telefone || c.whatsapp || "";
+      }
+    }
+  } catch(_){ /* ignora silenciosamente */ }
+}
+
+// Converte data BR (DD/MM/YYYY) ou ISO para YYYY-MM-DD (campo input date)
+function converterDataParaIso(dataStr){
+  if (!dataStr) return "";
+  var s = String(dataStr).trim();
+
+  // Já está em ISO (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+
+  // Formato DD/MM/YYYY ou DD/MM/YY
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (m){
+    var d = m[1].padStart(2,"0");
+    var mes = m[2].padStart(2,"0");
+    var ano = m[3];
+    if (ano.length === 2) ano = "20" + ano;
+    return ano + "-" + mes + "-" + d;
+  }
+
+  return "";
+}
+
 function atualizarDocOpts(){
   var tipo = document.getElementById("x-tipo_processo").value;
   var sel = document.getElementById("x-tipo_documento");
@@ -694,6 +962,21 @@ function toggleDescMotivo(){
 async function salvarNovo(avancarFlag){
   var alert = document.getElementById("alert-novo");
   alert.innerHTML = "";
+
+  // Validação: NF precisa ter sido validada no Controle de Entregas
+  var nfDigitada = document.getElementById("x-nf_origem").value.trim();
+  if (nfDigitada && !NF_VALIDA){
+    if (PERFIL === "MASTER"){
+      // MASTER pode forçar criação assim mesmo
+      var forcar = confirm("⚠️ Esta NF não foi validada no Controle de Entregas.\n\nVocê é admin (MASTER) e pode forçar a criação assim mesmo.\n\nDeseja prosseguir?");
+      if (!forcar) return;
+    } else {
+      alert.innerHTML = '<div class="alert alert-err">⛔ A NF informada não foi encontrada no Controle de Entregas. Verifique o número antes de prosseguir.<br><span style="font-size:0.74rem">Se a entrega ainda não foi registrada, peça ao motorista pra registrar primeiro.</span></div>';
+      // Rola até o topo do modal pra mostrar o erro
+      document.querySelector("#m-novo .m-body").scrollTop = 0;
+      return;
+    }
+  }
 
   var itens = [];
   document.querySelectorAll("#itens-list .item-card").forEach(function(card){
