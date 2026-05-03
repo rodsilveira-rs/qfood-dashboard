@@ -200,9 +200,9 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         <textarea id="x-motivo_descricao"></textarea>
       </div>
       <div class="fg">
-        <label class="req">Itens</label>
+        <label class="req">Itens da troca/devolução <span id="itens-contador" style="font-weight:400;color:var(--mu);font-size:0.7rem;margin-left:6px"></span></label>
         <div class="itens" id="itens-list"></div>
-        <button class="btn-add" onclick="addItem()" style="margin-top:8px">+ Adicionar item</button>
+        <button class="btn-add" onclick="addItem()" style="margin-top:8px;background:var(--s2);color:var(--warn);border:1px solid var(--warn);font-weight:600;padding:10px;font-size:0.85rem">+ Adicionar outro item</button>
       </div>
       <div class="fr">
         <div class="fg"><label>Cliente emite NF?</label>
@@ -310,22 +310,24 @@ async function buscarClientes(termo){
   try {
     var resp = await api("GET", {action:"buscar_cliente", email:SESSAO.email, q:termo});
     if (!resp.ok || !resp.dados || resp.dados.length === 0){
-      suggest.innerHTML = '<div style="padding:12px;color:var(--mu2);font-size:0.78rem;text-align:center">Nenhum cliente encontrado. Você pode digitar o nome manualmente.</div>';
+      suggest.innerHTML = '<div style="padding:14px;color:var(--mu2);font-size:0.78rem;text-align:center">Nenhum cliente encontrado.<br><span style="color:var(--mu);font-size:0.72rem">Você pode digitar o nome manualmente.</span></div>';
       suggest.style.display = "block";
       return;
     }
 
-    suggest.innerHTML = resp.dados.map(function(c){
+    suggest.innerHTML = resp.dados.map(function(c, idx){
       var fone = c.telefone || c.whatsapp || "";
-      return '<div style="padding:10px 14px;border-bottom:1px solid var(--br);cursor:pointer;font-size:0.82rem" '+
+      var local = (c.cidade ? c.cidade + (c.uf ? '/' + c.uf : '') : '');
+      return '<div class="suggest-item" '+
         'onmouseover="this.style.background=\'var(--s3)\'" '+
         'onmouseout="this.style.background=\'transparent\'" '+
-        'onclick="selecionarCliente('+JSON.stringify(c).replace(/"/g, '&quot;')+')">'+
-        '<div style="font-weight:600;color:var(--tx)">'+escapeHtml(c.nomeFantasia||c.razao)+'</div>'+
-        '<div style="font-size:0.72rem;color:var(--mu);margin-top:2px">'+
-          (c.cnpj ? formatCnpj(c.cnpj) : '')+
-          (fone ? ' · '+fone : '')+
-          (c.cidade ? ' · '+c.cidade+'/'+c.uf : '')+
+        'onclick="selecionarCliente('+JSON.stringify(c).replace(/"/g, '&quot;')+')" '+
+        'style="padding:10px 14px;'+(idx > 0 ? 'border-top:1px solid var(--br);' : '')+'cursor:pointer;transition:background 0.1s">'+
+        '<div style="font-weight:600;color:var(--tx);font-size:0.85rem;line-height:1.3">'+escapeHtml(c.nomeFantasia || c.razao)+'</div>'+
+        '<div style="font-size:0.7rem;color:var(--mu);margin-top:3px;display:flex;gap:8px;flex-wrap:wrap">'+
+          (c.cnpj ? '<span>📋 '+formatCnpj(c.cnpj)+'</span>' : '')+
+          (local ? '<span>📍 '+escapeHtml(local)+'</span>' : '')+
+          (fone ? '<span>📞 '+escapeHtml(fone)+'</span>' : '')+
         '</div>'+
       '</div>';
     }).join("");
@@ -529,15 +531,147 @@ function abrirNovoChamado(){
 
 function addItem(){
   var lista = document.getElementById("itens-list");
+  var idx = lista.children.length + 1;
   var div = document.createElement("div");
-  div.className = "it-row";
-  div.innerHTML =
-    '<input type="text" placeholder="Descrição do produto" data-c="descricao_produto">'+
-    '<input type="text" placeholder="SKU" data-c="sku">'+
-    '<input type="number" placeholder="Qtd" data-c="quantidade" step="0.01">'+
-    '<input type="number" placeholder="Vlr unit." data-c="valor_unitario" step="0.01">'+
-    '<button class="btn-rm" onclick="this.parentElement.remove()">×</button>';
+  div.className = "item-card";
+  div.dataset.idx = idx;
+  div.style.cssText = "background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:12px;margin-bottom:10px;position:relative";
+
+  div.innerHTML = ''+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
+      '<div style="font-family:var(--fh);font-weight:700;font-size:0.78rem;color:var(--warn)">Item <span class="item-num">'+idx+'</span></div>'+
+      '<button class="btn-rm" onclick="removerItem(this)" style="padding:4px 10px;font-size:0.9rem">×</button>'+
+    '</div>'+
+
+    '<div class="fg" style="margin-bottom:8px;position:relative">'+
+      '<label style="font-size:0.7rem;margin-bottom:4px">Produto (digite parte do nome)</label>'+
+      '<input type="text" class="produto-input" placeholder="Ex: Leite condensado..." autocomplete="off" data-c="descricao_produto" style="font-size:0.85rem">'+
+      '<input type="hidden" data-c="sku">'+
+      '<div class="produto-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--sf);border:1px solid var(--b2);border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>'+
+    '</div>'+
+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+      '<div class="fg" style="margin-bottom:0">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Quantidade</label>'+
+        '<input type="number" placeholder="0" data-c="quantidade" step="0.01" style="font-size:0.85rem">'+
+      '</div>'+
+      '<div class="fg" style="margin-bottom:0">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Valor unitário (R$)</label>'+
+        '<input type="number" placeholder="0,00" data-c="valor_unitario" step="0.01" style="font-size:0.85rem">'+
+      '</div>'+
+    '</div>';
+
   lista.appendChild(div);
+
+  // Conecta autocomplete no input recém-criado
+  var inputProduto = div.querySelector(".produto-input");
+  setupProdutoAutocomplete(inputProduto);
+
+  atualizarContadorItens();
+}
+
+function removerItem(btn){
+  var card = btn.closest(".item-card");
+  if (!card) return;
+
+  // Garante pelo menos 1 item sempre
+  var lista = document.getElementById("itens-list");
+  if (lista.children.length <= 1){
+    alert("Você precisa ter pelo menos 1 item.");
+    return;
+  }
+
+  card.remove();
+  // Renumera os items restantes
+  Array.prototype.forEach.call(lista.querySelectorAll(".item-card"), function(c, i){
+    var num = c.querySelector(".item-num");
+    if (num) num.textContent = i + 1;
+  });
+  atualizarContadorItens();
+}
+
+function atualizarContadorItens(){
+  var qtd = document.getElementById("itens-list").children.length;
+  var span = document.getElementById("itens-contador");
+  if (span){
+    span.textContent = qtd === 0 ? '' : (qtd === 1 ? '(1 item)' : '(' + qtd + ' itens)');
+  }
+}
+
+// ─── AUTOCOMPLETE DE PRODUTO (PRODUTO_GIRO) ───
+var produtoTimer = null;
+
+function setupProdutoAutocomplete(input){
+  var suggest = input.parentElement.querySelector(".produto-suggest");
+  var hiddenSku = input.parentElement.querySelector("[data-c='sku']");
+
+  input.addEventListener("input", function(){
+    var termo = input.value.trim();
+    if (produtoTimer) clearTimeout(produtoTimer);
+
+    // Limpa SKU quando o usuário digita de novo
+    if (hiddenSku) hiddenSku.value = "";
+
+    if (termo.length < 2){
+      suggest.style.display = "none";
+      suggest.innerHTML = "";
+      return;
+    }
+
+    produtoTimer = setTimeout(function(){
+      buscarProdutos(termo, suggest, input, hiddenSku);
+    }, 300);
+  });
+
+  // Esconde dropdown quando clica fora
+  input.addEventListener("blur", function(){
+    setTimeout(function(){ suggest.style.display = "none"; }, 200);
+  });
+}
+
+async function buscarProdutos(termo, suggest, input, hiddenSku){
+  try {
+    var resp = await api("GET", {action:"buscar_produto", email:SESSAO.email, q:termo});
+    if (!resp.ok || !resp.dados || resp.dados.length === 0){
+      suggest.innerHTML = '<div style="padding:12px;color:var(--mu2);font-size:0.78rem;text-align:center">Nenhum produto encontrado.<br><span style="color:var(--mu);font-size:0.7rem">Você pode digitar a descrição manualmente.</span></div>';
+      suggest.style.display = "block";
+      return;
+    }
+
+    suggest.innerHTML = resp.dados.map(function(p, idx){
+      // Highlight do termo digitado
+      var descHtml = escapeHtml(p.descricao);
+      return '<div '+
+        'onmouseover="this.style.background=\'var(--s3)\'" '+
+        'onmouseout="this.style.background=\'transparent\'" '+
+        'onmousedown="selecionarProduto(this, '+JSON.stringify(p).replace(/"/g, '&quot;')+')" '+
+        'style="padding:9px 12px;'+(idx > 0 ? 'border-top:1px solid var(--br);' : '')+'cursor:pointer;font-size:0.8rem;line-height:1.3">'+
+        '<div style="color:var(--tx)">'+descHtml+'</div>'+
+        (p.sku ? '<div style="font-size:0.65rem;color:var(--mu2);margin-top:2px">SKU '+escapeHtml(p.sku)+'</div>' : '')+
+      '</div>';
+    }).join("");
+    suggest.style.display = "block";
+  } catch(e){
+    suggest.innerHTML = '<div style="padding:12px;color:var(--red);font-size:0.78rem">Erro: '+e.message+'</div>';
+    suggest.style.display = "block";
+  }
+}
+
+function selecionarProduto(divItem, p){
+  var card = divItem.closest(".item-card");
+  if (!card) return;
+
+  var inputDesc = card.querySelector(".produto-input");
+  var hiddenSku = card.querySelector("[data-c='sku']");
+  var suggest = card.querySelector(".produto-suggest");
+
+  inputDesc.value = p.descricao;
+  if (hiddenSku) hiddenSku.value = p.sku || "";
+  suggest.style.display = "none";
+
+  // Move foco pro próximo campo (quantidade)
+  var inputQtd = card.querySelector("[data-c='quantidade']");
+  if (inputQtd) inputQtd.focus();
 }
 
 function atualizarDocOpts(){
@@ -562,9 +696,9 @@ async function salvarNovo(avancarFlag){
   alert.innerHTML = "";
 
   var itens = [];
-  document.querySelectorAll("#itens-list .it-row").forEach(function(row){
+  document.querySelectorAll("#itens-list .item-card").forEach(function(card){
     var item = {};
-    row.querySelectorAll("input").forEach(function(inp){ item[inp.dataset.c] = inp.value; });
+    card.querySelectorAll("input[data-c]").forEach(function(inp){ item[inp.dataset.c] = inp.value; });
     if (item.descricao_produto || item.sku) itens.push(item);
   });
 
