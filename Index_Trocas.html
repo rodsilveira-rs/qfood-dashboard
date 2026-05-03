@@ -255,6 +255,25 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         </div>
         <div class="fg"><label>Tipo de documento</label><select id="x-tipo_documento"></select></div>
       </div>
+
+      <!-- 💰 ACERTO COM CLIENTE (decidido na abertura) -->
+      <div style="background:rgba(54,207,160,0.06);border:1px solid rgba(54,207,160,0.3);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-family:var(--fh);font-size:0.78rem;font-weight:700;color:var(--ok);margin-bottom:10px">💰 ACERTO COM O CLIENTE</div>
+        <div style="font-size:0.72rem;color:var(--mu);margin-bottom:10px;line-height:1.4">
+          Forma combinada com o cliente. <strong>Esta decisão não pode ser alterada</strong> nas etapas seguintes.
+        </div>
+        <div class="fr">
+          <div class="fg" style="margin-bottom:0">
+            <label class="req">Tipo de acerto</label>
+            <select id="x-tipo_acerto"><option value="">Selecione...</option></select>
+          </div>
+          <div class="fg" style="margin-bottom:0">
+            <label>Valor estimado (R$)</label>
+            <input type="number" id="x-valor_acerto" placeholder="0,00" step="0.01">
+            <small style="color:var(--mu2);font-size:0.7rem;display:block;margin-top:3px">Financeiro confirma o valor final</small>
+          </div>
+        </div>
+      </div>
       <div class="fg">
         <label>Anexo (foto da NF de devolução ou formulário assinado)</label>
         <div id="anexo-area" style="background:var(--s2);border:1px dashed var(--b2);border-radius:8px;padding:14px;text-align:center;">
@@ -492,6 +511,15 @@ async function carregarConfig(){
       selVend.innerHTML += '<option value="'+v.sigla+'">'+v.nome+' ('+v.sigla+')</option>';
     });
 
+    // Tipo de acerto (decidido pelo vendedor com o cliente)
+    var selAcerto = document.getElementById("x-tipo_acerto");
+    if (selAcerto){
+      selAcerto.innerHTML = '<option value="">Selecione...</option>';
+      (CONFIG.tiposAcerto || []).forEach(function(a){
+        selAcerto.innerHTML += '<option value="'+a+'">'+a+'</option>';
+      });
+    }
+
     var podeNovo = (PERFIL === "VENDEDOR" || PERFIL === "MASTER");
     document.getElementById("btn-novo").style.display = podeNovo ? "inline-block" : "none";
   } catch(e){ console.error("config:", e); }
@@ -657,7 +685,8 @@ function cardHtml(p, num){
 function abrirNovoChamado(){
   document.getElementById("alert-novo").innerHTML = "";
   ["cliente_nome","cliente_id","cliente_telefone","nf_origem","data_nf_origem","tipo_processo","motivo",
-   "motivo_descricao","cliente_emite_nf","tipo_documento","documento_anexo_url","obs_comercial"]
+   "motivo_descricao","cliente_emite_nf","tipo_documento","documento_anexo_url",
+   "tipo_acerto","valor_acerto","obs_comercial"]
    .forEach(function(c){ var el = document.getElementById("x-"+c); if(el) el.value = ""; });
   document.getElementById("itens-list").innerHTML = "";
   removerAnexo();
@@ -1132,6 +1161,8 @@ async function salvarNovo(avancarFlag){
     cliente_emite_nf: document.getElementById("x-cliente_emite_nf").value,
     tipo_documento: document.getElementById("x-tipo_documento").value,
     documento_anexo_url: document.getElementById("x-documento_anexo_url").value,
+    tipo_acerto: document.getElementById("x-tipo_acerto").value,
+    valor_acerto: document.getElementById("x-valor_acerto").value,
     obs_comercial: document.getElementById("x-obs_comercial").value,
     itens: itens,
     avancar_para_logistica: avancarFlag
@@ -1191,21 +1222,21 @@ function renderTimeline(d){
       "Estado produto": p.produto_integro,
       "Armazém destino": p.armazem_destino,
       "Observação": p.obs_logistica
-    }, p.etapa_atual === "2_logistica" ? formLog(p.id_processo) : "")+
+    }, p.etapa_atual === "2_logistica" ? formLog(p) : "")+
     etapaHtml(3,"Fiscal","📋",idxAtual,{
       "Responsável": p.fiscal_responsavel,
       "NF entrada": p.nf_entrada_numero,
       "Data entrada": fmtDate(p.data_entrada_sistema),
       "Armazém confirmado": p.armazem_confirmado,
       "Observação": p.obs_fiscal
-    }, p.etapa_atual === "3_fiscal" ? formFis(p.id_processo, p.armazem_destino) : "")+
+    }, p.etapa_atual === "3_fiscal" ? formFis(p) : "")+
     etapaHtml(4,"Financeiro","💰",idxAtual,{
       "Responsável": p.financeiro_responsavel,
       "Tipo acerto": p.tipo_acerto,
       "Valor": p.valor_acerto ? "R$ "+Number(p.valor_acerto).toFixed(2) : "",
       "Data acerto": fmtDate(p.data_acerto),
       "Observação": p.obs_financeiro
-    }, p.etapa_atual === "4_financeiro" ? formFin(p.id_processo) : "");
+    }, p.etapa_atual === "4_financeiro" ? formFin(p) : "");
 }
 
 function etapaHtml(num, nome, icone, idxAtual, dados, formulario){
@@ -1226,41 +1257,133 @@ function etapaHtml(num, nome, icone, idxAtual, dados, formulario){
     '</div></div>';
 }
 
-function formLog(id){
+// Helper: bloco read-only mostrando o acerto que o vendedor definiu
+function blocoAcertoReadOnly(p){
+  if (!p.tipo_acerto && !p.valor_acerto) return '';
+  var valorTxt = p.valor_acerto ? 'R$ ' + Number(p.valor_acerto).toFixed(2) : '<em style="color:var(--mu2)">A confirmar</em>';
+  return '<div style="background:rgba(54,207,160,0.06);border:1px solid rgba(54,207,160,0.3);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.78rem">'+
+    '<div style="color:var(--ok);font-weight:700;font-size:0.72rem;margin-bottom:6px">💰 ACERTO COMBINADO COM O CLIENTE (não editável)</div>'+
+    '<div style="display:flex;gap:18px;flex-wrap:wrap">'+
+      '<div><strong style="color:var(--mu)">Tipo:</strong> '+escapeHtml(p.tipo_acerto||"—")+'</div>'+
+      '<div><strong style="color:var(--mu)">Valor:</strong> '+valorTxt+'</div>'+
+    '</div></div>';
+}
+
+function formLog(p){
   if (["LOGISTICA_EDIT","MASTER"].indexOf(PERFIL) < 0) return "";
   var arms = (CONFIG.armazens||[]).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join("");
-  return '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Preencher para enviar ao Fiscal:</strong>'+
+  return blocoAcertoReadOnly(p)+
+    '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Preencher para enviar ao Fiscal:</strong>'+
     '<div class="fr"><div class="fg"><label>Data coleta</label><input type="date" id="lg-data_coleta"></div>'+
     '<div class="fg"><label>Motorista</label><input type="text" id="lg-motorista"></div></div>'+
     '<div class="fr"><div class="fg"><label>Estado do produto</label><select id="lg-produto_integro">'+
     '<option value="">—</option><option value="sim">Íntegro</option><option value="parcial">Parcial</option><option value="nao">Avariado</option></select></div>'+
     '<div class="fg"><label>Armazém destino</label><select id="lg-armazem_destino"><option value="">—</option>'+arms+'</select></div></div>'+
     '<div class="fg"><label>Observação</label><textarea id="lg-obs_logistica"></textarea></div>'+
-    '<button class="btn" onclick="avancar(\''+id+'\',\'3_fiscal\',\'lg\')">Enviar ao Fiscal →</button>';
+    '<button class="btn" onclick="avancar(\''+p.id_processo+'\',\'3_fiscal\',\'lg\')">Enviar ao Fiscal →</button>';
 }
 
-function formFis(id, armDestino){
+function formFis(p){
   if (["FISCAL","MASTER"].indexOf(PERFIL) < 0) return "";
+  var armDestino = p.armazem_destino;
   var arms = (CONFIG.armazens||[]).map(function(a){
     return '<option value="'+a+'"'+(a===armDestino?' selected':'')+'>'+a+'</option>';
   }).join("");
-  return '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Preencher para enviar ao Financeiro:</strong>'+
+  return blocoAcertoReadOnly(p)+
+    '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Preencher para enviar ao Financeiro:</strong>'+
     '<div class="alert alert-info">⚠️ Logística indicou armazém: <strong>'+escapeHtml(armDestino||"—")+'</strong></div>'+
     '<div class="fr"><div class="fg"><label>Nº NF entrada</label><input type="text" id="fc-nf_entrada_numero"></div>'+
     '<div class="fg"><label>Armazém confirmado</label><select id="fc-armazem_confirmado">'+arms+'</select></div></div>'+
     '<div class="fg"><label>Observação</label><textarea id="fc-obs_fiscal"></textarea></div>'+
-    '<button class="btn" onclick="avancar(\''+id+'\',\'4_financeiro\',\'fc\')" style="background:var(--pur)">Enviar ao Financeiro →</button>';
+    '<button class="btn" onclick="avancar(\''+p.id_processo+'\',\'4_financeiro\',\'fc\')" style="background:var(--pur)">Enviar ao Financeiro →</button>';
 }
 
-function formFin(id){
+function formFin(p){
   if (["FINANCEIRO","MASTER"].indexOf(PERFIL) < 0) return "";
-  var ac = (CONFIG.tiposAcerto||[]).map(function(a){return '<option value="'+a+'">'+a+'</option>';}).join("");
-  return '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Concluir processo:</strong>'+
-    '<div class="fr"><div class="fg"><label>Tipo de acerto</label><select id="fn-tipo_acerto"><option value="">—</option>'+ac+'</select></div>'+
-    '<div class="fg"><label>Valor (R$)</label><input type="number" id="fn-valor_acerto" step="0.01"></div></div>'+
-    '<div class="fg"><label>URL comprovante</label><input type="url" id="fn-comprovante_url" placeholder="https://..."></div>'+
+  var valorEstimado = p.valor_acerto ? Number(p.valor_acerto).toFixed(2) : '';
+  return blocoAcertoReadOnly(p)+
+    '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Concluir processo:</strong>'+
+    '<div class="fg">'+
+      '<label>Valor final (R$)</label>'+
+      '<input type="number" id="fn-valor_acerto" step="0.01" placeholder="0,00" value="'+valorEstimado+'">'+
+      '<small style="color:var(--mu2);font-size:0.7rem;display:block;margin-top:3px">'+
+        (valorEstimado ? 'Vendedor estimou R$ '+valorEstimado+' — confirme ou ajuste' : 'Informe o valor exato do acerto')+
+      '</small>'+
+    '</div>'+
+
+    // Upload de comprovante (PDF ou foto)
+    '<div class="fg">'+
+      '<label>Comprovante (PDF ou foto)</label>'+
+      '<div id="fn-comprov-area" style="background:var(--s2);border:1px dashed var(--b2);border-radius:8px;padding:14px;text-align:center">'+
+        '<div id="fn-comprov-empty">'+
+          '<input type="file" id="fn-comprov-file" accept="image/*,application/pdf" style="display:none" onchange="iniciarUploadComprovante(this)">'+
+          '<button type="button" class="btn-sec" onclick="document.getElementById(\'fn-comprov-file\').click()" style="margin-bottom:8px">📎 Anexar comprovante (PDF / foto)</button>'+
+          '<div style="color:var(--mu2);font-size:0.72rem">Ou cole um link do Drive abaixo:</div>'+
+          '<input type="url" id="fn-comprovante_url" placeholder="https://drive.google.com/..." style="margin-top:6px;font-size:0.78rem">'+
+        '</div>'+
+        '<div id="fn-comprov-uploading" style="display:none;color:var(--warn);font-size:0.85rem;padding:10px">'+
+          '⏳ Enviando comprovante...'+
+        '</div>'+
+        '<div id="fn-comprov-success" style="display:none;color:var(--ok);font-size:0.85rem;padding:8px;text-align:left">'+
+          '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between">'+
+            '<div>'+
+              '✓ <strong id="fn-comprov-nome">arquivo</strong>'+
+              '<a id="fn-comprov-link" href="#" target="_blank" style="color:var(--blue);font-size:0.75rem;display:block;margin-top:2px">Ver comprovante</a>'+
+            '</div>'+
+            '<button type="button" class="btn-rm" onclick="removerComprovante()" style="padding:4px 10px">×</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+
     '<div class="fg"><label>Observação</label><textarea id="fn-obs_financeiro"></textarea></div>'+
-    '<button class="btn" onclick="avancar(\''+id+'\',\'concluido\',\'fn\')" style="background:var(--ok)">✓ Concluir</button>';
+    '<button class="btn" onclick="avancar(\''+p.id_processo+'\',\'concluido\',\'fn\')" style="background:var(--ok)">✓ Concluir</button>';
+}
+
+// Upload de comprovante financeiro (reusa endpoint upload_anexo)
+async function iniciarUploadComprovante(inputFile){
+  var file = inputFile.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024){
+    alert("Arquivo muito grande. Máximo 10 MB."); return;
+  }
+
+  document.getElementById("fn-comprov-empty").style.display = "none";
+  document.getElementById("fn-comprov-uploading").style.display = "block";
+  document.getElementById("fn-comprov-success").style.display = "none";
+
+  try {
+    var dataUrl = await lerArquivoComoDataUrl(file);
+    var resp = await api("POST", {}, {
+      action: "upload_anexo",
+      payload: {
+        email: SESSAO.email,
+        dataUrl: dataUrl,
+        nomeArquivo: "comprovante_" + file.name
+      }
+    });
+    if (!resp.ok) throw new Error(resp.error);
+
+    document.getElementById("fn-comprovante_url").value = resp.dados.url;
+    document.getElementById("fn-comprov-nome").textContent = resp.dados.nome;
+    document.getElementById("fn-comprov-link").href = resp.dados.url;
+    document.getElementById("fn-comprov-uploading").style.display = "none";
+    document.getElementById("fn-comprov-success").style.display = "block";
+  } catch(e){
+    alert("Erro ao enviar comprovante: " + e.message);
+    document.getElementById("fn-comprov-empty").style.display = "block";
+    document.getElementById("fn-comprov-uploading").style.display = "none";
+    inputFile.value = "";
+  }
+}
+
+function removerComprovante(){
+  document.getElementById("fn-comprovante_url").value = "";
+  var f = document.getElementById("fn-comprov-file");
+  if (f) f.value = "";
+  document.getElementById("fn-comprov-empty").style.display = "block";
+  document.getElementById("fn-comprov-success").style.display = "none";
+  document.getElementById("fn-comprov-uploading").style.display = "none";
 }
 
 async function avancar(id, novaEtapa, prefix){
