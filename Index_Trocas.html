@@ -50,12 +50,40 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
 .c3 .col-tit{color:var(--pur);}
 .c4 .col-tit{color:var(--ok);}
 
-.card{background:var(--s2);border:1px solid var(--br);border-left:3px solid var(--mu2);border-radius:10px;padding:12px;margin-bottom:10px;cursor:pointer;transition:all .15s;}
+.card{background:var(--s2);border:1px solid var(--br);border-left:3px solid var(--mu2);border-radius:10px;padding:12px;padding-right:42px;margin-bottom:10px;cursor:pointer;transition:all .15s;position:relative;}
 .card:hover{background:var(--s3);transform:translateX(2px);border-color:var(--b2);}
 .card.c1{border-left-color:var(--blue);}
 .card.c2{border-left-color:var(--warn);}
 .card.c3{border-left-color:var(--pur);}
 .card.c4{border-left-color:var(--ok);}
+
+/* Avatar do vendedor no canto superior direito */
+.card-avatar{
+  position:absolute;top:10px;right:10px;
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--fh);font-weight:700;font-size:0.65rem;
+  color:#fff;letter-spacing:0.3px;
+  box-shadow:0 0 0 2px var(--sf);
+}
+
+/* Card "é meu" — vendedor olhando o próprio chamado */
+.card.card-meu{border-left-width:5px;background:linear-gradient(90deg, rgba(249,115,22,0.06) 0%, var(--s2) 60%);}
+.card.card-meu::before{
+  content:'';position:absolute;top:0;left:0;width:5px;height:100%;
+  background:var(--warn);
+  box-shadow:0 0 8px rgba(249,115,22,0.5);
+}
+.card.card-meu .card-avatar{box-shadow:0 0 0 2px var(--warn);}
+
+/* Card "é minha vez" — gestor cujo turno chegou */
+.card.card-minhavez{
+  animation:pulse-minhavez 2s ease-in-out infinite;
+}
+@keyframes pulse-minhavez{
+  0%,100%{box-shadow:0 0 0 1px var(--br);}
+  50%{box-shadow:0 0 0 2px rgba(249,115,22,0.4);}
+}
 .c-id{font-size:0.68rem;color:var(--mu2);font-family:var(--fh);font-weight:600;letter-spacing:0.3px;}
 .c-cli{font-weight:600;font-size:0.88rem;margin:4px 0;color:var(--tx);}
 .c-meta-line{font-size:0.72rem;color:var(--mu);margin-bottom:8px;}
@@ -275,6 +303,7 @@ var SESSAO = null;
 var CONFIG = null;
 var TODOS = [];
 var PERFIL = "VISUALIZADOR";
+var SESSAO_SIGLA = "";  // sigla do vendedor logado (quando aplicável)
 
 document.addEventListener("DOMContentLoaded", function(){
   var sess = localStorage.getItem("qfood_session");
@@ -448,6 +477,7 @@ async function carregarConfig(){
     if (!resp.ok) throw new Error(resp.error);
     CONFIG = resp.dados;
     PERFIL = resp.perfil;
+    SESSAO_SIGLA = resp.sigla || "";
 
     var selMot = document.getElementById("x-motivo");
     var selMotF = document.getElementById("f-motivo");
@@ -474,6 +504,7 @@ async function recarregar(){
     if (!resp.ok) throw new Error(resp.error);
     TODOS = resp.dados;
     PERFIL = resp.perfil;
+    SESSAO_SIGLA = resp.sigla || SESSAO_SIGLA;
     renderKanban();
   } catch(e){
     document.getElementById("t-stats").innerHTML = '<span style="color:var(--red)">Erro: '+e.message+'</span>';
@@ -494,10 +525,25 @@ function renderKanban(){
 
   var cols = {"1_comercial":[],"2_logistica":[],"3_fiscal":[],"4_financeiro":[]};
   var concluidos = 0;
+  var minhaVez = 0;        // pra gestores: quantos esperam minha ação
+  var meusEmAndamento = 0; // pra vendedor: quantos chamados meus em andamento
+
+  var minhaEtapa = etapaDoMeuPerfil();
+
   list.forEach(function(p){
     if (p.status === "concluido"){ concluidos++; return; }
     if (p.status === "cancelado") return;
+
     if (cols[p.etapa_atual]) cols[p.etapa_atual].push(p);
+
+    // Vendedor: conta os próprios chamados em andamento
+    if (PERFIL === "VENDEDOR" && p.vendedor_sigla === SESSAO_SIGLA){
+      meusEmAndamento++;
+    }
+    // Gestor: conta os que esperam minha ação
+    if (minhaEtapa && p.etapa_atual === minhaEtapa && PERFIL !== "VENDEDOR"){
+      minhaVez++;
+    }
   });
 
   Object.keys(cols).forEach(function(et, idx){
@@ -510,10 +556,55 @@ function renderKanban(){
     }
   });
 
-  document.getElementById("t-stats").innerHTML =
-    '<span><strong>'+list.length+'</strong> processos</span>'+
-    '<span><strong>'+concluidos+'</strong> concluídos</span>'+
-    '<span class="t-perfil">'+PERFIL+'</span>';
+  // Monta header de estatísticas com contadores contextuais
+  var statsHtml = '<span><strong>'+list.length+'</strong> processos</span>'+
+                  '<span><strong>'+concluidos+'</strong> concluídos</span>';
+
+  if (PERFIL === "VENDEDOR"){
+    statsHtml = '<span style="background:rgba(249,115,22,0.15);color:var(--warn);padding:4px 10px;border-radius:20px;font-weight:700">'+
+                meusEmAndamento+' meu(s) em andamento</span>' + statsHtml;
+  } else if (minhaVez > 0){
+    statsHtml = '<span style="background:rgba(249,115,22,0.20);color:var(--warn);padding:4px 12px;border-radius:20px;font-weight:700;animation:pulse-minhavez 2s ease-in-out infinite">'+
+                '⚡ '+minhaVez+' aguardam você</span>' + statsHtml;
+  }
+
+  statsHtml += '<span class="t-perfil">'+PERFIL+'</span>';
+  document.getElementById("t-stats").innerHTML = statsHtml;
+}
+
+// Cor consistente baseada na sigla (hash simples → paleta)
+function corDoVendedor(sigla){
+  var paleta = [
+    "#4d8ef5","#22d3ee","#a07cf6","#ec4899","#f97316",
+    "#f59e0b","#10b981","#06b6d4","#8b5cf6","#f43f5e"
+  ];
+  var s = String(sigla||"X");
+  var hash = 0;
+  for (var i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) | 0;
+  return paleta[Math.abs(hash) % paleta.length];
+}
+
+function iniciaisDoVendedor(siglaOuNome){
+  var s = String(siglaOuNome||"").trim();
+  if (!s) return "?";
+  // Sigla tipo "LUCAS.BRITES" → "LB"
+  if (s.indexOf(".") > 0){
+    var partes = s.split(".");
+    return (partes[0].charAt(0) + partes[1].charAt(0)).toUpperCase();
+  }
+  // Nome com espaço → primeiras letras
+  var partes2 = s.split(/\s+/);
+  if (partes2.length >= 2) return (partes2[0].charAt(0) + partes2[1].charAt(0)).toUpperCase();
+  return s.substring(0,2).toUpperCase();
+}
+
+// Mapa: perfil do usuário logado → etapa que ele "atua"
+function etapaDoMeuPerfil(){
+  if (PERFIL === "VENDEDOR")            return "1_comercial";
+  if (PERFIL === "LOGISTICA_EDIT")      return "2_logistica";
+  if (PERFIL === "FISCAL")              return "3_fiscal";
+  if (PERFIL === "FINANCEIRO")          return "4_financeiro";
+  return null;
 }
 
 function cardHtml(p, num){
@@ -524,10 +615,38 @@ function cardHtml(p, num){
   if (["tag-avariado","tag-validade","tag-desacordo","tag-outros"].indexOf(motCls) < 0) motCls = "tag-outros";
   var tipoCls = p.tipo_processo === "TROCA" ? "tag-troca" : "tag-devolucao";
 
-  return '<div class="card c'+num+'" onclick="abrirDetalhe(\''+p.id_processo+'\')">'+
+  // ─── Avatar do vendedor ───
+  var sigla = String(p.vendedor_sigla||"").trim();
+  var nome = String(p.vendedor_responsavel||"").trim();
+  var iniciais = iniciaisDoVendedor(sigla || nome);
+  var corAvatar = corDoVendedor(sigla || nome);
+  var nomeCurto = nome.split(/\s+/)[0] || sigla.split(".")[0] || "—";
+
+  // ─── Destaques contextuais ───
+  var ehMeu = false;          // este card é meu (sou o vendedor que abriu)
+  var ehMinhaVez = false;     // este card está esperando minha ação
+
+  if (PERFIL === "VENDEDOR" && sigla === SESSAO_SIGLA){
+    ehMeu = true;
+  }
+  var minhaEtapa = etapaDoMeuPerfil();
+  if (minhaEtapa && p.etapa_atual === minhaEtapa && PERFIL !== "VENDEDOR"){
+    ehMinhaVez = true;
+  }
+
+  var classesExtra = "";
+  if (ehMeu) classesExtra += " card-meu";
+  if (ehMinhaVez) classesExtra += " card-minhavez";
+
+  // Avatar HTML
+  var avatarHtml = '<div class="card-avatar" title="'+escapeHtml(nome || sigla)+'" '+
+    'style="background:'+corAvatar+'">'+escapeHtml(iniciais)+'</div>';
+
+  return '<div class="card c'+num+classesExtra+'" onclick="abrirDetalhe(\''+p.id_processo+'\')">'+
+    avatarHtml +
     '<div class="c-id">'+p.id_processo+'</div>'+
     '<div class="c-cli">'+escapeHtml(p.cliente_nome||"—")+'</div>'+
-    '<div class="c-meta-line">NF '+escapeHtml(p.nf_origem||"")+' • '+escapeHtml(p.vendedor_responsavel||"")+'</div>'+
+    '<div class="c-meta-line">NF '+escapeHtml(p.nf_origem||"")+' • '+escapeHtml(nomeCurto)+'</div>'+
     '<div class="c-tags">'+
       '<span class="tag '+tipoCls+'">'+(p.tipo_processo||"")+'</span>'+
       '<span class="tag '+motCls+'">'+escapeHtml(p.motivo||"")+'</span>'+
@@ -877,18 +996,33 @@ async function buscarNF(numNf){
   // Fotos
   var fotos = [
     {label: "Canhoto assinado", url: fotoCanhoto, icone: "📝"},
-    {label: "Foto 1", url: foto1, icone: "📷"},
-    {label: "Foto 2", url: foto2, icone: "📷"},
-    {label: "Foto 3", url: foto3, icone: "📷"},
-    {label: "Foto 4", url: foto4, icone: "📷"}
-  ].filter(function(f){ return f.url && f.url.indexOf("http") === 0; });
+    {label: "Entrega 1", url: foto1, icone: "📷"},
+    {label: "Entrega 2", url: foto2, icone: "📷"},
+    {label: "Entrega 3", url: foto3, icone: "📷"},
+    {label: "Entrega 4", url: foto4, icone: "📷"}
+  ].filter(function(f){
+    if (!f.url) return false;
+    var u = String(f.url).trim();
+    if (u.length < 8) return false;
+    // Aceita qualquer URL com http(s), drive.google, ou que pareça URL válida
+    return /^(https?:\/\/|drive\.google|\/\/)/.test(u) || u.indexOf(".") > 0 && u.indexOf(" ") < 0;
+  });
+
+  // Debug: mostra no console as URLs encontradas (útil pra diagnosticar)
+  console.log("[NF "+numNf+"] Fotos brutas:", {
+    canhoto: fotoCanhoto, foto1: foto1, foto2: foto2, foto3: foto3, foto4: foto4
+  });
+  console.log("[NF "+numNf+"] Fotos válidas exibidas:", fotos.length);
 
   if (fotos.length > 0){
     html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--br)">';
     html += '<div style="font-size:0.74rem;color:var(--mu);margin-bottom:6px;font-weight:600">FOTOS DA ENTREGA</div>';
     html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
     fotos.forEach(function(f){
-      html += '<a href="'+f.url+'" target="_blank" style="background:var(--s3);color:var(--blue);padding:4px 10px;border-radius:6px;font-size:0.74rem;text-decoration:none;border:1px solid var(--br)">'+f.icone+' '+f.label+'</a>';
+      // Garante que URL tem protocolo
+      var url = String(f.url).trim();
+      if (!/^https?:\/\//.test(url)) url = "https://" + url.replace(/^\/\//,"");
+      html += '<a href="'+url+'" target="_blank" style="background:var(--s3);color:var(--blue);padding:4px 10px;border-radius:6px;font-size:0.74rem;text-decoration:none;border:1px solid var(--br)">'+f.icone+' '+f.label+'</a>';
     });
     html += '</div></div>';
   }
