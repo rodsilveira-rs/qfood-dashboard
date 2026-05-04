@@ -181,6 +181,7 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
   </select>
   <select id="f-motivo" onchange="renderKanban()"><option value="">Motivo: todos</option></select>
   <select id="f-vendedor" onchange="renderKanban()"><option value="">Vendedor: todos</option></select>
+  <select id="f-mes" onchange="renderKanban()"><option value="">Mês: todos</option></select>
   <button class="btn-ghost" onclick="recarregar()">↻ Atualizar</button>
   <div class="t-stats" id="t-stats">—</div>
 </div>
@@ -236,6 +237,7 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
             <option value="">Selecione...</option>
             <option value="TROCA">Troca (produto por produto)</option>
             <option value="DEVOLUCAO">Devolução (estorno/crédito)</option>
+            <option value="CANCELAMENTO_NF">Cancelamento de NF (anula nota inteira)</option>
           </select>
         </div>
         <div class="fg"><label class="req">Motivo</label><select id="x-motivo" onchange="toggleDescMotivo()"></select></div>
@@ -248,6 +250,10 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         <label class="req">Itens da troca/devolução <span id="itens-contador" style="font-weight:400;color:var(--mu);font-size:0.7rem;margin-left:6px"></span></label>
         <div class="itens" id="itens-list"></div>
         <button class="btn-add" onclick="addItem()" style="margin-top:8px;background:var(--s2);color:var(--warn);border:1px solid var(--warn);font-weight:600;padding:10px;font-size:0.85rem">+ Adicionar outro item</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:10px 14px;background:rgba(54,207,160,0.06);border:1px solid rgba(54,207,160,0.3);border-radius:8px">
+          <div style="font-family:var(--fh);font-weight:700;font-size:0.85rem;color:var(--mu)">TOTAL GERAL</div>
+          <div id="itens-total-geral" style="font-family:var(--fh);font-weight:700;font-size:1.1rem;color:var(--ok)">R$ 0,00</div>
+        </div>
       </div>
       <div class="fr">
         <div class="fg"><label>Cliente emite NF?</label>
@@ -539,15 +545,68 @@ async function recarregar(){
   }
 }
 
+// ─── FILTRO DE MÊS ───
+var MESES_NOMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+// Retorna "YYYY-MM" do processo (baseado em data_abertura)
+function mesAnoDoProcesso(p){
+  if (!p.data_abertura) return "";
+  try {
+    var d = new Date(p.data_abertura);
+    if (isNaN(d.getTime())) return "";
+    var mm = String(d.getMonth() + 1).padStart(2, "0");
+    return d.getFullYear() + "-" + mm;
+  } catch(_){ return ""; }
+}
+
+// Popula o dropdown de meses com base nos processos existentes
+function popularFiltroMes(){
+  var sel = document.getElementById("f-mes");
+  if (!sel) return;
+  var valorAtual = sel.value;
+
+  // Coleta meses únicos
+  var mesesSet = {};
+  TODOS.forEach(function(p){
+    var m = mesAnoDoProcesso(p);
+    if (m) mesesSet[m] = true;
+  });
+
+  // Inclui o mês atual se não tiver nenhum
+  var hoje = new Date();
+  var mesAtual = hoje.getFullYear() + "-" + String(hoje.getMonth()+1).padStart(2,"0");
+  mesesSet[mesAtual] = true;
+
+  // Ordena do mais recente pro mais antigo
+  var mesesOrd = Object.keys(mesesSet).sort().reverse();
+
+  sel.innerHTML = '<option value="">Mês: todos</option>';
+  mesesOrd.forEach(function(m){
+    var partes = m.split("-");
+    var ano = partes[0];
+    var mesIdx = parseInt(partes[1], 10) - 1;
+    var label = MESES_NOMES[mesIdx] + "/" + ano;
+    sel.innerHTML += '<option value="'+m+'"'+(m===valorAtual?' selected':'')+'>'+label+'</option>';
+  });
+}
+
 function renderKanban(){
   var fStatus = document.getElementById("f-status").value;
   var fMotivo = document.getElementById("f-motivo").value;
   var fVend = document.getElementById("f-vendedor").value;
+  var fMes = document.getElementById("f-mes").value;
+
+  // Popula dropdown de meses dinamicamente (só uma vez ou se mudou a base)
+  popularFiltroMes();
 
   var list = TODOS.filter(function(p){
     if (fStatus && p.status !== fStatus) return false;
     if (fMotivo && p.motivo !== fMotivo) return false;
     if (fVend && p.vendedor_sigla !== fVend) return false;
+    if (fMes){
+      var mesProcesso = mesAnoDoProcesso(p);
+      if (mesProcesso !== fMes) return false;
+    }
     return true;
   });
 
@@ -714,21 +773,32 @@ function addItem(){
       '<button class="btn-rm" onclick="removerItem(this)" style="padding:4px 10px;font-size:0.9rem">×</button>'+
     '</div>'+
 
-    '<div class="fg" style="margin-bottom:8px;position:relative">'+
-      '<label style="font-size:0.7rem;margin-bottom:4px">Produto (digite parte do nome)</label>'+
-      '<input type="text" class="produto-input" placeholder="Ex: Leite condensado..." autocomplete="off" data-c="descricao_produto" style="font-size:0.85rem">'+
-      '<input type="hidden" data-c="sku">'+
-      '<div class="produto-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--sf);border:1px solid var(--b2);border-radius:8px;margin-top:4px;max-height:220px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>'+
-    '</div>'+
-
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
-      '<div class="fg" style="margin-bottom:0">'+
-        '<label style="font-size:0.7rem;margin-bottom:4px">Quantidade</label>'+
-        '<input type="number" placeholder="0" data-c="quantidade" step="0.01" style="font-size:0.85rem">'+
+    // Linha 1: Código (busca) + Descrição (auto-preenchida, read-only)
+    '<div style="display:grid;grid-template-columns:130px 1fr;gap:8px;margin-bottom:8px">'+
+      '<div class="fg" style="margin-bottom:0;position:relative">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Código</label>'+
+        '<input type="text" class="produto-input" placeholder="Ex: 1234" autocomplete="off" data-c="sku" style="font-size:0.85rem">'+
+        '<div class="produto-suggest" style="display:none;position:absolute;top:100%;left:0;right:0;width:380px;background:var(--sf);border:1px solid var(--b2);border-radius:8px;margin-top:4px;max-height:240px;overflow-y:auto;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,0.4);"></div>'+
       '</div>'+
       '<div class="fg" style="margin-bottom:0">'+
-        '<label style="font-size:0.7rem;margin-bottom:4px">Valor unitário (R$)</label>'+
-        '<input type="number" placeholder="0,00" data-c="valor_unitario" step="0.01" style="font-size:0.85rem">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Produto</label>'+
+        '<input type="text" data-c="descricao_produto" placeholder="Selecione um código →" style="font-size:0.85rem;background:var(--s2);color:var(--mu);cursor:not-allowed" readonly>'+
+      '</div>'+
+    '</div>'+
+
+    // Linha 2: Quantidade + Valor unit + Subtotal (auto)
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">'+
+      '<div class="fg" style="margin-bottom:0">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Quantidade</label>'+
+        '<input type="number" placeholder="0" data-c="quantidade" step="0.01" oninput="atualizarSubtotal(this)" style="font-size:0.85rem">'+
+      '</div>'+
+      '<div class="fg" style="margin-bottom:0">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Valor unit. (R$)</label>'+
+        '<input type="number" placeholder="0,00" data-c="valor_unitario" step="0.01" oninput="atualizarSubtotal(this)" style="font-size:0.85rem">'+
+      '</div>'+
+      '<div class="fg" style="margin-bottom:0">'+
+        '<label style="font-size:0.7rem;margin-bottom:4px">Subtotal</label>'+
+        '<input type="text" class="item-subtotal" value="R$ 0,00" readonly style="font-size:0.85rem;background:var(--s2);color:var(--ok);font-weight:600;cursor:not-allowed;text-align:right">'+
       '</div>'+
     '</div>';
 
@@ -739,6 +809,32 @@ function addItem(){
   setupProdutoAutocomplete(inputProduto);
 
   atualizarContadorItens();
+  atualizarTotalGeral();
+}
+
+// Calcula subtotal de uma linha (chamado quando muda qtd ou valor)
+function atualizarSubtotal(inputEl){
+  var card = inputEl.closest(".item-card");
+  if (!card) return;
+  var qtd = parseFloat(card.querySelector("[data-c='quantidade']").value) || 0;
+  var vlr = parseFloat(card.querySelector("[data-c='valor_unitario']").value) || 0;
+  var sub = qtd * vlr;
+  card.querySelector(".item-subtotal").value = "R$ " + sub.toFixed(2).replace(".", ",");
+  atualizarTotalGeral();
+}
+
+// Calcula total geral somando todos os subtotais
+function atualizarTotalGeral(){
+  var total = 0;
+  document.querySelectorAll("#itens-list .item-card").forEach(function(card){
+    var qtd = parseFloat(card.querySelector("[data-c='quantidade']").value) || 0;
+    var vlr = parseFloat(card.querySelector("[data-c='valor_unitario']").value) || 0;
+    total += qtd * vlr;
+  });
+  var totalEl = document.getElementById("itens-total-geral");
+  if (totalEl){
+    totalEl.textContent = "R$ " + total.toFixed(2).replace(".", ",");
+  }
 }
 
 function removerItem(btn){
@@ -759,6 +855,7 @@ function removerItem(btn){
     if (num) num.textContent = i + 1;
   });
   atualizarContadorItens();
+  atualizarTotalGeral();
 }
 
 function atualizarContadorItens(){
@@ -773,15 +870,17 @@ function atualizarContadorItens(){
 var produtoTimer = null;
 
 function setupProdutoAutocomplete(input){
-  var suggest = input.parentElement.querySelector(".produto-suggest");
-  var hiddenSku = input.parentElement.querySelector("[data-c='sku']");
+  // Agora o input visível JÁ É o campo SKU (data-c="sku")
+  var card = input.closest(".item-card");
+  var suggest = card.querySelector(".produto-suggest");
+  var inputDesc = card.querySelector("[data-c='descricao_produto']");
 
   input.addEventListener("input", function(){
     var termo = input.value.trim();
     if (produtoTimer) clearTimeout(produtoTimer);
 
-    // Limpa SKU quando o usuário digita de novo
-    if (hiddenSku) hiddenSku.value = "";
+    // Quando digita um código que não existe, limpa a descrição
+    if (inputDesc) inputDesc.value = "";
 
     if (termo.length < 2){
       suggest.style.display = "none";
@@ -790,7 +889,7 @@ function setupProdutoAutocomplete(input){
     }
 
     produtoTimer = setTimeout(function(){
-      buscarProdutos(termo, suggest, input, hiddenSku);
+      buscarProdutos(termo, suggest, input);
     }, 300);
   });
 
@@ -800,25 +899,25 @@ function setupProdutoAutocomplete(input){
   });
 }
 
-async function buscarProdutos(termo, suggest, input, hiddenSku){
+async function buscarProdutos(termo, suggest, input){
   try {
     var resp = await api("GET", {action:"buscar_produto", email:SESSAO.email, q:termo});
     if (!resp.ok || !resp.dados || resp.dados.length === 0){
-      suggest.innerHTML = '<div style="padding:12px;color:var(--mu2);font-size:0.78rem;text-align:center">Nenhum produto encontrado.<br><span style="color:var(--mu);font-size:0.7rem">Você pode digitar a descrição manualmente.</span></div>';
+      suggest.innerHTML = '<div style="padding:12px;color:var(--mu2);font-size:0.78rem;text-align:center">Nenhum produto encontrado.<br><span style="color:var(--mu);font-size:0.7rem">Verifique o código.</span></div>';
       suggest.style.display = "block";
       return;
     }
 
     suggest.innerHTML = resp.dados.map(function(p, idx){
-      // Highlight do termo digitado
-      var descHtml = escapeHtml(p.descricao);
       return '<div '+
         'onmouseover="this.style.background=\'var(--s3)\'" '+
         'onmouseout="this.style.background=\'transparent\'" '+
         'onmousedown="selecionarProduto(this, '+JSON.stringify(p).replace(/"/g, '&quot;')+')" '+
         'style="padding:9px 12px;'+(idx > 0 ? 'border-top:1px solid var(--br);' : '')+'cursor:pointer;font-size:0.8rem;line-height:1.3">'+
-        '<div style="color:var(--tx)">'+descHtml+'</div>'+
-        (p.sku ? '<div style="font-size:0.65rem;color:var(--mu2);margin-top:2px">SKU '+escapeHtml(p.sku)+'</div>' : '')+
+        '<div style="display:flex;gap:10px;align-items:baseline">'+
+          '<div style="font-family:var(--fh);font-weight:700;color:var(--warn);font-size:0.82rem;min-width:60px">'+escapeHtml(p.sku||"—")+'</div>'+
+          '<div style="color:var(--tx);flex:1">'+escapeHtml(p.descricao)+'</div>'+
+        '</div>'+
       '</div>';
     }).join("");
     suggest.style.display = "block";
@@ -832,12 +931,13 @@ function selecionarProduto(divItem, p){
   var card = divItem.closest(".item-card");
   if (!card) return;
 
-  var inputDesc = card.querySelector(".produto-input");
-  var hiddenSku = card.querySelector("[data-c='sku']");
+  // Agora o input visível com classe .produto-input tem data-c="sku"
+  var inputSku = card.querySelector("[data-c='sku']");
+  var inputDesc = card.querySelector("[data-c='descricao_produto']");
   var suggest = card.querySelector(".produto-suggest");
 
-  inputDesc.value = p.descricao;
-  if (hiddenSku) hiddenSku.value = p.sku || "";
+  if (inputSku) inputSku.value = p.sku || "";
+  if (inputDesc) inputDesc.value = p.descricao || "";
   suggest.style.display = "none";
 
   // Move foco pro próximo campo (quantidade)
@@ -1108,7 +1208,7 @@ function converterDataParaIso(dataStr){
 function atualizarDocOpts(){
   var tipo = document.getElementById("x-tipo_processo").value;
   var sel = document.getElementById("x-tipo_documento");
-  if (tipo === "DEVOLUCAO"){
+  if (tipo === "DEVOLUCAO" || tipo === "CANCELAMENTO_NF"){
     sel.innerHTML = '<option value="NF_CLIENTE">NF de Devolução do Cliente</option>'+
                     '<option value="NF_QFOOD">NF de Devolução emitida pela Q Food</option>';
   } else if (tipo === "TROCA"){
@@ -1285,15 +1385,31 @@ function formLog(p){
 
 function formFis(p){
   if (["FISCAL","MASTER"].indexOf(PERFIL) < 0) return "";
-  var armDestino = p.armazem_destino;
-  var arms = (CONFIG.armazens||[]).map(function(a){
-    return '<option value="'+a+'"'+(a===armDestino?' selected':'')+'>'+a+'</option>';
-  }).join("");
+  var armDestino = p.armazem_destino || "";
+  var ehMaster = (PERFIL === "MASTER");
+
+  // Para MASTER: dropdown editável (pode corrigir em emergências)
+  // Para FISCAL: campo travado, valor herdado da Logística
+  var armazemHtml;
+  if (ehMaster){
+    var arms = (CONFIG.armazens||[]).map(function(a){
+      return '<option value="'+a+'"'+(a===armDestino?' selected':'')+'>'+a+'</option>';
+    }).join("");
+    armazemHtml = '<select id="fc-armazem_confirmado">'+arms+'</select>'+
+                  '<small style="color:var(--warn);font-size:0.7rem;display:block;margin-top:3px">⚙️ MASTER: você pode alterar em caso de emergência</small>';
+  } else {
+    armazemHtml = '<input type="text" id="fc-armazem_confirmado" value="'+escapeHtml(armDestino)+'" readonly '+
+                  'style="background:var(--s2);color:var(--mu);cursor:not-allowed;font-weight:600">'+
+                  '<small style="color:var(--mu2);font-size:0.7rem;display:block;margin-top:3px">🔒 Definido pela Logística — não editável</small>';
+  }
+
   return blocoAcertoReadOnly(p)+
     '<strong style="display:block;margin-bottom:8px;color:var(--mu)">Preencher para enviar ao Financeiro:</strong>'+
     '<div class="alert alert-info">⚠️ Logística indicou armazém: <strong>'+escapeHtml(armDestino||"—")+'</strong></div>'+
-    '<div class="fr"><div class="fg"><label>Nº NF entrada</label><input type="text" id="fc-nf_entrada_numero"></div>'+
-    '<div class="fg"><label>Armazém confirmado</label><select id="fc-armazem_confirmado">'+arms+'</select></div></div>'+
+    '<div class="fr">'+
+      '<div class="fg"><label>Nº NF entrada</label><input type="text" id="fc-nf_entrada_numero"></div>'+
+      '<div class="fg"><label>Armazém confirmado</label>'+armazemHtml+'</div>'+
+    '</div>'+
     '<div class="fg"><label>Observação</label><textarea id="fc-obs_fiscal"></textarea></div>'+
     '<button class="btn" onclick="avancar(\''+p.id_processo+'\',\'4_financeiro\',\'fc\')" style="background:var(--pur)">Enviar ao Financeiro →</button>';
 }
