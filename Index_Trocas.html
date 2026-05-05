@@ -521,9 +521,20 @@ function api(modo, params, body){
 async function carregarConfig(){
   try {
     var resp = await api("GET", {action:"config", email:SESSAO.email});
-    if (!resp.ok) throw new Error(resp.error);
-    CONFIG = resp.dados;
-    PERFIL = resp.perfil;
+    console.log("[config] resposta do backend:", resp);
+
+    if (!resp.ok) throw new Error(resp.error || "Resposta inválida do backend");
+
+    // Defaults seguros pra cada chave (se o backend não mandar, vira array vazio)
+    CONFIG = resp.dados || {};
+    CONFIG.motivos = CONFIG.motivos || [];
+    CONFIG.armazens = CONFIG.armazens || [];
+    CONFIG.tiposAcerto = CONFIG.tiposAcerto || [];
+    CONFIG.tiposDocumento = CONFIG.tiposDocumento || [];
+    CONFIG.motoristas = CONFIG.motoristas || [];
+    CONFIG.vendedores = CONFIG.vendedores || [];
+
+    PERFIL = resp.perfil || "VISUALIZADOR";
     SESSAO_SIGLA = resp.sigla || "";
 
     var selMot = document.getElementById("x-motivo");
@@ -543,14 +554,21 @@ async function carregarConfig(){
     var selAcerto = document.getElementById("x-tipo_acerto");
     if (selAcerto){
       selAcerto.innerHTML = '<option value="">Selecione...</option>';
-      (CONFIG.tiposAcerto || []).forEach(function(a){
+      CONFIG.tiposAcerto.forEach(function(a){
         selAcerto.innerHTML += '<option value="'+a+'">'+a+'</option>';
       });
     }
 
     var podeNovo = ["VENDEDOR","MASTER","LOGISTICA_EDIT","FISCAL"].indexOf(PERFIL) >= 0;
     document.getElementById("btn-novo").style.display = podeNovo ? "inline-block" : "none";
-  } catch(e){ console.error("config:", e); }
+  } catch(e){
+    console.error("config:", e);
+    // Mostra erro visualmente pro usuário em vez de tela em branco
+    var alertEl = document.getElementById("alert-novo");
+    if (alertEl){
+      alertEl.innerHTML = '<div class="alert alert-err">⚠️ Erro ao carregar configurações: '+e.message+'<br><small>Abra F12 → Console pra mais detalhes.</small></div>';
+    }
+  }
 }
 
 async function recarregar(){
