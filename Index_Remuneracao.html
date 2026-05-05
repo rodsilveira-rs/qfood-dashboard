@@ -369,6 +369,112 @@ function logout(){
 var UR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=667453580&single=true&output=csv";
 var UM = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=0&single=true&output=csv";
 
+// ════════════════════════════════════════════════════════════════════
+// HISTÓRICO MENSAL — INSTRUÇÕES PARA ATUALIZAR (Rodrigo, leia aqui!)
+// ════════════════════════════════════════════════════════════════════
+// COMO ADICIONAR UM NOVO MÊS:
+// 1. Copie o objeto completo de um mês existente (ex: o de "2026-04")
+// 2. Cole no INÍCIO do array HISTORICO_REMUNERACAO (o mais recente fica em cima)
+// 3. Mude a chave "mes" para o novo mês no formato "AAAA-MM" (ex: "2026-05")
+// 4. Mude o "label" para o nome amigável (ex: "Maio/2026")
+// 5. Substitua os dados de cada vendedor pelos novos números do fechamento
+// 6. As colunas seguem EXATAMENTE a planilha do Sheets:
+//    nome, faturamento, meta_fat, pct_fat, margem, posit_pct, novos, trocas_pct,
+//    p1_fat, p2_marg, p3_posit, p4_novos, total_pct, premio_sheet, tipo,
+//    over_meta, meta_global
+// 7. Salve o arquivo, faça commit e push no GitHub. Pronto!
+//
+// DICA: pode pegar os números diretamente da planilha Sheets do mês fechado
+// (a mesma que alimenta o dashboard atual via CSV).
+// ════════════════════════════════════════════════════════════════════
+var HISTORICO_REMUNERACAO = [
+  {
+    mes: "2026-04",
+    label: "Abril/2026",
+    dados: [
+      { nome:"Lucas",   faturamento:544774.98, meta_fat:657715.36, pct_fat:83, margem:27, posit_pct:82, novos:1, trocas_pct:0, p1_fat:1.00, p2_marg:0,    p3_posit:0.25, p4_novos:0,    total_pct:1.25, premio_sheet:6809.69, tipo:"PJ",    over_meta:0, meta_global:0 },
+      { nome:"Vera",    faturamento:272850.20, meta_fat:362877.44, pct_fat:75, margem:31, posit_pct:64, novos:3, trocas_pct:0, p1_fat:1.00, p2_marg:0.25, p3_posit:0,    p4_novos:0,    total_pct:1.25, premio_sheet:3410.63, tipo:"PJ",    over_meta:0, meta_global:0 },
+      { nome:"Dayane",  faturamento:42039.15,  meta_fat:73709.48,  pct_fat:57, margem:31, posit_pct:36, novos:0, trocas_pct:0, p1_fat:0,    p2_marg:0,    p3_posit:0,    p4_novos:0,    total_pct:0,    premio_sheet:0,       tipo:"CLT",   over_meta:0, meta_global:0 },
+      { nome:"Eliane",  faturamento:277524.90, meta_fat:391227.24, pct_fat:71, margem:29, posit_pct:89, novos:6, trocas_pct:0, p1_fat:0,    p2_marg:0.75, p3_posit:0,    p4_novos:0,    total_pct:0.75, premio_sheet:2081.44, tipo:"CLT",   over_meta:0, meta_global:0 },
+      { nome:"Eder",    faturamento:217151.31, meta_fat:340197.60, pct_fat:64, margem:26, posit_pct:68, novos:0, trocas_pct:0, p1_fat:1.00, p2_marg:0,    p3_posit:0,    p4_novos:0,    total_pct:1.00, premio_sheet:2171.51, tipo:"PJ",    over_meta:0, meta_global:0 },
+      { nome:"Camila",  faturamento:13749.20,  meta_fat:22679.84,  pct_fat:61, margem:34, posit_pct:56, novos:1, trocas_pct:0, p1_fat:0.25, p2_marg:1.00, p3_posit:0,    p4_novos:0,    total_pct:1.25, premio_sheet:171.87,  tipo:"CLT",   over_meta:0, meta_global:0 },
+      { nome:"Kenyo",   faturamento:13139.60,  meta_fat:22679.84,  pct_fat:58, margem:35, posit_pct:17, novos:0, trocas_pct:0, p1_fat:1.00, p2_marg:0.50, p3_posit:0,    p4_novos:0,    total_pct:1.50, premio_sheet:197.09,  tipo:"PJ",    over_meta:0, meta_global:0 },
+      { nome:"Claudia", faturamento:216365.57, meta_fat:340197.60, pct_fat:64, margem:40, posit_pct:68, novos:0, trocas_pct:0, p1_fat:0.75, p2_marg:0,    p3_posit:0,    p4_novos:0,    total_pct:0.75, premio_sheet:1622.74, tipo:"KA-PJ", over_meta:0, meta_global:0 },
+      { nome:"Deane",   faturamento:51594.45,  meta_fat:56699.60,  pct_fat:91, margem:23, posit_pct:30, novos:1, trocas_pct:0, p1_fat:0.60, p2_marg:0,    p3_posit:0,    p4_novos:0,    total_pct:0.60, premio_sheet:309.57,  tipo:"PJ",    over_meta:0, meta_global:0 }
+    ]
+  }
+  // ⬆ Quando adicionar Maio/2026, cole o novo objeto AQUI EM CIMA do de Abril
+];
+
+// Estado atual: qual mês está selecionado.
+// "atual" = lê do CSV (Sheets em tempo real). Outros valores = chave "mes" do histórico.
+var MES_SELECIONADO = "atual";
+
+// Helper: lista de meses disponíveis para o seletor
+function getMesesDisponiveis(){
+  var lista = [{ valor:"atual", label:"Mês Atual (ao vivo)" }];
+  HISTORICO_REMUNERACAO.forEach(function(h){
+    lista.push({ valor:h.mes, label:h.label });
+  });
+  return lista;
+}
+
+// Helper: pega os dados de um vendedor em um mês específico do histórico
+function getDadosHistorico(nome, mesChave){
+  var bloco = HISTORICO_REMUNERACAO.find(function(h){ return h.mes === mesChave; });
+  if(!bloco) return null;
+  var raw = bloco.dados.find(function(d){ return d.nome.toLowerCase() === nome.toLowerCase(); });
+  if(!raw) return null;
+  // Retorna no MESMO formato que getRemData() retorna (compatibilidade total com calcRemuneracao)
+  return {
+    nome: raw.nome,
+    faturamento: raw.faturamento,
+    meta_fat: raw.meta_fat,
+    pct_fat: raw.pct_fat,
+    margem: raw.margem,
+    posit_pct: raw.posit_pct,
+    novos: raw.novos,
+    trocas_pct: raw.trocas_pct,
+    p1_fat: raw.p1_fat, p2_marg: raw.p2_marg, p3_posit: raw.p3_posit, p4_novos: raw.p4_novos,
+    total_pct: raw.total_pct,
+    premio_sheet: raw.premio_sheet,
+    tipo: raw.tipo,
+    over_meta: raw.over_meta,
+    meta_global: raw.meta_global,
+    mes: bloco.label,
+    observacao: ""
+  };
+}
+
+// Wrapper único: decide se busca do CSV (mês atual) ou do histórico
+function getDadosPorMes(nome, mesChave){
+  if(!mesChave || mesChave === "atual") return getRemData(nome);
+  var d = getDadosHistorico(nome, mesChave);
+  return d || getRemData(nome); // fallback: se não tem histórico, usa atual
+}
+
+// Acumulado anual: soma todos os prêmios de todos os meses do histórico para um vendedor
+function getAcumuladoAno(nome, ano){
+  ano = ano || (new Date().getFullYear());
+  var prefixo = String(ano) + "-";
+  var totalPremio = 0;
+  var totalFat = 0;
+  var totalMeta = 0;
+  var mesesContados = 0;
+  HISTORICO_REMUNERACAO.forEach(function(h){
+    if(h.mes.indexOf(prefixo) === 0){
+      var d = h.dados.find(function(x){ return x.nome.toLowerCase() === nome.toLowerCase(); });
+      if(d){
+        totalPremio += d.premio_sheet || 0;
+        totalFat += d.faturamento || 0;
+        totalMeta += d.meta_fat || 0;
+        mesesContados++;
+      }
+    }
+  });
+  return { premio: totalPremio, faturamento: totalFat, meta: totalMeta, meses: mesesContados };
+}
+
 // Mapas de Siglas e Avatares (do original)
 var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
 var AV={LB:"avLB",VS:"avVS",DN:"avDN",EM:"avEM",ED:"avED",CG:"avCG",CC:"avCC",KE:"avKE",DE:"avDE"};
@@ -593,17 +699,100 @@ function buildRemuneracao(){
   var isAdmin = CURRENT_USER && CURRENT_USER.role==="admin";
   var selDiv = document.getElementById("rem-selector");
   var btnsDiv = document.getElementById("rem-btns");
+  if(selDiv) selDiv.style.display="none";
+  if(btnsDiv) btnsDiv.innerHTML="";
 
-  if(isAdmin){
-    // Modo Gestor: oculta botoes + renderiza grid de mini-cards
-    if(selDiv) selDiv.style.display="none";
-    if(btnsDiv) btnsDiv.innerHTML="";
-    renderRemTeamGrid();
-  } else {
-    // Vendedor: card unico do proprio
-    if(selDiv) selDiv.style.display="none";
-    var myNome = CURRENT_USER ? CURRENT_USER.nome : "";
-    renderRemCard(myNome);
+  // Renderiza shell com cabeçalho fixo (seletor de mês + sub-abas) + área de conteúdo
+  var card = document.getElementById("rem-card");
+  if(!card) return;
+
+  var meses = getMesesDisponiveis();
+  var optsMes = meses.map(function(m){
+    var sel = (m.valor === MES_SELECIONADO) ? " selected" : "";
+    return '<option value="'+m.valor+'"'+sel+'>'+m.label+'</option>';
+  }).join("");
+
+  // Sub-abas: variam entre vendedor e admin
+  var subAbas = isAdmin
+    ? [
+        { id:"mes",       label:"📅 Por Mês" },
+        { id:"acumulado", label:"📊 Acumulado " + (new Date().getFullYear()) },
+        { id:"comparativo", label:"📋 Comparativo" },
+        { id:"evolucao",  label:"📈 Evolução" }
+      ]
+    : [
+        { id:"mes",       label:"📅 Por Mês" },
+        { id:"acumulado", label:"📊 Acumulado " + (new Date().getFullYear()) },
+        { id:"comparativo", label:"📋 Histórico" },
+        { id:"evolucao",  label:"📈 Evolução" }
+      ];
+  var abasHTML = subAbas.map(function(a, i){
+    var ativa = (i===0) ? " rem-subtab-active" : "";
+    return '<button class="rem-subtab'+ativa+'" data-sub="'+a.id+'" onclick="trocarSubAba(\''+a.id+'\')">'+a.label+'</button>';
+  }).join("");
+
+  card.innerHTML =
+    '<div id="rem-header-bar" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">'+
+      '<div style="display:flex;align-items:center;gap:10px">'+
+        '<label for="rem-mes-select" style="font-size:0.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.6px;font-weight:700">Período:</label>'+
+        '<select id="rem-mes-select" onchange="onTrocarMes(this.value)" style="background:var(--s2);border:1px solid var(--b2);color:var(--tx);padding:8px 14px;border-radius:8px;font-family:var(--fb);font-size:0.85rem;font-weight:600;cursor:pointer;outline:none">'+
+          optsMes+
+        '</select>'+
+      '</div>'+
+      '<div style="flex:1;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">'+
+        abasHTML+
+      '</div>'+
+    '</div>'+
+    '<div id="rem-conteudo"></div>';
+
+  // Injeta CSS das sub-abas se ainda não existe
+  if(!document.getElementById("rem-subtab-styles")){
+    var st = document.createElement("style");
+    st.id = "rem-subtab-styles";
+    st.textContent = ''+
+      '.rem-subtab{background:transparent;border:1px solid var(--br);color:var(--mu);padding:7px 14px;border-radius:8px;font-family:var(--fb);font-size:0.78rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}'+
+      '.rem-subtab:hover{color:var(--tx);border-color:var(--b2)}'+
+      '.rem-subtab-active{background:var(--s2);color:var(--tx);border-color:var(--b3)}';
+    document.head.appendChild(st);
+  }
+
+  // Renderiza a sub-aba inicial (Por Mês)
+  trocarSubAba("mes");
+}
+
+// Handler: trocou o mês no <select>
+function onTrocarMes(novoMes){
+  MES_SELECIONADO = novoMes;
+  // Re-renderiza a sub-aba ativa
+  var ativa = document.querySelector(".rem-subtab-active");
+  trocarSubAba(ativa ? ativa.getAttribute("data-sub") : "mes");
+}
+
+// Handler: trocou a sub-aba
+function trocarSubAba(qual){
+  // Marca botão ativo
+  document.querySelectorAll(".rem-subtab").forEach(function(b){
+    if(b.getAttribute("data-sub") === qual) b.classList.add("rem-subtab-active");
+    else b.classList.remove("rem-subtab-active");
+  });
+
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+
+  var isAdmin = CURRENT_USER && CURRENT_USER.role === "admin";
+
+  if(qual === "mes"){
+    if(isAdmin) renderRemTeamGrid();
+    else        renderRemCard(CURRENT_USER ? CURRENT_USER.nome : "");
+  } else if(qual === "acumulado"){
+    if(isAdmin) renderAcumuladoTime();
+    else        renderAcumuladoVendedor(CURRENT_USER ? CURRENT_USER.nome : "");
+  } else if(qual === "comparativo"){
+    if(isAdmin) renderComparativoAdmin();
+    else        renderComparativoVendedor(CURRENT_USER ? CURRENT_USER.nome : "");
+  } else if(qual === "evolucao"){
+    if(isAdmin) renderEvolucaoAdmin();
+    else        renderEvolucaoVendedor(CURRENT_USER ? CURRENT_USER.nome : "");
   }
 }
 
@@ -1491,7 +1680,8 @@ function renderPilarHTML(p, opts){
 // ════════════════════════════════════════════════════════════════════
 function renderRemCardCompleto(nome, opts){
   opts = opts || {};
-  var d = getRemData(nome);
+  var mesChave = opts.mesChave || MES_SELECIONADO || "atual";
+  var d = getDadosPorMes(nome, mesChave);
   var r = calcRemuneracao(d);
 
   var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
@@ -1647,15 +1837,27 @@ function renderRemCardCompleto(nome, opts){
 
 // Wrapper compatível com chamadas antigas (renderiza dentro do #rem-card)
 function renderRemCard(nome){
-  var card = document.getElementById("rem-card");
-  if(card) card.innerHTML = renderRemCardCompleto(nome);
+  var card = document.getElementById("rem-conteudo") || document.getElementById("rem-card");
+  if(!card) return;
+  // Tag de mês quando estiver vendo histórico
+  var tag = "";
+  if(MES_SELECIONADO !== "atual"){
+    var bloco = HISTORICO_REMUNERACAO.find(function(h){ return h.mes === MES_SELECIONADO; });
+    if(bloco){
+      tag = '<div style="background:linear-gradient(90deg,rgba(160,124,246,0.18),rgba(77,142,245,0.10));border:1px solid rgba(160,124,246,0.35);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:0.82rem;color:var(--tx)">'+
+        '<span style="font-size:1.1rem">📅</span>'+
+        '<span><strong>Visualizando histórico:</strong> '+bloco.label+' · dados consolidados (não muda mais)</span>'+
+      '</div>';
+    }
+  }
+  card.innerHTML = tag + renderRemCardCompleto(nome, { mesChave: MES_SELECIONADO });
 }
 
 // ════════════════════════════════════════════════════════════════════
 // MINI-CARD (grid de gestores)
 // ════════════════════════════════════════════════════════════════════
 function renderMiniCard(nome){
-  var d = getRemData(nome);
+  var d = getDadosPorMes(nome, MES_SELECIONADO);
   var r = calcRemuneracao(d);
   var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
   var av = dm?dm.av:"avLB";
@@ -1757,22 +1959,34 @@ function fecharModalRem(){
 // TEAM GRID (visão admin)
 // ════════════════════════════════════════════════════════════════════
 function renderRemTeamGrid(){
-  var card = document.getElementById('rem-card');
+  var card = document.getElementById('rem-conteudo') || document.getElementById('rem-card');
   if(!card) return;
   var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
 
-  // KPIs do time
+  // KPIs do time (no mês selecionado)
   var totalTime = 0;
   var totalAtingidos = 0;
   vendores.forEach(function(n){
-    var rd = calcRemuneracao(getRemData(n));
+    var rd = calcRemuneracao(getDadosPorMes(n, MES_SELECIONADO));
     totalTime += rd.premio||0;
     if(rd.premio>0) totalAtingidos++;
   });
 
   var grid = vendores.map(function(n){ return renderMiniCard(n); }).join('');
 
-  card.innerHTML = ''+
+  // Tag de histórico se aplicável
+  var tag = "";
+  if(MES_SELECIONADO !== "atual"){
+    var bloco = HISTORICO_REMUNERACAO.find(function(h){ return h.mes === MES_SELECIONADO; });
+    if(bloco){
+      tag = '<div style="background:linear-gradient(90deg,rgba(160,124,246,0.18),rgba(77,142,245,0.10));border:1px solid rgba(160,124,246,0.35);border-radius:10px;padding:10px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;font-size:0.82rem;color:var(--tx)">'+
+        '<span style="font-size:1.1rem">📅</span>'+
+        '<span><strong>Visualizando histórico:</strong> '+bloco.label+' · dados consolidados</span>'+
+      '</div>';
+    }
+  }
+
+  card.innerHTML = tag +
     // Header com KPIs do time
     '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:16px;padding:20px 24px;margin-bottom:18px">'+
       '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">'+
@@ -1793,6 +2007,395 @@ function renderRemTeamGrid(){
     '</div>'+
     // Grid 3 colunas
     '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:14px">'+grid+'</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SUB-ABA: ACUMULADO ANUAL
+// ════════════════════════════════════════════════════════════════════
+function renderAcumuladoVendedor(nome){
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  var ano = new Date().getFullYear();
+  var ac = getAcumuladoAno(nome, ano);
+  var medio = ac.meses>0 ? ac.premio/ac.meses : 0;
+  var pctMeta = ac.meta>0 ? Math.round((ac.faturamento/ac.meta)*100) : 0;
+  var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var sigla = (dm && dm.sigla) || SG[nome] || nome.substring(0,2).toUpperCase();
+  var av = dm?dm.av:"avLB";
+
+  cont.innerHTML =
+    '<div style="background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:24px;margin-bottom:18px">'+
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
+        '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">'+sigla+'</div>'+
+        '<div>'+
+          '<div style="font-family:var(--fh);font-size:1.3rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em">'+nome+'</div>'+
+          '<div style="font-size:0.78rem;color:var(--mu);margin-top:2px">Acumulado em '+ano+' · '+ac.meses+' '+(ac.meses===1?'mês fechado':'meses fechados')+'</div>'+
+        '</div>'+
+      '</div>'+
+      // 4 KPIs grandes
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">'+
+        kpiCard("💰 Total Recebido", fv(ac.premio), "Soma de todos os prêmios", "#10b981")+
+        kpiCard("📊 Média Mensal", fv(medio), "Por mês fechado", "#4d8ef5")+
+        kpiCard("📈 Faturamento Total", fv(ac.faturamento), "Soma do ano", "#a07cf6")+
+        kpiCard("🎯 % Meta Acumulada", pctMeta+"%", "Faturamento vs meta total", pctMeta>=100?"#10b981":pctMeta>=70?"#ffaa2b":"#ff4d4f")+
+      '</div>'+
+    '</div>'+
+    renderGraficoMensal(nome);
+}
+
+function renderAcumuladoTime(){
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  var ano = new Date().getFullYear();
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
+
+  // Calcula acumulado de cada um e ordena por prêmio
+  var ranking = vendores.map(function(n){
+    var ac = getAcumuladoAno(n, ano);
+    return { nome:n, ac:ac };
+  }).sort(function(a,b){ return b.ac.premio - a.ac.premio; });
+
+  var totalGeral = ranking.reduce(function(s,x){ return s + x.ac.premio; }, 0);
+  var totalFat = ranking.reduce(function(s,x){ return s + x.ac.faturamento; }, 0);
+
+  // Cards do ranking
+  var cards = ranking.map(function(item, i){
+    var n = item.nome;
+    var ac = item.ac;
+    var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===n.toLowerCase();});
+    var sigla = (dm && dm.sigla) || SG[n] || n.substring(0,2).toUpperCase();
+    var av = dm?dm.av:"avLB";
+    var pos = i+1;
+    var medalha = pos===1 ? "🥇" : pos===2 ? "🥈" : pos===3 ? "🥉" : "#"+pos;
+    var corPos = pos===1?"#f59e0b":pos===2?"#94a3b8":pos===3?"#b45309":"var(--mu)";
+    var pctTime = totalGeral>0 ? Math.round((ac.premio/totalGeral)*100) : 0;
+    var medio = ac.meses>0 ? ac.premio/ac.meses : 0;
+    return ''+
+      '<div onclick="abrirModalRem(\''+n+'\')" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px;cursor:pointer;transition:all .2s" '+
+        'onmouseover="this.style.borderColor=\'var(--b2)\'" onmouseout="this.style.borderColor=\'var(--br)\'">'+
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'+
+          '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:800;color:'+corPos+';width:36px;text-align:center">'+medalha+'</div>'+
+          '<div class="mav2 '+av+'" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800">'+sigla+'</div>'+
+          '<div style="flex:1;min-width:0">'+
+            '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+n+'</div>'+
+            '<div style="font-size:0.65rem;color:var(--mu)">'+ac.meses+' '+(ac.meses===1?'mês':'meses')+' · média '+fv(medio)+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:800;color:#10b981;letter-spacing:-0.02em;line-height:1">'+fv(ac.premio)+'</div>'+
+        '<div style="margin-top:8px;height:4px;background:var(--s2);border-radius:99px;overflow:hidden">'+
+          '<div style="width:'+pctTime+'%;height:100%;background:linear-gradient(90deg,#10b981,#36cfa0);border-radius:99px"></div>'+
+        '</div>'+
+        '<div style="margin-top:4px;font-size:0.65rem;color:var(--mu)">'+pctTime+'% do total da equipe</div>'+
+      '</div>';
+  }).join("");
+
+  cont.innerHTML =
+    // Header de KPIs do time
+    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:16px;padding:20px 24px;margin-bottom:18px">'+
+      '<div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">'+
+        '<div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:2px">Total pago em '+ano+'</div>'+
+          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:#10b981;letter-spacing:-0.02em;line-height:1">'+fv(totalGeral)+'</div>'+
+        '</div>'+
+        '<div style="height:36px;width:1px;background:var(--br)"></div>'+
+        '<div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:2px">Faturamento da equipe</div>'+
+          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em;line-height:1">'+fv(totalFat)+'</div>'+
+        '</div>'+
+        '<div style="height:36px;width:1px;background:var(--br)"></div>'+
+        '<div>'+
+          '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:2px">Meses no histórico</div>'+
+          '<div style="font-family:var(--fh);font-size:1.8rem;font-weight:800;color:#a07cf6;letter-spacing:-0.02em;line-height:1">'+HISTORICO_REMUNERACAO.length+'</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    // Título e ranking
+    '<div class="sec" style="margin-bottom:14px">🏆 Ranking acumulado '+ano+'</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px">'+cards+'</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SUB-ABA: COMPARATIVO (tabela mês a mês)
+// ════════════════════════════════════════════════════════════════════
+function renderComparativoVendedor(nome){
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  var meses = HISTORICO_REMUNERACAO.slice(); // mais recente primeiro
+
+  if(meses.length === 0){
+    cont.innerHTML = '<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:40px;text-align:center;color:var(--mu)">Nenhum mês no histórico ainda.</div>';
+    return;
+  }
+
+  var linhas = meses.map(function(h){
+    var d = h.dados.find(function(x){ return x.nome.toLowerCase() === nome.toLowerCase(); });
+    if(!d) return '';
+    var corFat = d.pct_fat>=100?"#10b981":d.pct_fat>=70?"#ffaa2b":"#ff4d4f";
+    var corPremio = d.premio_sheet>0?"#10b981":"var(--mu)";
+    return ''+
+      '<tr>'+
+        '<td style="font-weight:600">'+h.label+'</td>'+
+        '<td>'+fv(d.faturamento)+'</td>'+
+        '<td>'+fv(d.meta_fat)+'</td>'+
+        '<td><span style="color:'+corFat+';font-weight:700">'+d.pct_fat+'%</span></td>'+
+        '<td>'+formatPct(d.margem)+'</td>'+
+        '<td>'+formatPct(d.posit_pct)+'</td>'+
+        '<td>'+d.novos+'</td>'+
+        '<td>'+formatPct(d.total_pct)+'</td>'+
+        '<td style="color:'+corPremio+';font-weight:800;font-family:var(--fh)">'+fv(d.premio_sheet)+'</td>'+
+      '</tr>';
+  }).join('');
+
+  cont.innerHTML =
+    '<div class="sec" style="margin-bottom:14px">📋 Histórico mês a mês — '+nome+'</div>'+
+    '<div class="twrap" style="overflow-x:auto">'+
+      '<table style="min-width:760px">'+
+        '<thead><tr>'+
+          '<th style="text-align:left">Mês</th>'+
+          '<th>Faturamento</th>'+
+          '<th>Meta</th>'+
+          '<th>% Meta</th>'+
+          '<th>Margem</th>'+
+          '<th>Posit.</th>'+
+          '<th>Novos</th>'+
+          '<th>Total %</th>'+
+          '<th>Prêmio R$</th>'+
+        '</tr></thead>'+
+        '<tbody>'+linhas+'</tbody>'+
+      '</table>'+
+    '</div>';
+}
+
+function renderComparativoAdmin(){
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  var meses = HISTORICO_REMUNERACAO.slice();
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
+
+  if(meses.length === 0){
+    cont.innerHTML = '<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:40px;text-align:center;color:var(--mu)">Nenhum mês no histórico ainda.</div>';
+    return;
+  }
+
+  // Tabela: linhas = vendedores, colunas = meses (prêmio R$)
+  var headerMeses = meses.map(function(h){
+    return '<th style="text-align:right">'+h.label+'</th>';
+  }).join('');
+
+  var totaisPorMes = meses.map(function(){ return 0; });
+
+  var linhas = vendores.map(function(n){
+    var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===n.toLowerCase();});
+    var sigla = (dm && dm.sigla) || SG[n] || n.substring(0,2).toUpperCase();
+    var av = dm?dm.av:"avLB";
+    var totalLinha = 0;
+    var celulas = meses.map(function(h, idx){
+      var d = h.dados.find(function(x){ return x.nome.toLowerCase() === n.toLowerCase(); });
+      var v = d ? d.premio_sheet : 0;
+      totalLinha += v;
+      totaisPorMes[idx] += v;
+      var cor = v>0 ? "#10b981" : "var(--mu)";
+      return '<td style="color:'+cor+';font-weight:'+(v>0?'700':'400')+'">'+(v>0?fv(v):'—')+'</td>';
+    }).join('');
+    return ''+
+      '<tr onclick="abrirModalRem(\''+n+'\')" style="cursor:pointer">'+
+        '<td><div class="vc">'+
+          '<div class="mav '+av+'">'+sigla+'</div>'+
+          '<span style="font-weight:600">'+n+'</span>'+
+        '</div></td>'+
+        celulas+
+        '<td style="color:#10b981;font-weight:800;font-family:var(--fh);background:rgba(16,185,129,0.06)">'+fv(totalLinha)+'</td>'+
+      '</tr>';
+  }).join('');
+
+  // Linha de total
+  var totalGeral = totaisPorMes.reduce(function(a,b){return a+b;}, 0);
+  var celulasTotal = totaisPorMes.map(function(t){
+    return '<td style="font-weight:800;color:var(--tx);background:var(--s2)">'+fv(t)+'</td>';
+  }).join('');
+  var linhaTotal = ''+
+    '<tr style="background:var(--s2)">'+
+      '<td style="font-weight:800;text-transform:uppercase;letter-spacing:0.5px;font-size:0.78rem">TOTAL</td>'+
+      celulasTotal+
+      '<td style="font-weight:800;color:#10b981;font-family:var(--fh);font-size:1rem">'+fv(totalGeral)+'</td>'+
+    '</tr>';
+
+  cont.innerHTML =
+    '<div class="sec" style="margin-bottom:14px">📋 Comparativo de Prêmios por Mês — toda a equipe</div>'+
+    '<div style="font-size:0.75rem;color:var(--mu);margin-bottom:10px">💡 Clique em qualquer linha para ver o detalhamento do vendedor.</div>'+
+    '<div class="twrap" style="overflow-x:auto">'+
+      '<table style="min-width:'+(280 + meses.length*140)+'px">'+
+        '<thead><tr>'+
+          '<th style="text-align:left">Vendedor</th>'+
+          headerMeses+
+          '<th style="text-align:right;background:rgba(16,185,129,0.10)">Total Acumulado</th>'+
+        '</tr></thead>'+
+        '<tbody>'+linhas+linhaTotal+'</tbody>'+
+      '</table>'+
+    '</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SUB-ABA: EVOLUÇÃO (mini gráficos SVG)
+// ════════════════════════════════════════════════════════════════════
+function renderEvolucaoVendedor(nome){
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  cont.innerHTML =
+    '<div class="sec" style="margin-bottom:14px">📈 Evolução de '+nome+'</div>'+
+    renderGraficoMensal(nome);
+}
+
+function renderEvolucaoAdmin(){
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Camila","Kenyo","Deane"];
+
+  var graficos = vendores.map(function(n){
+    return ''+
+      '<div onclick="abrirModalRem(\''+n+'\')" style="cursor:pointer;transition:transform .15s" onmouseover="this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.transform=\'translateY(0)\'">'+
+        renderGraficoMensal(n, { compact:true })+
+      '</div>';
+  }).join('');
+
+  cont.innerHTML =
+    '<div class="sec" style="margin-bottom:14px">📈 Evolução por vendedor</div>'+
+    '<div style="font-size:0.75rem;color:var(--mu);margin-bottom:10px">💡 Clique em qualquer card para ver o detalhamento completo.</div>'+
+    '<div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:14px">'+graficos+'</div>';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MINI-GRÁFICO SVG: barras de prêmio (últimos 6 meses) + linha de margem
+// ════════════════════════════════════════════════════════════════════
+function renderGraficoMensal(nome, opts){
+  opts = opts || {};
+  var compact = !!opts.compact;
+  // Últimos 6 meses (do mais antigo pro mais recente, esquerda → direita)
+  var historico = HISTORICO_REMUNERACAO.slice(0, 6).reverse();
+
+  if(historico.length === 0){
+    return '<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:40px;text-align:center;color:var(--mu);font-size:0.85rem">Sem histórico para exibir gráficos ainda.</div>';
+  }
+
+  // Coleta dados do vendedor em cada mês
+  var pontos = historico.map(function(h){
+    var d = h.dados.find(function(x){ return x.nome.toLowerCase() === nome.toLowerCase(); });
+    return {
+      label: h.label.split('/')[0].substring(0,3), // "Abr"
+      labelFull: h.label,
+      premio: d ? (d.premio_sheet||0) : 0,
+      faturamento: d ? (d.faturamento||0) : 0,
+      meta: d ? (d.meta_fat||0) : 0,
+      margem: d ? (d.margem||0) : 0,
+      pct_fat: d ? (d.pct_fat||0) : 0
+    };
+  });
+
+  var maxPremio = Math.max.apply(null, pontos.map(function(p){return p.premio;})) || 1;
+  var maxMargem = Math.max.apply(null, pontos.map(function(p){return p.margem;})) || 1;
+
+  var W = 600, H = compact?180:240, padL=50, padR=20, padT=20, padB=40;
+  var bw = (W - padL - padR) / pontos.length;
+
+  // Barras de prêmio
+  var barras = pontos.map(function(p, i){
+    var bh = (p.premio/maxPremio) * (H - padT - padB);
+    var x = padL + i*bw + bw*0.18;
+    var y = H - padB - bh;
+    var w = bw*0.64;
+    var cor = p.premio>0 ? "#10b981" : "#3a4360";
+    var label = p.premio>0 ? "R$ "+(p.premio>=1000? (p.premio/1000).toFixed(1)+"k" : p.premio.toFixed(0)) : "—";
+    return ''+
+      '<g>'+
+        '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+bh+'" fill="'+cor+'" rx="3" opacity="0.85">'+
+          '<title>'+p.labelFull+'\nPrêmio: R$ '+p.premio.toLocaleString("pt-BR",{minimumFractionDigits:2})+'\nFaturamento: R$ '+p.faturamento.toLocaleString("pt-BR",{minimumFractionDigits:2})+'\nMargem: '+p.margem+'%'+'</title>'+
+        '</rect>'+
+        '<text x="'+(x+w/2)+'" y="'+(y-6)+'" text-anchor="middle" font-size="9" font-weight="700" fill="#eef1f8" font-family="Plus Jakarta Sans">'+label+'</text>'+
+        '<text x="'+(padL+i*bw+bw/2)+'" y="'+(H-padB+16)+'" text-anchor="middle" font-size="10" fill="#8fa0c0" font-family="Plus Jakarta Sans" font-weight="600">'+p.label+'</text>'+
+      '</g>';
+  }).join('');
+
+  // Linha de margem (sobreposta)
+  var pathPts = pontos.map(function(p, i){
+    var x = padL + i*bw + bw/2;
+    var y = padT + (1 - p.margem/Math.max(maxMargem, 50)) * (H - padT - padB);
+    return (i===0 ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1);
+  }).join(' ');
+
+  var pontosLinha = pontos.map(function(p, i){
+    var x = padL + i*bw + bw/2;
+    var y = padT + (1 - p.margem/Math.max(maxMargem, 50)) * (H - padT - padB);
+    return ''+
+      '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3.5" fill="#ffaa2b" stroke="var(--bg)" stroke-width="1.5">'+
+        '<title>'+p.labelFull+': margem '+p.margem+'%</title>'+
+      '</circle>';
+  }).join('');
+
+  // Eixo Y (esquerda) — escala do prêmio
+  var ticks = [0, 0.5, 1].map(function(t){
+    var y = H - padB - t*(H - padT - padB);
+    var v = t*maxPremio;
+    var label = v>=1000 ? "R$ "+(v/1000).toFixed(0)+"k" : "R$ "+v.toFixed(0);
+    return ''+
+      '<line x1="'+padL+'" y1="'+y+'" x2="'+(W-padR)+'" y2="'+y+'" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>'+
+      '<text x="'+(padL-6)+'" y="'+(y+3)+'" text-anchor="end" font-size="9" fill="#5e718e" font-family="Plus Jakarta Sans">'+label+'</text>';
+  }).join('');
+
+  // Card wrapper com header
+  var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
+  var sigla = (dm && dm.sigla) || SG[nome] || nome.substring(0,2).toUpperCase();
+  var av = dm?dm.av:"avLB";
+
+  // Stats rápidas
+  var totalAno = pontos.reduce(function(s,p){return s+p.premio;}, 0);
+  var maxMes = pontos.reduce(function(m,p){ return p.premio>m.premio?p:m; }, pontos[0]);
+
+  var headerCard = compact
+    ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'+
+        '<div class="mav2 '+av+'" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">'+sigla+'</div>'+
+        '<div style="flex:1;min-width:0">'+
+          '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700">'+nome+'</div>'+
+          '<div style="font-size:0.65rem;color:var(--mu)">Total: <strong style="color:#10b981">'+fv(totalAno)+'</strong></div>'+
+        '</div>'+
+      '</div>'
+    : '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">'+
+        '<div style="display:flex;align-items:center;gap:12px">'+
+          '<div class="mav2 '+av+'" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">'+sigla+'</div>'+
+          '<div>'+
+            '<div style="font-family:var(--fh);font-size:1.1rem;font-weight:800">'+nome+'</div>'+
+            '<div style="font-size:0.7rem;color:var(--mu)">Últimos '+pontos.length+' meses</div>'+
+          '</div>'+
+        '</div>'+
+        '<div style="display:flex;gap:18px">'+
+          '<div><div style="font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px">Total</div><div style="font-family:var(--fh);font-size:1.1rem;font-weight:800;color:#10b981">'+fv(totalAno)+'</div></div>'+
+          '<div><div style="font-size:0.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px">Melhor mês</div><div style="font-family:var(--fh);font-size:1.1rem;font-weight:800;color:var(--tx)">'+maxMes.label+' ('+fv(maxMes.premio)+')</div></div>'+
+        '</div>'+
+      '</div>';
+
+  return ''+
+    '<div class="cwrap" style="margin-bottom:14px">'+
+      headerCard+
+      '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block">'+
+        ticks+
+        barras+
+        '<path d="'+pathPts+'" fill="none" stroke="#ffaa2b" stroke-width="2" opacity="0.85"/>'+
+        pontosLinha+
+      '</svg>'+
+      '<div style="display:flex;gap:14px;justify-content:center;margin-top:8px;font-size:0.7rem;color:var(--mu)">'+
+        '<span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;background:#10b981;border-radius:2px;display:inline-block"></i>Prêmio R$</span>'+
+        '<span style="display:flex;align-items:center;gap:5px"><i style="width:10px;height:10px;background:#ffaa2b;border-radius:50%;display:inline-block"></i>Margem %</span>'+
+      '</div>'+
+    '</div>';
+}
+
+// Helper: card de KPI reutilizável
+function kpiCard(label, valor, sub, cor){
+  return ''+
+    '<div style="background:var(--s2);border:1px solid var(--br);border-left:3px solid '+cor+';border-radius:10px;padding:14px 16px">'+
+      '<div style="font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;margin-bottom:6px">'+label+'</div>'+
+      '<div style="font-family:var(--fh);font-size:1.5rem;font-weight:800;color:'+cor+';line-height:1;letter-spacing:-0.02em">'+valor+'</div>'+
+      '<div style="font-size:0.68rem;color:var(--mu);margin-top:5px">'+sub+'</div>'+
+    '</div>';
 }
 
 // Inicializacao: carrega Meta + Remuneracao ao abrir a pagina
