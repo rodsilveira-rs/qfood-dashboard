@@ -3975,6 +3975,454 @@ document.addEventListener("DOMContentLoaded", function(){
   // Abre o primeiro gestor permitido
   if(permitidos.length) chkShowGestor(permitidos[0].id);
 });
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// 🔄 PATCH DE SINCRONIZAÇÃO COM GOOGLE SHEETS — adicionado em 05/05/2026
+// Este bloco intercepta os "Salvar" e envia uma cópia para a planilha
+// qfood-dashboard via Apps Script Web App. Tudo continua salvando no
+// localStorage normalmente — o sync é adicional e offline-first.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// Q FOOD CHECKPOINT — MÓDULO DE SINCRONIZAÇÃO COM GOOGLE SHEETS
+// ═══════════════════════════════════════════════════════════════════
+// Cole este bloco INTEIRO antes da tag </script> de fechamento do
+// Index_Checkpoint.html (ou no final do bloco <script> principal).
+//
+// Este módulo é OFFLINE-FIRST:
+//   1. localStorage continua sendo a fonte primária (não muda nada)
+//   2. Após cada salvamento bem-sucedido, dispara um POST para o Sheets
+//   3. Se falhar (sem internet, etc), guarda numa fila e tenta de novo
+// ═══════════════════════════════════════════════════════════════════
+
+(function(){
+  'use strict';
+
+  // URL do Web App publicado no Apps Script
+  const QFOOD_SYNC_URL = 'https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec';
+
+  // Token — DEVE ser idêntico ao SHARED_SECRET no Code.gs do Apps Script
+  const QFOOD_SYNC_TOKEN = 'qfood-rs-2026-xK9pL3mQ7vN2bT8';
+
+  // Fila de retry no localStorage
+  const QFOOD_FILA_KEY = 'qfood_chk_sync_fila';
+
+  // Mapa: gestor_id → área (espelha a aba GESTORES)
+  const GESTOR_AREA = {
+    gustavo: 'Financeiro & RH',
+    celio:   'Administrativo',
+    cris:    'Compras',
+    maiko:   'Logística',
+    barbara: 'Marketing',
+    mariana: 'Mercearia Liberdade',
+    elizeu:  'Cozinha'
+  };
+
+  // Prefixos por gestor (mesma convenção da planilha)
+  const PREFIXO_POR_GESTOR = {
+    gustavo: 'g_',  celio: 'c_',  cris: 'cr_',
+    maiko: 'mk_',   barbara: 'b_', mariana: 'mr_', elizeu: 'el_'
+  };
+
+  // Campos de meta (não recebem prefixo)
+  const CAMPOS_META = new Set([
+    'salvo_em','data','data_iso','hora','gestor_id','gestor_nome','area',
+    'periodo_iso','periodo_label','mes','score','observacao'
+  ]);
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Helpers de data
+  // ─────────────────────────────────────────────────────────────────
+  function brToIso(dataBR){
+    if(!dataBR) return '';
+    var p = dataBR.split('/');
+    if(p.length !== 3) return '';
+    return p[2]+'-'+p[1]+'-'+p[0];
+  }
+
+  function semanaIsoDeData(dataBR){
+    // recebe DD/MM/AAAA, devolve a segunda-feira da semana em ISO
+    var iso = brToIso(dataBR);
+    if(!iso) return '';
+    var d = new Date(iso+'T00:00:00');
+    var diaSem = d.getDay()===0 ? 6 : d.getDay()-1;
+    d.setDate(d.getDate() - diaSem);
+    return d.getFullYear()+'-'+
+      String(d.getMonth()+1).padStart(2,'0')+'-'+
+      String(d.getDate()).padStart(2,'0');
+  }
+
+  function semanaLabel(periodoIso){
+    if(!periodoIso) return '';
+    var d = new Date(periodoIso+'T00:00:00');
+    var fim = new Date(d); fim.setDate(d.getDate()+6);
+    var f = function(x){
+      return String(x.getDate()).padStart(2,'0')+'/'+
+        String(x.getMonth()+1).padStart(2,'0');
+    };
+    return 'Semana '+f(d)+' a '+f(fim)+'/'+d.getFullYear();
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Aplica prefixo nos campos do gestor (g_fat, b_leads_gerados, etc)
+  // ─────────────────────────────────────────────────────────────────
+  function prefixar(dado, gestorId){
+    var pre = PREFIXO_POR_GESTOR[gestorId];
+    if(!pre) return dado;
+    var saida = {};
+    Object.keys(dado).forEach(function(k){
+      if(CAMPOS_META.has(k)) saida[k] = dado[k];
+      else saida[pre+k] = dado[k];
+    });
+    return saida;
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Monta payload para cada tipo de aba
+  // ─────────────────────────────────────────────────────────────────
+  function montarDiario(gestorId, dadoLocal){
+    var dataBR = dadoLocal.data;
+    var base = {
+      gestor_id: gestorId,
+      area: GESTOR_AREA[gestorId] || '',
+      data: dataBR,
+      data_iso: brToIso(dataBR),
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date().toISOString()
+    };
+    // Copia todos os campos do dado original
+    Object.keys(dadoLocal).forEach(function(k){
+      if(['data','hora','ts','salvo_em'].indexOf(k) < 0) base[k] = dadoLocal[k];
+    });
+    return prefixar(base, gestorId);
+  }
+
+  function montarSemanalEstr(gestorId, dadoLocal, periodoIso){
+    var iso = periodoIso || dadoLocal.periodo_iso || '';
+    var base = {
+      gestor_id: gestorId,
+      area: GESTOR_AREA[gestorId] || '',
+      periodo_iso: iso,
+      periodo_label: semanaLabel(iso),
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date().toISOString()
+    };
+    Object.keys(dadoLocal).forEach(function(k){
+      if(['hora','ts','data','salvo_em'].indexOf(k) < 0) base[k] = dadoLocal[k];
+    });
+    return prefixar(base, gestorId);
+  }
+
+  function montarMensal(gestorId, dadoLocal){
+    var base = {
+      gestor_id: gestorId,
+      area: GESTOR_AREA[gestorId] || '',
+      mes: dadoLocal.mes || '',
+      data: dadoLocal.data || '',
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date().toISOString()
+    };
+    Object.keys(dadoLocal).forEach(function(k){
+      if(['mes','data','hora','ts','salvo_em'].indexOf(k) < 0) base[k] = dadoLocal[k];
+    });
+    return prefixar(base, gestorId);
+  }
+
+  function montarObsCeo(gestorId, dadoLocal, periodoIso){
+    return {
+      gestor_id: gestorId,
+      gestor_nome: '', // o Apps Script enriquece
+      area: GESTOR_AREA[gestorId] || '',
+      periodo_iso: periodoIso,
+      periodo_label: semanaLabel(periodoIso),
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date(dadoLocal.ts || Date.now()).toISOString(),
+      observacao: dadoLocal.txt || ''
+    };
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Fila de retry
+  // ─────────────────────────────────────────────────────────────────
+  function filaLer(){
+    try{ return JSON.parse(localStorage.getItem(QFOOD_FILA_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
+  function filaSalvar(arr){
+    try{ localStorage.setItem(QFOOD_FILA_KEY, JSON.stringify(arr)); }catch(e){}
+  }
+  function filaAdd(item){
+    var f = filaLer();
+    f.push(item);
+    filaSalvar(f);
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // POST com retry
+  // ─────────────────────────────────────────────────────────────────
+  function enviar(aba, dado){
+    if(!QFOOD_SYNC_URL || QFOOD_SYNC_URL.indexOf('COLE_AQUI') >= 0){
+      console.warn('[QFood Sync] URL do Web App não configurada — pulando envio');
+      return;
+    }
+
+    var payload = { token: QFOOD_SYNC_TOKEN, aba: aba, dado: dado };
+    // text/plain evita preflight CORS
+    fetch(QFOOD_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(resp){
+      if(resp.ok){
+        console.log('[QFood Sync] '+aba+' '+resp.acao+' (gestor: '+resp.gestor+')');
+      } else {
+        console.error('[QFood Sync] erro:', resp.erro);
+        filaAdd({ aba: aba, dado: dado, ts: Date.now() });
+      }
+    })
+    .catch(function(err){
+      console.warn('[QFood Sync] sem conexão — guardado na fila:', err.message);
+      filaAdd({ aba: aba, dado: dado, ts: Date.now() });
+    });
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Processa fila de retry (chamado no carregamento e a cada 60s)
+  // ─────────────────────────────────────────────────────────────────
+  function processarFila(){
+    var fila = filaLer();
+    if(fila.length === 0) return;
+    if(!navigator.onLine) return;
+    console.log('[QFood Sync] processando fila ('+fila.length+' itens pendentes)');
+    // Limpa a fila e re-tenta cada item
+    filaSalvar([]);
+    fila.forEach(function(item){ enviar(item.aba, item.dado); });
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // API PÚBLICA — chamadas pelos hooks
+  // ─────────────────────────────────────────────────────────────────
+  window.QFoodSync = {
+    diario: function(gestorId, dadoLocal){
+      try{ enviar('DIARIO', montarDiario(gestorId, dadoLocal)); }
+      catch(e){ console.error('[QFood Sync] diario falhou:', e); }
+    },
+    semanalEstr: function(gestorId, dadoLocal, periodoIso){
+      try{ enviar('SEMANAL', montarSemanalEstr(gestorId, dadoLocal, periodoIso)); }
+      catch(e){ console.error('[QFood Sync] semanal falhou:', e); }
+    },
+    mensal: function(gestorId, dadoLocal){
+      try{ enviar('MENSAL', montarMensal(gestorId, dadoLocal)); }
+      catch(e){ console.error('[QFood Sync] mensal falhou:', e); }
+    },
+    obsCeo: function(gestorId, dadoLocal, periodoIso){
+      try{ enviar('OBSERVACOES_CEO', montarObsCeo(gestorId, dadoLocal, periodoIso)); }
+      catch(e){ console.error('[QFood Sync] obsCeo falhou:', e); }
+    }
+  };
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // HOOKS — interceptam as funções existentes do Index sem reescrevê-las
+  // ─────────────────────────────────────────────────────────────────
+  function instalarHooks(){
+
+    // ─── DIÁRIO Gustavo (chkSalvarDiario) ───
+    if(typeof window.chkSalvarDiario === 'function'){
+      var _origGus = window.chkSalvarDiario;
+      window.chkSalvarDiario = function(){
+        _origGus.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-gustavo-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var dataBR = iso.split('-').reverse().join('/');
+          var chave = 'qfood_chk_gustavo_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario('gustavo', dado);
+        }catch(e){ console.error('[hook gustavo diario]', e); }
+      };
+    }
+
+    // ─── DIÁRIO Célio (chkCSalvarDiario) ───
+    if(typeof window.chkCSalvarDiario === 'function'){
+      var _origCel = window.chkCSalvarDiario;
+      window.chkCSalvarDiario = function(){
+        _origCel.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-celio-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var chave = 'qfood_chk_celio_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario('celio', dado);
+        }catch(e){ console.error('[hook celio diario]', e); }
+      };
+    }
+
+    // ─── DIÁRIO Cristina (chkCrSalvarDiario) ───
+    if(typeof window.chkCrSalvarDiario === 'function'){
+      var _origCris = window.chkCrSalvarDiario;
+      window.chkCrSalvarDiario = function(){
+        _origCris.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-cris-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var chave = 'qfood_chk_cris_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario('cris', dado);
+        }catch(e){ console.error('[hook cris diario]', e); }
+      };
+    }
+
+    // ─── DIÁRIO completoGen (Maiko/Bárbara/Mariana/Elizeu) ───
+    if(typeof window.chkSalvarDiarioGen === 'function'){
+      var _origGen = window.chkSalvarDiarioGen;
+      window.chkSalvarDiarioGen = function(gestorId){
+        _origGen.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-'+gestorId+'-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var chave = 'qfood_chk_'+gestorId+'_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario(gestorId, dado);
+        }catch(e){ console.error('[hook gen diario]', e); }
+      };
+    }
+
+    // ─── SEMANAL completoGen ───
+    if(typeof window.chkSalvarSemanalGen === 'function'){
+      var _origSem = window.chkSalvarSemanalGen;
+      window.chkSalvarSemanalGen = function(gestorId){
+        _origSem.apply(this, arguments);
+        try{
+          // chkSalvarSemanalGen calcula o iso da semana atual internamente
+          var hoje = new Date();
+          var diaSem = hoje.getDay()===0 ? 6 : hoje.getDay()-1;
+          var seg = new Date(hoje); seg.setDate(hoje.getDate()-diaSem);
+          var iso = seg.getFullYear()+'-'+
+            String(seg.getMonth()+1).padStart(2,'0')+'-'+
+            String(seg.getDate()).padStart(2,'0');
+          var chave = 'qfood_chk_'+gestorId+'_semanal_form_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.semanalEstr(gestorId, dado, iso);
+        }catch(e){ console.error('[hook gen semanal]', e); }
+      };
+    }
+
+    // ─── SEMANAL Cristina (chkCrSalvarSemanalForm) ───
+    if(typeof window.chkCrSalvarSemanalForm === 'function'){
+      var _origCrSem = window.chkCrSalvarSemanalForm;
+      window.chkCrSalvarSemanalForm = function(){
+        _origCrSem.apply(this, arguments);
+        try{
+          var hoje = new Date();
+          var diaSem = hoje.getDay()===0 ? 6 : hoje.getDay()-1;
+          var seg = new Date(hoje); seg.setDate(hoje.getDate()-diaSem);
+          var iso = seg.getFullYear()+'-'+
+            String(seg.getMonth()+1).padStart(2,'0')+'-'+
+            String(seg.getDate()).padStart(2,'0');
+          var chave = 'qfood_chk_cris_semanal_form_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.semanalEstr('cris', dado, iso);
+        }catch(e){ console.error('[hook cris semanal]', e); }
+      };
+    }
+
+    // ─── MENSAIS — Gustavo, Célio, Cristina ───
+    ['SalvarMensal','CSalvarMensal','CrSalvarMensal'].forEach(function(fnName){
+      var gestor = fnName === 'SalvarMensal' ? 'gustavo'
+                 : fnName === 'CSalvarMensal' ? 'celio' : 'cris';
+      var realName = 'chk' + fnName;
+      if(typeof window[realName] === 'function'){
+        var _orig = window[realName];
+        window[realName] = function(){
+          _orig.apply(this, arguments);
+          try{
+            // O Index usa selects diferentes:
+            var sel;
+            if(gestor === 'gustavo')      sel = document.getElementById('chk-m-mes');
+            else if(gestor === 'celio')   sel = document.getElementById('chk-c-m-mes');
+            else                          sel = document.getElementById('chk-cr-m-mes');
+            var mes = sel ? sel.value : '';
+            if(!mes) return;
+            var chave = 'qfood_chk_'+gestor+'_mensal_'+mes;
+            var dado = JSON.parse(localStorage.getItem(chave)||'null');
+            if(dado) window.QFoodSync.mensal(gestor, dado);
+          }catch(e){ console.error('[hook '+gestor+' mensal]', e); }
+        };
+      }
+    });
+
+    // ─── MENSAIS completoGen (chkSalvarMensalGen) ───
+    if(typeof window.chkSalvarMensalGen === 'function'){
+      var _origGenM = window.chkSalvarMensalGen;
+      window.chkSalvarMensalGen = function(gestorId){
+        _origGenM.apply(this, arguments);
+        try{
+          var sel = document.getElementById('chk-'+gestorId+'-m-mes');
+          var mes = sel ? sel.value : '';
+          if(!mes) return;
+          var chave = 'qfood_chk_'+gestorId+'_mensal_'+mes;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.mensal(gestorId, dado);
+        }catch(e){ console.error('[hook gen mensal]', e); }
+      };
+    }
+
+    // ─── OBSERVAÇÃO CEO (chkSalvarObsSem) ───
+    if(typeof window.chkSalvarObsSem === 'function'){
+      var _origObs = window.chkSalvarObsSem;
+      window.chkSalvarObsSem = function(gestor, isoIni){
+        _origObs.apply(this, arguments);
+        try{
+          var chave = 'qfood_chk_'+gestor+'_semanal_'+isoIni;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.obsCeo(gestor, dado, isoIni);
+        }catch(e){ console.error('[hook obs ceo]', e); }
+      };
+    }
+
+    console.log('[QFood Sync] hooks instalados ✓');
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Inicialização
+  // ─────────────────────────────────────────────────────────────────
+  function init(){
+    instalarHooks();
+    // Tenta processar fila ao carregar e a cada 60s
+    processarFila();
+    setInterval(processarFila, 60000);
+    // Também tenta quando o navegador volta a ficar online
+    window.addEventListener('online', processarFila);
+  }
+
+  // Aguarda o DOM e as funções do Index estarem definidas
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      // pequeno delay para garantir que as funções principais já foram declaradas
+      setTimeout(init, 500);
+    });
+  } else {
+    setTimeout(init, 500);
+  }
+
+})();
+
 </script>
 </body>
 </html>
