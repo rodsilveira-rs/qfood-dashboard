@@ -202,6 +202,21 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
     <div class="m-hdr"><div class="m-tit">Novo Chamado de Troca/Devolução</div><button class="m-close" onclick="fechar('m-novo')">×</button></div>
     <div class="m-body">
       <div id="alert-novo"></div>
+
+      <!-- 👤 VENDEDOR RESPONSÁVEL (aparece só pra Maiko/Jonathas/Célio) -->
+      <div id="bloco-vendedor-resp" style="display:none;background:rgba(77,142,245,0.08);border:1px solid rgba(77,142,245,0.4);border-radius:10px;padding:12px;margin-bottom:14px">
+        <div style="font-family:var(--fh);font-size:0.78rem;font-weight:700;color:var(--blue);margin-bottom:8px">👤 VENDEDOR RESPONSÁVEL</div>
+        <div style="font-size:0.72rem;color:var(--mu);margin-bottom:10px;line-height:1.4">
+          Indique em nome de qual vendedor este chamado deve ficar registrado. O chamado vai pra etapa Comercial pra ele revisar antes de avançar.
+        </div>
+        <div class="fg" style="margin-bottom:0">
+          <label class="req">Vendedor</label>
+          <select id="x-vendedor_responsavel_sigla">
+            <option value="">Selecione um vendedor...</option>
+          </select>
+        </div>
+      </div>
+
       <div class="fr">
         <div class="fg" style="position:relative">
           <label class="req">Cliente (digite parte do nome)</label>
@@ -755,7 +770,7 @@ function abrirNovoChamado(){
   document.getElementById("alert-novo").innerHTML = "";
   ["cliente_nome","cliente_id","cliente_telefone","nf_origem","data_nf_origem","tipo_processo","motivo",
    "motivo_descricao","cliente_emite_nf","tipo_documento","documento_anexo_url",
-   "tipo_acerto","valor_acerto","obs_comercial"]
+   "tipo_acerto","valor_acerto","vendedor_responsavel_sigla","obs_comercial"]
    .forEach(function(c){ var el = document.getElementById("x-"+c); if(el) el.value = ""; });
   document.getElementById("itens-list").innerHTML = "";
   removerAnexo();
@@ -779,18 +794,53 @@ function ajustarTiposPorPerfil(){
   var sel = document.getElementById("x-tipo_processo");
   if (!sel) return;
 
-  if (PERFIL === "LOGISTICA_EDIT" || PERFIL === "FISCAL"){
-    sel.innerHTML = '<option value="">Selecione...</option>'+
-                    '<option value="CANCELAMENTO_NF" selected>Cancelamento de NF (anula nota inteira)</option>';
-    // Já dispara o atualizarDocOpts pra esconder o bloco de acerto
-    sel.value = "CANCELAMENTO_NF";
-    atualizarDocOpts();
+  // Logística/Fiscal/Vendedor/MASTER: todos podem ver todos os tipos
+  sel.innerHTML = '<option value="">Selecione...</option>'+
+                  '<option value="TROCA">Troca (produto por produto)</option>'+
+                  '<option value="DEVOLUCAO">Devolução (estorno/crédito)</option>'+
+                  '<option value="CANCELAMENTO_NF">Cancelamento de NF (anula nota inteira)</option>';
+
+  // Para gestores (Logística/Fiscal): mostra o bloco "Vendedor responsável"
+  // e popula com a lista de vendedores
+  var blocoVend = document.getElementById("bloco-vendedor-resp");
+  var ehGestor = (PERFIL === "LOGISTICA_EDIT" || PERFIL === "FISCAL");
+
+  if (blocoVend){
+    if (ehGestor){
+      // Popula dropdown de vendedores (só uma vez por sessão)
+      var selVendResp = document.getElementById("x-vendedor_responsavel_sigla");
+      if (selVendResp && selVendResp.options.length <= 1 && CONFIG && CONFIG.vendedores){
+        CONFIG.vendedores.forEach(function(v){
+          selVendResp.innerHTML += '<option value="'+v.sigla+'">'+v.nome+' ('+v.sigla+')</option>';
+        });
+      }
+      // Mostra ou esconde conforme o tipo escolhido (lógica em atualizarDocOpts)
+      // A visibilidade real depende do tipo (não aparece em CANCELAMENTO_NF)
+      atualizarVendedorRespVisibilidade();
+    } else {
+      // Vendedor abre em nome próprio: esconde o bloco
+      blocoVend.style.display = "none";
+    }
+  }
+}
+
+// Mostra/esconde dropdown vendedor conforme tipo + perfil
+// (Cancelamento NF não precisa, gestor abre em nome próprio)
+function atualizarVendedorRespVisibilidade(){
+  var blocoVend = document.getElementById("bloco-vendedor-resp");
+  if (!blocoVend) return;
+
+  var ehGestor = (PERFIL === "LOGISTICA_EDIT" || PERFIL === "FISCAL");
+  if (!ehGestor){
+    blocoVend.style.display = "none";
+    return;
+  }
+
+  var tipo = document.getElementById("x-tipo_processo").value;
+  if (tipo === "TROCA" || tipo === "DEVOLUCAO"){
+    blocoVend.style.display = "block";
   } else {
-    // Vendedor / MASTER: todas as opções
-    sel.innerHTML = '<option value="">Selecione...</option>'+
-                    '<option value="TROCA">Troca (produto por produto)</option>'+
-                    '<option value="DEVOLUCAO">Devolução (estorno/crédito)</option>'+
-                    '<option value="CANCELAMENTO_NF">Cancelamento de NF (anula nota inteira)</option>';
+    blocoVend.style.display = "none";
   }
 }
 
@@ -1256,6 +1306,7 @@ function atualizarDocOpts(){
   var avisoCancelamento = document.getElementById("aviso-cancelamento-nf");
   var btnComercial = document.getElementById("btn-salvar-comercial");
   var btnLogistica = document.getElementById("btn-salvar-logistica");
+  var ehGestor = (PERFIL === "LOGISTICA_EDIT" || PERFIL === "FISCAL");
 
   if (tipo === "CANCELAMENTO_NF"){
     // Fluxo curto: sem acerto financeiro, vai direto pra logística
@@ -1266,13 +1317,34 @@ function atualizarDocOpts(){
   } else {
     if (blocoAcerto) blocoAcerto.style.display = "block";
     if (avisoCancelamento) avisoCancelamento.style.display = "none";
-    if (btnLogistica) btnLogistica.textContent = "Salvar e enviar à Logística →";
 
-    // Botão "manter no comercial" só aparece pra vendedor (gestor não usa)
-    if (btnComercial){
-      btnComercial.style.display = (PERFIL === "VENDEDOR" || PERFIL === "MASTER") ? "inline-block" : "none";
+    // Para TROCA/DEVOLUCAO:
+    //   - Vendedor/MASTER: pode manter no Comercial OU enviar pra Logística
+    //   - Gestor (Maiko/Célio): SÓ pode manter no Comercial
+    //     (vendedor é quem decide se envia, não o gestor)
+    if (ehGestor){
+      if (btnComercial){
+        btnComercial.style.display = "inline-block";
+        btnComercial.textContent = "Salvar (vendedor revisará no Comercial)";
+      }
+      if (btnLogistica){
+        btnLogistica.style.display = "none";
+      }
+    } else {
+      // Vendedor / MASTER
+      if (btnComercial){
+        btnComercial.style.display = "inline-block";
+        btnComercial.textContent = "Salvar (manter no Comercial)";
+      }
+      if (btnLogistica){
+        btnLogistica.style.display = "inline-block";
+        btnLogistica.textContent = "Salvar e enviar à Logística →";
+      }
     }
   }
+
+  // Atualiza visibilidade do dropdown vendedor responsável
+  atualizarVendedorRespVisibilidade();
 }
 
 function toggleDescMotivo(){
@@ -1283,6 +1355,18 @@ function toggleDescMotivo(){
 async function salvarNovo(avancarFlag){
   var alert = document.getElementById("alert-novo");
   alert.innerHTML = "";
+
+  // Validação: gestor abrindo TROCA/DEVOLUÇÃO precisa indicar vendedor
+  var ehGestor = (PERFIL === "LOGISTICA_EDIT" || PERFIL === "FISCAL");
+  var tipoEsc = document.getElementById("x-tipo_processo").value;
+  if (ehGestor && (tipoEsc === "TROCA" || tipoEsc === "DEVOLUCAO")){
+    var vendSel = document.getElementById("x-vendedor_responsavel_sigla").value;
+    if (!vendSel){
+      alert.innerHTML = '<div class="alert alert-err">⛔ Indique o <strong>Vendedor Responsável</strong> antes de prosseguir.</div>';
+      document.querySelector("#m-novo .m-body").scrollTop = 0;
+      return;
+    }
+  }
 
   // Validação: NF precisa ter sido validada no Controle de Entregas
   var nfDigitada = document.getElementById("x-nf_origem").value.trim();
@@ -1321,6 +1405,10 @@ async function salvarNovo(avancarFlag){
     documento_anexo_url: document.getElementById("x-documento_anexo_url").value,
     tipo_acerto: document.getElementById("x-tipo_acerto").value,
     valor_acerto: document.getElementById("x-valor_acerto").value,
+    vendedor_responsavel_sigla: (function(){
+      var el = document.getElementById("x-vendedor_responsavel_sigla");
+      return el ? el.value : "";
+    })(),
     obs_comercial: document.getElementById("x-obs_comercial").value,
     itens: itens,
     avancar_para_logistica: avancarFlag
