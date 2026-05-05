@@ -445,6 +445,71 @@ var UGIRO = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQc
 // URL do formulário público que o fornecedor preenche (hospedado no GitHub Pages, mesma raiz)
 var COTACAO_FORM_URL = "https://rodsilveira-rs.github.io/qfood-dashboard/cotacao.html";
 
+// URL da aba "Validades" — leitura centralizada para todos os usuários
+var UVALID = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1124852544&single=true&output=csv";
+
+// URL do Apps Script Web App de Validades (cole aqui DEPOIS de publicar o script)
+var VALIDADES_SYNC_URL = "https://script.google.com/macros/s/AKfycbxohOKq4Au2UYztDTNXS6kODOJXnTufkkVAkuRFrMrvXmRyh-sUSAJ3aOfVXjkB0bUG/exec";
+
+// Token compartilhado — DEVE ser idêntico ao SHARED_SECRET no Apps Script
+var VALIDADES_SYNC_TOKEN = "qfood-rs-2026-xK9pL3mQ7vN2bT8";
+
+// Cache em memória das validades (Codigo -> Validade_Meses)
+var cmpValidadesMap = {};
+var cmpValidadesLoaded = false;
+async function cmpLoadValidades(){
+  try{
+    var r = await fetch(UVALID + "&t=" + Date.now());
+    var txt = await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Aba Validades nao publicada como CSV.");
+    var rows = csv(txt);
+    cmpValidadesMap = {};
+    rows.forEach(function(row){
+      var cod = String(row["Codigo"] || "").trim();
+      var m = parseInt(row["Validade_Meses"]) || 0;
+      if(cod && m > 0) cmpValidadesMap[cod] = m;
+    });
+    cmpValidadesLoaded = true;
+    console.log("Validades carregadas:", Object.keys(cmpValidadesMap).length, "produtos");
+  }catch(e){
+    console.warn("Erro ao carregar validades:", e.message);
+    cmpValidadesLoaded = false;
+  }
+}
+
+// Grava validade no Google Sheets via Apps Script Web App
+async function cmpSyncValidade(codigo, validadeMeses, fornecedor){
+  if(!VALIDADES_SYNC_URL || VALIDADES_SYNC_URL.indexOf("COLE_AQUI") >= 0){
+    console.warn("VALIDADES_SYNC_URL nao configurada — alteracao ficou so local.");
+    return { ok: false, erro: "URL nao configurada" };
+  }
+  try{
+    var sess = JSON.parse(localStorage.getItem("qfood_session") || "{}");
+    var payload = {
+      token: VALIDADES_SYNC_TOKEN,
+      dado: {
+        Codigo:           String(codigo),
+        Validade_Meses:   parseInt(validadeMeses) || 0,
+        Atualizado_em:    new Date().toISOString(),
+        Atualizado_por:   sess.nome || sess.email || "desconhecido",
+        Fornecedor:       fornecedor || ""
+      }
+    };
+    // Apps Script exige text/plain para evitar preflight CORS
+    var r = await fetch(VALIDADES_SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    var resp = await r.json();
+    if(!resp.ok) console.warn("Erro ao sincronizar validade:", resp.erro);
+    return resp;
+  }catch(e){
+    console.warn("Falha de rede ao sincronizar validade:", e.message);
+    return { ok: false, erro: e.message };
+  }
+}
+
 // Parser CSV do sistema antigo
 function csv(txt){
   var rows=txt.trim().split("\n");
@@ -473,7 +538,7 @@ function csv(txt){
 // MÓDULO COMPRAS
 // ════════════════════════════════════════════════════════
 var cmpAllRows=[],cmpLoaded=false,cmpProdutos=[];
-var CMP_VAL_KEY="cmpv_";
+// Validades agora vem da aba "Validades" do Google Sheets (cmpValidadesMap)
 
 function cmpMinVal(meses,classe){
   var pct=classe==="alto"?0.30:0.20;
@@ -550,6 +615,8 @@ async function cmpLoad(force){
     var txt=await r.text();
     if(txt.trim().startsWith("<"))throw new Error("Planilha nao publicada como CSV.");
     cmpAllRows=csv(txt);cmpLoaded=true;
+    // Carrega validades em paralelo (nao bloqueia se falhar)
+    await cmpLoadValidades();
     if(ldg)ldg.style.display="none";
     if(cont)cont.style.display="block";
     cmpDebugCols();
@@ -621,8 +688,7 @@ function cmpSelectFornecedor(){
 function cmpRenderProdutos(){
   var tbody=document.getElementById("cmp-tbody");if(!tbody)return;
   tbody.innerHTML=cmpProdutos.map(function(p,i){
-    var sv=localStorage.getItem(CMP_VAL_KEY+p.cod);
-    var vm=sv?parseInt(sv):0;
+    var vm=cmpValidadesMap[p.cod]||0;
     var gt=p.classe==="alto"?"<span class='giro-tag giro-alto'>&#128308; Alto</span>":"<span class='giro-tag giro-normal'>&#9679; Normal</span>";
     var pct=p.classe==="alto"?"30%":"20%";
     var md=vm>0?cmpFmtDate(cmpMinVal(vm,p.classe)):"&#8212;";
@@ -652,12 +718,24 @@ function cmpRenderProdutos(){
 }
 function cmpSaveVal(sel){
   var i=parseInt(sel.dataset.idx),m=parseInt(sel.value),p=cmpProdutos[i];if(!p)return;
-  if(m>0)localStorage.setItem(CMP_VAL_KEY+p.cod,m);else localStorage.removeItem(CMP_VAL_KEY+p.cod);
+  // Atualiza cache em memoria
+  if(m>0)cmpValidadesMap[p.cod]=m;else delete cmpValidadesMap[p.cod];
   var cell=document.getElementById("cmp-mv-"+i);
   if(cell){
     if(m>0){cell.style.color="#a07cf6";cell.style.fontWeight="700";cell.textContent=cmpFmtDate(cmpMinVal(m,p.classe));}
     else{cell.style.color="var(--mu2)";cell.style.fontWeight="400";cell.innerHTML="&#8212;";}
   }
+  // Grava no Google Sheets (assincrono — nao bloqueia a UI)
+  var forn = document.getElementById("cmp-fornecedor");
+  cmpSyncValidade(p.cod, m, forn ? forn.value : "").then(function(resp){
+    if(resp && resp.ok){
+      sel.style.borderColor = "#36cfa0"; // verde = salvo
+      setTimeout(function(){ sel.style.borderColor = ""; }, 1500);
+    } else {
+      sel.style.borderColor = "#ff4d4f"; // vermelho = falhou
+      console.warn("Validade nao foi salva no Sheets:", resp);
+    }
+  });
 }
 function cmpUpdateCount(){
   var t=0, totalQtd=0;
@@ -683,8 +761,7 @@ function cmpGetItens(){
   document.querySelectorAll(".cmp-qty").forEach(function(inp){
     var q=parseInt(inp.value);if(q<=0)return;
     var i=parseInt(inp.dataset.idx),p=cmpProdutos[i];if(!p)return;
-    var sv=localStorage.getItem(CMP_VAL_KEY+p.cod);
-    var vm=sv?parseInt(sv):0;
+    var vm=cmpValidadesMap[p.cod]||0;
     it.push({p:p,qtd:q,valMeses:vm,minDate:vm>0?cmpMinVal(vm,p.classe):null});
   });
   return it;
