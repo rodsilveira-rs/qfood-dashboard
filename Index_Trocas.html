@@ -141,6 +141,7 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
 
 .alert{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:0.82rem;line-height:1.4;border:1px solid;}
 .alert-err{background:rgba(255,77,79,0.10);color:var(--red);border-color:rgba(255,77,79,0.3);}
+.alert-warn{background:rgba(245,158,11,0.10);color:var(--warn);border-color:rgba(245,158,11,0.4);}
 .alert-info{background:rgba(77,142,245,0.10);color:var(--blue);border-color:rgba(77,142,245,0.3);}
 .alert-ok{background:rgba(54,207,160,0.10);color:var(--ok);border-color:rgba(54,207,160,0.3);}
 
@@ -244,8 +245,24 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         <div id="nf-card-body" style="font-size:0.78rem;color:var(--tx);line-height:1.6"></div>
       </div>
 
-      <!-- Aviso de NF não encontrada / bloqueio -->
-      <div id="nf-bloqueio" style="display:none" class="alert alert-err"></div>
+      <!-- Aviso de NF não encontrada — interativo: permite prosseguir manualmente -->
+      <div id="nf-bloqueio" style="display:none">
+        <div class="alert alert-warn" style="margin-bottom:10px">
+          <div style="font-weight:700;margin-bottom:6px">⚠️ <span id="nf-bloqueio-msg">NF não localizada</span></div>
+          <div style="font-size:0.78rem;margin-bottom:10px;color:var(--mu)">
+            Pode ser que a entrega ainda não tenha sido registrada pelo motorista, ou que o número tenha sido digitado errado.
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" class="btn-sec" onclick="cancelarProsseguirManual()" style="font-size:0.78rem">Cancelar</button>
+            <button type="button" class="btn" onclick="prosseguirManualmente()" style="font-size:0.78rem;background:var(--warn)">Prosseguir e preencher manualmente</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirmação visual do modo manual -->
+      <div id="nf-manual-aviso" style="display:none;background:rgba(245,158,11,0.1);border:1px solid var(--warn);border-radius:8px;padding:10px;margin-bottom:14px;font-size:0.78rem;color:var(--warn)">
+        ✓ <strong>Modo manual ativo</strong> — preencha os campos abaixo manualmente. Cliente, data da NF e telefone são obrigatórios.
+      </div>
 
       <div class="fr">
         <div class="fg"><label class="req">Tipo</label>
@@ -796,8 +813,11 @@ function abrirNovoChamado(){
   // Reset estado da NF
   document.getElementById("nf-card").style.display = "none";
   document.getElementById("nf-bloqueio").style.display = "none";
+  var manualAvisoEl = document.getElementById("nf-manual-aviso");
+  if (manualAvisoEl) manualAvisoEl.style.display = "none";
   document.getElementById("nf-status").textContent = "";
   NF_VALIDA = false;
+  NF_FORCADA = false;
 
   // Filtra tipos disponíveis conforme o perfil
   ajustarTiposPorPerfil();
@@ -1054,6 +1074,7 @@ var NF_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9
 
 var NF_BASE = null;       // cache em memória da sessão
 var NF_VALIDA = false;    // flag: NF atual foi validada com sucesso
+var NF_FORCADA = false;   // flag: usuário escolheu prosseguir mesmo sem encontrar NF
 var nfTimer = null;
 
 // Mapeamento das colunas (0-based)
@@ -1073,14 +1094,17 @@ function setupNFLookup(){
   input.addEventListener("input", function(){
     var nf = input.value.trim();
     NF_VALIDA = false;
+    NF_FORCADA = false;  // reset ao alterar a NF
     if (nfTimer) clearTimeout(nfTimer);
 
     var status = document.getElementById("nf-status");
     var card = document.getElementById("nf-card");
     var bloq = document.getElementById("nf-bloqueio");
+    var manualAviso = document.getElementById("nf-manual-aviso");
 
     card.style.display = "none";
     bloq.style.display = "none";
+    if (manualAviso) manualAviso.style.display = "none";
 
     if (!nf || nf.length < 3){
       status.textContent = "";
@@ -1153,10 +1177,11 @@ async function buscarNF(numNf){
 
   if (!encontrada){
     status.textContent = "";
-    bloq.innerHTML = '⛔ <strong>NF '+escapeHtml(numNf)+' não encontrada</strong> no Controle de Entregas.<br>'+
-                     '<span style="font-size:0.78rem">Verifique se digitou corretamente ou se a entrega foi registrada pelo entregador.</span>';
+    document.getElementById("nf-bloqueio-msg").textContent = "NF " + numNf + " não localizada no Controle de Entregas";
     bloq.style.display = "block";
     NF_VALIDA = false;
+    NF_FORCADA = false;
+    document.getElementById("nf-manual-aviso").style.display = "none";
     return;
   }
 
@@ -1268,8 +1293,48 @@ function limparNF(){
   document.getElementById("x-data_nf_origem").value = "";
   document.getElementById("nf-card").style.display = "none";
   document.getElementById("nf-bloqueio").style.display = "none";
+  var manualAviso = document.getElementById("nf-manual-aviso");
+  if (manualAviso) manualAviso.style.display = "none";
   document.getElementById("nf-status").textContent = "";
   NF_VALIDA = false;
+  NF_FORCADA = false;
+}
+
+// Usuário decidiu prosseguir mesmo sem a NF estar no Controle de Entregas
+function prosseguirManualmente(){
+  NF_FORCADA = true;
+  NF_VALIDA = false;
+
+  // Esconde aviso de bloqueio, mostra aviso amarelo de "modo manual ativo"
+  document.getElementById("nf-bloqueio").style.display = "none";
+  document.getElementById("nf-manual-aviso").style.display = "block";
+
+  // Atualiza status do campo NF
+  var status = document.getElementById("nf-status");
+  status.textContent = "✓ Prosseguindo com preenchimento manual";
+  status.style.color = "var(--warn)";
+
+  // Limpa campos auto-preenchidos pra que o usuário digite manualmente
+  document.getElementById("x-cliente_nome").value = "";
+  document.getElementById("x-cliente_telefone").value = "";
+  document.getElementById("x-data_nf_origem").value = "";
+  document.getElementById("x-cliente_id").value = "";
+
+  // Foca no primeiro campo a preencher
+  setTimeout(function(){
+    var input = document.getElementById("x-cliente_nome");
+    if (input) input.focus();
+  }, 100);
+}
+
+// Usuário cancelou — limpa tudo
+function cancelarProsseguirManual(){
+  document.getElementById("nf-bloqueio").style.display = "none";
+  document.getElementById("x-nf_origem").value = "";
+  document.getElementById("x-nf_origem").focus();
+  document.getElementById("nf-status").textContent = "";
+  NF_VALIDA = false;
+  NF_FORCADA = false;
 }
 
 // Busca cliente em background pra pegar o CNPJ (preenche cliente_id)
@@ -1386,17 +1451,34 @@ async function salvarNovo(avancarFlag){
     }
   }
 
-  // Validação: NF precisa ter sido validada no Controle de Entregas
+  // Validação: NF precisa ter sido validada OU usuário escolheu prosseguir manualmente
   var nfDigitada = document.getElementById("x-nf_origem").value.trim();
-  if (nfDigitada && !NF_VALIDA){
+  if (nfDigitada && !NF_VALIDA && !NF_FORCADA){
     if (PERFIL === "MASTER"){
       // MASTER pode forçar criação assim mesmo
       var forcar = confirm("⚠️ Esta NF não foi validada no Controle de Entregas.\n\nVocê é admin (MASTER) e pode forçar a criação assim mesmo.\n\nDeseja prosseguir?");
       if (!forcar) return;
     } else {
-      alert.innerHTML = '<div class="alert alert-err">⛔ A NF informada não foi encontrada no Controle de Entregas. Verifique o número antes de prosseguir.<br><span style="font-size:0.74rem">Se a entrega ainda não foi registrada, peça ao motorista pra registrar primeiro.</span></div>';
-      // Rola até o topo do modal pra mostrar o erro
+      alert.innerHTML = '<div class="alert alert-err">⛔ A NF informada não foi encontrada. Clique em "Prosseguir e preencher manualmente" no aviso amarelo, ou verifique o número.</div>';
       document.querySelector("#m-novo .m-body").scrollTop = 0;
+      return;
+    }
+  }
+
+  // Validação adicional: se foi modo manual, exige cliente_nome e data_nf_origem
+  if (NF_FORCADA){
+    var cliManual = document.getElementById("x-cliente_nome").value.trim();
+    var dataManual = document.getElementById("x-data_nf_origem").value.trim();
+    if (!cliManual){
+      alert.innerHTML = '<div class="alert alert-err">⛔ No modo manual, o <strong>Cliente</strong> é obrigatório.</div>';
+      document.querySelector("#m-novo .m-body").scrollTop = 0;
+      document.getElementById("x-cliente_nome").focus();
+      return;
+    }
+    if (!dataManual){
+      alert.innerHTML = '<div class="alert alert-err">⛔ No modo manual, a <strong>Data da NF</strong> é obrigatória.</div>';
+      document.querySelector("#m-novo .m-body").scrollTop = 0;
+      document.getElementById("x-data_nf_origem").focus();
       return;
     }
   }
