@@ -584,13 +584,24 @@ function parseUsersCSV(txt){
   return out;
 }
 
+function normalizaTarefaPrazos(t){
+  if(!t) return t;
+  if(t.prazo) t.prazo = toDateOnly(t.prazo);
+  if(Array.isArray(t.subtarefas)){
+    t.subtarefas.forEach(function(s){
+      if(s && s.prazo) s.prazo = toDateOnly(s.prazo);
+    });
+  }
+  return t;
+}
+
 function loadTarefas(){
   showLoader(true);
   return fetch(WEBAPP_URL + "?action=list&t=" + Date.now())
     .then(function(r){ return r.json(); })
     .then(function(d){
       if(!d.ok) throw new Error(d.error || "Erro desconhecido");
-      TAREFAS = d.tarefas || [];
+      TAREFAS = (d.tarefas || []).map(normalizaTarefaPrazos);
       showLoader(false);
       renderTable();
     })
@@ -637,7 +648,7 @@ function apiPost(action, params){
 }
 
 function apiSave(t){
-  return apiPost("save", {payload: t}).then(function(d){ return d.tarefa; });
+  return apiPost("save", {payload: t}).then(function(d){ return normalizaTarefaPrazos(d.tarefa); });
 }
 
 function apiDelete(id){
@@ -645,7 +656,7 @@ function apiDelete(id){
 }
 
 function apiComment(id, comentario){
-  return apiPost("comment", {id: id, payload: comentario}).then(function(d){ return d.tarefa; });
+  return apiPost("comment", {id: id, payload: comentario}).then(function(d){ return normalizaTarefaPrazos(d.tarefa); });
 }
 
 // ─────────────────────────────────────────────────────
@@ -667,9 +678,10 @@ function temSubMinha(t){ return (t.subtarefas||[]).some(function(s){ return s.em
 // Farol
 // ─────────────────────────────────────────────────────
 function diasAte(prazoISO){
-  if(!prazoISO) return null;
+  var iso = toDateOnly(prazoISO);
+  if(!iso) return null;
   var hoje = new Date(); hoje.setHours(0,0,0,0);
-  var p = new Date(prazoISO + "T00:00:00");
+  var p = new Date(iso + "T00:00:00");
   return Math.round((p - hoje) / (1000*60*60*24));
 }
 
@@ -715,7 +727,41 @@ function contaSubsPorFarol(t){
 }
 
 function farolLabel(f){ return {g:"Em dia",y:"Vence ≤3d",r:"Vencida",gray:"A definir",done:"Concluída/Cancelada",blk:"Bloqueada"}[f]||""; }
-function formatPrazo(p){ if(!p) return "A definir"; return new Date(p+"T00:00:00").toLocaleDateString("pt-BR"); }
+
+// Normaliza qualquer formato de prazo vindo do backend para "YYYY-MM-DD".
+// Aceita:
+//   - "" / null / undefined        -> ""
+//   - "2026-05-15"                 -> "2026-05-15"  (já ok)
+//   - "2026-05-15T03:00:00.000Z"   -> "2026-05-15"  (ISO completo, fuso BR)
+//   - Date object                  -> "2026-05-15"
+function toDateOnly(p){
+  if(!p) return "";
+  if(typeof p === "string"){
+    // Já está no formato YYYY-MM-DD?
+    if(/^\d{4}-\d{2}-\d{2}$/.test(p)) return p;
+    // ISO completo? Pega só a parte da data, ajustando pro fuso local
+    // pra evitar voltar 1 dia quando o backend gravou 03:00 UTC (= 00:00 BR).
+    var d = new Date(p);
+    if(isNaN(d.getTime())) return "";
+    var y = d.getFullYear();
+    var m = String(d.getMonth()+1).padStart(2,"0");
+    var dd = String(d.getDate()).padStart(2,"0");
+    return y+"-"+m+"-"+dd;
+  }
+  if(p instanceof Date){
+    var y2 = p.getFullYear();
+    var m2 = String(p.getMonth()+1).padStart(2,"0");
+    var d2 = String(p.getDate()).padStart(2,"0");
+    return y2+"-"+m2+"-"+d2;
+  }
+  return "";
+}
+
+function formatPrazo(p){
+  var iso = toDateOnly(p);
+  if(!iso) return "A definir";
+  return new Date(iso+"T00:00:00").toLocaleDateString("pt-BR");
+}
 
 // ─────────────────────────────────────────────────────
 // Render
@@ -1056,7 +1102,7 @@ function openModalEditar(id){
   document.getElementById("fld-area").value = t.area || "";
   document.getElementById("fld-status").value = t.status || "pendente";
   document.getElementById("fld-prioridade").value = t.prioridade || "media";
-  document.getElementById("fld-prazo").value = t.prazo || "";
+  document.getElementById("fld-prazo").value = toDateOnly(t.prazo);
   document.getElementById("fld-custo").value = (t.custo!=null) ? t.custo : "";
   document.getElementById("fld-obs").value = t.obs || "";
 
