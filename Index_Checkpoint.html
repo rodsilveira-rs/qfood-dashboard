@@ -4399,6 +4399,244 @@ document.addEventListener("DOMContentLoaded", function(){
   }
 
 
+  // ═════════════════════════════════════════════════════════════════
+  // ═══════════ MÓDULO DE DOWNLOAD (Sheets → localStorage) ═════════
+  // ═════════════════════════════════════════════════════════════════
+  // Política: Sheets vence — sempre sobrescreve o local quando há dado
+  //           remoto. Sincroniza 1x ao abrir + a cada 60s em background.
+  // ═════════════════════════════════════════════════════════════════
+
+  // Indicador visual discreto no canto inferior direito
+  function mostrarStatusSync(estado, msg){
+    var el = document.getElementById('qfood-sync-status');
+    if(!el){
+      el = document.createElement('div');
+      el.id = 'qfood-sync-status';
+      el.style.cssText = 'position:fixed;bottom:8px;right:8px;padding:6px 10px;'+
+        'border-radius:6px;font-size:0.7rem;font-family:sans-serif;z-index:9999;'+
+        'transition:all 0.3s;pointer-events:none;opacity:0.85;';
+      document.body.appendChild(el);
+    }
+    var cores = {
+      sync:    {bg:'#3b82f6', txt:'#fff', icon:'⏳'},
+      ok:      {bg:'#10b981', txt:'#fff', icon:'✓'},
+      erro:    {bg:'#ef4444', txt:'#fff', icon:'✗'},
+      offline: {bg:'#6b7280', txt:'#fff', icon:'⚠'}
+    };
+    var c = cores[estado] || cores.sync;
+    el.style.background = c.bg;
+    el.style.color = c.txt;
+    el.textContent = c.icon + ' ' + (msg || estado);
+    if(estado === 'ok'){
+      // some após 2s no sucesso
+      setTimeout(function(){ if(el) el.style.opacity = '0'; }, 2000);
+    } else {
+      el.style.opacity = '0.85';
+    }
+  }
+
+  // Desprefixa um registro vindo do Sheets
+  // Ex.: {b_campanhas: 'X', b_leads: 5, salvo_em: '...', gestor_id: 'barbara'}
+  //   →  {campanhas: 'X', leads: 5, salvo_em: '...', gestor_id: 'barbara'}
+  function desprefixar(registro, gestorId){
+    var pre = PREFIXO_POR_GESTOR[gestorId];
+    if(!pre) return registro;
+    var saida = {};
+    Object.keys(registro).forEach(function(k){
+      // Campos meta ficam sem prefixo
+      if(CAMPOS_META.has(k)){
+        saida[k] = registro[k];
+      } else if(k.indexOf(pre) === 0){
+        // Remove o prefixo do campo
+        saida[k.substring(pre.length)] = registro[k];
+      } else {
+        // Campo sem prefixo (ex: criado em outra versão) — mantém
+        saida[k] = registro[k];
+      }
+    });
+    return saida;
+  }
+
+  // GET genérico no backend
+  function fetchAba(aba){
+    if(!QFOOD_SYNC_URL || QFOOD_SYNC_URL.indexOf('COLE_AQUI') >= 0){
+      return Promise.reject(new Error('URL não configurada'));
+    }
+    var url = QFOOD_SYNC_URL + '?aba=' + encodeURIComponent(aba) + '&t=' + Date.now();
+    return fetch(url, { method: 'GET' })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if(!resp.ok) throw new Error(resp.erro || 'Erro desconhecido');
+        return resp.registros || [];
+      });
+  }
+
+  // Salva um registro do Sheets no localStorage com a chave correta
+  function salvarNoLocal(chave, dadoDesprefixado){
+    try {
+      // Política: Sheets vence sempre — sobrescreve sem checar
+      localStorage.setItem(chave, JSON.stringify(dadoDesprefixado));
+      return true;
+    } catch(e){
+      console.warn('[QFood Sync ↓] não foi possível salvar', chave, e);
+      return false;
+    }
+  }
+
+  // Verifica se a aba existe no projeto principal (alguns gestores podem
+  // não ter painel — ignora silenciosamente se a chave não bater com nenhum gestor)
+  function gestorValido(gid){
+    return PREFIXO_POR_GESTOR.hasOwnProperty(gid);
+  }
+
+  // ─────────── Baixar DIÁRIO ───────────
+  // Chave local: qfood_chk_{gestor}_diario_{YYYY-MM-DD}
+  function baixarDiario(){
+    return fetchAba('DIARIO').then(function(registros){
+      var aplicados = 0;
+      registros.forEach(function(r){
+        var gid = r.gestor_id;
+        var iso = r.data_iso;
+        if(!gid || !iso || !gestorValido(gid)) return;
+        var chave = 'qfood_chk_'+gid+'_diario_'+iso;
+        var dado = desprefixar(r, gid);
+        if(salvarNoLocal(chave, dado)) aplicados++;
+      });
+      return aplicados;
+    });
+  }
+
+  // ─────────── Baixar SEMANAL ───────────
+  // Chave local: qfood_chk_{gestor}_semanal_form_{periodo_iso}
+  function baixarSemanal(){
+    return fetchAba('SEMANAL').then(function(registros){
+      var aplicados = 0;
+      registros.forEach(function(r){
+        var gid = r.gestor_id;
+        var per = r.periodo_iso;
+        if(!gid || !per || !gestorValido(gid)) return;
+        var chave = 'qfood_chk_'+gid+'_semanal_form_'+per;
+        var dado = desprefixar(r, gid);
+        if(salvarNoLocal(chave, dado)) aplicados++;
+      });
+      return aplicados;
+    });
+  }
+
+  // ─────────── Baixar MENSAL ───────────
+  // Chave local: qfood_chk_{gestor}_mensal_{YYYY-MM}
+  function baixarMensal(){
+    return fetchAba('MENSAL').then(function(registros){
+      var aplicados = 0;
+      registros.forEach(function(r){
+        var gid = r.gestor_id;
+        var mes = r.mes;
+        if(!gid || !mes || !gestorValido(gid)) return;
+        var chave = 'qfood_chk_'+gid+'_mensal_'+mes;
+        var dado = desprefixar(r, gid);
+        if(salvarNoLocal(chave, dado)) aplicados++;
+      });
+      return aplicados;
+    });
+  }
+
+  // ─────────── Baixar OBSERVACOES_CEO ───────────
+  // Chave local: qfood_chk_{gestor}_obs_ceo_{periodo_iso}
+  function baixarObsCeo(){
+    return fetchAba('OBSERVACOES_CEO').then(function(registros){
+      var aplicados = 0;
+      registros.forEach(function(r){
+        var gid = r.gestor_id;
+        var per = r.periodo_iso;
+        if(!gid || !per || !gestorValido(gid)) return;
+        var chave = 'qfood_chk_'+gid+'_obs_ceo_'+per;
+        // ObsCeo não usa prefixo (campos são fixos: observacao, gestor_id, etc)
+        // Mas o painel local guarda no formato {txt: '...', ts: ..., salvo_em: ...}
+        // Vou converter:
+        var dado = {
+          txt: r.observacao || '',
+          ts: r.salvo_em ? new Date(r.salvo_em).getTime() : Date.now(),
+          salvo_em: r.salvo_em || new Date().toISOString(),
+          gestor_id: gid,
+          periodo_iso: per
+        };
+        if(salvarNoLocal(chave, dado)) aplicados++;
+      });
+      return aplicados;
+    });
+  }
+
+  // ─────────── Sincronizador principal ───────────
+  var SYNC_DOWN_RODANDO = false;
+  var ULTIMO_SYNC = 0;
+  var INTERVALO_SYNC_MS = 60000; // 60s
+
+  function sincronizarTudo(silencioso){
+    if(SYNC_DOWN_RODANDO) return Promise.resolve();
+    if(!navigator.onLine){
+      if(!silencioso) mostrarStatusSync('offline', 'Sem conexão');
+      return Promise.resolve();
+    }
+
+    SYNC_DOWN_RODANDO = true;
+    if(!silencioso) mostrarStatusSync('sync', 'Sincronizando...');
+
+    return Promise.all([
+      baixarDiario().catch(function(e){ console.warn('[Sync ↓ DIARIO]', e.message); return 0; }),
+      baixarSemanal().catch(function(e){ console.warn('[Sync ↓ SEMANAL]', e.message); return 0; }),
+      baixarMensal().catch(function(e){ console.warn('[Sync ↓ MENSAL]', e.message); return 0; }),
+      baixarObsCeo().catch(function(e){ console.warn('[Sync ↓ OBSCEO]', e.message); return 0; })
+    ])
+    .then(function(resultados){
+      var total = resultados.reduce(function(a,b){ return a+b; }, 0);
+      ULTIMO_SYNC = Date.now();
+      console.log('[QFood Sync ↓] Atualizou '+total+' registros (D:'+resultados[0]+' S:'+resultados[1]+' M:'+resultados[2]+' O:'+resultados[3]+')');
+      mostrarStatusSync('ok', total > 0 ? 'Sincronizado ('+total+')' : 'Atualizado');
+      // Re-renderiza o painel se estiver aberto
+      tentarRecarregarPainel();
+    })
+    .catch(function(err){
+      console.error('[QFood Sync ↓] erro geral:', err);
+      mostrarStatusSync('erro', 'Erro: ' + err.message);
+    })
+    .then(function(){ SYNC_DOWN_RODANDO = false; });
+  }
+
+  // Tenta recarregar o painel atualmente aberto (chama as funções de re-render
+  // do Index se elas existirem). Falha silenciosa se a função não existir.
+  function tentarRecarregarPainel(){
+    try {
+      // chkAtualizarTudo é a função "mestra" do painel — se existir, chama
+      if(typeof window.chkAtualizarTudo === 'function'){
+        window.chkAtualizarTudo();
+        return;
+      }
+      // Fallback: re-renderiza componentes individuais se existirem
+      Object.keys(PREFIXO_POR_GESTOR).forEach(function(gid){
+        if(typeof window.chkAtualizarNota === 'function') {
+          try { window.chkAtualizarNota(gid); } catch(_){}
+        }
+        if(typeof window.chkProgressoSemanaGen === 'function') {
+          try { window.chkProgressoSemanaGen(gid); } catch(_){}
+        }
+      });
+    } catch(e){
+      // Sem problema — só não atualiza visualmente, mas dados estão no localStorage
+      console.debug('[QFood Sync ↓] painel não recarregado:', e.message);
+    }
+  }
+
+  // Expor API pública (caso queira chamar manualmente do console)
+  window.QFoodSyncDown = {
+    sincronizar: sincronizarTudo,
+    diario: baixarDiario,
+    semanal: baixarSemanal,
+    mensal: baixarMensal,
+    obsCeo: baixarObsCeo,
+    ultimoSync: function(){ return ULTIMO_SYNC; }
+  };
+
+
   // ─────────────────────────────────────────────────────────────────
   // Inicialização
   // ─────────────────────────────────────────────────────────────────
@@ -4409,6 +4647,12 @@ document.addEventListener("DOMContentLoaded", function(){
     setInterval(processarFila, 60000);
     // Também tenta quando o navegador volta a ficar online
     window.addEventListener('online', processarFila);
+
+    // ─── SYNC DOWN (Sheets → localStorage) ───
+    // Sincroniza 1x ao abrir + a cada 60s em background
+    setTimeout(function(){ sincronizarTudo(false); }, 800); // pequeno delay pra não travar a tela
+    setInterval(function(){ sincronizarTudo(true); }, INTERVALO_SYNC_MS); // background silencioso
+    window.addEventListener('online', function(){ sincronizarTudo(false); });
   }
 
   // Aguarda o DOM e as funções do Index estarem definidas
