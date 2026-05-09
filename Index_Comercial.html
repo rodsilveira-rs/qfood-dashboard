@@ -2587,6 +2587,86 @@ function fatLimparChurn(){
 }
 
 // ════════════════════════════════════════════════════════════════
+// MODULO USR — IDENTIFICA PERFIL/SIGLA DO USUÁRIO LOGADO
+// ════════════════════════════════════════════════════════════════
+// Cruza o email do qfood_session com a planilha UUSR (CSV publicado)
+// pra descobrir: perfil (admin/gestor/vendedor/coordenador) + CRM_Sigla.
+// Cache em memória — só baixa 1x por sessão.
+// ════════════════════════════════════════════════════════════════
+var USR_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+
+var USR_DATA = null;             // array de objetos da UUSR
+var USR_PERFIL_CACHE = null;     // {email, nome, perfil, sigla}
+var USR_LOADING = null;          // promise em andamento (evita corrida)
+
+// Carrega UUSR (1x por sessão) e identifica o usuário logado
+async function usrCarregarPerfil(){
+  if(USR_PERFIL_CACHE) return USR_PERFIL_CACHE;
+  if(USR_LOADING) return USR_LOADING;
+
+  USR_LOADING = (async function(){
+    try {
+      var emailLogado = "";
+      try {
+        var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
+        if(sess && sess.email) emailLogado = String(sess.email).trim().toLowerCase();
+      } catch(_){}
+
+      // Sem sessão? trata como admin (segurança fail-safe — não quebra UI)
+      if(!emailLogado){
+        USR_PERFIL_CACHE = { email:"", nome:"", perfil:"admin", sigla:"", ehAdmin:true, ehVendedor:false };
+        return USR_PERFIL_CACHE;
+      }
+
+      // Baixa UUSR
+      if(!USR_DATA){
+        var r = await fetch(USR_CSV_URL + "&t=" + Date.now());
+        if(!r.ok) throw new Error("HTTP " + r.status);
+        var txt = await r.text();
+        if(txt.trim().startsWith("<")) throw new Error("UUSR não publicada como CSV");
+        USR_DATA = csv(txt);
+      }
+
+      // Procura a linha do usuário pelo email
+      var linha = USR_DATA.find(function(u){
+        return String(u.email || u.Email || "").trim().toLowerCase() === emailLogado;
+      });
+
+      if(!linha){
+        // Email não está na UUSR — fallback como vendedor sem sigla (não vê nada)
+        USR_PERFIL_CACHE = { email:emailLogado, nome:"", perfil:"vendedor", sigla:"", ehAdmin:false, ehVendedor:true };
+        return USR_PERFIL_CACHE;
+      }
+
+      var perfil = String(linha.perfil || linha.Perfil || "").trim().toLowerCase();
+      var sigla = String(linha.CRM_Sigla || linha["CRM Sigla"] || linha.crm_sigla || "").trim().toUpperCase();
+      var nome = String(linha.nome || linha.Nome || "").trim();
+
+      // Admin tem CRM_Sigla="*" (vê tudo). Coordenadores e gestores também veem tudo.
+      var ehAdmin = (perfil === "admin" || perfil === "gestor" || perfil === "coordenador" || sigla === "*");
+      var ehVendedor = (perfil === "vendedor");
+
+      USR_PERFIL_CACHE = {
+        email: emailLogado,
+        nome: nome,
+        perfil: perfil,
+        sigla: sigla,
+        ehAdmin: ehAdmin,
+        ehVendedor: ehVendedor
+      };
+      return USR_PERFIL_CACHE;
+    } catch(e){
+      console.warn("[USR] erro ao carregar perfil, fallback admin:", e.message);
+      // Em caso de erro, libera tudo (não trava UI por falha de rede)
+      USR_PERFIL_CACHE = { email:"", nome:"", perfil:"admin", sigla:"", ehAdmin:true, ehVendedor:false };
+      return USR_PERFIL_CACHE;
+    }
+  })();
+
+  return USR_LOADING;
+}
+
+// ════════════════════════════════════════════════════════════════
 // MODULO CESTA BÁSICA ORIENTAL
 // Cruza compras dos clientes "RESTAURANTE ORIENTAL" com a lista
 // de 26 categorias × 396 itens da cesta básica.
@@ -2698,20 +2778,45 @@ function oriProcessar(){
   var tableEl = document.getElementById("ori-table-wrap");
   if(loadingEl) loadingEl.style.display = "block";
 
-  // 1. Filtra todos os registros de clientes "RESTAURANTE ORIENTAL"
-  // 2. Aplica também o filtro de vendedor selecionado (pra respeitar permissões)
-  var vendFiltro = (document.getElementById("fat-vend") || {}).value || "";
+  // ═══ Determina o filtro de vendedor a aplicar ═══
+  // Prioridade: 1) perfil VENDEDOR força sua própria sigla
+  //             2) dropdown do modal (admin/gestor escolheu)
+  //             3) filtro global do Fat. Dinâmico (fallback)
+  //             4) sem filtro (mostra tudo)
+  var vendFiltro = "";
+  var perfil = USR_PERFIL_CACHE;
+  if(perfil && perfil.ehVendedor && perfil.sigla){
+    // VENDEDOR: força a própria sigla SEMPRE (sem opção de mudar)
+    vendFiltro = perfil.sigla;
+  } else {
+    // ADMIN/GESTOR: usa o que escolheu no dropdown do modal
+    var dropEl = document.getElementById("ori-filtro-vendedor");
+    var fatVendEl = document.getElementById("fat-vend");
+    vendFiltro = (dropEl && dropEl.value) ? dropEl.value : ((fatVendEl && fatVendEl.value) || "");
+  }
 
   var registrosOri = fatAllRows.filter(function(r){
     if(!oriEhRestauranteOriental(r)) return false;
-    // Se admin escolheu um vendedor, respeita
-    if(vendFiltro && (fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim() !== vendFiltro) return false;
+    if(vendFiltro){
+      var vRow = String(fatGetField(r,["VENDEDOR:","VENDEDOR"]) || "").trim().toUpperCase();
+      if(vRow !== String(vendFiltro).trim().toUpperCase()) return false;
+    }
     return true;
   });
 
   if(registrosOri.length === 0){
     if(loadingEl) loadingEl.style.display = "none";
-    if(emptyEl) emptyEl.style.display = "block";
+    if(emptyEl){
+      emptyEl.style.display = "block";
+      // Mensagem mais clara conforme o perfil
+      if(perfil && perfil.ehVendedor){
+        emptyEl.textContent = 'Nenhum cliente "RESTAURANTE ORIENTAL" na sua carteira ('+formatVendedorNome(perfil.sigla)+').';
+      } else if(vendFiltro){
+        emptyEl.textContent = 'Nenhum cliente "RESTAURANTE ORIENTAL" para '+formatVendedorNome(vendFiltro)+'.';
+      } else {
+        emptyEl.textContent = 'Nenhum cliente "RESTAURANTE ORIENTAL" encontrado.';
+      }
+    }
     if(tableEl) tableEl.style.display = "none";
     oriRenderKPIs([]);
     return;
@@ -2858,10 +2963,41 @@ function escapeOri(s){
 
 // Abre modal de detalhes
 // Abre o modal direto na tela do RANKING (chamado pelo botão "🍱 Cesta Oriental")
-function oriAbrirAnalise(){
+async function oriAbrirAnalise(){
   // Mostra modal e força tela 1 (ranking)
   document.getElementById("ori-modal").style.display = "flex";
   oriVoltarRanking(); // garante estado correto
+
+  // Resolve perfil do usuário ANTES de processar
+  // Se for vendedor, oculta dropdown e força sigla dele.
+  // Se for admin/gestor, mostra dropdown com todos.
+  try {
+    var perfil = await usrCarregarPerfil();
+    var dropdown = document.getElementById("ori-filtro-vendedor");
+    if(perfil.ehVendedor){
+      // Vendedor: oculta dropdown, força sigla própria
+      if(dropdown){
+        dropdown.style.display = "none";
+        dropdown.value = perfil.sigla;
+      }
+    } else {
+      // Admin/Gestor: popula dropdown e mostra
+      if(dropdown){
+        // Popula apenas com vendedores reais (whitelist)
+        // Preserva seleção atual se já tiver
+        var atual = dropdown.value;
+        var html = '<option value="">Todos os vendedores</option>';
+        FAT_VENDEDORES_REAIS.slice().sort().forEach(function(v){
+          html += '<option value="'+v+'">'+formatVendedorNome(v)+'</option>';
+        });
+        dropdown.innerHTML = html;
+        if(atual) dropdown.value = atual;
+        dropdown.style.display = "inline-block";
+      }
+    }
+  } catch(e){
+    console.warn("[Cesta Oriental] erro ao resolver perfil:", e);
+  }
 
   // Carrega cesta na 1ª vez, depois só reprocessa
   if(!ORI_LOADED){
@@ -3212,6 +3348,9 @@ document.addEventListener("DOMContentLoaded", function(){
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <span id="ori-status" style="font-size:.72rem;color:var(--mu)"></span>
+        <select id="ori-filtro-vendedor" onchange="oriProcessar()" style="display:none;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:6px 10px;color:var(--tx);font-size:.78rem;outline:none">
+          <option value="">Todos os vendedores</option>
+        </select>
         <button id="ori-btn-voltar" onclick="oriVoltarRanking()" style="display:none;padding:6px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.78rem;cursor:pointer">← Voltar ao ranking</button>
         <button onclick="oriCarregar(true)" title="Recarregar cesta básica" style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.78rem;cursor:pointer">🔄</button>
         <button onclick="oriFecharModal()" style="background:none;border:none;color:var(--mu);font-size:1.5rem;cursor:pointer;line-height:1">✕</button>
