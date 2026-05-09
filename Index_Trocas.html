@@ -336,11 +336,15 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
         </div>
       </div>
       <div class="fg">
-        <label>Anexo (foto da NF de devolução ou formulário assinado)</label>
+        <label>Anexo (foto da NF de devolução, formulário assinado ou PDF)</label>
         <div id="anexo-area" style="background:var(--s2);border:1px dashed var(--b2);border-radius:8px;padding:14px;text-align:center;">
           <div id="anexo-empty">
-            <input type="file" id="x-anexo-file" accept="image/*" capture="environment" style="display:none" onchange="iniciarUpload(this)">
-            <button type="button" class="btn-sec" onclick="document.getElementById('x-anexo-file').click()" style="margin-bottom:8px">📷 Tirar foto / Escolher imagem</button>
+            <input type="file" id="x-anexo-file-img" accept="image/*" capture="environment" style="display:none" onchange="iniciarUpload(this)">
+            <input type="file" id="x-anexo-file-pdf" accept="application/pdf" style="display:none" onchange="iniciarUpload(this)">
+            <div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">
+              <button type="button" class="btn-sec" onclick="document.getElementById('x-anexo-file-img').click()">📷 Foto / Imagem</button>
+              <button type="button" class="btn-sec" onclick="document.getElementById('x-anexo-file-pdf').click()">📄 PDF</button>
+            </div>
             <div style="color:var(--mu2);font-size:0.72rem">Ou cole um link do Drive abaixo:</div>
             <input type="url" id="x-documento_anexo_url" placeholder="https://drive.google.com/..." style="margin-top:6px;font-size:0.78rem">
           </div>
@@ -536,7 +540,8 @@ function lerArquivoComoDataUrl(file){
 
 function removerAnexo(){
   document.getElementById("x-documento_anexo_url").value = "";
-  document.getElementById("x-anexo-file").value = "";
+  var fImg = document.getElementById("x-anexo-file-img"); if (fImg) fImg.value = "";
+  var fPdf = document.getElementById("x-anexo-file-pdf"); if (fPdf) fPdf.value = "";
   document.getElementById("anexo-empty").style.display = "block";
   document.getElementById("anexo-success").style.display = "none";
   document.getElementById("anexo-uploading").style.display = "none";
@@ -1617,7 +1622,7 @@ function renderTimeline(d){
     "NF entrada": p.nf_entrada_numero,
     "Data entrada": fmtDate(p.data_entrada_sistema),
     "Armazém confirmado": p.armazem_confirmado,
-    "Observação": p.obs_fiscal
+    "Observação": renderObsComAnexo(p.obs_fiscal)
   }, p.etapa_atual === "3_fiscal" ? formFis(p) : "");
 
   // Etapa Financeira — só em fluxo padrão
@@ -1631,7 +1636,83 @@ function renderTimeline(d){
     }, p.etapa_atual === "4_financeiro" ? formFin(p) : "");
   }
 
+  // ─── HISTÓRICO DE OCORRÊNCIAS (timeline detalhada) ───
+  // Lista cronológica de todas as ações registradas no backend (TROC_HISTORICO).
+  // Útil pra auditoria e pra ver quem fez o quê / quando.
+  var histArr = d.historico || [];
+  if (histArr.length > 0){
+    // Ordenar por data DESC (mais recente primeiro)
+    histArr = histArr.slice().sort(function(a,b){
+      return String(b.data_hora||"").localeCompare(String(a.data_hora||""));
+    });
+    html += '<div style="margin-top:24px;padding-top:16px;border-top:2px solid var(--br)">';
+    html += '<div style="font-weight:700;color:var(--mu);font-size:0.85rem;margin-bottom:12px">📜 Histórico de ocorrências ('+histArr.length+')</div>';
+    html += '<div style="max-height:300px;overflow-y:auto;background:var(--s2);border-radius:8px;padding:8px">';
+    histArr.forEach(function(h){
+      var dataHora = h.data_hora ? new Date(h.data_hora).toLocaleString("pt-BR") : "—";
+      var usuario = String(h.usuario||"").replace(/\s*\(.*\)\s*$/, ""); // remove o nome em parênteses
+      var corEtapa = corDaEtapa(h.etapa);
+      html += '<div style="padding:8px 10px;border-left:3px solid '+corEtapa+';margin-bottom:6px;background:var(--s1);border-radius:0 6px 6px 0;font-size:0.78rem">';
+      html += '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">';
+      html += '<strong style="color:var(--ink)">'+escapeHtml(traduzAcao(h.acao))+'</strong>';
+      html += '<span style="color:var(--mu2);font-size:0.72rem">'+escapeHtml(dataHora)+'</span>';
+      html += '</div>';
+      html += '<div style="color:var(--mu);margin-top:2px;font-size:0.72rem">👤 '+escapeHtml(usuario)+' • 🏷️ '+escapeHtml(traduzEtapa(h.etapa))+'</div>';
+      if (h.campo_alterado){
+        html += '<div style="color:var(--mu2);margin-top:4px;font-size:0.7rem">'+escapeHtml(h.campo_alterado)+': '+escapeHtml(h.valor_anterior||"—")+' → <strong>'+escapeHtml(h.valor_novo||"—")+'</strong></div>';
+      }
+      if (h.observacao){
+        html += '<div style="color:var(--ink);margin-top:6px;padding:6px 8px;background:var(--s2);border-radius:4px;font-size:0.74rem;white-space:pre-wrap">'+linkificar(h.observacao)+'</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div></div>';
+  }
+
   return html;
+}
+
+// ─── Helpers do histórico ───
+function corDaEtapa(etapa){
+  switch(String(etapa||"")){
+    case "1_comercial": return "#3b82f6"; // azul
+    case "2_logistica": return "#f59e0b"; // amarelo
+    case "3_fiscal":    return "#a855f7"; // roxo
+    case "4_financeiro":return "#10b981"; // verde
+    case "concluido":   return "#10b981";
+    default: return "#6b7280";
+  }
+}
+function traduzEtapa(etapa){
+  switch(String(etapa||"")){
+    case "1_comercial": return "Comercial";
+    case "2_logistica": return "Logística";
+    case "3_fiscal":    return "Fiscal";
+    case "4_financeiro":return "Financeiro";
+    case "concluido":   return "Concluído";
+    default: return etapa || "—";
+  }
+}
+function traduzAcao(acao){
+  switch(String(acao||"")){
+    case "PROCESSO_CRIADO":     return "✨ Processo criado";
+    case "ETAPA_AVANCADA":      return "➡️ Etapa avançada";
+    case "PROCESSO_EDITADO":    return "✏️ Processo editado";
+    case "PROCESSO_CANCELADO":  return "🚫 Processo cancelado";
+    default: return acao || "—";
+  }
+}
+// Detecta URLs em texto livre e transforma em link clicável
+function linkificar(texto){
+  var s = escapeHtml(String(texto||""));
+  return s.replace(/(https?:\/\/[^\s<]+)/g, function(url){
+    return '<a href="'+url+'" target="_blank" style="color:var(--blue);text-decoration:underline">'+url+'</a>';
+  });
+}
+// Renderiza obs_fiscal já com link clicável caso tenha [ANEXO FISCAL]
+function renderObsComAnexo(obs){
+  if (!obs) return "";
+  return linkificar(obs);
 }
 
 function etapaHtml(num, nome, icone, idxAtual, dados, formulario){
@@ -1710,7 +1791,37 @@ function formFis(p){
       '<div class="fg"><label>Nº NF entrada</label><input type="text" id="fc-nf_entrada_numero"></div>'+
       '<div class="fg"><label>Armazém confirmado</label>'+armazemHtml+'</div>'+
     '</div>'+
-    '<div class="fg"><label>Observação</label><textarea id="fc-obs_fiscal"></textarea></div>'+
+    '<div class="fg">'+
+      '<label>Observação <span style="color:var(--warn);font-weight:600">★ recomendado</span></label>'+
+      '<textarea id="fc-obs_fiscal" placeholder="Detalhe ocorrências, divergências ou observações relevantes — fica registrado no histórico do processo" rows="3" style="border-color:var(--warn)"></textarea>'+
+      '<small style="color:var(--mu2);font-size:0.7rem;display:block;margin-top:3px">📝 O detalhamento informado aqui é gravado no histórico permanente da ocorrência</small>'+
+    '</div>'+
+    // Anexo opcional do Fiscal (PDF ou foto) — mesma pasta do Drive (TROC_DRIVE_FOLDER_ID)
+    '<div class="fg">'+
+      '<label>Anexo Fiscal (opcional — PDF ou foto)</label>'+
+      '<div id="anexo-fiscal-area" style="background:var(--s2);border:1px dashed var(--b2);border-radius:8px;padding:14px;text-align:center;">'+
+        '<div id="anexo-fiscal-empty">'+
+          '<input type="file" id="fc-anexo-file-img" accept="image/*" capture="environment" style="display:none" onchange="iniciarUploadFiscal(this)">'+
+          '<input type="file" id="fc-anexo-file-pdf" accept="application/pdf" style="display:none" onchange="iniciarUploadFiscal(this)">'+
+          '<div style="display:flex;gap:8px;justify-content:center;margin-bottom:8px;flex-wrap:wrap">'+
+            '<button type="button" class="btn-sec" onclick="document.getElementById(\'fc-anexo-file-img\').click()">📷 Foto / Imagem</button>'+
+            '<button type="button" class="btn-sec" onclick="document.getElementById(\'fc-anexo-file-pdf\').click()">📄 PDF</button>'+
+          '</div>'+
+          '<div style="color:var(--mu2);font-size:0.72rem">Ou cole um link do Drive abaixo:</div>'+
+          '<input type="url" id="fc-documento_anexo_fiscal_url" placeholder="https://drive.google.com/..." style="margin-top:6px;font-size:0.78rem">'+
+        '</div>'+
+        '<div id="anexo-fiscal-uploading" style="display:none;color:var(--warn);font-size:0.85rem;padding:10px">⏳ Enviando anexo...</div>'+
+        '<div id="anexo-fiscal-success" style="display:none;color:var(--ok);font-size:0.85rem;padding:8px;text-align:left">'+
+          '<div style="display:flex;align-items:center;gap:10px;justify-content:space-between">'+
+            '<div>'+
+              '✓ <strong id="anexo-fiscal-nome">arquivo</strong>'+
+              '<a id="anexo-fiscal-link" href="#" target="_blank" style="color:var(--blue);font-size:0.75rem;display:block;margin-top:2px">Ver anexo</a>'+
+            '</div>'+
+            '<button type="button" class="btn-rm" onclick="removerAnexoFiscal()" style="padding:4px 10px">×</button>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
     (p.tipo_processo === "CANCELAMENTO_NF"
       ? '<button class="btn" onclick="avancar(\''+p.id_processo+'\',\'4_financeiro\',\'fc\')" style="background:var(--ok)">✓ Concluir Cancelamento</button>'
       : '<button class="btn" onclick="avancar(\''+p.id_processo+'\',\'4_financeiro\',\'fc\')" style="background:var(--pur)">Enviar ao Financeiro →</button>'
@@ -1805,12 +1916,73 @@ function removerComprovante(){
   document.getElementById("fn-comprov-uploading").style.display = "none";
 }
 
+// ─── Upload de anexo Fiscal (PDF ou foto) — reusa endpoint upload_anexo (mesma pasta do Drive) ───
+async function iniciarUploadFiscal(inputFile){
+  var file = inputFile.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024){
+    alert("Arquivo muito grande. Máximo 10 MB.");
+    return;
+  }
+  document.getElementById("anexo-fiscal-empty").style.display = "none";
+  document.getElementById("anexo-fiscal-uploading").style.display = "block";
+  document.getElementById("anexo-fiscal-success").style.display = "none";
+  try {
+    var dataUrl = await lerArquivoComoDataUrl(file);
+    var resp = await api("POST", {}, {
+      action: "upload_anexo",
+      payload: {
+        email: SESSAO.email,
+        dataUrl: dataUrl,
+        nomeArquivo: "fiscal_" + file.name
+      }
+    });
+    if (!resp.ok) throw new Error(resp.error);
+    document.getElementById("fc-documento_anexo_fiscal_url").value = resp.dados.url;
+    document.getElementById("anexo-fiscal-nome").textContent = resp.dados.nome;
+    document.getElementById("anexo-fiscal-link").href = resp.dados.url;
+    document.getElementById("anexo-fiscal-uploading").style.display = "none";
+    document.getElementById("anexo-fiscal-success").style.display = "block";
+  } catch(e){
+    alert("Erro ao enviar anexo Fiscal: " + e.message);
+    document.getElementById("anexo-fiscal-empty").style.display = "block";
+    document.getElementById("anexo-fiscal-uploading").style.display = "none";
+    inputFile.value = "";
+  }
+}
+
+function removerAnexoFiscal(){
+  document.getElementById("fc-documento_anexo_fiscal_url").value = "";
+  var fImg = document.getElementById("fc-anexo-file-img"); if (fImg) fImg.value = "";
+  var fPdf = document.getElementById("fc-anexo-file-pdf"); if (fPdf) fPdf.value = "";
+  document.getElementById("anexo-fiscal-empty").style.display = "block";
+  document.getElementById("anexo-fiscal-success").style.display = "none";
+  document.getElementById("anexo-fiscal-uploading").style.display = "none";
+}
+
 async function avancar(id, novaEtapa, prefix){
   var dados = {};
   document.querySelectorAll('[id^="'+prefix+'-"]').forEach(function(el){
     var c = el.id.replace(prefix+"-","");
     if (el.value) dados[c] = el.value;
   });
+
+  // ─── Tratamento especial do Fiscal (prefix "fc") ───
+  // O backend não tem coluna "documento_anexo_fiscal_url" nas 39 colunas da TROC_PROCESSOS,
+  // então embutimos o link DENTRO do obs_fiscal com formato padronizado.
+  // Assim o anexo aparece no histórico/timeline sem precisar mexer na planilha.
+  if (prefix === "fc" && dados.documento_anexo_fiscal_url){
+    var urlAnexo = dados.documento_anexo_fiscal_url;
+    var obsAtual = (dados.obs_fiscal || "").trim();
+    var marcador = "[ANEXO FISCAL] " + urlAnexo;
+    // Se já tem o marcador (edição), não duplica
+    if (obsAtual.indexOf(urlAnexo) < 0){
+      dados.obs_fiscal = (obsAtual ? obsAtual + "\n\n" : "") + marcador;
+    }
+    // Remove o campo extra antes de mandar pro backend (não existe na planilha)
+    delete dados.documento_anexo_fiscal_url;
+  }
+
   try {
     var resp = await api("POST", {}, {
       action:"avancar",
