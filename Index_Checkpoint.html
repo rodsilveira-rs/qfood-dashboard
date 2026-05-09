@@ -4489,6 +4489,78 @@ document.addEventListener("DOMContentLoaded", function(){
     return PREFIXO_POR_GESTOR.hasOwnProperty(gid);
   }
 
+  // ─────────── Normalizar datas vindas do Sheets ───────────
+  // O Sheets retorna células de data como objetos Date (em ISO com timezone),
+  // não como string "YYYY-MM-DD". Esta função normaliza pra o formato esperado
+  // pelas chaves do localStorage:
+  //   - "2026-05-07T03:00:00.000Z" → "2026-05-07"  (formato 'data')
+  //   - Date → "2026-05-07"
+  //   - "2026-05-07" → "2026-05-07" (já correto, mantém)
+  //   - "2026-05" → "2026-05" (formato mês, mantém)
+  function normalizarData(valor, tipo){
+    if(!valor) return '';
+
+    // Se for Date object (raro mas pode vir após manipulação JSON)
+    if(valor instanceof Date){
+      if(tipo === 'mes'){
+        return valor.getFullYear() + '-' + String(valor.getMonth()+1).padStart(2,'0');
+      }
+      return valor.getFullYear() + '-' +
+             String(valor.getMonth()+1).padStart(2,'0') + '-' +
+             String(valor.getDate()).padStart(2,'0');
+    }
+
+    var s = String(valor).trim();
+    if(!s) return '';
+
+    // Se for ISO completo com 'T' (ex: "2026-05-07T03:00:00.000Z" do Sheets)
+    if(s.indexOf('T') > 0){
+      // Pega só a parte da data (antes do T)
+      // MAS atenção: o Sheets devolve datas com fuso UTC (T03:00 = meia-noite Brasília)
+      // Pra evitar pular um dia, vamos trabalhar com a data Brasília:
+      var dt = new Date(s);
+      if(!isNaN(dt.getTime())){
+        // Usa getTime + offset Brasília (-3h) pra pegar a "data brasileira"
+        var brasilOffset = -3 * 60; // minutos
+        var localOffset = dt.getTimezoneOffset(); // minutos
+        var dtAjustado = new Date(dt.getTime() + (localOffset - brasilOffset) * 60000);
+        if(tipo === 'mes'){
+          return dtAjustado.getFullYear() + '-' + String(dtAjustado.getMonth()+1).padStart(2,'0');
+        }
+        return dtAjustado.getFullYear() + '-' +
+               String(dtAjustado.getMonth()+1).padStart(2,'0') + '-' +
+               String(dtAjustado.getDate()).padStart(2,'0');
+      }
+      // Fallback: se não conseguiu parsear, pega só o que está antes do T
+      return s.split('T')[0];
+    }
+
+    // Se já está no formato curto "YYYY-MM-DD" ou "YYYY-MM"
+    if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+    if(/^\d{4}-\d{2}/.test(s)) return s.substring(0, 7);
+
+    // Se vier no formato BR "07/05/2026"
+    if(/^\d{2}\/\d{2}\/\d{4}/.test(s)){
+      var p = s.split('/');
+      if(tipo === 'mes') return p[2] + '-' + p[1];
+      return p[2] + '-' + p[1] + '-' + p[0];
+    }
+
+    // Última tentativa: deixa o Date parser tentar
+    var d = new Date(s);
+    if(!isNaN(d.getTime())){
+      if(tipo === 'mes'){
+        return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      }
+      return d.getFullYear() + '-' +
+             String(d.getMonth()+1).padStart(2,'0') + '-' +
+             String(d.getDate()).padStart(2,'0');
+    }
+
+    // Não conseguiu — devolve como veio (será descartado pelo gestorValido check)
+    return s;
+  }
+
   // ─────────── Baixar DIÁRIO ───────────
   // Chave local: qfood_chk_{gestor}_diario_{YYYY-MM-DD}
   function baixarDiario(){
@@ -4496,10 +4568,17 @@ document.addEventListener("DOMContentLoaded", function(){
       var aplicados = 0;
       registros.forEach(function(r){
         var gid = r.gestor_id;
-        var iso = r.data_iso;
+        var iso = normalizarData(r.data_iso || r.data, 'data');
         if(!gid || !iso || !gestorValido(gid)) return;
         var chave = 'qfood_chk_'+gid+'_diario_'+iso;
         var dado = desprefixar(r, gid);
+        // Garante que data_iso e data estão no formato esperado pelo painel local
+        dado.data_iso = iso;
+        if(!dado.data || dado.data instanceof Date || String(dado.data).indexOf('T') > 0){
+          // Reformata pra formato BR esperado pelo painel
+          var partes = iso.split('-');
+          dado.data = partes[2] + '/' + partes[1] + '/' + partes[0];
+        }
         if(salvarNoLocal(chave, dado)) aplicados++;
       });
       return aplicados;
@@ -4513,10 +4592,11 @@ document.addEventListener("DOMContentLoaded", function(){
       var aplicados = 0;
       registros.forEach(function(r){
         var gid = r.gestor_id;
-        var per = r.periodo_iso;
+        var per = normalizarData(r.periodo_iso, 'data');
         if(!gid || !per || !gestorValido(gid)) return;
         var chave = 'qfood_chk_'+gid+'_semanal_form_'+per;
         var dado = desprefixar(r, gid);
+        dado.periodo_iso = per;
         if(salvarNoLocal(chave, dado)) aplicados++;
       });
       return aplicados;
@@ -4530,10 +4610,11 @@ document.addEventListener("DOMContentLoaded", function(){
       var aplicados = 0;
       registros.forEach(function(r){
         var gid = r.gestor_id;
-        var mes = r.mes;
+        var mes = normalizarData(r.mes, 'mes');
         if(!gid || !mes || !gestorValido(gid)) return;
         var chave = 'qfood_chk_'+gid+'_mensal_'+mes;
         var dado = desprefixar(r, gid);
+        dado.mes = mes;
         if(salvarNoLocal(chave, dado)) aplicados++;
       });
       return aplicados;
@@ -4547,7 +4628,7 @@ document.addEventListener("DOMContentLoaded", function(){
       var aplicados = 0;
       registros.forEach(function(r){
         var gid = r.gestor_id;
-        var per = r.periodo_iso;
+        var per = normalizarData(r.periodo_iso, 'data');
         if(!gid || !per || !gestorValido(gid)) return;
         var chave = 'qfood_chk_'+gid+'_obs_ceo_'+per;
         // ObsCeo não usa prefixo (campos são fixos: observacao, gestor_id, etc)
