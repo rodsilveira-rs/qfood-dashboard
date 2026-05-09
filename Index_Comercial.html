@@ -507,6 +507,7 @@ tbody tr:hover td{background:var(--s2);}
         <option value="60">Churn: +60 dias</option>
         <option value="90">Churn: +90 dias</option>
       </select>
+      <button onclick="oriAbrirAnalise()" title="Cruza compras dos clientes Restaurante Oriental com a Cesta Básica" style="padding:7px 14px;background:#f7a145;border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">🍱 Cesta Oriental</button>
       <button onclick="fatLoad(true)" style="padding:7px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">&#128260; Atualizar</button>
     </div>
   </div>
@@ -597,48 +598,6 @@ tbody tr:hover td{background:var(--s2);}
   </div>
   <div id="fat-count" style="font-size:.72rem;color:var(--mu);text-align:right;margin-top:6px;padding-right:4px"></div>
 
-  <!-- ════════════════════════════════════════════════════════════════
-       CESTA BÁSICA ORIENTAL
-       Cruza compras dos clientes "RESTAURANTE ORIENTAL" com a lista
-       de categorias da Cesta Básica Oriental (CSV publicado)
-       ════════════════════════════════════════════════════════════════ -->
-  <div style="margin-top:32px;padding-top:24px;border-top:2px solid var(--br)">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
-      <div class="sec" style="margin:0">🍱 Cesta Básica Oriental</div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <span id="ori-status" style="font-size:.72rem;color:var(--mu)">Aguardando dados...</span>
-        <button onclick="oriCarregar(true)" style="padding:6px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.78rem;cursor:pointer">🔄 Recarregar cesta</button>
-      </div>
-    </div>
-
-    <div style="background:rgba(247,161,69,0.08);border:1px solid rgba(247,161,69,0.3);border-radius:8px;padding:12px 16px;margin-bottom:18px;font-size:.78rem;line-height:1.5">
-      💡 <strong>Como funciona:</strong> cruzamos os clientes do segmento <strong>RESTAURANTE ORIENTAL</strong> com a Cesta Básica (26 categorias × 396 itens). O ranking mostra quais clientes têm mais <strong>oportunidades de venda</strong> — ou seja, categorias da cesta que você ainda não vendeu pra eles. Match feito por código (SKU) do produto.
-    </div>
-
-    <!-- KPIs da cesta -->
-    <div class="kpis" id="ori-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:20px"></div>
-
-    <!-- Ranking de clientes (mais crítico → menos crítico) -->
-    <div class="sec" style="margin-bottom:12px;font-size:1rem">📋 Ranking de clientes — mais oportunidades primeiro</div>
-    <div id="ori-loading" style="display:none;padding:20px;text-align:center;color:var(--mu);font-size:.85rem">⏳ Carregando dados da cesta...</div>
-    <div id="ori-empty" style="display:none;padding:24px;text-align:center;color:var(--mu);font-size:.85rem;background:var(--s2);border-radius:8px">
-      Nenhum cliente "RESTAURANTE ORIENTAL" encontrado na sua carteira.
-    </div>
-    <div class="twrap" id="ori-table-wrap" style="display:none;overflow-x:auto">
-      <table>
-        <thead><tr>
-          <th style="text-align:left">#</th>
-          <th style="text-align:left">Cliente</th>
-          <th style="text-align:left">Vendedor</th>
-          <th style="text-align:center">Categorias atendidas</th>
-          <th style="text-align:center">Cobertura</th>
-          <th style="text-align:right">Faturamento histórico</th>
-          <th style="text-align:center">Status</th>
-        </tr></thead>
-        <tbody id="ori-tbody"></tbody>
-      </table>
-    </div>
-  </div>
 </div>
 
 
@@ -1968,6 +1927,51 @@ function buildTend(){
 // ════════════════════════════════════════════════════════════════
 // MODULO FATURAMENTO DINAMICO (copia fiel do original)
 // ════════════════════════════════════════════════════════════════
+// Whitelist de vendedores REAIS da equipe comercial (ignorar siglas
+// estranhas que aparecem na DINAMICO como "RODRIGO", "E-COMMERCE", "Q",
+// que não fazem parte do time de vendas externo).
+// Fontes: cadastro do CRM + UUSR.
+var FAT_VENDEDORES_REAIS = [
+  "LUCAS.BRITES",
+  "VERA.SILVA",
+  "CAMILA.CORREIA",
+  "ELIANE.MOREIRA",
+  "DAYANE.NASCIMENTO",
+  "EDERSON.BARCELOS",
+  "CLAUDIA.GOMES",
+  "DEANE.TREVINE",
+  "KENYO.SANTOS"
+];
+
+// Conjunto pra busca O(1) — aceita variações com espaço/sem ponto/maiúsculo
+var FAT_VENDEDORES_REAIS_SET = (function(){
+  var s = {};
+  FAT_VENDEDORES_REAIS.forEach(function(v){
+    s[v.toUpperCase()] = true;                          // LUCAS.BRITES
+    s[v.replace(".", " ").toUpperCase()] = true;        // LUCAS BRITES
+    s[v.split(".")[0].toUpperCase()] = true;            // LUCAS (primeiro nome)
+  });
+  return s;
+})();
+
+// Verifica se um vendedor (qualquer formato) é da equipe real
+function fatEhVendedorReal(nomeRaw){
+  if(!nomeRaw) return false;
+  var n = String(nomeRaw).trim().toUpperCase();
+  if(FAT_VENDEDORES_REAIS_SET[n]) return true;
+  // Tenta o primeiro nome
+  var primeiro = n.replace(".", " ").split(" ")[0];
+  return !!FAT_VENDEDORES_REAIS_SET[primeiro];
+}
+
+// Formata nome do vendedor pra exibição: "LUCAS.BRITES" → "LUCAS"
+// (mantém compatível com o padrão antigo do dashboard)
+function formatVendedorNome(nomeRaw){
+  if(!nomeRaw) return "S/N";
+  return String(nomeRaw).trim().replace(".", " ").split(" ")[0].toUpperCase();
+}
+// ════════════════════════════════════════════════════════════════
+
 var fatAllRows=[];
 var fatLoaded=false;
 var fatC1=null,fatC2=null,fatC3=null,fatC4=null;
@@ -2089,15 +2093,6 @@ function fatApplyFilters(){
   fatCharts(rows);
   fatRankings(rows);
   fatTable(rows);
-
-  // Cesta Básica Oriental — carrega na primeira vez, depois só reprocessa
-  if(typeof oriCarregar === 'function'){
-    if(!ORI_LOADED){
-      oriCarregar(false);  // primeira chamada baixa o CSV
-    } else {
-      oriProcessar();      // chamadas seguintes só reprocessam (filtros mudaram)
-    }
-  }
 }
 
 function fatKPIs(rows){
@@ -2407,7 +2402,10 @@ function fatRankings(rows){
   // ── Margem por Vendedor ───────────────────────────────────────
   var byVendM={};
   rows.forEach(function(r){
-    var v=(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"S/N").replace("."," ").split(" ")[0];
+    var vRaw = fatGetField(r,["VENDEDOR:","VENDEDOR"]) || "";
+    // Filtra fora vendedores que não são da equipe comercial real
+    if(!fatEhVendedorReal(vRaw)) return;
+    var v = formatVendedorNome(vRaw);
     if(!byVendM[v]) byVendM[v]={fat:0,margem:0,cnt:0};
     byVendM[v].fat+=fatNum(fatGetField(r,["TOTAL:","TOTAL"]));
     byVendM[v].margem+=fatNum(fatGetField(r,["MARGEM:","MARGEM"]));
@@ -2826,25 +2824,25 @@ function oriRenderTabela(ranking){
     var pctNum = c.cobertura * 100;
     var cor = pctNum < 30 ? "var(--red)" : (pctNum < 60 ? "var(--yel)" : "var(--grn)");
     var statusTxt = pctNum < 30 ? "🔴 Crítico" : (pctNum < 60 ? "🟡 Médio" : "🟢 Bom");
-    var vendShort = (c.vendedor || "").replace(".", " ").split(" ")[0];
+    var vendShort = formatVendedorNome(c.vendedor);
 
     html +=
       '<tr style="cursor:pointer" onclick="oriAbrirModal(\''+c.cnpj+'\')">'+
-        '<td style="font-weight:600;color:var(--mu)">'+(idx+1)+'</td>'+
-        '<td>'+
+        '<td style="font-weight:600;color:var(--mu);padding:8px">'+(idx+1)+'</td>'+
+        '<td style="padding:8px">'+
           '<div style="font-weight:600">'+escapeOri(c.nome)+'</div>'+
           '<div style="font-size:.7rem;color:var(--mu)">'+escapeOri(c.cnpj)+(c.municipio ? ' · '+escapeOri(c.municipio) : '')+'</div>'+
         '</td>'+
-        '<td>'+escapeOri(vendShort)+'</td>'+
-        '<td style="text-align:center;font-weight:600">'+c.categoriasAtendidas+'/'+ORI_TOTAL_CATS+'</td>'+
-        '<td style="text-align:center">'+
+        '<td style="padding:8px">'+escapeOri(vendShort)+'</td>'+
+        '<td style="text-align:center;font-weight:600;padding:8px">'+c.categoriasAtendidas+'/'+ORI_TOTAL_CATS+'</td>'+
+        '<td style="text-align:center;padding:8px">'+
           '<div style="background:rgba(255,255,255,.05);border-radius:6px;height:8px;width:80px;display:inline-block;overflow:hidden;vertical-align:middle">'+
             '<div style="height:100%;width:'+pct+'%;background:'+cor+'"></div>'+
           '</div>'+
           '<span style="margin-left:6px;font-size:.78rem;color:'+cor+';font-weight:600">'+pct+'%</span>'+
         '</td>'+
-        '<td style="text-align:right">'+fatFmtK(c.fatTotal)+'</td>'+
-        '<td style="text-align:center">'+statusTxt+'</td>'+
+        '<td style="text-align:right;padding:8px">'+fatFmtK(c.fatTotal)+'</td>'+
+        '<td style="text-align:center;padding:8px">'+statusTxt+'</td>'+
       '</tr>';
   });
 
@@ -2859,30 +2857,61 @@ function escapeOri(s){
 }
 
 // Abre modal de detalhes
+// Abre o modal direto na tela do RANKING (chamado pelo botão "🍱 Cesta Oriental")
+function oriAbrirAnalise(){
+  // Mostra modal e força tela 1 (ranking)
+  document.getElementById("ori-modal").style.display = "flex";
+  oriVoltarRanking(); // garante estado correto
+
+  // Carrega cesta na 1ª vez, depois só reprocessa
+  if(!ORI_LOADED){
+    oriCarregar(false);
+  } else {
+    oriProcessar();
+  }
+}
+
+// Volta da tela de detalhe pra tela de ranking
+function oriVoltarRanking(){
+  document.getElementById("ori-tela-ranking").style.display = "block";
+  document.getElementById("ori-tela-detalhe").style.display = "none";
+  document.getElementById("ori-btn-voltar").style.display = "none";
+  document.getElementById("ori-info-box").style.display = "block";
+  document.getElementById("ori-modal-titulo").innerHTML = "🍱 Cesta Básica Oriental";
+  document.getElementById("ori-modal-subt").innerHTML = "Análise de cobertura por cliente";
+  ORI_CLI_ATUAL = null;
+}
+
+// Abre detalhe de UM cliente (chamado ao clicar numa linha do ranking)
 function oriAbrirModal(cnpj){
   var cli = ORI_RANKING.find(function(c){ return c.cnpj === cnpj; });
   if(!cli){ alert("Cliente não encontrado"); return; }
   ORI_CLI_ATUAL = cli;
   ORI_TAB_ATUAL = 'faltam';
 
+  // Troca pra tela 2
+  document.getElementById("ori-tela-ranking").style.display = "none";
+  document.getElementById("ori-tela-detalhe").style.display = "block";
+  document.getElementById("ori-btn-voltar").style.display = "inline-block";
+  document.getElementById("ori-info-box").style.display = "none";
+
   // Cabeçalho
   document.getElementById("ori-modal-titulo").innerHTML = "🍱 " + escapeOri(cli.nome);
   document.getElementById("ori-modal-subt").innerHTML =
     escapeOri(cli.cnpj) +
-    (cli.vendedor ? ' · Vendedor: ' + escapeOri(cli.vendedor.replace(".", " ").split(" ")[0]) : '') +
+    (cli.vendedor ? ' · Vendedor: ' + escapeOri(formatVendedorNome(cli.vendedor)) : '') +
     (cli.municipio ? ' · ' + escapeOri(cli.municipio) : '');
 
   // KPIs do cliente
   var pct = (cli.cobertura * 100).toFixed(0);
   var cor = cli.cobertura < 0.3 ? "var(--red)" : (cli.cobertura < 0.6 ? "var(--yel)" : "var(--grn)");
-  document.getElementById("ori-modal-kpis").innerHTML =
+  document.getElementById("ori-cli-kpis").innerHTML =
     '<div class="kpi b"><div class="lbl">Categorias atendidas</div><div class="val">'+cli.categoriasAtendidas+'/'+ORI_TOTAL_CATS+'</div></div>'+
     '<div class="kpi r"><div class="lbl">Oportunidades</div><div class="val">'+cli.categoriasFaltam+'</div><div class="sub">categorias zeradas</div></div>'+
     '<div class="kpi g"><div class="lbl">Cobertura</div><div class="val" style="color:'+cor+'">'+pct+'%</div></div>'+
     '<div class="kpi w"><div class="lbl">Fat. histórico</div><div class="val">'+fatFmtK(cli.fatTotal)+'</div></div>';
 
   oriTrocarTab('faltam');
-  document.getElementById("ori-modal").style.display = "flex";
 }
 
 function oriFecharModal(){
@@ -3168,34 +3197,75 @@ document.addEventListener("DOMContentLoaded", function(){
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     MODAL CESTA BÁSICA ORIENTAL — detalhes por cliente
-     Mostra ✅ categorias atendidas e ❌ categorias com oportunidade
+     MODAL CESTA BÁSICA ORIENTAL
+     Tela 1: Ranking de clientes (mais crítico → menos crítico)
+     Tela 2: Detalhes do cliente (categorias atendidas / com oportunidade)
      ═══════════════════════════════════════════════════════════════ -->
-<div id="ori-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:5000;align-items:center;justify-content:center;padding:20px;overflow-y:auto">
-  <div style="background:var(--bg);border-radius:14px;padding:24px;width:100%;max-width:1080px;max-height:92vh;overflow-y:auto;border:1px solid var(--br);margin:auto">
+<div id="ori-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:5000;align-items:center;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:var(--bg);border-radius:14px;padding:24px;width:100%;max-width:1180px;max-height:92vh;overflow-y:auto;border:1px solid var(--br);margin:auto">
+
+    <!-- Cabeçalho dinâmico — muda conforme a tela -->
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:12px">
       <div>
-        <div class="sec" style="margin:0" id="ori-modal-titulo">🍱 Análise Cesta Oriental</div>
-        <div style="font-size:.74rem;color:var(--mu);margin-top:3px" id="ori-modal-subt"></div>
+        <div class="sec" style="margin:0" id="ori-modal-titulo">🍱 Cesta Básica Oriental</div>
+        <div style="font-size:.74rem;color:var(--mu);margin-top:3px" id="ori-modal-subt">Análise de cobertura por cliente</div>
       </div>
-      <button onclick="oriFecharModal()" style="background:none;border:none;color:var(--mu);font-size:1.3rem;cursor:pointer;line-height:1">✕</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="ori-status" style="font-size:.72rem;color:var(--mu)"></span>
+        <button id="ori-btn-voltar" onclick="oriVoltarRanking()" style="display:none;padding:6px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.78rem;cursor:pointer">← Voltar ao ranking</button>
+        <button onclick="oriCarregar(true)" title="Recarregar cesta básica" style="padding:6px 10px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.78rem;cursor:pointer">🔄</button>
+        <button onclick="oriFecharModal()" style="background:none;border:none;color:var(--mu);font-size:1.5rem;cursor:pointer;line-height:1">✕</button>
+      </div>
     </div>
 
-    <!-- KPIs do cliente -->
-    <div id="ori-modal-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px"></div>
-
-    <!-- Toggle de visualização -->
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
-      <button id="ori-tab-faltam" onclick="oriTrocarTab('faltam')" style="padding:8px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;cursor:pointer;font-weight:600">❌ Categorias com oportunidade</button>
-      <button id="ori-tab-tem" onclick="oriTrocarTab('tem')" style="padding:8px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.82rem;cursor:pointer">✅ Categorias atendidas</button>
+    <!-- Aviso explicativo -->
+    <div id="ori-info-box" style="background:rgba(247,161,69,0.08);border:1px solid rgba(247,161,69,0.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.76rem;line-height:1.5">
+      💡 <strong>Como funciona:</strong> cruzamento dos clientes <strong>RESTAURANTE ORIENTAL</strong> com a Cesta Básica (26 categorias × 396 itens). Match feito por código (SKU).
     </div>
 
-    <!-- Conteúdo (categorias com oportunidade ou atendidas) -->
-    <div id="ori-modal-conteudo" style="max-height:54vh;overflow-y:auto;padding-right:4px"></div>
+    <!-- ───────── TELA 1: RANKING ───────── -->
+    <div id="ori-tela-ranking">
+      <div class="kpis" id="ori-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:18px"></div>
 
-    <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-      <div style="font-size:.72rem;color:var(--mu)">💡 Use as sugestões de produtos como abertura de conversa com o cliente</div>
-      <button onclick="oriFecharModal()" style="padding:8px 18px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);cursor:pointer;font-size:.82rem">Fechar</button>
+      <div class="sec" style="margin-bottom:10px;font-size:.95rem">📋 Ranking — clientes com mais oportunidades primeiro</div>
+      <div id="ori-loading" style="display:none;padding:30px;text-align:center;color:var(--mu);font-size:.85rem">⏳ Carregando dados da cesta...</div>
+      <div id="ori-empty" style="display:none;padding:24px;text-align:center;color:var(--mu);font-size:.85rem;background:var(--s2);border-radius:8px">
+        Nenhum cliente "RESTAURANTE ORIENTAL" encontrado na sua carteira.
+      </div>
+      <div id="ori-table-wrap" style="display:none;overflow-x:auto;max-height:60vh">
+        <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+          <thead style="position:sticky;top:0;background:var(--sf);z-index:1">
+            <tr>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid var(--br)">#</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid var(--br)">Cliente</th>
+              <th style="text-align:left;padding:10px;border-bottom:1px solid var(--br)">Vendedor</th>
+              <th style="text-align:center;padding:10px;border-bottom:1px solid var(--br)">Categorias</th>
+              <th style="text-align:center;padding:10px;border-bottom:1px solid var(--br)">Cobertura</th>
+              <th style="text-align:right;padding:10px;border-bottom:1px solid var(--br)">Fat. histórico</th>
+              <th style="text-align:center;padding:10px;border-bottom:1px solid var(--br)">Status</th>
+            </tr>
+          </thead>
+          <tbody id="ori-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ───────── TELA 2: DETALHES DO CLIENTE ───────── -->
+    <div id="ori-tela-detalhe" style="display:none">
+      <div id="ori-cli-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+
+      <!-- Toggle de visualização -->
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button id="ori-tab-faltam" onclick="oriTrocarTab('faltam')" style="padding:8px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;cursor:pointer;font-weight:600">❌ Com oportunidade</button>
+        <button id="ori-tab-tem" onclick="oriTrocarTab('tem')" style="padding:8px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--tx);font-size:.82rem;cursor:pointer">✅ Atendidas</button>
+      </div>
+
+      <div id="ori-modal-conteudo" style="max-height:50vh;overflow-y:auto;padding-right:4px"></div>
+    </div>
+
+    <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--br);padding-top:12px">
+      <div style="font-size:.7rem;color:var(--mu)">💡 Clique em um cliente para ver detalhes e sugestões de produtos</div>
+      <button onclick="oriFecharModal()" style="padding:7px 16px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);cursor:pointer;font-size:.78rem">Fechar</button>
     </div>
   </div>
 </div>
