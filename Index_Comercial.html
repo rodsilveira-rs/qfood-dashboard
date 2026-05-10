@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Comercial - Q Food Company</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
@@ -320,14 +321,15 @@ tbody tr:hover td{background:var(--s2);}
 
     <!-- Tabs internas -->
     <div class="com-tabs">
-      <div class="com-tab active" data-tab="comercial" onclick="comShowTab('comercial')">📊 Comercial</div>
+      <div class="com-tab active" data-tab="checkpoint" onclick="comShowTab('checkpoint')">🎯 Checkpoint</div>
+      <div class="com-tab" data-tab="comercial" onclick="comShowTab('comercial')">📊 Comercial</div>
       <div class="com-tab" data-tab="ceo"       onclick="comShowTab('ceo')">👔 Visão Executiva</div>
       <div class="com-tab" data-tab="historico" onclick="comShowTab('historico')">📈 Histórico</div>
       <div class="com-tab" data-tab="sop"       onclick="comShowTab('sop')">📦 S&amp;OP</div>
       <div class="com-tab" data-tab="fat"       onclick="comShowTab('fat')">🚀 Fat. Dinâmico</div>
     </div>
 
-    <div id="com-comercial" style="display:block">
+    <div id="com-comercial" style="display:none">
 <div id="tab-comercial" class="page" style="display:block">
   <div class="sec">Visao geral do mes</div>
   <div class="kpis">
@@ -607,6 +609,218 @@ tbody tr:hover td{background:var(--s2);}
   </div>
 </div>
 
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- ABA CHECKPOINT DIÁRIO — Painel de cobrança operacional             -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+<div id="com-checkpoint" style="display:block">
+<style>
+/* ========= ESTILOS DA ABA CHECKPOINT (escopados em #chk-print) ========= */
+#chk-print{max-width:820px;margin:0 auto;padding:0;}
+#chk-print .chk-toolbar{display:flex;gap:8px;justify-content:flex-end;margin-bottom:14px;flex-wrap:wrap}
+#chk-print .chk-btn{padding:8px 14px;border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer;transition:transform .12s,opacity .12s}
+#chk-print .chk-btn:hover{transform:translateY(-1px)}
+#chk-print .chk-btn:active{opacity:.85}
+#chk-print .chk-btn-img{background:#4d8ef5}
+#chk-print .chk-btn-wa{background:#25D366}
+#chk-print .chk-btn-rl{background:var(--s3);border:1px solid var(--br)}
+
+/* Bloco 1 — Cabeçalho */
+#chk-print .chk-hero{background:linear-gradient(135deg,#2e3447 0%,#242938 100%);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:14px;}
+#chk-print .chk-hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center}
+#chk-print .chk-hero-title{font-family:var(--fh);font-size:.72rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:14px}
+#chk-print .chk-hero-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+#chk-print .chk-hero-row:last-child{border-bottom:none}
+#chk-print .chk-hero-row .lbl{font-size:.78rem;color:var(--mu);font-weight:500}
+#chk-print .chk-hero-row .val{font-family:var(--fh);font-size:1.5rem;font-weight:800;color:var(--tx)}
+#chk-print .chk-hero-row .val.faltam{color:var(--red)}
+#chk-print .chk-hero-side{display:flex;flex-direction:column;gap:10px}
+#chk-print .chk-hero-side .ss{display:flex;justify-content:space-between;align-items:baseline}
+#chk-print .chk-hero-side .ss .l{font-size:.74rem;color:var(--mu)}
+#chk-print .chk-hero-side .ss .v{font-family:var(--fh);font-size:1.05rem;font-weight:700;color:var(--tx)}
+
+/* Bloco 2 — Ritmo */
+#chk-print .chk-ritmo{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:14px;}
+#chk-print .chk-ritmo-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+#chk-print .chk-ritmo-head .t{font-family:var(--fh);font-size:.72rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu)}
+#chk-print .chk-ritmo-head .status{font-family:var(--fh);font-size:.95rem;font-weight:800;padding:5px 12px;border-radius:20px}
+#chk-print .chk-ritmo-head .status.r{background:rgba(255,77,79,.18);color:#ff7875}
+#chk-print .chk-ritmo-head .status.y{background:rgba(255,170,43,.18);color:#ffaa2b}
+#chk-print .chk-ritmo-head .status.g{background:rgba(54,207,160,.18);color:#36cfa0}
+#chk-print .chk-bar-wrap{position:relative;height:34px;background:rgba(255,255,255,.06);border-radius:8px;overflow:hidden;margin-bottom:10px}
+#chk-print .chk-bar-fill{height:100%;background:linear-gradient(90deg,#4d8ef5,#74a9ff);border-radius:8px;transition:width .4s ease;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-family:var(--fh);font-size:.78rem;font-weight:700;color:#fff;min-width:50px}
+#chk-print .chk-bar-marker{position:absolute;top:-4px;bottom:-4px;width:3px;background:var(--red);box-shadow:0 0 8px rgba(255,77,79,.6);z-index:2}
+#chk-print .chk-bar-marker::before{content:"";position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid var(--red)}
+#chk-print .chk-bar-legend{display:flex;justify-content:space-between;font-size:.7rem;color:var(--mu);margin-bottom:14px}
+#chk-print .chk-ritmo-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+#chk-print .chk-ritmo-cell{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 12px}
+#chk-print .chk-ritmo-cell .l{font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+#chk-print .chk-ritmo-cell .v{font-family:var(--fh);font-size:1.05rem;font-weight:700;color:var(--tx);line-height:1.1}
+#chk-print .chk-ritmo-cell.r .v{color:var(--red)}
+#chk-print .chk-ritmo-cell.g .v{color:var(--ok)}
+#chk-print .chk-ritmo-cell.y .v{color:var(--warn)}
+
+/* Bloco 3 — Pulso */
+#chk-print .chk-pulso{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 22px;margin-bottom:14px;}
+#chk-print .chk-pulso-title{font-family:var(--fh);font-size:.72rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+#chk-print .chk-pulso-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+#chk-print .chk-pulso-cell{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 8px;text-align:center}
+#chk-print .chk-pulso-cell .ic{font-size:1.2rem;line-height:1;margin-bottom:6px}
+#chk-print .chk-pulso-cell .num{font-family:var(--fh);font-size:1.4rem;font-weight:800;line-height:1}
+#chk-print .chk-pulso-cell .lbl{font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;margin-top:4px}
+#chk-print .chk-pulso-cell .sub{font-size:.62rem;color:var(--mu2);margin-top:2px}
+#chk-print .chk-pulso-cell.verde{border-color:#36cfa0}
+#chk-print .chk-pulso-cell.verde .num{color:#36cfa0}
+#chk-print .chk-pulso-cell.amar{border-color:#ffaa2b}
+#chk-print .chk-pulso-cell.amar .num{color:#ffaa2b}
+#chk-print .chk-pulso-cell.lar{border-color:#f97316}
+#chk-print .chk-pulso-cell.lar .num{color:#f97316}
+#chk-print .chk-pulso-cell.verm{border-color:#ff4d4f}
+#chk-print .chk-pulso-cell.verm .num{color:#ff4d4f}
+#chk-print .chk-pulso-cell.preto{border-color:#5e718e}
+#chk-print .chk-pulso-cell.preto .num{color:#94a3b8}
+#chk-print .chk-pulso-alert{margin-top:12px;background:rgba(255,170,43,.1);border:1px solid rgba(255,170,43,.3);border-radius:8px;padding:10px 14px;font-size:.82rem;color:#ffd28a}
+
+/* Bloco 4 — Ranking */
+#chk-print .chk-rank{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 22px;margin-bottom:14px;}
+#chk-print .chk-rank-title{font-family:var(--fh);font-size:.72rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+#chk-print .chk-rank-title .vmode{font-size:.62rem;background:var(--s3);padding:3px 8px;border-radius:10px;color:var(--mu);text-transform:none;letter-spacing:0}
+#chk-print .chk-rank-list{display:flex;flex-direction:column;gap:8px}
+#chk-print .chk-rank-card{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:11px 14px;display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:center}
+#chk-print .chk-rank-card.me{border-color:var(--red);background:rgba(230,51,41,.06)}
+#chk-print .chk-rank-medal{font-size:1.1rem;text-align:center}
+#chk-print .chk-rank-info .nome{font-family:var(--fh);font-size:.92rem;font-weight:700;color:var(--tx);line-height:1.1}
+#chk-print .chk-rank-info .meta{font-size:.72rem;color:var(--mu);margin-top:2px}
+#chk-print .chk-rank-info .stats{font-size:.7rem;color:var(--mu2);margin-top:3px;display:flex;gap:10px}
+#chk-print .chk-rank-perf{text-align:right}
+#chk-print .chk-rank-perf .pct{font-family:var(--fh);font-size:1.2rem;font-weight:800;line-height:1}
+#chk-print .chk-rank-perf .badge{display:inline-block;margin-top:4px;font-size:.62rem;padding:2px 7px;border-radius:10px;font-weight:600}
+#chk-print .chk-rank-perf .badge.g{background:rgba(54,207,160,.2);color:#36cfa0}
+#chk-print .chk-rank-perf .badge.y{background:rgba(255,170,43,.2);color:#ffaa2b}
+#chk-print .chk-rank-perf .badge.r{background:rgba(255,77,79,.2);color:#ff7875}
+
+/* Bloco 5 — Alertas */
+#chk-print .chk-alert{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 22px;margin-bottom:14px;}
+#chk-print .chk-alert-title{font-family:var(--fh);font-size:.72rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px}
+#chk-print .chk-alert-list{display:flex;flex-direction:column;gap:8px}
+#chk-print .chk-alert-row{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;background:var(--s2);border:1px solid var(--br);border-radius:8px;font-size:.84rem;color:var(--tx)}
+#chk-print .chk-alert-row .ico{font-size:1rem;flex-shrink:0;line-height:1.2}
+
+/* Bloco 6 — Cesta Oriental */
+#chk-print .chk-ori{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 22px;margin-bottom:14px;}
+#chk-print .chk-ori-title{font-family:var(--fh);font-size:.72rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+#chk-print .chk-ori-list{display:flex;flex-direction:column;gap:10px}
+#chk-print .chk-ori-card{background:linear-gradient(135deg,rgba(247,161,69,.12),rgba(247,161,69,.04));border:1px solid rgba(247,161,69,.3);border-radius:10px;padding:11px 14px}
+#chk-print .chk-ori-card .nv{font-family:var(--fh);font-size:.92rem;font-weight:700;color:#f7a145;display:flex;justify-content:space-between;align-items:center}
+#chk-print .chk-ori-card .nv .qtd{font-size:.74rem;color:var(--tx);background:rgba(247,161,69,.18);padding:2px 8px;border-radius:10px}
+#chk-print .chk-ori-card .det{font-size:.76rem;color:var(--mu);margin-top:5px;line-height:1.4}
+#chk-print .chk-ori-empty{padding:20px;text-align:center;color:var(--mu);font-size:.85rem}
+
+/* Footer */
+#chk-print .chk-foot{text-align:center;font-size:.66rem;color:var(--mu2);padding:10px;margin-top:8px;font-family:var(--fh);letter-spacing:.6px}
+
+/* Loading */
+#chk-loading{text-align:center;padding:60px 20px;color:var(--mu);font-size:.9rem}
+
+/* Modo print: fundo claro p/ exportar imagem */
+#chk-print.print-mode{background:#fff !important;color:#1a1f2e !important;padding:20px;border-radius:12px}
+#chk-print.print-mode *{color:inherit}
+#chk-print.print-mode .chk-toolbar{display:none}
+
+@media (max-width:600px){
+  #chk-print .chk-hero-grid{grid-template-columns:1fr}
+  #chk-print .chk-ritmo-grid{grid-template-columns:repeat(2,1fr)}
+  #chk-print .chk-pulso-grid{grid-template-columns:repeat(3,1fr)}
+}
+</style>
+
+<div id="chk-loading">⏳ Carregando dados do checkpoint...</div>
+
+<div id="chk-print" style="display:none">
+  <!-- Toolbar -->
+  <div class="chk-toolbar">
+    <button class="chk-btn chk-btn-rl" onclick="chkRebuild()">🔄 Atualizar</button>
+    <button class="chk-btn chk-btn-img" onclick="chkExportImage()">📸 Salvar como Imagem</button>
+    <button class="chk-btn chk-btn-wa" onclick="chkExportWhatsApp()">📋 Gerar Resumo WhatsApp</button>
+  </div>
+
+  <!-- BLOCO 1 — Cabeçalho de Guerra -->
+  <div class="chk-hero">
+    <div class="chk-hero-title">🎯 Meta do Mês — <span id="chk-mes-label">—</span></div>
+    <div class="chk-hero-grid">
+      <div>
+        <div class="chk-hero-row"><span class="lbl">META</span><span class="val" id="chk-meta">—</span></div>
+        <div class="chk-hero-row"><span class="lbl">REALIZADO</span><span class="val" id="chk-real">—</span></div>
+        <div class="chk-hero-row"><span class="lbl">FALTAM</span><span class="val faltam" id="chk-faltam">—</span></div>
+      </div>
+      <div class="chk-hero-side">
+        <div class="ss"><span class="l">📅 Dia útil</span><span class="v" id="chk-dia">—</span></div>
+        <div class="ss"><span class="l">⏳ Dias restantes</span><span class="v" id="chk-dr">—</span></div>
+        <div class="ss"><span class="l">📈 Atingido</span><span class="v" id="chk-atg">—</span></div>
+        <div class="ss"><span class="l">🗓️ Data</span><span class="v" id="chk-data">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO 2 — Barra de Ritmo -->
+  <div class="chk-ritmo">
+    <div class="chk-ritmo-head">
+      <div class="t">📊 Ritmo da Operação</div>
+      <div class="status" id="chk-status">—</div>
+    </div>
+    <div class="chk-bar-legend"><span>0%</span><span>Real: <strong id="chk-bar-real-lbl">—</strong></span><span>Ideal: <strong id="chk-bar-ideal-lbl">—</strong></span><span>100%</span></div>
+    <div class="chk-bar-wrap">
+      <div class="chk-bar-fill" id="chk-bar-fill" style="width:0%">0%</div>
+      <div class="chk-bar-marker" id="chk-bar-marker" style="left:0%"></div>
+    </div>
+    <div class="chk-ritmo-grid">
+      <div class="chk-ritmo-cell"><div class="l">Ritmo ideal hoje</div><div class="v" id="chk-r-ideal">—</div></div>
+      <div class="chk-ritmo-cell" id="chk-cell-real"><div class="l">Realizado</div><div class="v" id="chk-r-real">—</div></div>
+      <div class="chk-ritmo-cell" id="chk-cell-gap"><div class="l">Gap hoje</div><div class="v" id="chk-r-gap">—</div></div>
+      <div class="chk-ritmo-cell"><div class="l">Precisa/dia</div><div class="v" id="chk-r-dia">—</div></div>
+      <div class="chk-ritmo-cell" id="chk-cell-proj"><div class="l">Projeção mês</div><div class="v" id="chk-r-proj">—</div></div>
+      <div class="chk-ritmo-cell" id="chk-cell-gproj"><div class="l">Gap projetado</div><div class="v" id="chk-r-gproj">—</div></div>
+      <div class="chk-ritmo-cell"><div class="l">Vendido/dia</div><div class="v" id="chk-r-mdia">—</div></div>
+      <div class="chk-ritmo-cell"><div class="l">% Necessário</div><div class="v" id="chk-r-nec">—</div></div>
+    </div>
+  </div>
+
+  <!-- BLOCO 3 — Pulso da Carteira -->
+  <div class="chk-pulso">
+    <div class="chk-pulso-title">🩺 Pulso da Carteira <span style="font-weight:400;color:var(--mu2);font-size:.66rem;letter-spacing:0;text-transform:none">(faixas do Risco de Churn)</span></div>
+    <div class="chk-pulso-grid">
+      <div class="chk-pulso-cell verde"><div class="ic">🟢</div><div class="num" id="chk-p1">—</div><div class="lbl">Ativos</div><div class="sub">0–15d</div></div>
+      <div class="chk-pulso-cell amar"><div class="ic">🟡</div><div class="num" id="chk-p2">—</div><div class="lbl">Mornos</div><div class="sub">16–30d</div></div>
+      <div class="chk-pulso-cell lar"><div class="ic">🟠</div><div class="num" id="chk-p3">—</div><div class="lbl">Frios</div><div class="sub">31–60d</div></div>
+      <div class="chk-pulso-cell verm"><div class="ic">🔴</div><div class="num" id="chk-p4">—</div><div class="lbl">Inativos</div><div class="sub">61–90d</div></div>
+      <div class="chk-pulso-cell preto"><div class="ic">⚫</div><div class="num" id="chk-p5">—</div><div class="lbl">Churn</div><div class="sub">90+d</div></div>
+    </div>
+    <div class="chk-pulso-alert" id="chk-pulso-alert">—</div>
+  </div>
+
+  <!-- BLOCO 4 — Ranking -->
+  <div class="chk-rank">
+    <div class="chk-rank-title"><span>🏆 Ranking dos Vendedores</span><span class="vmode" id="chk-rank-mode">—</span></div>
+    <div class="chk-rank-list" id="chk-rank-list">—</div>
+  </div>
+
+  <!-- BLOCO 5 — Alertas -->
+  <div class="chk-alert">
+    <div class="chk-alert-title">⚠️ Alertas do Dia</div>
+    <div class="chk-alert-list" id="chk-alert-list">—</div>
+  </div>
+
+  <!-- BLOCO 6 — Cesta Oriental -->
+  <div class="chk-ori">
+    <div class="chk-ori-title">🍱 Oportunidades — Cesta Oriental</div>
+    <div class="chk-ori-list" id="chk-ori-list"><div class="chk-ori-empty">Carregando análise da cesta…</div></div>
+  </div>
+
+  <div class="chk-foot">Q Food Company • Painel de Cobrança Operacional • <span id="chk-foot-ts">—</span></div>
+</div>
+
+  </div>
+
+
 <!-- Modal de detalhes do vendedor (do sistema original) -->
 <div class="ov" id="ov">
   <div class="modal">
@@ -697,13 +911,17 @@ function comShowTab(tab){
   var activeEl = document.querySelector(".com-tab[data-tab='"+tab+"']");
   if(activeEl) activeEl.classList.add("active");
 
-  var ids = ["comercial","ceo","historico","sop","fat"];
+  var ids = ["checkpoint","comercial","ceo","historico","sop","fat"];
   ids.forEach(function(id){
     var el = document.getElementById("com-"+id);
     if(el) el.style.display = (id===tab) ? "block" : "none";
   });
 
   // Inicializa sob demanda (cada uma só carrega se clicar)
+  if(tab==="checkpoint" && typeof chkInit === "function" && !window._chkInited){
+    window._chkInited = true;
+    chkInit();
+  }
   if(tab==="historico" && typeof loadHist === "function" && !window._histInited){
     window._histInited = true;
     loadHist();
@@ -1922,6 +2140,587 @@ function buildTend(){
     else                    el.textContent = pMetaDia+"% da media necessaria";
   }
 }
+
+
+// ════════════════════════════════════════════════════════════════
+// MODULO CHECKPOINT DIÁRIO — Painel de cobrança operacional
+// ════════════════════════════════════════════════════════════════
+// Reusa dados que já estão em memória (DM, DS, DP, ORI_RANKING, fatAllRows)
+// + perfil do usuário (usrCarregarPerfil) para controlar visibilidade.
+// Não consome backend adicional.
+
+var CHK_DATA = null;        // snapshot da última construção
+var CHK_PERFIL = null;      // {perfil, crmSigla, email}
+
+// ---- helpers de formatação ---------------------------------------
+function chkFmtBR(v){
+  var n = Number(v||0);
+  return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function chkFmtK(v){
+  var n = Number(v||0);
+  if(Math.abs(n)>=1000000) return "R$ "+(n/1000000).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})+" M";
+  if(Math.abs(n)>=1000) return "R$ "+(n/1000).toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0})+" k";
+  return chkFmtBR(n);
+}
+function chkFmtPct(v){
+  return (Number(v)||0).toFixed(1).replace(".",",")+"%";
+}
+function chkMesLabel(){
+  var meses = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+  var d = new Date();
+  return meses[d.getMonth()]+"/"+d.getFullYear();
+}
+function chkHojeBR(){
+  var d = new Date();
+  var dd = String(d.getDate()).padStart(2,"0");
+  var mm = String(d.getMonth()+1).padStart(2,"0");
+  return dd+"/"+mm+"/"+d.getFullYear();
+}
+
+// ---- inicialização ----------------------------------------------
+async function chkInit(){
+  // identifica perfil (silencioso — se falhar, trata como admin)
+  try{
+    if(typeof usrCarregarPerfil === "function"){
+      CHK_PERFIL = await usrCarregarPerfil();
+    }
+  }catch(e){ CHK_PERFIL = null; }
+
+  // espera DM (vendedores) estar populado
+  await chkAguardaDados();
+
+  // garante que fatAllRows está disponível (pulso da carteira depende)
+  if(typeof fatAllRows === "undefined" || !fatAllRows || fatAllRows.length===0){
+    if(typeof fatLoad === "function"){
+      try{ await fatLoad(false); }catch(e){}
+    }
+  }
+
+  // garante que ORI_RANKING está populado (cesta oriental)
+  if(typeof ORI_RANKING !== "undefined" && (!ORI_RANKING || ORI_RANKING.length===0)){
+    if(typeof oriCarregar === "function" && typeof oriProcessar === "function"){
+      try{
+        await oriCarregar();
+        oriProcessar();
+      }catch(e){}
+    }
+  }
+
+  chkBuild();
+}
+
+function chkAguardaDados(){
+  return new Promise(function(resolve){
+    var tries = 0;
+    var iv = setInterval(function(){
+      tries++;
+      if((typeof DM !== "undefined" && DM && DM.length>0) || tries > 30){
+        clearInterval(iv);
+        resolve();
+      }
+    },300);
+  });
+}
+
+// ---- chamado pelo botão Atualizar -------------------------------
+async function chkRebuild(){
+  document.getElementById("chk-loading").style.display = "block";
+  document.getElementById("chk-print").style.display = "none";
+  try{
+    if(typeof fatLoad === "function") await fatLoad(true);
+  }catch(e){}
+  chkBuild();
+}
+
+// ---- construção principal ---------------------------------------
+function chkBuild(){
+  if(typeof DM === "undefined" || !DM || DM.length===0){
+    document.getElementById("chk-loading").innerHTML =
+      "⚠️ Dados ainda não carregados. <button onclick='chkRebuild()' style='margin-left:10px;padding:5px 12px;border:none;border-radius:6px;background:var(--red);color:#fff;cursor:pointer'>Tentar novamente</button>";
+    return;
+  }
+
+  // 1) totais do mês
+  var totMeta = DM.reduce(function(s,v){return s+(v.meta||0);},0);
+  var totReal = DM.reduce(function(s,v){return s+(v.real||0);},0);
+  var faltam  = Math.max(totMeta - totReal, 0);
+  var atingidoPct = totMeta>0 ? (totReal/totMeta)*100 : 0;
+
+  // 2) dias úteis (US tem precedência, fallback DM, fallback 22)
+  var du=0, da=0, encontrou=false;
+  if(typeof DS !== "undefined" && DS){
+    for(var i=0;i<DS.length;i++){
+      if(DS[i].du>0){ du=DS[i].du; da=DS[i].da||0; encontrou=true; break; }
+    }
+  }
+  if(!encontrou){
+    for(var j=0;j<DM.length;j++){
+      if(DM[j].du>0){ du=DM[j].du; da=DM[j].da||0; encontrou=true; break; }
+    }
+  }
+  if(!encontrou){ du=22; da=0; }
+  if(da<0) da=0;
+  if(da>du) da=du;
+
+  var diasRest    = Math.max(du-da,0);
+  var ritmoIdealPct = du>0 ? (da/du)*100 : 0;
+  var gapHoje     = totReal - (totMeta * ritmoIdealPct/100);
+  var precisaPorDia = diasRest>0 ? (totMeta-totReal)/diasRest : 0;
+  var mediaAtualDia = da>0 ? totReal/da : 0;
+  var projecao    = da===0 ? 0 : (da>=du ? totReal : totReal + mediaAtualDia*diasRest);
+  var gapProjetado = projecao - totMeta;
+  var pctNecessario = mediaAtualDia>0 && totMeta>0 ? (mediaAtualDia/(totMeta/du))*100 : 0;
+
+  // 3) status global
+  var diff = atingidoPct - ritmoIdealPct;
+  var status, statusClass;
+  if(da===0){ status="MÊS NÃO INICIADO"; statusClass="y"; }
+  else if(da>=du){ status = totReal>=totMeta ? "META BATIDA 🎉" : "MÊS FECHADO ABAIXO"; statusClass = totReal>=totMeta?"g":"r"; }
+  else if(diff >= 0){ status="🟢 NO RITMO"; statusClass="g"; }
+  else if(diff >= -10){ status="🟡 ATENÇÃO "+diff.toFixed(1).replace(".",",")+" p.p."; statusClass="y"; }
+  else { status="🔴 ATRASADO "+diff.toFixed(1).replace(".",",")+" p.p."; statusClass="r"; }
+
+  // 4) pulso da carteira (faixas do Risco de Churn: 15/30/60/90)
+  var pulso = chkCalcPulso();
+
+  // 5) ranking dos vendedores com semáforos
+  var ranking = chkBuildRanking(ritmoIdealPct);
+
+  // 6) alertas do dia
+  var alertas = chkBuildAlertas(ranking, gapHoje, pulso);
+
+  // 7) oportunidades cesta oriental
+  var oportunidades = chkBuildOportunidades();
+
+  // === salva snapshot pra usar em export ===
+  CHK_DATA = {
+    mesLabel: chkMesLabel(),
+    hoje: chkHojeBR(),
+    totMeta: totMeta, totReal: totReal, faltam: faltam,
+    atingidoPct: atingidoPct, ritmoIdealPct: ritmoIdealPct,
+    du: du, da: da, diasRest: diasRest,
+    gapHoje: gapHoje, precisaPorDia: precisaPorDia,
+    mediaAtualDia: mediaAtualDia, projecao: projecao, gapProjetado: gapProjetado,
+    pctNecessario: pctNecessario,
+    status: status, statusClass: statusClass, diff: diff,
+    pulso: pulso, ranking: ranking, alertas: alertas, oportunidades: oportunidades
+  };
+
+  chkRender(CHK_DATA);
+
+  document.getElementById("chk-loading").style.display = "none";
+  document.getElementById("chk-print").style.display = "block";
+}
+
+// ---- pulso da carteira ------------------------------------------
+function chkCalcPulso(){
+  var faixas = { p1:0, p2:0, p3:0, p4:0, p5:0 };
+  if(typeof fatAllRows === "undefined" || !fatAllRows || fatAllRows.length===0){
+    return faixas;
+  }
+  var perfil = CHK_PERFIL;
+  var ehVendedor = perfil && perfil.perfil === "vendedor" && perfil.crmSigla;
+  var siglaVend = ehVendedor ? String(perfil.crmSigla||"").toUpperCase().trim() : null;
+
+  // dedupe por CNPJ (uma linha por cliente)
+  var seen = {};
+  for(var i=0;i<fatAllRows.length;i++){
+    var r = fatAllRows[i];
+    if(siglaVend){
+      var v = String(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").toUpperCase().trim();
+      if(v !== siglaVend && v.split(".")[0] !== siglaVend.split(".")[0]) continue;
+    }
+    var cnpj = String(fatGetField(r,["CNPJ/CPF","CNPJ","CPF"])||"").trim();
+    if(!cnpj || seen[cnpj]) continue;
+    seen[cnpj] = true;
+    var dias = fatNum(fatGetField(r,["DIAS SEM COMPRA","DIAS_SEM_COMPRA"]));
+    if(dias<=15)      faixas.p1++;
+    else if(dias<=30) faixas.p2++;
+    else if(dias<=60) faixas.p3++;
+    else if(dias<=90) faixas.p4++;
+    else              faixas.p5++;
+  }
+  return faixas;
+}
+
+// ---- ranking dos vendedores -------------------------------------
+function chkBuildRanking(ritmoIdealPct){
+  // ordena por % atingido desc
+  var arr = DM.slice().map(function(v){
+    var pctAt = v.meta>0 ? (v.real/v.meta)*100 : 0;
+    var diff = pctAt - ritmoIdealPct;
+    var cor, label;
+    if(diff >= 0){ cor="g"; label="No ritmo"; }
+    else if(diff >= -10){ cor="y"; label="Atenção"; }
+    else{ cor="r"; label="Atrasado"; }
+    // tenta posit/ativos via DP
+    var posit = 0, ativos = 0;
+    if(typeof DP !== "undefined" && DP){
+      var dp = DP.find(function(x){return x.s===v.s;});
+      if(dp){
+        ativos = dp.at || 0;
+        posit  = dp.ca>0 ? (dp.at/dp.ca)*100 : 0;
+      }
+    }
+    return {
+      s: v.s, nome: v.nome, meta: v.meta, real: v.real,
+      pctAt: pctAt, diff: diff, cor: cor, label: label,
+      posit: posit, ativos: ativos
+    };
+  }).sort(function(a,b){ return b.pctAt - a.pctAt; });
+  return arr;
+}
+
+// ---- alertas do dia ---------------------------------------------
+function chkBuildAlertas(ranking, gapHoje, pulso){
+  var lista = [];
+  var atrasados = ranking.filter(function(v){return v.cor==="r";}).length;
+  var atencao   = ranking.filter(function(v){return v.cor==="y";}).length;
+  var noRitmo   = ranking.filter(function(v){return v.cor==="g";}).length;
+
+  if(atrasados>0){
+    lista.push({ico:"🔴", txt:atrasados+" vendedor"+(atrasados>1?"es":"")+" abaixo do ritmo ideal"});
+  }
+  if(gapHoje < 0){
+    lista.push({ico:"🔴", txt:"Gap acumulado da operação: "+chkFmtK(gapHoje)});
+  }
+  var inativos = (pulso.p3||0) + (pulso.p4||0) + (pulso.p5||0);
+  if(inativos>0){
+    lista.push({ico:"🟠", txt:inativos+" clientes sem compra há +30 dias — oportunidade de reativação"});
+  }
+  if(atencao>0){
+    lista.push({ico:"🟡", txt:atencao+" vendedor"+(atencao>1?"es":"")+" em zona de atenção"});
+  }
+  if(noRitmo>0){
+    lista.push({ico:"🟢", txt:noRitmo+" vendedor"+(noRitmo>1?"es":"")+" no ritmo ou acima"});
+  }
+  // cesta oriental
+  if(typeof ORI_RANKING !== "undefined" && ORI_RANKING && ORI_RANKING.length>0){
+    var criticosOri = ORI_RANKING.filter(function(c){return c.cobertura<0.3;}).length;
+    if(criticosOri>0){
+      lista.push({ico:"🍱", txt:criticosOri+" clientes orientais com cobertura crítica da cesta (<30%)"});
+    }
+  }
+  if(lista.length===0){
+    lista.push({ico:"✅", txt:"Sem alertas no momento — operação no ritmo planejado"});
+  }
+  return lista;
+}
+
+// ---- oportunidades cesta oriental por vendedor ------------------
+function chkBuildOportunidades(){
+  if(typeof ORI_RANKING === "undefined" || !ORI_RANKING || ORI_RANKING.length===0){
+    return [];
+  }
+  var perfil = CHK_PERFIL;
+  var ehVendedor = perfil && perfil.perfil === "vendedor" && perfil.crmSigla;
+  var siglaVend = ehVendedor ? String(perfil.crmSigla||"").toUpperCase().trim() : null;
+
+  // agrupa por vendedor — clientes <30% cobertura
+  var porVendedor = {};
+  ORI_RANKING.forEach(function(c){
+    if(c.cobertura >= 0.3) return; // só críticos
+    var v = String(c.vendedor||"").toUpperCase().trim();
+    if(!v) return;
+    if(siglaVend){
+      if(v !== siglaVend && v.split(".")[0] !== siglaVend.split(".")[0]) return;
+    }
+    if(!porVendedor[v]) porVendedor[v] = { vendedor: v, clientes: 0, fatTotal: 0, categoriasFaltam: {} };
+    porVendedor[v].clientes++;
+    porVendedor[v].fatTotal += c.fatTotal || 0;
+    // conta categorias mais faltantes
+    if(typeof ORI_CATEGORIAS !== "undefined" && ORI_CATEGORIAS){
+      Object.keys(ORI_CATEGORIAS).forEach(function(cat){
+        if(!c.categoriasCompradas || !c.categoriasCompradas[cat]){
+          porVendedor[v].categoriasFaltam[cat] = (porVendedor[v].categoriasFaltam[cat]||0)+1;
+        }
+      });
+    }
+  });
+
+  // converte em array e ordena por nº de clientes críticos
+  var arr = Object.values(porVendedor).map(function(o){
+    var topCats = Object.keys(o.categoriasFaltam)
+      .map(function(k){return {cat:k, n:o.categoriasFaltam[k]};})
+      .sort(function(a,b){return b.n - a.n;})
+      .slice(0,3)
+      .map(function(x){return x.cat;});
+    return {
+      vendedor: o.vendedor,
+      vendedorCurto: o.vendedor.split(".")[0],
+      clientes: o.clientes,
+      fatTotal: o.fatTotal,
+      topCategorias: topCats
+    };
+  }).sort(function(a,b){return b.clientes - a.clientes;});
+
+  return arr.slice(0,5);
+}
+
+// ---- renderização -----------------------------------------------
+function chkRender(d){
+  document.getElementById("chk-mes-label").textContent = d.mesLabel;
+  document.getElementById("chk-meta").textContent   = chkFmtK(d.totMeta);
+  document.getElementById("chk-real").textContent   = chkFmtK(d.totReal);
+  document.getElementById("chk-faltam").textContent = chkFmtK(d.faltam);
+  document.getElementById("chk-dia").textContent    = d.du>0 ? (d.da+" de "+d.du) : "—";
+  document.getElementById("chk-dr").textContent     = d.diasRest;
+  document.getElementById("chk-atg").textContent    = chkFmtPct(d.atingidoPct);
+  document.getElementById("chk-data").textContent   = d.hoje;
+  document.getElementById("chk-foot-ts").textContent = "atualizado em "+new Date().toLocaleString("pt-BR");
+
+  // status
+  var s = document.getElementById("chk-status");
+  s.textContent = d.status;
+  s.className = "status "+d.statusClass;
+
+  // barra
+  var realW = Math.min(Math.max(d.atingidoPct,0),100);
+  var fill = document.getElementById("chk-bar-fill");
+  fill.style.width = realW+"%";
+  fill.textContent = chkFmtPct(d.atingidoPct);
+  document.getElementById("chk-bar-marker").style.left = Math.min(Math.max(d.ritmoIdealPct,0),100)+"%";
+  document.getElementById("chk-bar-real-lbl").textContent = chkFmtPct(d.atingidoPct);
+  document.getElementById("chk-bar-ideal-lbl").textContent = chkFmtPct(d.ritmoIdealPct);
+
+  // grid de ritmo
+  document.getElementById("chk-r-ideal").textContent = chkFmtPct(d.ritmoIdealPct);
+  document.getElementById("chk-r-real").textContent  = chkFmtPct(d.atingidoPct);
+  document.getElementById("chk-r-gap").textContent   = chkFmtK(d.gapHoje);
+  document.getElementById("chk-r-dia").textContent   = chkFmtK(d.precisaPorDia);
+  document.getElementById("chk-r-proj").textContent  = chkFmtK(d.projecao);
+  document.getElementById("chk-r-gproj").textContent = chkFmtK(d.gapProjetado);
+  document.getElementById("chk-r-mdia").textContent  = chkFmtK(d.mediaAtualDia);
+  document.getElementById("chk-r-nec").textContent   = chkFmtPct(d.pctNecessario);
+
+  // cor das células sensíveis
+  document.getElementById("chk-cell-real").className = "chk-ritmo-cell "+(d.statusClass==="g"?"g":d.statusClass==="y"?"y":"r");
+  document.getElementById("chk-cell-gap").className  = "chk-ritmo-cell "+(d.gapHoje>=0?"g":"r");
+  document.getElementById("chk-cell-proj").className = "chk-ritmo-cell "+(d.projecao>=d.totMeta?"g":d.projecao>=d.totMeta*0.85?"y":"r");
+  document.getElementById("chk-cell-gproj").className= "chk-ritmo-cell "+(d.gapProjetado>=0?"g":"r");
+
+  // pulso
+  document.getElementById("chk-p1").textContent = d.pulso.p1;
+  document.getElementById("chk-p2").textContent = d.pulso.p2;
+  document.getElementById("chk-p3").textContent = d.pulso.p3;
+  document.getElementById("chk-p4").textContent = d.pulso.p4;
+  document.getElementById("chk-p5").textContent = d.pulso.p5;
+  var inativos = (d.pulso.p3||0)+(d.pulso.p4||0)+(d.pulso.p5||0);
+  var elAlert = document.getElementById("chk-pulso-alert");
+  if(inativos>0){
+    elAlert.textContent = "⚠️ "+inativos+" clientes a +30 dias sem compra precisam de reativação";
+    elAlert.style.display = "block";
+  } else {
+    elAlert.textContent = "✅ Carteira saudável — sem clientes inativos relevantes";
+    elAlert.style.background = "rgba(54,207,160,.1)";
+    elAlert.style.borderColor = "rgba(54,207,160,.3)";
+    elAlert.style.color = "#8be8c5";
+  }
+
+  // ranking
+  var perfil = CHK_PERFIL;
+  var ehVendedor = perfil && perfil.perfil === "vendedor" && perfil.crmSigla;
+  var siglaMe = ehVendedor ? String(perfil.crmSigla||"").toUpperCase().trim() : null;
+  var rankList = document.getElementById("chk-rank-list");
+  var rankMode = document.getElementById("chk-rank-mode");
+  rankMode.textContent = ehVendedor ? ("👤 "+siglaMe.split(".")[0]) : "👁️ Visão completa";
+
+  var medalhas = ["🥇","🥈","🥉"];
+  rankList.innerHTML = d.ranking.map(function(v,i){
+    var medal = medalhas[i] || "  ";
+    var ehMe = siglaMe && (v.s===siglaMe || (siglaMe||"").indexOf(v.s)===0 || (v.s||"").indexOf(siglaMe.split(".")[0])===0);
+    var showValores = !ehVendedor || ehMe;
+    var metaTxt = showValores
+      ? chkFmtK(v.real)+" / "+chkFmtK(v.meta)
+      : "(visão coletiva)";
+    var statsTxt = showValores
+      ? '<span>👥 '+v.ativos+' ativos</span><span>📍 '+chkFmtPct(v.posit)+' posit</span>'
+      : '';
+    return '<div class="chk-rank-card'+(ehMe?" me":"")+'">'+
+      '<div class="chk-rank-medal">'+medal+'</div>'+
+      '<div class="chk-rank-info">'+
+        '<div class="nome">'+v.nome+(ehMe?' <span style="color:var(--red);font-size:.7rem">(você)</span>':'')+'</div>'+
+        '<div class="meta">'+metaTxt+'</div>'+
+        (statsTxt?'<div class="stats">'+statsTxt+'</div>':'')+
+      '</div>'+
+      '<div class="chk-rank-perf">'+
+        '<div class="pct" style="color:'+(v.cor==="g"?"#36cfa0":v.cor==="y"?"#ffaa2b":"#ff7875")+'">'+chkFmtPct(v.pctAt)+'</div>'+
+        '<div class="badge '+v.cor+'">'+v.label+'</div>'+
+      '</div>'+
+    '</div>';
+  }).join("");
+
+  // alertas
+  document.getElementById("chk-alert-list").innerHTML = d.alertas.map(function(a){
+    return '<div class="chk-alert-row"><div class="ico">'+a.ico+'</div><div>'+a.txt+'</div></div>';
+  }).join("");
+
+  // oportunidades cesta oriental
+  var oriList = document.getElementById("chk-ori-list");
+  if(d.oportunidades.length===0){
+    oriList.innerHTML = '<div class="chk-ori-empty">✅ Nenhum cliente oriental com cobertura crítica no momento</div>';
+  } else {
+    oriList.innerHTML = d.oportunidades.map(function(o){
+      var topCats = o.topCategorias.length>0 ? o.topCategorias.join(", ") : "—";
+      return '<div class="chk-ori-card">'+
+        '<div class="nv">'+o.vendedorCurto+
+          '<span class="qtd">'+o.clientes+' clientes &lt;30%</span>'+
+        '</div>'+
+        '<div class="det">Top categorias faltantes: <strong style="color:var(--tx)">'+topCats+'</strong></div>'+
+      '</div>';
+    }).join("");
+  }
+}
+
+// ---- EXPORTAR COMO IMAGEM ---------------------------------------
+function chkExportImage(){
+  var el = document.getElementById("chk-print");
+  if(!el || typeof html2canvas === "undefined"){
+    alert("Biblioteca de exportação não carregou. Tente recarregar a página.");
+    return;
+  }
+  el.classList.add("print-mode");
+
+  html2canvas(el, {
+    backgroundColor: "#ffffff",
+    scale: 2,
+    useCORS: true,
+    logging: false
+  }).then(function(canvas){
+    el.classList.remove("print-mode");
+    var link = document.createElement("a");
+    var hoje = new Date();
+    var fname = "checkpoint_"+hoje.getFullYear()+String(hoje.getMonth()+1).padStart(2,"0")+String(hoje.getDate()).padStart(2,"0")+".png";
+    link.download = fname;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }).catch(function(err){
+    el.classList.remove("print-mode");
+    alert("Erro ao gerar imagem: "+err.message);
+  });
+}
+
+// ---- GERAR RESUMO WHATSAPP --------------------------------------
+function chkExportWhatsApp(){
+  if(!CHK_DATA){ alert("Aguarde os dados carregarem."); return; }
+  var d = CHK_DATA;
+
+  var txt = "🎯 *CHECKPOINT COMERCIAL — "+d.hoje+"*\n\n";
+  txt += "📊 *META DO MÊS — "+d.mesLabel+"*\n";
+  txt += "• Meta: "+chkFmtK(d.totMeta)+"\n";
+  txt += "• Realizado: "+chkFmtK(d.totReal)+" ("+chkFmtPct(d.atingidoPct)+")\n";
+  txt += "• Faltam: "+chkFmtK(d.faltam)+"\n\n";
+
+  txt += "📈 *RITMO*\n";
+  txt += "• Dia útil: "+d.da+" de "+d.du+"\n";
+  txt += "• Ritmo ideal hoje: "+chkFmtPct(d.ritmoIdealPct)+"\n";
+  txt += "• Status: "+d.status+"\n";
+  if(d.gapHoje < 0){
+    txt += "• Gap hoje: "+chkFmtK(d.gapHoje)+"\n";
+  }
+  txt += "• Precisa vender/dia: "+chkFmtK(d.precisaPorDia)+"\n";
+  txt += "• Projeção mês: "+chkFmtK(d.projecao);
+  if(d.gapProjetado < 0) txt += " ("+chkFmtK(d.gapProjetado)+" abaixo)";
+  else txt += " ("+chkFmtK(d.gapProjetado)+" acima)";
+  txt += "\n\n";
+
+  txt += "🩺 *PULSO DA CARTEIRA*\n";
+  txt += "🟢 Ativos (0-15d): "+d.pulso.p1+"\n";
+  txt += "🟡 Mornos (16-30d): "+d.pulso.p2+"\n";
+  txt += "🟠 Frios (31-60d): "+d.pulso.p3+"\n";
+  txt += "🔴 Inativos (61-90d): "+d.pulso.p4+"\n";
+  txt += "⚫ Churn (90+d): "+d.pulso.p5+"\n\n";
+
+  txt += "🏆 *RANKING DOS VENDEDORES*\n";
+  var medalhas = ["🥇","🥈","🥉"];
+  d.ranking.forEach(function(v,i){
+    var ico = medalhas[i] || (v.cor==="g"?"🟢":v.cor==="y"?"🟡":"🔴");
+    txt += ico+" "+v.nome+" — "+chkFmtPct(v.pctAt)+" ("+chkFmtK(v.real)+" / "+chkFmtK(v.meta)+")\n";
+  });
+  txt += "\n";
+
+  if(d.oportunidades.length>0){
+    txt += "🍱 *OPORTUNIDADES CESTA ORIENTAL*\n";
+    d.oportunidades.forEach(function(o){
+      var topCats = o.topCategorias.length>0 ? " — top: "+o.topCategorias.slice(0,2).join(", ") : "";
+      txt += "• "+o.vendedorCurto+": "+o.clientes+" clientes <30%"+topCats+"\n";
+    });
+    txt += "\n";
+  }
+
+  if(d.alertas && d.alertas.length>0){
+    txt += "⚠️ *ALERTAS*\n";
+    d.alertas.slice(0,4).forEach(function(a){
+      txt += a.ico+" "+a.txt+"\n";
+    });
+    txt += "\n";
+  }
+
+  txt += "_Q Food Company • Gerado automaticamente_";
+
+  // copia pra área de transferência e dá feedback
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      chkShowToast("✅ Resumo copiado! Cole no WhatsApp.");
+    }).catch(function(){
+      chkFallbackCopy(txt);
+    });
+  } else {
+    chkFallbackCopy(txt);
+  }
+}
+
+function chkFallbackCopy(txt){
+  // abre modal simples com o texto
+  var ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px";
+  ov.innerHTML = '<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;max-width:600px;width:100%;max-height:80vh;display:flex;flex-direction:column;gap:12px">'+
+    '<div style="font-family:var(--fh);font-weight:700;color:var(--tx);font-size:1rem">📋 Copie o texto abaixo</div>'+
+    '<textarea readonly style="flex:1;min-height:300px;background:var(--bg);color:var(--tx);border:1px solid var(--br);border-radius:8px;padding:12px;font-family:inherit;font-size:.85rem;resize:vertical">'+txt.replace(/</g,"&lt;")+'</textarea>'+
+    '<button onclick="this.parentNode.parentNode.remove()" style="padding:10px;background:var(--red);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer">Fechar</button>'+
+  '</div>';
+  document.body.appendChild(ov);
+  // auto seleciona
+  setTimeout(function(){
+    var ta = ov.querySelector("textarea");
+    if(ta){ ta.focus(); ta.select(); }
+  },100);
+}
+
+function chkShowToast(msg){
+  var t = document.createElement("div");
+  t.textContent = msg;
+  t.style.cssText = "position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:#36cfa0;color:#fff;padding:12px 24px;border-radius:8px;font-weight:600;font-size:.9rem;z-index:99999;box-shadow:0 4px 16px rgba(0,0,0,.3);animation:chkToastFade 3s ease forwards";
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();}, 3000);
+}
+
+// adiciona animação do toast (uma vez)
+(function(){
+  if(document.getElementById("chk-toast-style")) return;
+  var s = document.createElement("style");
+  s.id = "chk-toast-style";
+  s.textContent = "@keyframes chkToastFade{0%{opacity:0;transform:translate(-50%,20px)}10%{opacity:1;transform:translate(-50%,0)}90%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-20px)}}";
+  document.head.appendChild(s);
+})();
+
+// dispara init quando o DOM carrega (se já estiver na tab checkpoint, que é default)
+(function(){
+  function trySelfInit(){
+    var el = document.getElementById("com-checkpoint");
+    if(el && el.style.display !== "none" && !window._chkInited){
+      window._chkInited = true;
+      // espera um tick para garantir que go() rodou
+      setTimeout(function(){ chkInit(); }, 800);
+    }
+  }
+  if(document.readyState === "complete" || document.readyState === "interactive"){
+    setTimeout(trySelfInit, 100);
+  } else {
+    document.addEventListener("DOMContentLoaded", trySelfInit);
+  }
+})();
 
 
 // ════════════════════════════════════════════════════════════════
