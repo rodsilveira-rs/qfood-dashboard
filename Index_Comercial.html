@@ -2414,6 +2414,48 @@ async function chkInit(){
   console.log("[chk] DM siglas:", (typeof DM !== "undefined" && DM) ? DM.map(function(v){return v.s;}) : "(indef)");
   console.log("[chk] DP siglas (PERF):", (typeof DP !== "undefined" && DP) ? DP.map(function(v){return v.s+" (ca="+v.ca+", at="+v.at+")";}) : "(indef)");
 
+  // 🔬 DEBUG ESPECÍFICO POR VENDEDOR — pega 3 linhas de cada vendedor e
+  // mostra exatamente o que o parser leu em RAMO/SEGMENTO, se a função
+  // oriEhRestauranteOriental aprovaria, e o resultado completo.
+  if(typeof fatAllRows !== "undefined" && fatAllRows && fatAllRows.length > 0){
+    console.log("[chk] 🔬 DEBUG por vendedor (3 linhas de amostra cada):");
+    var amostraPorVend = {};
+    fatAllRows.forEach(function(r){
+      var v = String(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim().toUpperCase();
+      if(!v) return;
+      if(!amostraPorVend[v]) amostraPorVend[v] = [];
+      if(amostraPorVend[v].length < 3){
+        var ramo = fatGetField(r,["RAMO:","RAMO"]) || "";
+        var seg = fatGetField(r,["SEGMENTO:","SEGMENTO"]) || "";
+        var aprovado = oriEhRestauranteOriental(r);
+        amostraPorVend[v].push({
+          ramo: ramo, segmento: seg,
+          orientalOk: aprovado,
+          cnpj: String(fatGetField(r,["CNPJ/CPF","CNPJ"])||"").trim()
+        });
+      }
+    });
+    Object.keys(amostraPorVend).sort().forEach(function(v){
+      console.log("  📋 "+v+":", amostraPorVend[v]);
+    });
+
+    // Conta CNPJs únicos orientais por vendedor
+    var cnpjsOriPorVend = {};
+    fatAllRows.forEach(function(r){
+      if(!oriEhRestauranteOriental(r)) return;
+      var v = String(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim().toUpperCase();
+      var cnpj = String(fatGetField(r,["CNPJ/CPF","CNPJ"])||"").trim();
+      if(!v || !cnpj) return;
+      if(!cnpjsOriPorVend[v]) cnpjsOriPorVend[v] = new Set();
+      cnpjsOriPorVend[v].add(cnpj);
+    });
+    var resumo = {};
+    Object.keys(cnpjsOriPorVend).forEach(function(v){
+      resumo[v] = cnpjsOriPorVend[v].size + " CNPJs únicos";
+    });
+    console.log("[chk] 🍱 Clientes orientais únicos por vendedor (após filtro):", resumo);
+  }
+
   var tBuild = performance.now();
   chkBuild();
   console.log("[chk] ⏱ chkBuild:", Math.round(performance.now()-tBuild),"ms");
