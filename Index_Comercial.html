@@ -2327,13 +2327,6 @@ function chkFmtBRint(v){
   var n = Math.round(Number(v||0));
   return "R$ "+n.toLocaleString("pt-BR",{minimumFractionDigits:0,maximumFractionDigits:0});
 }
-// Reais em formato "k" (cards dos vendedores): "R$ 132 k"
-function chkFmtK(v){
-  var n = Math.round(Number(v||0));
-  if(Math.abs(n)>=1000000) return "R$ "+Math.round(n/1000).toLocaleString("pt-BR")+" k";
-  if(Math.abs(n)>=1000)    return "R$ "+Math.round(n/1000).toLocaleString("pt-BR")+" k";
-  return "R$ "+n.toLocaleString("pt-BR");
-}
 function chkMesLabel(){
   var meses = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
   var d = new Date();
@@ -2705,7 +2698,13 @@ function chkSiglasIguais(a, b){
   // Compara pelos primeiros nomes resolvidos via SG quando necessário
   var pa = chkExtraiPrimeiroNome(a);
   var pb = chkExtraiPrimeiroNome(b);
-  return !!pa && !!pb && pa === pb;
+  if(!pa || !pb) return false;
+  if(pa === pb) return true;
+  // Matching por prefixo: "EDER" ⊂ "EDERSON", "CAMIL" ⊂ "CAMILA", etc.
+  // Mínimo de 4 caracteres pra evitar falsos positivos (LU ⊂ LUCAS seria perigoso).
+  if(pa.length >= 4 && pb.indexOf(pa) === 0) return true;
+  if(pb.length >= 4 && pa.indexOf(pb) === 0) return true;
+  return false;
 }
 
 // ---- análise da Cesta Oriental por vendedor ---------------------
@@ -2911,11 +2910,11 @@ function chkRender(d){
   // grid de ritmo
   document.getElementById("chk-r-ideal").textContent = chkFmtPct(d.ritmoIdealPct);
   document.getElementById("chk-r-real").textContent  = chkFmtPct(d.atingidoPct);
-  document.getElementById("chk-r-gap").textContent   = chkFmtK(d.gapHoje);
-  document.getElementById("chk-r-dia").textContent   = chkFmtK(d.precisaPorDia);
-  document.getElementById("chk-r-proj").textContent  = chkFmtK(d.projecao);
-  document.getElementById("chk-r-gproj").textContent = chkFmtK(d.gapProjetado);
-  document.getElementById("chk-r-mdia").textContent  = chkFmtK(d.mediaAtualDia);
+  document.getElementById("chk-r-gap").textContent   = chkFmtBR(d.gapHoje);
+  document.getElementById("chk-r-dia").textContent   = chkFmtBR(d.precisaPorDia);
+  document.getElementById("chk-r-proj").textContent  = chkFmtBR(d.projecao);
+  document.getElementById("chk-r-gproj").textContent = chkFmtBR(d.gapProjetado);
+  document.getElementById("chk-r-mdia").textContent  = chkFmtBR(d.mediaAtualDia);
   document.getElementById("chk-r-nec").textContent   = chkFmtPct(d.pctNecessario);
 
   // cor das células sensíveis
@@ -2971,10 +2970,19 @@ function chkRender(d){
     else if(v.novoFlag === "novo-top") novoCls = "top";
 
     // ============== CESTA ORIENTAL — MINIBAR ==============
-    // Chave canônica: PRIMEIRO NOME (ex: "DAYANE")
-    // Funciona pra DM/DP (que tem sigla "DN" via SG) e DINAMICO (que tem "DAYANE.NASCIMENTO")
+    // Chave canônica: PRIMEIRO NOME (ex: "EDER" do SG vira "EDER"; DINAMICO tem "EDERSON")
+    // Como Eder ⊂ Ederson, tentamos match exato E por prefixo.
     var siglaKey = chkExtraiPrimeiroNome(v.s);
     var ces = cestaMap[siglaKey];
+    if(!ces && siglaKey && siglaKey.length >= 4){
+      // procura por prefixo: "EDER" pode estar como "EDERSON" no mapa (vindo do DINAMICO)
+      Object.keys(cestaMap).forEach(function(k){
+        if(ces) return;
+        if(k.length >= 4 && (k.indexOf(siglaKey) === 0 || siglaKey.indexOf(k) === 0)){
+          ces = cestaMap[k];
+        }
+      });
+    }
 
     var cestaHtml = "";
     if(ces && ces.total > 0){
@@ -3022,8 +3030,8 @@ function chkRender(d){
 
     var projCls = v.projecao>=v.meta ? "g" : (v.projecao>=v.meta*0.85 ? "y" : "r");
     var gapTxt = v.gapProj>=0
-      ? "+"+chkFmtK(v.gapProj)
-      : chkFmtK(v.gapProj);
+      ? "+"+chkFmtBR(v.gapProj)
+      : chkFmtBR(v.gapProj);
 
     if(!showValores){
       return '<div class="vcard'+(ehMe?" me":"")+'">'+
@@ -3042,7 +3050,7 @@ function chkRender(d){
         '<div class="vcard-avatar '+v.cor+'">'+iniciais+(medal?'<span class="medal">'+medal+'</span>':'')+'</div>'+
         '<div>'+
           '<div class="vcard-name">'+primeiroNome+(ehMe?'<span class="me-tag">VOCÊ</span>':'')+'</div>'+
-          '<div class="vcard-sub">'+chkFmtK(v.real)+" / "+chkFmtK(v.meta)+' · '+v.s+'</div>'+
+          '<div class="vcard-sub">'+chkFmtBR(v.real)+" / "+chkFmtBR(v.meta)+' · '+v.s+'</div>'+
         '</div>'+
         '<div>'+
           '<div class="vcard-pct '+v.cor+'">'+chkFmtPct(v.pctAt)+'</div>'+
@@ -3052,7 +3060,7 @@ function chkRender(d){
       '<div class="vcard-bar">'+
         '<div class="vcard-bar-head">'+
           '<span>Realizado</span>'+
-          '<span class="meta">Meta: '+chkFmtK(v.meta)+'</span>'+
+          '<span class="meta">Meta: '+chkFmtBR(v.meta)+'</span>'+
         '</div>'+
         '<div class="vcard-bar-wrap">'+
           '<div class="vcard-bar-fill '+v.cor+'" style="width:'+pctReal+'%">'+chkFmtPct(v.pctAt)+'</div>'+
@@ -3069,11 +3077,11 @@ function chkRender(d){
       '<div class="vcard-foot">'+
         '<div class="col">'+
           '<div class="l">📅 Meta da semana</div>'+
-          '<div class="v '+(faltaSemana>0?"r":"g")+'">'+(faltaSemana>0 ? "Faltam "+chkFmtK(faltaSemana)+" pra fechar a semana" : "Semana batida ✓")+'</div>'+
+          '<div class="v '+(faltaSemana>0?"r":"g")+'">'+(faltaSemana>0 ? "Faltam "+chkFmtBR(faltaSemana)+" pra fechar a semana" : "Semana batida ✓")+'</div>'+
         '</div>'+
         '<div class="col">'+
           '<div class="l">📊 Projeção do mês</div>'+
-          '<div class="v '+projCls+'">'+chkFmtK(v.projecao)+' ('+gapTxt+')</div>'+
+          '<div class="v '+projCls+'">'+chkFmtBR(v.projecao)+' ('+gapTxt+')</div>'+
         '</div>'+
       '</div>'+
     '</div>';
@@ -3140,15 +3148,23 @@ function chkExportWhatsApp(){
   d.ranking.forEach(function(v,i){
     var ico = medalhas[i] || (v.cor==="g"?"🟢":v.cor==="y"?"🟡":"🔴");
     txt += ico+" *"+v.nome+"* — "+chkFmtPct(v.pctAt)+"\n";
-    txt += "   "+chkFmtK(v.real)+" / "+chkFmtK(v.meta)+"\n";
+    txt += "   "+chkFmtBR(v.real)+" / "+chkFmtBR(v.meta)+"\n";
     txt += "   👥 "+v.ativos+" ativos · 🆕 "+v.novos+" novos · 📍 "+chkFmtPct(v.posit)+" posit\n";
     txt += "   💰 "+v.margem+"% margem · 📈 "+v.markup+"% markup\n";
     if(v.meta>0){
       var sinal = v.gapProj>=0 ? "+" : "";
-      txt += "   📊 Projeção: "+chkFmtK(v.projecao)+" ("+sinal+chkFmtK(v.gapProj)+")\n";
+      txt += "   📊 Projeção: "+chkFmtBR(v.projecao)+" ("+sinal+chkFmtBR(v.gapProj)+")\n";
     }
     var siglaKey = chkExtraiPrimeiroNome(v.s);
     var ces = (d.cestaPorVendedor||{})[siglaKey];
+    if(!ces && siglaKey && siglaKey.length >= 4){
+      Object.keys(d.cestaPorVendedor||{}).forEach(function(k){
+        if(ces) return;
+        if(k.length >= 4 && (k.indexOf(siglaKey) === 0 || siglaKey.indexOf(k) === 0)){
+          ces = d.cestaPorVendedor[k];
+        }
+      });
+    }
     if(ces && ces.total > 0){
       txt += "   🍱 Cesta: "+ces.critico+" crítico · "+ces.baixo+" baixo · "+ces.medio+" médio · "+ces.bom+" bom";
       if(ces.topCategorias && ces.topCategorias.length){
