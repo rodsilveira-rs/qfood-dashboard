@@ -509,7 +509,7 @@ tbody tr:hover td{background:var(--s2);}
         <option value="60">Churn: +60 dias</option>
         <option value="90">Churn: +90 dias</option>
       </select>
-      <button onclick="oriAbrirAnalise()" title="Cruza compras dos clientes Restaurante Oriental com a Cesta Básica" style="padding:7px 14px;background:#f7a145;border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">🍱 Cesta Oriental</button>
+      <button onclick="oriAbrirAnalise()" title="Cruza compras dos clientes Restaurante Oriental e Delivery Japonês com a Cesta Básica" style="padding:7px 14px;background:#f7a145;border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">🍱 Cesta Oriental</button>
       <button onclick="fatLoad(true)" style="padding:7px 16px;background:var(--red);border:none;border-radius:8px;color:#fff;font-size:.82rem;font-weight:600;cursor:pointer">&#128260; Atualizar</button>
     </div>
   </div>
@@ -2391,13 +2391,25 @@ async function chkInit(){
   // Conta rapidamente os clientes orientais
   if(typeof fatAllRows !== "undefined" && fatAllRows && typeof oriEhRestauranteOriental === "function"){
     var cnpjsOri = {};
+    var porSegmento = {};
+    var porVendedorRaw = {};
     fatAllRows.forEach(function(r){
       if(oriEhRestauranteOriental(r)){
         var cnpj = String(fatGetField(r,["CNPJ/CPF","CNPJ"])||"").trim();
-        if(cnpj) cnpjsOri[cnpj] = true;
+        if(cnpj && !cnpjsOri[cnpj]){
+          cnpjsOri[cnpj] = true;
+          // conta por segmento
+          var seg = String(fatGetField(r,["SEGMENTO:","SEGMENTO","RAMO:","RAMO"])||"").trim().toUpperCase();
+          porSegmento[seg] = (porSegmento[seg]||0) + 1;
+          // conta por vendedor (raw)
+          var vRaw = String(fatGetField(r,["VENDEDOR:","VENDEDOR"])||"").trim().toUpperCase();
+          porVendedorRaw[vRaw] = (porVendedorRaw[vRaw]||0) + 1;
+        }
       }
     });
     console.log("[chk] CNPJs orientais únicos em fatAllRows:", Object.keys(cnpjsOri).length);
+    console.log("[chk] 📋 Clientes orientais por SEGMENTO:", porSegmento);
+    console.log("[chk] 👤 Clientes orientais por VENDEDOR (raw DINAMICO):", porVendedorRaw);
   }
   console.log("[chk] DM siglas:", (typeof DM !== "undefined" && DM) ? DM.map(function(v){return v.s;}) : "(indef)");
   console.log("[chk] DP siglas (PERF):", (typeof DP !== "undefined" && DP) ? DP.map(function(v){return v.s+" (ca="+v.ca+", at="+v.at+")";}) : "(indef)");
@@ -2675,7 +2687,7 @@ function chkAnaliseCesta(){
   var ehVendedor = perfil && perfil.perfil === "vendedor" && perfil.crmSigla;
   var siglaVend = ehVendedor ? chkNormSigla(perfil.crmSigla) : null;
 
-  // 1) filtra registros: só RESTAURANTE ORIENTAL + (se vendedor logado) só dele
+  // 1) filtra registros: só RESTAURANTE ORIENTAL + DELIVERY JAPONÊS + (se vendedor logado) só dele
   var ramoOriental = function(r){
     if(typeof oriEhRestauranteOriental === "function") return oriEhRestauranteOriental(r);
     // fallback
@@ -3915,8 +3927,8 @@ async function usrCarregarPerfil(){
 
 // ════════════════════════════════════════════════════════════════
 // MODULO CESTA BÁSICA ORIENTAL
-// Cruza compras dos clientes "RESTAURANTE ORIENTAL" com a lista
-// de 26 categorias × 396 itens da cesta básica.
+// Cruza compras dos clientes "RESTAURANTE ORIENTAL" e "DELIVERY JAPONÊS"
+// com a lista de 26 categorias × 396 itens da cesta básica.
 // ════════════════════════════════════════════════════════════════
 
 // URL do CSV publicado da Cesta Básica Oriental
@@ -3944,7 +3956,7 @@ function oriNormaliza(s){
     .normalize("NFD").replace(/[\u0300-\u036f]/g,""); // remove acentos
 }
 
-// Identifica se o cliente é RESTAURANTE ORIENTAL.
+// Identifica se o cliente é RESTAURANTE ORIENTAL ou DELIVERY JAPONÊS.
 // Procura o termo em qualquer campo plausível (RAMO, SEGMENTO, RAMO:, etc).
 function oriEhRestauranteOriental(row){
   var candidatos = [
@@ -3955,8 +3967,12 @@ function oriEhRestauranteOriental(row){
   ];
   for(var i=0;i<candidatos.length;i++){
     var v = oriNormaliza(candidatos[i]);
+    // RESTAURANTE ORIENTAL
     if(v.indexOf("RESTAURANTE ORIENTAL") >= 0) return true;
     if(v.indexOf("ORIENTAL") >= 0 && v.indexOf("RESTAURANT") >= 0) return true;
+    // DELIVERY JAPONES (mesmo perfil de consumo de cesta oriental)
+    if(v.indexOf("DELIVERY JAPONES") >= 0) return true;
+    if(v.indexOf("DELIVERY") >= 0 && v.indexOf("JAPON") >= 0) return true;
   }
   return false;
 }
@@ -4057,11 +4073,11 @@ function oriProcessar(){
       emptyEl.style.display = "block";
       // Mensagem mais clara conforme o perfil
       if(perfil && perfil.ehVendedor){
-        emptyEl.textContent = 'Nenhum cliente "RESTAURANTE ORIENTAL" na sua carteira ('+formatVendedorNome(perfil.sigla)+').';
+        emptyEl.textContent = 'Nenhum cliente Oriental (Restaurante ou Delivery Japonês) na sua carteira ('+formatVendedorNome(perfil.sigla)+').';
       } else if(vendFiltro){
-        emptyEl.textContent = 'Nenhum cliente "RESTAURANTE ORIENTAL" para '+formatVendedorNome(vendFiltro)+'.';
+        emptyEl.textContent = 'Nenhum cliente Oriental (Restaurante ou Delivery Japonês) para '+formatVendedorNome(vendFiltro)+'.';
       } else {
-        emptyEl.textContent = 'Nenhum cliente "RESTAURANTE ORIENTAL" encontrado.';
+        emptyEl.textContent = 'Nenhum cliente Oriental (Restaurante ou Delivery Japonês) encontrado.';
       }
     }
     if(tableEl) tableEl.style.display = "none";
@@ -4606,7 +4622,7 @@ document.addEventListener("DOMContentLoaded", function(){
 
     <!-- Aviso explicativo -->
     <div id="ori-info-box" style="background:rgba(247,161,69,0.08);border:1px solid rgba(247,161,69,0.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:.76rem;line-height:1.5">
-      💡 <strong>Como funciona:</strong> cruzamento dos clientes <strong>RESTAURANTE ORIENTAL</strong> com a Cesta Básica (26 categorias × 396 itens). Match feito por código (SKU).
+      💡 <strong>Como funciona:</strong> cruzamento dos clientes <strong>Restaurante Oriental</strong> e <strong>Delivery Japonês</strong> com a Cesta Básica (26 categorias × 396 itens). Match feito por código (SKU).
     </div>
 
     <!-- ───────── TELA 1: RANKING ───────── -->
@@ -4616,7 +4632,7 @@ document.addEventListener("DOMContentLoaded", function(){
       <div class="sec" style="margin-bottom:10px;font-size:.95rem">📋 Ranking — clientes com mais oportunidades primeiro</div>
       <div id="ori-loading" style="display:none;padding:30px;text-align:center;color:var(--mu);font-size:.85rem">⏳ Carregando dados da cesta...</div>
       <div id="ori-empty" style="display:none;padding:24px;text-align:center;color:var(--mu);font-size:.85rem;background:var(--s2);border-radius:8px">
-        Nenhum cliente "RESTAURANTE ORIENTAL" encontrado na sua carteira.
+        Nenhum cliente Oriental (Restaurante ou Delivery Japonês) encontrado na sua carteira.
       </div>
       <div id="ori-table-wrap" style="display:none;overflow-x:auto;max-height:60vh">
         <table style="width:100%;border-collapse:collapse;font-size:.82rem">
