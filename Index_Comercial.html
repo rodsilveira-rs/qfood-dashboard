@@ -2405,6 +2405,24 @@ async function chkInit(){
   var tBuild = performance.now();
   chkBuild();
   console.log("[chk] ⏱ chkBuild:", Math.round(performance.now()-tBuild),"ms");
+
+  // Log extra: matching da cesta por vendedor
+  if(CHK_DATA && CHK_DATA.cestaPorVendedor){
+    var resumoCesta = {};
+    Object.keys(CHK_DATA.cestaPorVendedor).forEach(function(k){
+      var c = CHK_DATA.cestaPorVendedor[k];
+      resumoCesta[k] = "total="+c.total+" (cri="+c.critico+" bai="+c.baixo+" med="+c.medio+" bom="+c.bom+")";
+    });
+    console.log("[chk] 🍱 Cesta por vendedor:", resumoCesta);
+    if(typeof DM !== "undefined" && DM){
+      console.log("[chk] 🔑 Matching DM ↔ Cesta:");
+      DM.forEach(function(v){
+        var key = chkExtraiPrimeiroNome(v.s);
+        var ces = CHK_DATA.cestaPorVendedor[key];
+        console.log("  - DM.s='"+v.s+"' → chave='"+key+"' → "+(ces ? ces.total+" clientes" : "❌ NÃO ENCONTROU"));
+      });
+    }
+  }
   console.log("[chk] ⏱ TOTAL chkInit:", Math.round(performance.now()-t0),"ms");
 }
 
@@ -2597,13 +2615,43 @@ function chkFaixaCobertura(cob){
 function chkNormSigla(s){
   return String(s||"").toUpperCase().trim().replace(/\s+/g," ");
 }
+// Resolve a sigla CURTA do DM (ex: "DN") para o NOME PRIMEIRO em caixa alta
+// (ex: "DAYANE"), usando o mapa SG já existente no Index ({Dayane:"DN", ...}).
+function chkSiglaCurtaParaNomePrimeiro(siglaCurta){
+  if(typeof SG === "undefined" || !SG) return null;
+  var alvo = chkNormSigla(siglaCurta);
+  for(var nome in SG){
+    if(chkNormSigla(SG[nome]) === alvo){
+      return chkNormSigla(nome);   // ex: "DAYANE"
+    }
+  }
+  return null;
+}
+// Extrai o "primeiro nome" de uma sigla qualquer:
+//   "DAYANE.NASCIMENTO" → "DAYANE"
+//   "DN"                → "DAYANE" (via SG)
+//   "LUCAS"             → "LUCAS"
+function chkExtraiPrimeiroNome(s){
+  var n = chkNormSigla(s);
+  if(!n) return "";
+  // Se vier com ponto (formato DINAMICO/ORI_RANKING)
+  if(n.indexOf(".") >= 0) return n.split(".")[0];
+  // Se vier como sigla curta de 2-3 letras (formato DM/DP via sgFor)
+  if(n.length <= 3){
+    var fromSG = chkSiglaCurtaParaNomePrimeiro(n);
+    if(fromSG) return fromSG;
+  }
+  return n;
+}
 function chkSiglasIguais(a, b){
   if(!a || !b) return false;
   var na = chkNormSigla(a);
   var nb = chkNormSigla(b);
   if(na === nb) return true;
-  // compara primeiro nome (LUCAS.BRITES vs LUCAS)
-  return na.split(".")[0] === nb.split(".")[0];
+  // Compara pelos primeiros nomes resolvidos via SG quando necessário
+  var pa = chkExtraiPrimeiroNome(a);
+  var pb = chkExtraiPrimeiroNome(b);
+  return !!pa && !!pb && pa === pb;
 }
 
 // ---- análise da Cesta Oriental por vendedor ---------------------
@@ -2648,7 +2696,8 @@ function chkAnaliseCesta(){
     if(!byCliente[cnpj]){
       byCliente[cnpj] = {
         cnpj: cnpj,
-        vendedor: chkNormSigla(vendedorRaw),
+        // Chave canônica: PRIMEIRO NOME (ex: "DAYANE") — funciona pra DM (SG) e DINAMICO
+        vendedor: chkExtraiPrimeiroNome(vendedorRaw),
         categoriasCompradas: {}
       };
     }
@@ -2868,16 +2917,10 @@ function chkRender(d){
     else if(v.novoFlag === "novo-top") novoCls = "top";
 
     // ============== CESTA ORIENTAL — MINIBAR ==============
-    var siglaKey = chkNormSigla(v.s);
-    // tenta achar por sigla completa, ou prefixo (LUCAS.BRITES → LUCAS)
+    // Chave canônica: PRIMEIRO NOME (ex: "DAYANE")
+    // Funciona pra DM/DP (que tem sigla "DN" via SG) e DINAMICO (que tem "DAYANE.NASCIMENTO")
+    var siglaKey = chkExtraiPrimeiroNome(v.s);
     var ces = cestaMap[siglaKey];
-    if(!ces){
-      // procura por prefixo
-      var pref = siglaKey.split(".")[0];
-      Object.keys(cestaMap).forEach(function(k){
-        if(!ces && k.split(".")[0] === pref) ces = cestaMap[k];
-      });
-    }
 
     var cestaHtml = "";
     if(ces && ces.total > 0){
@@ -3050,14 +3093,8 @@ function chkExportWhatsApp(){
       var sinal = v.gapProj>=0 ? "+" : "";
       txt += "   📊 Projeção: "+chkFmtK(v.projecao)+" ("+sinal+chkFmtK(v.gapProj)+")\n";
     }
-    var siglaKey = chkNormSigla(v.s);
+    var siglaKey = chkExtraiPrimeiroNome(v.s);
     var ces = (d.cestaPorVendedor||{})[siglaKey];
-    if(!ces){
-      var pref = siglaKey.split(".")[0];
-      Object.keys(d.cestaPorVendedor||{}).forEach(function(k){
-        if(!ces && k.split(".")[0] === pref) ces = d.cestaPorVendedor[k];
-      });
-    }
     if(ces && ces.total > 0){
       txt += "   🍱 Cesta: "+ces.critico+" crítico · "+ces.baixo+" baixo · "+ces.medio+" médio · "+ces.bom+" bom";
       if(ces.topCategorias && ces.topCategorias.length){
