@@ -730,8 +730,11 @@ tbody tr:hover td{background:var(--s2);}
 #chk-print .vcesta-legend{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:7px;font-size:.78rem;color:#0B1220;font-weight:600}
 #chk-print .vcesta-legend .item{display:inline-flex;align-items:center;gap:5px}
 #chk-print .vcesta-legend .dot{width:11px;height:11px;border-radius:3px;display:inline-block}
-#chk-print .vcesta-foco{margin-top:8px;font-size:.85rem;color:#7C2D12;font-weight:600;line-height:1.4;background:#FFF7ED;border:1px solid #FDBA74;border-radius:7px;padding:8px 12px}
+#chk-print .vcesta-foco{margin-top:8px;font-size:.85rem;color:#7C2D12;font-weight:600;line-height:1.4;background:#FFF7ED;border:1px solid #FDBA74;border-radius:7px;padding:9px 13px}
 #chk-print .vcesta-foco b{color:#7C2D12;font-weight:800}
+#chk-print .vcesta-foco-sub{font-size:.72rem;color:#9A3412;font-weight:500;margin-top:5px;font-style:italic}
+#chk-print .vcesta-foco.neutra{background:#F1F5F9;border-color:#94A3B8;color:#334155}
+#chk-print .vcesta-foco.neutra b{color:#334155}
 #chk-print .vcesta-empty{font-size:.88rem;color:#475569;font-weight:500;padding:10px;text-align:center;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:7px}
 
 /* ============ BLOCO 4: SEÇÃO DE CARDS DE VENDEDORES ============ */
@@ -2762,7 +2765,10 @@ function chkAnaliseCesta(){
     }
   });
 
-  // 3) para cada cliente: calcula cobertura e classifica em faixa; agrupa por vendedor
+  // 3) para cada cliente: classifica em faixa; agrupa por vendedor
+  //    Pra cada vendedor, contamos por categoria:
+  //      - vendeEm: quantos clientes JÁ compram essa categoria
+  //      - faltaEm: quantos clientes da carteira oriental NÃO compram
   Object.values(byCliente).forEach(function(c){
     var atendidas = Object.keys(c.categoriasCompradas).length;
     var cob = ORI_TOTAL_CATS > 0 ? atendidas / ORI_TOTAL_CATS : 0;
@@ -2775,7 +2781,7 @@ function chkAnaliseCesta(){
         total: 0,
         critico: 0, baixo: 0, medio: 0, bom: 0,
         coberturaSomada: 0,
-        categoriasFaltam: {}
+        categoriasStats: {}   // {cat: {vendeEm, faltaEm}}
       };
     }
     var m = mapa[key];
@@ -2783,26 +2789,63 @@ function chkAnaliseCesta(){
     m[faixa.key]++;
     m.coberturaSomada += cob;
 
-    // top categorias faltantes (foco em críticos e baixos)
-    if(faixa.key === "critico" || faixa.key === "baixo"){
-      if(typeof ORI_CATEGORIAS !== "undefined" && ORI_CATEGORIAS){
-        Object.keys(ORI_CATEGORIAS).forEach(function(cat){
-          if(!c.categoriasCompradas[cat]){
-            m.categoriasFaltam[cat] = (m.categoriasFaltam[cat]||0)+1;
-          }
-        });
-      }
+    // Para CADA categoria do mapa, marca se este cliente compra ou não
+    if(typeof ORI_CATEGORIAS !== "undefined" && ORI_CATEGORIAS){
+      Object.keys(ORI_CATEGORIAS).forEach(function(cat){
+        if(!m.categoriasStats[cat]) m.categoriasStats[cat] = {vendeEm:0, faltaEm:0};
+        if(c.categoriasCompradas[cat]){
+          m.categoriasStats[cat].vendeEm++;
+        } else {
+          m.categoriasStats[cat].faltaEm++;
+        }
+      });
     }
   });
 
-  // 4) finaliza
+  // 4) Para cada vendedor: gera TOP 5 categorias com maior oportunidade
+  //
+  // CRITÉRIO "MÁXIMA COBRANÇA":
+  // - Score prioriza categorias que o vendedor JÁ VENDE pra alguém (prova que sabe vender)
+  //   E AO MESMO TEMPO tem muitos clientes faltando (espaço pra crescer).
+  // - Categoria que ele NUNCA vendeu pra ninguém vai pro final do ranking
+  //   (pode ser problema de oferta, não de esforço do vendedor).
+  // - Categoria que ele vende pra TODOS os clientes não aparece (saturada, não tem o que cobrar).
+  //
+  // Fórmula: score = vendeEm × faltaEm
+  //   (categoria com vendeEm=10 e faltaEm=20 → score 200)
+  //   (categoria com vendeEm=0 e faltaEm=30 → score 0, vai pro final)
+  //   (categoria com vendeEm=30 e faltaEm=0 → score 0, vai pro final)
   Object.values(mapa).forEach(function(m){
     m.coberturaMedia = m.total>0 ? m.coberturaSomada / m.total : 0;
-    m.topCategorias = Object.keys(m.categoriasFaltam)
-      .map(function(k){return {cat:k, n:m.categoriasFaltam[k]};})
-      .sort(function(a,b){return b.n - a.n;})
-      .slice(0,3)
-      .map(function(x){return x.cat;});
+
+    var ranked = Object.keys(m.categoriasStats).map(function(cat){
+      var s = m.categoriasStats[cat];
+      return {
+        cat: cat,
+        vendeEm: s.vendeEm,
+        faltaEm: s.faltaEm,
+        score: s.vendeEm * s.faltaEm  // máx quando há prova + espaço
+      };
+    }).filter(function(x){
+      // Só interessa o que tem oportunidade real: alguém compra E alguém não compra
+      return x.vendeEm > 0 && x.faltaEm > 0;
+    }).sort(function(a,b){
+      // Maior score primeiro; em empate, maior faltaEm (mais clientes pra cobrar)
+      if(b.score !== a.score) return b.score - a.score;
+      return b.faltaEm - a.faltaEm;
+    });
+
+    // Guarda info rica: categoria + "vende em X/Y"
+    m.topCategoriasInfo = ranked.slice(0, 5).map(function(x){
+      return {
+        cat: x.cat,
+        vendeEm: x.vendeEm,
+        faltaEm: x.faltaEm,
+        totalClientes: x.vendeEm + x.faltaEm
+      };
+    });
+    // Mantém topCategorias (só nomes) por compatibilidade com lugares que ainda usam
+    m.topCategorias = m.topCategoriasInfo.map(function(x){return x.cat;});
   });
 
   return mapa;
@@ -3002,8 +3045,17 @@ function chkRender(d){
       }).join("");
       var cobMediaPct = chkFmtPct((ces.coberturaMedia||0)*100);
       var focoHtml = "";
-      if((ces.critico>0 || ces.baixo>0) && ces.topCategorias && ces.topCategorias.length){
-        focoHtml = '<div class="vcesta-foco">🎯 <b>Atacar:</b> '+ces.topCategorias.join(", ")+'</div>';
+      if(ces.topCategoriasInfo && ces.topCategoriasInfo.length){
+        // Formato: "SHOYU (vende em 30/60)" — calibração que tira colher de chá do vendedor
+        var atacarTxt = ces.topCategoriasInfo.map(function(x){
+          return '<b>'+x.cat+'</b> ('+x.vendeEm+'/'+x.totalClientes+')';
+        }).join(" · ");
+        focoHtml = '<div class="vcesta-foco">🎯 <b>Atacar:</b> '+atacarTxt+
+          '<div class="vcesta-foco-sub">vende em N/total — o vendedor sabe vender, só falta levar pros outros clientes</div>'+
+        '</div>';
+      } else if(ces.total>0){
+        // Sem oportunidades calibradas (vendedor não vende essas categorias pra ninguém ainda)
+        focoHtml = '<div class="vcesta-foco neutra">ℹ️ Vendedor ainda não vende nenhuma categoria para múltiplos clientes — prospectar mix do zero</div>';
       }
       cestaHtml =
         '<div class="vcesta">'+
@@ -3167,8 +3219,11 @@ function chkExportWhatsApp(){
     }
     if(ces && ces.total > 0){
       txt += "   🍱 Cesta: "+ces.critico+" crítico · "+ces.baixo+" baixo · "+ces.medio+" médio · "+ces.bom+" bom";
-      if(ces.topCategorias && ces.topCategorias.length){
-        txt += " (atacar: "+ces.topCategorias.slice(0,2).join(", ")+")";
+      if(ces.topCategoriasInfo && ces.topCategoriasInfo.length){
+        var ataque = ces.topCategoriasInfo.slice(0,3).map(function(x){
+          return x.cat+" ("+x.vendeEm+"/"+x.totalClientes+")";
+        }).join(", ");
+        txt += "\n   🎯 Atacar: "+ataque;
       }
       txt += "\n";
     }
