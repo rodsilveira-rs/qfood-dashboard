@@ -2866,15 +2866,15 @@ function chkMontarSemanas(gestor){
         } else if(gestor==='celio'){
           if(dadoDia.notas_total) kpis.push('Notas: <b>'+dadoDia.notas_total+'</b>'+(dadoDia.notas_pend?' ('+dadoDia.notas_pend+' pend.)':''));
           if(dadoDia.avar_val>0) kpis.push('<span style="color:#ff4d4f">Avarias: R$'+Number(dadoDia.avar_val).toLocaleString('pt-BR',{minimumFractionDigits:2})+'</span>');
-          if(dadoDia.estoque&&dadoDia.estoque.length>0) kpis.push('<a href="javascript:void(0)" onclick="chkEstHistAbrir(\\"'+dStr+'\\")" style="color:#a07cf6;font-weight:700">📦 '+dadoDia.estoque.length+' parado(s)</a>');
+          if(Array.isArray(dadoDia.estoque)&&dadoDia.estoque.length>0) kpis.push('<a href="javascript:void(0)" onclick="chkEstHistAbrir(\\"'+dStr+'\\")" style="color:#a07cf6;font-weight:700">📦 '+dadoDia.estoque.length+' parado(s)</a>');
           if(dadoDia.pend) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend.substring(0,40)+'</span>');
          } else if(gestor==='cris'){
           if(dadoDia.ped_sol) kpis.push('Pedidos: <b>'+dadoDia.ped_rec+'/'+dadoDia.ped_sol+'</b>');
           if(dadoDia.pend_itens>0) kpis.push('<span style="color:#ffaa2b">'+dadoDia.pend_itens+' pend.</span>');
           if(dadoDia.est_parado>0) kpis.push('<span style="color:#a07cf6">📦 R$'+Number(dadoDia.est_parado).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
           if(dadoDia.avarias>0) kpis.push('<span style="color:#ff4d4f">💥 R$'+Number(dadoDia.avarias).toLocaleString('pt-BR',{maximumFractionDigits:0})+'</span>');
-          if(dadoDia.negociacoes&&dadoDia.negociacoes.length>0) kpis.push('<span style="color:#a07cf6">🤝 '+dadoDia.negociacoes.length+' neg.</span>');
-          if(dadoDia.bonificacoes&&dadoDia.bonificacoes.length>0) kpis.push('<span style="color:#36cfa0">🎁 '+dadoDia.bonificacoes.length+' bonif.</span>');
+          if(Array.isArray(dadoDia.negociacoes)&&dadoDia.negociacoes.length>0) kpis.push('<span style="color:#a07cf6">🤝 '+dadoDia.negociacoes.length+' neg.</span>');
+          if(Array.isArray(dadoDia.bonificacoes)&&dadoDia.bonificacoes.length>0) kpis.push('<span style="color:#36cfa0">🎁 '+dadoDia.bonificacoes.length+' bonif.</span>');
         } else if(gestor==='maiko'){
           if(dadoDia.carros_rua) kpis.push('🚚 <b>'+dadoDia.carros_rua+'</b> carros');
           if(dadoDia.ocupacao_media>0){
@@ -3275,7 +3275,7 @@ function chkCAtualizarSemaforo(d){
     else if(pct>5){ score-=10; alerts.push('⚡ NFs pendentes >5%'); }
   }
   if(d.avar_val>0){ score-=15; alerts.push('⚠ Avarias: R$'+chkFmt(d.avar_val)); }
-  if(d.estoque && d.estoque.length>5){ score-=10; alerts.push('⚡ '+d.estoque.length+' itens em estoque parado'); }
+  if(Array.isArray(d.estoque) && d.estoque.length>5){ score-=10; alerts.push('⚡ '+d.estoque.length+' itens em estoque parado'); }
   if(d.pend && d.pend.length>10){ score-=5; }
 
   var icon = score>=90?'🟢':score>=80?'🟡':'🔴';
@@ -3325,7 +3325,7 @@ function chkCCarregarDiario(){
       var key = f.replace('-','_');
       if(el && d[key]!==undefined) el.value = d[key];
     });
-    chkCEstoqueSel = d.estoque || [];
+    chkCEstoqueSel = Array.isArray(d.estoque) ? d.estoque : [];
     chkCEstoqueAtualizarResumo();
     chkCCalcNotas();
     chkPlanoCarregar('celio', d.planos);
@@ -3558,7 +3558,7 @@ function chkEstHistAbrir(dataStr){
   var chave = chkChaveData(dataStr,'celio');
   var d = null;
   try{ d = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
-  if(!d || !d.estoque || !d.estoque.length){
+  if(!d || !Array.isArray(d.estoque) || !d.estoque.length){
     alert('Nenhum item de estoque parado registrado em '+dataStr);
     return;
   }
@@ -3579,7 +3579,7 @@ function chkEstHistSemana(isoIni){
     var chave = chkChaveData(dStr,'celio');
     var dado = null;
     try{ dado = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
-    if(dado && dado.estoque){
+    if(dado && Array.isArray(dado.estoque)){
       dado.estoque.forEach(function(it){
         var k = it.sku||it.nome;
         if(!itens[k]) itens[k] = {item: it, dias: [], qtdTotal: 0};
@@ -3811,7 +3811,7 @@ function chkCrCarregarDiario(){
       var key = f.replace(/-/g,'_');
       if(el && d[key]!==undefined) el.value = d[key];
     });
-    chkCrNegSel = d.negociacoes || [];
+    chkCrNegSel = Array.isArray(d.negociacoes) ? d.negociacoes : [];
     chkCrBonifLista = Array.isArray(d.bonificacoes) ? d.bonificacoes.slice() : [];
     chkCrBonifRender();
     chkCrNegAtualizarResumo();
@@ -5269,18 +5269,33 @@ document.addEventListener("DOMContentLoaded", function(){
   //   →  {campanhas: 'X', leads: 5, salvo_em: '...', gestor_id: 'barbara'}
   function desprefixar(registro, gestorId){
     var pre = PREFIXO_POR_GESTOR[gestorId];
-    if(!pre) return registro;
     var saida = {};
+    // Helper local: se for string que parece JSON (array/obj), tenta parsear.
+    // Necessário porque o Apps Script serializa objetos com JSON.stringify ao gravar.
+    function reidratar(v){
+      if(typeof v !== 'string') return v;
+      var s = v.trim();
+      if(s.length < 2) return v;
+      var primeiro = s.charAt(0);
+      if(primeiro !== '[' && primeiro !== '{') return v;
+      try{ return JSON.parse(s); } catch(_){ return v; }
+    }
+    if(!pre){
+      // Sem prefixo: ainda assim reidrata strings JSON
+      Object.keys(registro).forEach(function(k){ saida[k] = reidratar(registro[k]); });
+      return saida;
+    }
     Object.keys(registro).forEach(function(k){
+      var v = reidratar(registro[k]);
       // Campos meta ficam sem prefixo
       if(CAMPOS_META.has(k)){
-        saida[k] = registro[k];
+        saida[k] = v;
       } else if(k.indexOf(pre) === 0){
         // Remove o prefixo do campo
-        saida[k.substring(pre.length)] = registro[k];
+        saida[k.substring(pre.length)] = v;
       } else {
         // Campo sem prefixo (ex: criado em outra versão) — mantém
-        saida[k] = registro[k];
+        saida[k] = v;
       }
     });
     return saida;
