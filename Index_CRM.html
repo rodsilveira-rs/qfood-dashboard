@@ -66,7 +66,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .home-card.leads .ld-pulse{position:absolute;top:14px;right:14px;width:10px;height:10px;background:var(--cyan);border-radius:50%;box-shadow:0 0 0 0 rgba(34,211,238,.6);animation:ldp 2s infinite}
 @keyframes ldp{0%{box-shadow:0 0 0 0 rgba(34,211,238,.6)}70%{box-shadow:0 0 0 12px rgba(34,211,238,0)}100%{box-shadow:0 0 0 0 rgba(34,211,238,0)}}
 
-.home-secondary{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.home-secondary{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px}
 .home-mini{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:14px}
 .home-mini:hover{border-color:var(--b2);background:var(--s2)}
 .home-mini .mi-icon{font-size:1.6rem;flex-shrink:0}
@@ -96,6 +96,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .pdv-card.farol-y{border-left:4px solid var(--warn)}
 .pdv-card.farol-g{border-left:4px solid var(--ok)}
 .pdv-card.farol-gray{border-left:4px solid var(--mu2)}
+/* v5.4 — novos estados */
+.pdv-card.farol-sr{border-left:4px solid var(--pur)}
+.pdv-card.farol-nv{border-left:4px solid var(--mu2);opacity:.85}
+.pdv-card .pc-sr-tag{display:inline-block;background:rgba(160,124,246,.18);color:var(--pur);font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:middle}
+.pdv-card .pc-nv-tag{display:inline-block;background:rgba(255,255,255,.06);color:var(--mu);font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:6px;margin-left:6px;vertical-align:middle}
+/* v5.4 — mini-cards home: sem recompra (roxo) e sem vendedor (admin, cinza) */
+.home-mini.sr{border-left:3px solid var(--pur)}
+.home-mini.sr .mi-count{color:var(--pur)}
+.home-mini.nv{border-left:3px solid var(--mu2)}
+.home-mini.nv .mi-count{color:var(--mu)}
 .pdv-card .pc-name{font-weight:700;font-size:.95rem;line-height:1.25;color:var(--tx)}
 .pdv-card .pc-fant{font-size:.78rem;color:var(--mu);margin-top:1px}
 .pdv-card .pc-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:.74rem;color:var(--mu);margin-top:auto}
@@ -668,6 +678,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
     <select id="admin-vd-filter" onchange="onAdminFilterChange(this.value)" style="display:none;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.82rem;outline:none;cursor:pointer;font-family:var(--fb);max-width:240px"></select>
     <button class="md-trigger-btn" onclick="abrirMeuDia()" title="Resumo do dia/semana/mês com KPIs">📊 Meu Dia</button>
     <button onclick="atualizarDados()" title="Recarrega catálogo e PDVs do servidor">🔄</button>
+    <button onclick="recarregarBaseTudo()" title="Limpa cache de BASE_PDV e recarrega do CSV (use depois de alterar Setor na planilha)" style="background:var(--s2);border:1px solid var(--pur);color:var(--pur)">🔄 Base</button>
     <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
     <button class="primary" onclick="logout()">Sair</button>
   </div>
@@ -744,6 +755,22 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
             <div class="mi-sub">Verde no farol</div>
           </div>
           <div class="mi-count" id="mi-em-dia">0</div>
+        </div>
+        <div class="home-mini sr" onclick="navTo('sem-recompra')">
+          <div class="mi-icon">💤</div>
+          <div class="mi-text">
+            <div class="mi-title">Sem recompra</div>
+            <div class="mi-sub">Na carteira, mas sem pedidos no período</div>
+          </div>
+          <div class="mi-count" id="mi-sem-recompra">0</div>
+        </div>
+        <div class="home-mini nv" id="mini-sem-vendedor" onclick="navTo('sem-vendedor')" style="display:none">
+          <div class="mi-icon">👤</div>
+          <div class="mi-text">
+            <div class="mi-title">Sem vendedor</div>
+            <div class="mi-sub">PDVs com Setor vazio na BASE_PDV</div>
+          </div>
+          <div class="mi-count" id="mi-sem-vendedor">0</div>
         </div>
       </div>
     </div>
@@ -974,6 +1001,27 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
                       Backend: novos endpoints kanban_leads, mover_lead,
                       perder_lead, converter_lead. Mapeamento A3 (Estagio_Funil
                       é fonte da verdade; Status legado é derivado).
+   v5.4 (12/05/2026): CARTEIRA = BASE_PDV (fonte da verdade). Antes a lista
+                      de PDVs era construída a partir do DINAMICO (histórico),
+                      o que inflava o total: PDVs que mudaram de vendedora mas
+                      tinham histórico antigo ainda apareciam (ex: Eliane com
+                      172 em vez de 159). Agora:
+                      - parseBasePDVCSV lê coluna "Setor" (AI) em vez de
+                        "vendedor" (alias antigo mantido como fallback).
+                      - montarPDVs ITERA BASE_PDV (não mais DINAMICO) e cruza
+                        com DINAMICO via CNPJ pra puxar diasSemCompra/ticket.
+                      - PDVs sem histórico no DINAMICO → categoria nova
+                        "💤 Sem recompra" (cinza/roxo, farol="sr").
+                      - PDVs com Setor vazio → categoria "👤 Sem vendedor",
+                        VISÍVEL SÓ PRA ADMIN, não entra em carteira de
+                        vendedora nenhuma (farol="nv").
+                      - Campo "Inativo" removido (não estava sendo usado).
+                      - Botão 🔄 "Recarregar base" no header limpa cache
+                        sessionStorage pra refletir mudanças no Setor sem
+                        esperar as 6h do cache.
+                      - Cache localStorage de leads_vistos e qfood_session
+                        100% preservados (vendedoras continuam logadas).
+                      - ZERO mudança no Apps Script — só front-end.
    ============================================================ */
 var WEBAPP_URL = "https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec";
 var BASE_PDV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1880583941&single=true&output=csv";
@@ -990,7 +1038,7 @@ var MOTIVOS_NAO_VENDA = [
 // Estado global
 var CURRENT_USER = null;     // {email, nome, sigla, isAdmin, recebeLeads}
 var DINAMICO_ROWS = [];      // array de linhas DINAMICO da minha sigla
-var BASE_PDV_MAP  = {};      // cnpj -> {razao, fantasia, fone, whats, novoWhats, end, cidade, uf, segmento, inativo}
+var BASE_PDV_MAP  = {};      // v5.4: cnpj -> {razao, fantasia, fone, whats, novoWhats, end, cidade, uf, segmento, setor, status}
 var PRODUTOS      = [];      // array do PRODUTO_GIRO {codigo, descricao, custo, preco, margem, promo, ...}
 var PRODUTOS_BY_COD = {};
 var TODAS_USERS = [];        // UUSR (do localStorage cache do menu)
@@ -1118,6 +1166,22 @@ function atualizarDados(){
   init();
 }
 
+// v5.4: força recarregar BASE_PDV (após editar coluna Setor na planilha).
+// Diferente de atualizarDados(), foca explicitamente no BASE_PDV e refaz só o cruzamento.
+function recarregarBaseTudo(){
+  toast("Recarregando BASE_PDV (Setor)...", "");
+  // Limpa o cache específico do BASE_PDV
+  try { sessionStorage.removeItem("crm_basepdv_v1"); } catch(e){}
+  loadBasePdvCSV(true).then(function(){
+    montarPDVs();
+    if(ACTIVE_VIEW === "home") renderHome();
+    else renderListaAtual();
+    toast("✅ BASE_PDV recarregado · " + Object.keys(BASE_PDV_MAP).length + " PDVs", "ok");
+  }).catch(function(e){
+    toast("Erro ao recarregar BASE_PDV: " + e.message, "error");
+  });
+}
+
 // Admin: troca a vendedora filtrada (filtro client-side)
 function onAdminFilterChange(sigla){
   ADMIN_FILTER_SIGLA = (sigla || "").toUpperCase();
@@ -1225,19 +1289,22 @@ function loadLeads(silent){
   });
 }
 
-function loadBasePdvCSV(){
+function loadBasePdvCSV(force){
   setLoadingMsg("Carregando base de clientes...");
-  // Cache 6h
-  try {
-    var cached = sessionStorage.getItem("crm_basepdv_v1");
-    if(cached){
-      var c = JSON.parse(cached);
-      if(c && c.ts && (Date.now() - c.ts) < 6*3600*1000 && c.map){
-        BASE_PDV_MAP = c.map;
-        return Promise.resolve();
+  // v5.4: parâmetro 'force' permite bypass do cache (usado pelo botão "🔄 Base")
+  if(!force){
+    // Cache 6h
+    try {
+      var cached = sessionStorage.getItem("crm_basepdv_v1");
+      if(cached){
+        var c = JSON.parse(cached);
+        if(c && c.ts && (Date.now() - c.ts) < 6*3600*1000 && c.map){
+          BASE_PDV_MAP = c.map;
+          return Promise.resolve();
+        }
       }
-    }
-  } catch(e){}
+    } catch(e){}
+  }
 
   return fetch(BASE_PDV_URL + "&t=" + Date.now())
     .then(function(r){ return r.text(); })
@@ -1302,10 +1369,12 @@ function parseCSV(txt){
 }
 
 function parseBasePDVCSV(txt){
+  // v5.4: fonte da verdade da CARTEIRA. Coluna AI = Setor (formato NOME.SOBRENOME).
   // Colunas relevantes (índice 0-based, conforme memória/backend):
-  // B=1 razao, C=2 fantasia, D=3 cnpj, H=7 inativo,
+  // B=1 razao, C=2 fantasia, D=3 cnpj,
   // I=8 fone1, J=9 whatsapp, AX=49 novo_whatsapp,
-  // S-Y=18-24 endereço, AB=27 status, AL=37 vendedor, AS=44 segmento
+  // S-Y=18-24 endereço, AB=27 status, AI=34 SETOR (vendedor da carteira),
+  // AL=37 vendedor (legado), AS=44 segmento
   var rows = parseCSV(txt);
   if(rows.length < 2) return {};
   var hdr = rows[0].map(function(h){ return (h||"").trim().toLowerCase(); });
@@ -1326,8 +1395,8 @@ function parseBasePDVCSV(txt){
   var iCid   = findCol(["cidade","municipio","município"]);
   var iUf    = findCol(["uf","estado"]);
   var iSeg   = findCol(["segmento","atividade"]);
-  var iVend  = findCol(["vendedor"]);
-  var iInat  = findCol(["inativo"]);
+  // v5.4: prioriza "setor" (coluna AI). "vendedor" mantido como fallback caso o header mude.
+  var iSetor = findCol(["setor","vendedor"]);
   var iStat  = findCol(["status","situacao","situação"]);
 
   var map = {};
@@ -1336,6 +1405,10 @@ function parseBasePDVCSV(txt){
     var line = rows[r];
     var cnpj = (line[iCnpj] || "").replace(/\D/g,"");
     if(!cnpj || cnpj.length < 11) continue;
+    // v5.4: normaliza Setor — trim, uppercase, remove espaços internos.
+    // Ex: "Eliane.Moreira" → "ELIANE.MOREIRA"; " ELIANE . MOREIRA " → "ELIANE.MOREIRA"
+    var setorRaw = iSetor>=0 ? String(line[iSetor]||"") : "";
+    var setor = setorRaw.trim().toUpperCase().replace(/\s+/g,"");
     map[cnpj] = {
       cnpj: cnpj,
       razao:    iRazao>=0 ? String(line[iRazao]||"").trim() : "",
@@ -1347,8 +1420,8 @@ function parseBasePDVCSV(txt){
       cidade:   iCid>=0   ? String(line[iCid]||"").trim()   : "",
       uf:       iUf>=0    ? String(line[iUf]||"").trim().toUpperCase()  : "",
       segmento: iSeg>=0   ? String(line[iSeg]||"").trim().toUpperCase() : "",
-      vendedor: iVend>=0  ? String(line[iVend]||"").trim() : "",
-      inativo:  iInat>=0  ? String(line[iInat]||"").trim().toUpperCase() : "",
+      setor:    setor,    // v5.4: nome novo (fonte da verdade)
+      vendedor: setor,    // v5.4: alias mantido pra compatibilidade interna
       status:   iStat>=0  ? String(line[iStat]||"").trim().toUpperCase() : ""
     };
   }
@@ -1444,17 +1517,27 @@ function parseProdutoGiroCSV(txt){
 // Monta lista de PDVs (1 por CNPJ) com farol calculado
 // ─────────────────────────────────────────────────────
 function montarPDVs(){
-  var byCnpj = {};
-  var siglasVistas = {};
+  // v5.4: A LISTA DE PDVS É CONSTRUÍDA A PARTIR DO BASE_PDV (fonte da verdade).
+  // O DINAMICO entra como dicionário de HISTÓRICO (diasSemCompra, ticket, items por CNPJ).
+  // Categorias de farol resultantes:
+  //   - "g"    Em dia          (tem histórico + ratio < 0.8)
+  //   - "y"    Atenção         (tem histórico + ratio 0.8–1.0)
+  //   - "r"    Atrasado        (tem histórico + ratio ≥ 1.0)
+  //   - "sr"   Sem recompra    (está no BASE_PDV mas NÃO está no DINAMICO)
+  //   - "nv"   Sem vendedor    (BASE_PDV com Setor vazio — só admin enxerga)
+
+  // 1) Dicionário do DINAMICO por CNPJ (vai ser cruzado)
+  var dinamicoByCnpj = {};
+  var siglasDinamico = {};
   DINAMICO_ROWS.forEach(function(r){
     var cnpj = (r.cnpj || "").replace(/\D/g,"");
     if(!cnpj) return;
-    var vendSig = String(r.vendedor || "").trim().toUpperCase();
-    if(vendSig && vendSig.indexOf(".") > 0) siglasVistas[vendSig] = true;
-    if(!byCnpj[cnpj]){
-      byCnpj[cnpj] = {
+    var vendSigDin = String(r.vendedor || "").trim().toUpperCase().replace(/\s+/g,"");
+    if(vendSigDin && vendSigDin.indexOf(".") > 0) siglasDinamico[vendSigDin] = true;
+    if(!dinamicoByCnpj[cnpj]){
+      dinamicoByCnpj[cnpj] = {
         cnpj: cnpj,
-        vendedorSigla: vendSig,
+        vendedorSigla: vendSigDin,
         diasSemCompra: r.diasSemCompra || 0,
         ultimaNf: r.ultimaNf || "",
         razao: r.razaoSocial || "",
@@ -1469,30 +1552,43 @@ function montarPDVs(){
         ticketCount: 0
       };
     }
-    var p = byCnpj[cnpj];
-    // Mantém maior diasSemCompra (deveria ser igual em todas linhas, mas garante)
-    if(r.diasSemCompra > p.diasSemCompra) p.diasSemCompra = r.diasSemCompra;
-    // Se ainda não tem vendedor mas a linha tem, captura
-    if(!p.vendedorSigla && vendSig) p.vendedorSigla = vendSig;
+    var d = dinamicoByCnpj[cnpj];
+    if(r.diasSemCompra > d.diasSemCompra) d.diasSemCompra = r.diasSemCompra;
+    if(!d.vendedorSigla && vendSigDin) d.vendedorSigla = vendSigDin;
     if(r.total > 0){
-      p.ticketTotal += r.total;
-      p.ticketCount++;
+      d.ticketTotal += r.total;
+      d.ticketCount++;
     }
-    p.items.push(r);
+    d.items.push(r);
   });
 
-  // Enriquece com BASE_PDV (contato, endereço) e CRM_ROTA (periodicidade/dias)
-  PDVS = Object.keys(byCnpj).map(function(c){
-    var p = byCnpj[c];
-    var base = BASE_PDV_MAP[c] || {};
-    var rota = ROTAS_MAP[c] || {};
+  // 2) Itera o BASE_PDV (todos os CNPJs cadastrados na carteira oficial)
+  var siglasBase = {};
+  var pdvsArr = [];
+  Object.keys(BASE_PDV_MAP).forEach(function(cnpj){
+    var base = BASE_PDV_MAP[cnpj];
+    var dinReg = dinamicoByCnpj[cnpj] || null;   // pode ser null = sem histórico
+    var rota = ROTAS_MAP[cnpj] || {};
 
-    var period = rota.periodicidadeDias || 30;  // default 30 dias
-    var dias = p.diasSemCompra || 0;
+    // Setor (vendedor) — vem do BASE_PDV. Vazio = "sem vendedor"
+    var setor = (base.setor || "").toUpperCase();
+    if(setor && setor.indexOf(".") > 0) siglasBase[setor] = true;
+
+    // Cálculo de farol
+    var period = rota.periodicidadeDias || 30;
+    var dias = dinReg ? (dinReg.diasSemCompra || 0) : 0;
     var ratio = dias / period;
     var farol;
-    if(p.diasSemCompra == null || dias === 0){
-      farol = "g";  // assumido em dia se nunca registrou
+
+    if(!setor){
+      // PDV cadastrado mas sem vendedor atribuído → categoria especial (admin only)
+      farol = "nv";
+    } else if(!dinReg){
+      // Tem vendedor mas não tem registro no DINAMICO → sem recompra no período
+      farol = "sr";
+    } else if(dias === 0){
+      // Tem registro mas sem dado de dias (caso raro)
+      farol = "g";
     } else if(ratio < 0.8){
       farol = "g";
     } else if(ratio < 1.0){
@@ -1500,39 +1596,45 @@ function montarPDVs(){
     } else {
       farol = "r";
     }
-    if(!p.ticketCount && dias === 0) farol = "gray"; // novo / sem dado
 
-    var ticketMedio = p.ticketCount ? (p.ticketTotal / p.ticketCount) : 0;
+    var ticketMedio = (dinReg && dinReg.ticketCount) ? (dinReg.ticketTotal / dinReg.ticketCount) : 0;
 
-    return {
-      cnpj: c,
-      vendedorSigla: p.vendedorSigla || (base.vendedor || "").toUpperCase(),
-      razao: base.razao || p.razao || "—",
-      fantasia: base.fantasia || p.fantasia || "",
-      cidade: base.cidade || p.cidade || "",
-      uf: base.uf || p.uf || "",
-      segmento: base.segmento || p.segmento || "",
+    pdvsArr.push({
+      cnpj: cnpj,
+      vendedorSigla: setor,                                    // v5.4: SEMPRE do BASE_PDV
+      razao: base.razao || (dinReg && dinReg.razao) || "—",
+      fantasia: base.fantasia || (dinReg && dinReg.fantasia) || "",
+      cidade: base.cidade || (dinReg && dinReg.cidade) || "",
+      uf: base.uf || (dinReg && dinReg.uf) || "",
+      segmento: base.segmento || (dinReg && dinReg.segmento) || "",
       fone: base.fone || "",
       whats: base.whats || "",
       novoWhats: base.novoWhats || "",
       endereco: base.endereco || "",
       diasSemCompra: dias,
-      ultimaNf: p.ultimaNf,
+      ultimaNf: dinReg ? dinReg.ultimaNf : "",
       farol: farol,
       ratio: ratio,
       periodicidade: period,
       diasSemana: rota.diasSemana || "",
       ticketMedio: ticketMedio,
-      items: p.items
-    };
+      items: dinReg ? dinReg.items : [],
+      semHistorico: !dinReg,                                   // v5.4: flag útil pra UI
+      semVendedor: !setor                                      // v5.4: flag útil pra UI
+    });
   });
 
-  // Popula VENDEDORAS_LIST (admin only — pra dropdown)
-  VENDEDORAS_LIST = Object.keys(siglasVistas).map(function(sig){
+  PDVS = pdvsArr;
+
+  // 3) Popula VENDEDORAS_LIST (admin only) — união de siglas do BASE_PDV + DINAMICO
+  //    (DINAMICO pode ter siglas de pedidos antigos não mais ativas — mantemos pra histórico)
+  var todasSiglas = {};
+  Object.keys(siglasBase).forEach(function(s){ todasSiglas[s] = true; });
+  Object.keys(siglasDinamico).forEach(function(s){ todasSiglas[s] = true; });
+  VENDEDORAS_LIST = Object.keys(todasSiglas).map(function(sig){
     return {sigla: sig, nome: siglaParaNomeAmigavel(sig)};
   }).sort(function(a,b){ return a.nome.localeCompare(b.nome); });
 
-  // Atualiza dropdown de admin (se existir)
   preencheDropdownAdmin();
 }
 
@@ -1546,11 +1648,30 @@ function siglaParaNomeAmigavel(sig){
 }
 
 // Devolve as listas filtradas pelo admin filter (admin) ou só do vendedor (não-admin)
+// v5.4: PDVs com farol="nv" (sem vendedor no BASE_PDV) só aparecem pra admin,
+//       e SÓ quando navegando na view "sem-vendedor". Não entram no "Todos"/"Em dia"/etc.
 function pdvsAplicaveis(){
   if(!CURRENT_USER) return [];
-  if(!CURRENT_USER.isAdmin) return PDVS; // vendedora normal: backend já filtrou
-  if(!ADMIN_FILTER_SIGLA) return PDVS;   // admin: 'Todas'
-  return PDVS.filter(function(p){ return p.vendedorSigla === ADMIN_FILTER_SIGLA; });
+  // Vendedora comum: backend já filtrou DINAMICO; mas como agora a lista vem do BASE_PDV,
+  // precisamos filtrar pela sigla DELA explicitamente no client (NUNCA mostra "nv")
+  if(!CURRENT_USER.isAdmin){
+    return PDVS.filter(function(p){
+      if(p.farol === "nv") return false;
+      return p.vendedorSigla === CURRENT_USER.sigla;
+    });
+  }
+  // Admin com filtro de vendedora específica
+  if(ADMIN_FILTER_SIGLA){
+    return PDVS.filter(function(p){ return p.vendedorSigla === ADMIN_FILTER_SIGLA; });
+  }
+  // Admin "Todas" — exclui "Sem vendedor" das listas gerais (eles têm tela própria)
+  return PDVS.filter(function(p){ return p.farol !== "nv"; });
+}
+
+// v5.4: lista exclusiva de PDVs "Sem vendedor" — admin only
+function pdvsSemVendedor(){
+  if(!CURRENT_USER || !CURRENT_USER.isAdmin) return [];
+  return PDVS.filter(function(p){ return p.farol === "nv"; });
 }
 
 function leadsAplicaveis(){
@@ -1593,11 +1714,30 @@ function renderHome(){
     return p.farol === "y";
   });
   var emDia = pool.filter(function(p){ return p.farol === "g"; });
+  var semRecompra = pool.filter(function(p){ return p.farol === "sr"; }); // v5.4
 
   document.getElementById("hc-atrasados").textContent = atrasados.length;
   document.getElementById("hc-hoje").textContent = hoje.length;
   document.getElementById("mi-todos").textContent = pool.length;
   document.getElementById("mi-em-dia").textContent = emDia.length;
+  // v5.4: card "Sem recompra"
+  var elSR = document.getElementById("mi-sem-recompra");
+  if(elSR) elSR.textContent = semRecompra.length;
+
+  // v5.4: card "Sem vendedor" — só admin, e só quando há algum
+  if(CURRENT_USER.isAdmin){
+    var semVend = pdvsSemVendedor();
+    var elNV = document.getElementById("mini-sem-vendedor");
+    var elNVc = document.getElementById("mi-sem-vendedor");
+    if(elNV && elNVc){
+      if(semVend.length > 0){
+        elNV.style.display = "flex";
+        elNVc.textContent = semVend.length;
+      } else {
+        elNV.style.display = "none";
+      }
+    }
+  }
 
   // Leads novos (NOVO ou VISUALIZADO)
   var leadsP = leadsAplicaveis();
@@ -1692,7 +1832,9 @@ function navTo(view){
     "hoje": "📅 Visitas de Hoje",
     "em-dia": "✅ PDVs em Dia",
     "todos": "📋 Toda a Carteira",
-    "leads": "📨 Leads Novos do Marketing"
+    "leads": "📨 Leads Novos do Marketing",
+    "sem-recompra": "💤 PDVs Sem Recompra",        // v5.4
+    "sem-vendedor": "👤 PDVs Sem Vendedor (BASE_PDV)" // v5.4 (admin only)
   };
   document.getElementById("list-title").textContent = titleMap[view] || "Lista";
   document.getElementById("search-input").value = "";
@@ -1711,14 +1853,21 @@ function renderListaAtual(){
 function filtrarPDVs(){
   var v = ACTIVE_VIEW;
   var hojeKey = DIAS_SEMANA[new Date().getDay()];
-  var lista = pdvsAplicaveis().slice();
+  // v5.4: "sem-vendedor" usa source dedicado (PDVs com Setor vazio)
+  var lista;
+  if(v === "sem-vendedor"){
+    lista = pdvsSemVendedor().slice();
+  } else {
+    lista = pdvsAplicaveis().slice();
+  }
   if(v === "atrasados") lista = lista.filter(function(p){ return p.farol === "r"; });
   else if(v === "hoje") lista = lista.filter(function(p){
     if(p.diasSemana && p.diasSemana.indexOf(hojeKey) >= 0) return true;
     return p.farol === "y";
   });
   else if(v === "em-dia") lista = lista.filter(function(p){ return p.farol === "g"; });
-  // 'todos' = sem filtro
+  else if(v === "sem-recompra") lista = lista.filter(function(p){ return p.farol === "sr"; }); // v5.4
+  // 'todos' e 'sem-vendedor' = sem filtro adicional
 
   var q = (document.getElementById("search-input").value || "").toLowerCase().trim();
   if(q){
@@ -1757,6 +1906,8 @@ function renderPDVLista(){
     if(p.farol === "r") tagFarol = '<span class="pc-tag atrasado">🔥 Atrasado</span>';
     else if(p.farol === "y") tagFarol = '<span class="pc-tag hoje">📅 Visitar</span>';
     else if(p.farol === "g") tagFarol = '<span class="pc-tag ok">✅ Em dia</span>';
+    else if(p.farol === "sr") tagFarol = '<span class="pc-sr-tag">💤 Sem recompra</span>'; // v5.4
+    else if(p.farol === "nv") tagFarol = '<span class="pc-nv-tag">👤 Sem vendedor</span>'; // v5.4
     else tagFarol = '<span class="pc-tag novo">🆕 Sem histórico</span>';
 
     var tagSeg = p.segmento ? '<span class="pc-tag seg">'+escapeHtml(p.segmento)+'</span>' : '';
