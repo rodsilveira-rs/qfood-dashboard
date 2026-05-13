@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#0f0f12">
+<title>NPS / Auditoria Comercial — Q Food Company</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<style>
+/* ============================================================
+   Q Food Company — Index_NPS.html
+   Sistema de NPS / Auditoria Comercial em campo
+   Visual alinhado ao padrão qfood-dashboard
+   ============================================================ */
+:root{
+  --bg-0:#0a0a0d; --bg-1:#15151b; --bg-2:#1d1d25; --bg-3:#262630;
+  --line:#2e2e3a; --line-2:#3a3a48;
+  --txt:#ecedf2; --txt-dim:#9a9aab; --txt-mute:#6e6e80;
+  --qfood:#c41e3a; --qfood-2:#e23b56; --gold:#d4a574; --gold-2:#e8c397;
+  --ok:#3fb950; --warn:#d29922; --danger:#f85149; --info:#58a6ff;
+  --wa:#25D366; --wa-2:#128C7E;
+  --r:14px; --r-sm:10px;
+  --shadow:0 10px 40px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  font-size:15px;line-height:1.5;
+  background:radial-gradient(1200px 600px at 50% -200px,rgba(196,30,58,.08),transparent 70%),
+             radial-gradient(800px 400px at 100% 100%,rgba(212,165,116,.05),transparent 60%),
+             var(--bg-0);
+  min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;font-size:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+
+/* HEADER FIXO */
+.hdr{position:sticky;top:0;z-index:50;background:rgba(15,15,18,.92);backdrop-filter:blur(20px);
+  border-bottom:1px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:10px}
+.hdr-brand{display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+.hdr-logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--qfood),var(--qfood-2));
+  display:grid;place-items:center;font-size:18px;flex-shrink:0}
+.hdr-title{display:flex;flex-direction:column;min-width:0}
+.hdr-title strong{font-size:15px;font-weight:700;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hdr-title small{font-size:11px;color:var(--txt-mute);line-height:1.1}
+.hdr-back{background:var(--bg-2);border:1px solid var(--line);border-radius:8px;
+  padding:7px 10px;font-size:13px;color:var(--txt);text-decoration:none}
+.hdr-status{font-size:11px;padding:4px 8px;border-radius:999px;background:var(--bg-2);
+  border:1px solid var(--line);color:var(--txt-dim)}
+.hdr-status.ok{color:var(--ok);border-color:rgba(63,185,80,.3)}
+.hdr-status.off{color:var(--warn);border-color:rgba(210,153,34,.3)}
+
+/* TOGGLE */
+.toggle-wrap{padding:10px 14px;display:flex;gap:8px;background:var(--bg-1);
+  border-bottom:1px solid var(--line);position:sticky;top:54px;z-index:49}
+.tog-btn{flex:1;padding:10px;border-radius:10px;font-weight:600;font-size:14px;
+  background:var(--bg-2);color:var(--txt-dim);border:1px solid var(--line);transition:all .2s}
+.tog-btn.active{background:linear-gradient(135deg,var(--qfood),var(--qfood-2));
+  color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(196,30,58,.4)}
+
+/* PENDENTES */
+.pending-bar{background:rgba(210,153,34,.15);border-bottom:1px solid rgba(210,153,34,.3);
+  padding:8px 14px;font-size:13px;color:var(--warn);display:none;align-items:center;gap:10px;justify-content:space-between}
+.pending-bar.show{display:flex}
+.pending-bar button{background:var(--warn);color:#000;padding:5px 12px;border-radius:6px;font-weight:600;font-size:12px}
+
+/* DRAFT */
+.draft-banner{margin:10px 14px;padding:12px;background:rgba(88,166,255,.1);
+  border:1px solid rgba(88,166,255,.3);border-radius:var(--r-sm);display:none}
+.draft-banner.show{display:block}
+.draft-banner h4{margin:0 0 4px;font-size:14px;color:var(--info)}
+.draft-banner p{margin:0 0 8px;font-size:12px;color:var(--txt-dim)}
+.draft-banner .btns{display:flex;gap:8px}
+.draft-banner button{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600}
+.draft-banner .rec{background:var(--info);color:#000}
+.draft-banner .dis{background:var(--bg-3);color:var(--txt-dim)}
+
+.wrap{padding:14px;max-width:920px;margin:0 auto}
+
+/* CARDS */
+.card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);
+  padding:16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:700;color:var(--txt);
+  display:flex;align-items:center;gap:8px}
+.card h3 .num{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;
+  background:linear-gradient(135deg,var(--qfood),var(--qfood-2));color:#fff;font-size:12px;font-weight:700}
+.card .q{margin:0 0 12px;font-size:13.5px;color:var(--txt-dim);line-height:1.5}
+
+/* FORM FIELDS */
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--txt-dim);margin-bottom:5px;
+  text-transform:uppercase;letter-spacing:.5px}
+.field label .req{color:var(--qfood-2);margin-left:3px}
+.field input,.field select,.field textarea{width:100%;padding:11px 12px;background:var(--bg-2);
+  border:1px solid var(--line);border-radius:var(--r-sm);color:var(--txt);transition:border .2s,background .2s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--qfood-2);background:var(--bg-3)}
+.field input[readonly]{background:var(--bg-2);color:var(--txt-dim);cursor:default}
+.field input.found{border-color:var(--ok);background:rgba(63,185,80,.05)}
+.field input.notfound{border-color:var(--warn);background:rgba(210,153,34,.05)}
+.field .hint{font-size:11px;color:var(--txt-mute);margin-top:4px}
+.field .hint.ok{color:var(--ok)}
+.field .hint.warn{color:var(--warn)}
+.field textarea{min-height:80px;resize:vertical;font-family:inherit}
+.field .char-count{font-size:11px;color:var(--txt-mute);text-align:right;margin-top:3px}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.field-row{grid-template-columns:1fr}}
+
+/* TELEFONES INLINE */
+.tel-inline{margin-top:6px;padding:8px 10px;background:rgba(37,211,102,.08);
+  border:1px solid rgba(37,211,102,.25);border-radius:8px;font-size:12px;
+  color:var(--txt-dim);display:none;align-items:center;gap:8px;flex-wrap:wrap}
+.tel-inline.show{display:flex}
+.tel-inline strong{color:var(--txt)}
+.tel-inline .tel-item{display:inline-flex;align-items:center;gap:4px}
+
+/* NPS 0-10 */
+.nps-scale{display:grid;grid-template-columns:repeat(11,1fr);gap:5px;margin:14px 0 8px}
+@media(max-width:480px){.nps-scale{grid-template-columns:repeat(6,1fr)}}
+.nps-btn{aspect-ratio:1;border-radius:10px;font-weight:700;font-size:15px;
+  background:var(--bg-2);border:2px solid var(--line);color:var(--txt-dim);
+  display:grid;place-items:center;transition:all .2s}
+.nps-btn:hover{transform:scale(1.05);border-color:var(--line-2)}
+.nps-btn.selected{transform:scale(1.08);box-shadow:0 4px 14px rgba(0,0,0,.4);color:#fff}
+.nps-btn[data-cat="detrator"].selected{background:linear-gradient(135deg,#c81818,#f85149);border-color:#f85149}
+.nps-btn[data-cat="neutro"].selected{background:linear-gradient(135deg,#b8860b,#d29922);border-color:#d29922;color:#000}
+.nps-btn[data-cat="promotor"].selected{background:linear-gradient(135deg,#1f8c2f,#3fb950);border-color:#3fb950}
+.nps-feedback{text-align:center;font-weight:700;font-size:14px;padding:10px;border-radius:var(--r-sm);
+  margin-top:8px;display:none}
+.nps-feedback.show{display:block}
+.nps-feedback.detrator{background:rgba(248,81,73,.15);color:#ff7b73;border:1px solid rgba(248,81,73,.3)}
+.nps-feedback.neutro{background:rgba(210,153,34,.15);color:#f1c40f;border:1px solid rgba(210,153,34,.3)}
+.nps-feedback.promotor{background:rgba(63,185,80,.15);color:#5ed16e;border:1px solid rgba(63,185,80,.3)}
+
+/* PILARES (estrelas) */
+.pilar{padding:12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-sm);margin-bottom:10px}
+.pilar-title{font-weight:700;font-size:14px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.pilar-title .ic{font-size:18px}
+.pilar-q{font-size:12.5px;color:var(--txt-dim);margin-bottom:10px;line-height:1.5}
+.stars{display:flex;gap:6px;justify-content:center;margin:8px 0}
+.star{width:42px;height:42px;border-radius:8px;background:var(--bg-3);border:1px solid var(--line);
+  display:grid;place-items:center;font-size:22px;color:#3a3a48;transition:all .15s}
+.star:hover{transform:scale(1.1)}
+.star.active{color:#ffc107;background:rgba(255,193,7,.1);border-color:rgba(255,193,7,.4);
+  text-shadow:0 0 12px rgba(255,193,7,.5)}
+.star-legend{text-align:center;font-size:11px;color:var(--txt-mute);margin-top:6px;height:14px}
+.pilar.has-rating .star-legend{color:var(--gold)}
+.pilar-extra{margin-top:10px}
+.pilar-extra textarea{min-height:55px;font-size:13px}
+
+/* RADIO */
+.radio-grid{display:grid;gap:8px}
+.radio-opt{padding:11px 12px;background:var(--bg-2);border:1px solid var(--line);
+  border-radius:var(--r-sm);cursor:pointer;display:flex;align-items:center;gap:10px;font-size:13.5px;transition:all .15s}
+.radio-opt:hover{background:var(--bg-3)}
+.radio-opt input{margin:0;flex-shrink:0}
+.radio-opt.selected{background:rgba(196,30,58,.1);border-color:var(--qfood-2)}
+
+/* INDICARIA */
+.tri-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tri-btn{padding:14px 8px;border-radius:var(--r-sm);font-weight:700;font-size:14px;
+  background:var(--bg-2);border:2px solid var(--line);color:var(--txt-dim);transition:all .2s;
+  display:flex;flex-direction:column;align-items:center;gap:4px}
+.tri-btn .ic{font-size:24px}
+.tri-btn:hover{transform:translateY(-2px)}
+.tri-btn.sel-sim.selected{background:rgba(63,185,80,.15);border-color:var(--ok);color:var(--ok)}
+.tri-btn.sel-talvez.selected{background:rgba(210,153,34,.15);border-color:var(--warn);color:var(--warn)}
+.tri-btn.sel-nao.selected{background:rgba(248,81,73,.15);border-color:var(--danger);color:#ff7b73}
+
+/* AÇÕES */
+.actions{display:flex;flex-direction:column;gap:10px;margin-top:18px}
+.btn-primary{padding:16px;background:linear-gradient(135deg,var(--qfood),var(--qfood-2));
+  color:#fff;font-weight:700;font-size:15px;border-radius:var(--r-sm);
+  box-shadow:0 6px 20px rgba(196,30,58,.4);transition:all .2s}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(196,30,58,.5)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-secondary{padding:12px;background:var(--bg-2);border:1px solid var(--line);
+  color:var(--txt-dim);font-weight:600;border-radius:var(--r-sm);font-size:13px}
+
+/* DASHBOARD */
+.dash-filters{display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:var(--bg-1);
+  border:1px solid var(--line);border-radius:var(--r);margin-bottom:14px}
+.dash-filters select{flex:1;min-width:130px;padding:8px;background:var(--bg-2);
+  border:1px solid var(--line);border-radius:8px;color:var(--txt);font-size:13px}
+.dash-filters .refresh{padding:8px 14px;background:var(--bg-3);border:1px solid var(--line);
+  border-radius:8px;color:var(--txt);font-size:13px;font-weight:600}
+.dash-filters .refresh:hover{background:var(--qfood);border-color:var(--qfood-2)}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:14px;text-align:center}
+.kpi-label{font-size:11px;color:var(--txt-mute);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.kpi-value{font-size:28px;font-weight:800;margin:6px 0;line-height:1}
+.kpi-sub{font-size:11px;color:var(--txt-dim)}
+.kpi.green .kpi-value{color:var(--ok)}
+.kpi.yellow .kpi-value{color:var(--warn)}
+.kpi.red .kpi-value{color:var(--danger)}
+.kpi.gold .kpi-value{color:var(--gold)}
+
+.section{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.section h2{margin:0 0 14px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.section h2 small{font-weight:500;font-size:11px;color:var(--txt-mute)}
+
+.pilar-table{width:100%;border-collapse:collapse;font-size:13px}
+.pilar-table th{text-align:left;padding:9px 8px;font-size:11px;color:var(--txt-mute);
+  text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--line);font-weight:600}
+.pilar-table td{padding:11px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.pilar-table tr:last-child td{border-bottom:none}
+.pilar-table .nota{font-weight:700;font-size:15px}
+.pilar-table .tag{display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.tag.green{background:rgba(63,185,80,.15);color:var(--ok)}
+.tag.yellow{background:rgba(210,153,34,.15);color:var(--warn)}
+.tag.red{background:rgba(248,81,73,.15);color:var(--danger)}
+
+.vendor-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.vendor-row:last-child{border-bottom:none}
+.vendor-pos{width:30px;font-weight:800;text-align:center;font-size:14px;color:var(--txt-dim)}
+.vendor-pos.gold{color:var(--gold);font-size:18px}
+.vendor-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--qfood),var(--gold));
+  display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;flex-shrink:0}
+.vendor-info{flex:1;min-width:0}
+.vendor-name{font-weight:600;font-size:13.5px}
+.vendor-stats{font-size:11px;color:var(--txt-dim);margin-top:2px}
+.vendor-nota{font-size:18px;font-weight:800;color:var(--gold);min-width:48px;text-align:right}
+
+/* CARDS DE RISCO */
+.risk-card{background:var(--bg-2);border:1px solid rgba(248,81,73,.3);border-radius:var(--r-sm);
+  padding:12px;margin-bottom:10px;position:relative}
+.risk-card.recent{animation:pulse 2s infinite;border-color:var(--danger)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,81,73,.4)}50%{box-shadow:0 0 0 6px rgba(248,81,73,0)}}
+.risk-card h4{margin:0 0 4px;font-size:14px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.risk-card h4 .pot{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--bg-3);color:var(--gold);font-weight:600}
+.risk-card h4 .seg{font-size:10px;padding:2px 6px;border-radius:4px;background:var(--bg-3);color:var(--txt-dim);font-weight:600}
+.risk-card .meta{font-size:11.5px;color:var(--txt-dim);margin-bottom:6px}
+.risk-card .notas{display:flex;gap:8px;font-size:11px;color:var(--txt-dim);margin-bottom:8px;flex-wrap:wrap}
+.risk-card .notas span{padding:2px 8px;background:var(--bg-3);border-radius:4px}
+.risk-card .notas span.bad{color:var(--danger);background:rgba(248,81,73,.1)}
+.risk-card .quote{font-size:12.5px;color:var(--txt);background:var(--bg-3);padding:8px;
+  border-radius:6px;border-left:3px solid var(--danger);margin-bottom:8px;font-style:italic;line-height:1.4}
+.risk-card .btns{display:flex;flex-wrap:wrap;gap:6px}
+.risk-card .btns a, .risk-card .btns button{padding:7px 12px;font-size:12px;font-weight:600;border-radius:6px;
+  background:var(--bg-3);border:1px solid var(--line);color:var(--txt);text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.risk-card .btns .btn-wa{background:var(--wa);color:#fff;border-color:transparent}
+.risk-card .btns .btn-wa:hover{background:var(--wa-2)}
+.risk-card .btns .btn-tel{background:var(--info);color:#000;border-color:transparent}
+.risk-card .btns .btn-disabled{opacity:.4;cursor:not-allowed;background:var(--bg-3);color:var(--txt-mute)}
+
+.bar-row{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:13px}
+.bar-row .lbl{min-width:130px;color:var(--txt-dim);font-size:12px}
+.bar-row .bar{flex:1;height:18px;background:var(--bg-2);border-radius:9px;overflow:hidden;position:relative}
+.bar-row .bar-fill{height:100%;background:linear-gradient(90deg,var(--qfood),var(--qfood-2));border-radius:9px;transition:width .4s}
+.bar-row.ok .bar-fill{background:linear-gradient(90deg,#1f8c2f,#3fb950)}
+.bar-row .val{min-width:30px;text-align:right;font-weight:700;color:var(--txt)}
+
+.list-comment{padding:10px;background:var(--bg-2);border:1px solid var(--line);
+  border-radius:8px;margin-bottom:8px;font-size:12.5px;line-height:1.5}
+.list-comment .meta{font-size:11px;color:var(--txt-mute);margin-bottom:5px;display:flex;
+  justify-content:space-between;gap:10px;flex-wrap:wrap}
+.list-comment .txt{color:var(--txt)}
+
+.empty{text-align:center;padding:30px 14px;color:var(--txt-mute);font-size:13px}
+
+.export-bar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.export-bar button{flex:1;min-width:140px;padding:11px;background:var(--bg-2);
+  border:1px solid var(--line);border-radius:var(--r-sm);color:var(--txt);font-weight:600;font-size:13px}
+.export-bar button:hover{background:var(--bg-3);border-color:var(--line-2)}
+
+/* TOAST */
+#toast{position:fixed;top:80px;left:50%;transform:translateX(-50%) translateY(-100px);
+  background:var(--bg-3);border:1px solid var(--line);padding:12px 20px;
+  border-radius:10px;font-weight:600;font-size:13.5px;z-index:9999;
+  box-shadow:var(--shadow);transition:transform .3s;max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:var(--ok);color:var(--ok)}
+#toast.error{border-color:var(--danger);color:#ff7b73}
+#toast.warn{border-color:var(--warn);color:var(--warn)}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);
+  z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.show{display:flex}
+.modal{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);
+  padding:20px;max-width:520px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow);position:relative}
+.modal h3{margin:0 0 14px;font-size:16px;padding-right:30px}
+.modal .close-btn{position:absolute;top:14px;right:14px;background:var(--bg-3);
+  border:1px solid var(--line);padding:6px 10px;border-radius:6px}
+.modal-detail-row{padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.modal-detail-row:last-child{border-bottom:none}
+.modal-detail-row strong{display:block;font-size:11px;color:var(--txt-mute);text-transform:uppercase;margin-bottom:3px;letter-spacing:.5px}
+
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid currentColor;
+  border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.chart-wrap{position:relative;height:280px;margin:10px 0}
+@media(max-width:480px){.chart-wrap{height:240px}}
+
+.dash-footer{text-align:center;font-size:11px;color:var(--txt-mute);
+  padding:14px;border-top:1px solid var(--line);margin-top:20px;line-height:1.6}
+.dash-footer code{background:var(--bg-2);padding:2px 6px;border-radius:4px;color:var(--gold)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <a href="Index_Menu.html" class="hdr-back">←</a>
+  <div class="hdr-brand">
+    <div class="hdr-logo">📊</div>
+    <div class="hdr-title">
+      <strong>NPS / Auditoria</strong>
+      <small id="hdr-sub">—</small>
+    </div>
+  </div>
+  <span class="hdr-status" id="net-status">⚪</span>
+</header>
+
+<!-- TOGGLE -->
+<nav class="toggle-wrap">
+  <button class="tog-btn active" id="tab-form" onclick="trocarAba('form')">📝 Nova Avaliação</button>
+  <button class="tog-btn" id="tab-dash" onclick="trocarAba('dash')">📈 Dashboard</button>
+</nav>
+
+<!-- PENDENTES -->
+<div class="pending-bar" id="pending-bar">
+  <span>📤 <strong id="pending-count">0</strong> pendente(s) de envio</span>
+  <button onclick="reenviarFila()">Reenviar agora</button>
+</div>
+
+<!-- TELA: FORMULÁRIO -->
+<main class="wrap" id="screen-form">
+
+  <div class="draft-banner" id="draft-banner">
+    <h4>📋 Avaliação não finalizada</h4>
+    <p id="draft-info">—</p>
+    <div class="btns">
+      <button class="rec" onclick="recuperarDraft()">Recuperar</button>
+      <button class="dis" onclick="descartarDraft()">Descartar</button>
+    </div>
+  </div>
+
+  <!-- BLOCO 1: IDENTIFICAÇÃO -->
+  <div class="card">
+    <h3><span class="num">1</span> Identificação</h3>
+    <p class="q">Quem está sendo avaliado.</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Data da Visita <span class="req">*</span></label>
+        <input type="date" id="f-data" required>
+      </div>
+      <div class="field">
+        <label>CNPJ do Cliente <span class="req">*</span></label>
+        <input type="text" id="f-cnpj" placeholder="00.000.000/0000-00" inputmode="numeric" maxlength="18" required>
+        <div class="hint" id="cnpj-hint">Digite 14 dígitos</div>
+        <div class="tel-inline" id="tel-inline">
+          <strong>Contatos do cliente:</strong>
+          <span class="tel-item" id="tel-fone">—</span>
+          <span class="tel-item" id="tel-wa">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Nome Fantasia <span class="req">*</span></label>
+      <input type="text" id="f-nomefantasia" placeholder="Será preenchido automaticamente">
+    </div>
+    <div class="field">
+      <label>Razão Social <span style="color:var(--txt-mute);font-weight:400;font-size:10px;text-transform:none">(opcional)</span></label>
+      <input type="text" id="f-nome" placeholder="Preencha se souber — não obrigatório">
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Segmento <span class="req">*</span></label>
+        <select id="f-segmento" required>
+          <option value="">Selecione…</option>
+          <option>Restaurante</option><option>Pizzaria</option><option>Hamburgueria</option>
+          <option>Cafeteria</option><option>Padaria</option><option>Hotel</option>
+          <option>Mercearia/Conveniência</option><option>Lanchonete</option>
+          <option>Sushi/Japonesa</option><option>Bar/Pub</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Potencial do Cliente <span class="req">*</span></label>
+        <select id="f-potencial" required>
+          <option value="">Selecione…</option>
+          <option value="A">A — grande volume / estratégico</option>
+          <option value="B">B — volume médio</option>
+          <option value="C">C — pequeno</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Vendedor Responsável <span class="req">*</span></label>
+      <select id="f-vendedor" required><option value="">Carregando…</option></select>
+    </div>
+  </div>
+
+  <!-- BLOCO 2: NPS -->
+  <div class="card">
+    <h3><span class="num">2</span> Nota Geral (NPS)</h3>
+    <p class="q">"De 0 a 10, qual a probabilidade de você recomendar a <strong>Q Food Company</strong> a outro parceiro de negócios?"</p>
+    <div class="nps-scale" id="nps-scale"></div>
+    <div class="nps-feedback" id="nps-feedback">—</div>
+  </div>
+
+  <!-- BLOCO 3: PILARES -->
+  <div class="card">
+    <h3><span class="num">3</span> Raio-X por Área</h3>
+    <p class="q">Avalie de 1 a 5 estrelas (1 = muito insatisfeito · 5 = muito satisfeito).</p>
+
+    <div class="pilar" data-pilar="comercial">
+      <div class="pilar-title"><span class="ic">💼</span> Time Comercial (Proatividade)</div>
+      <div class="pilar-q">"O quanto nosso consultor se empenha em oferecer soluções e novidades para o seu negócio?"</div>
+      <div class="stars" data-stars="comercial"></div>
+      <div class="star-legend" data-legend="comercial">Toque uma estrela</div>
+    </div>
+
+    <div class="pilar" data-pilar="logistica">
+      <div class="pilar-title"><span class="ic">🚚</span> Logística e Entrega</div>
+      <div class="pilar-q">"Como você avalia a pontualidade, o cuidado com as embalagens e o atendimento da nossa equipe de entrega (motoristas)?"</div>
+      <div class="stars" data-stars="logistica"></div>
+      <div class="star-legend" data-legend="logistica">Toque uma estrela</div>
+      <div class="pilar-extra">
+        <textarea id="f-obs-motorista" placeholder="Algum comentário sobre o motorista? (opcional — só preencha se houve menção específica)"></textarea>
+      </div>
+    </div>
+
+    <div class="pilar" data-pilar="qualidade">
+      <div class="pilar-title"><span class="ic">✨</span> Qualidade e Validade</div>
+      <div class="pilar-q">"Qual seu nível de satisfação com o frescor e o prazo de validade dos produtos recebidos?"</div>
+      <div class="stars" data-stars="qualidade"></div>
+      <div class="star-legend" data-legend="qualidade">Toque uma estrela</div>
+    </div>
+
+    <div class="pilar" data-pilar="financeiro">
+      <div class="pilar-title"><span class="ic">💰</span> Financeiro e Faturamento</div>
+      <div class="pilar-q">"Quão fácil e assertivo é nosso processo de cobrança, emissão de notas e negociação de prazos?"</div>
+      <div class="stars" data-stars="financeiro"></div>
+      <div class="star-legend" data-legend="financeiro">Toque uma estrela</div>
+    </div>
+
+    <div class="pilar" data-pilar="mix">
+      <div class="pilar-title"><span class="ic">📦</span> Mix de Produtos</div>
+      <div class="pilar-q">"O mix da Q Food atende todas as necessidades do seu negócio, ou você precisa comprar com concorrente?"</div>
+      <div class="stars" data-stars="mix"></div>
+      <div class="star-legend" data-legend="mix">Toque uma estrela</div>
+    </div>
+  </div>
+
+  <!-- BLOCO 4: PROBLEMA 30D -->
+  <div class="card">
+    <h3><span class="num">4</span> Dor de Cabeça (30 dias)</h3>
+    <p class="q">"Nos últimos 30 dias, você teve algum problema que precisou de reentrega, troca de produto ou ajuste de boleto?"</p>
+    <div class="radio-grid" id="radio-problema">
+      <label class="radio-opt"><input type="radio" name="problema" value="Nao"><span>✅ Não, tudo ocorreu perfeitamente</span></label>
+      <label class="radio-opt"><input type="radio" name="problema" value="Pedido-Entrega"><span>📦 Sim, problemas com pedido/entrega</span></label>
+      <label class="radio-opt"><input type="radio" name="problema" value="Financeiro"><span>💸 Sim, problemas com financeiro</span></label>
+      <label class="radio-opt"><input type="radio" name="problema" value="Atendimento"><span>📞 Sim, problemas com atendimento</span></label>
+    </div>
+  </div>
+
+  <!-- BLOCO 5: INDICARIA -->
+  <div class="card">
+    <h3><span class="num">5</span> Retenção</h3>
+    <p class="q">"Você indicaria a Q Food para um colega do seu segmento <strong>hoje</strong>?"</p>
+    <div class="tri-btns">
+      <button type="button" class="tri-btn sel-sim" data-tri="Sim"><span class="ic">✅</span>Sim</button>
+      <button type="button" class="tri-btn sel-talvez" data-tri="Talvez"><span class="ic">🤔</span>Talvez</button>
+      <button type="button" class="tri-btn sel-nao" data-tri="Nao"><span class="ic">❌</span>Não</button>
+    </div>
+  </div>
+
+  <!-- BLOCO 6: ABERTO -->
+  <div class="card">
+    <h3><span class="num">6</span> Espaço Aberto</h3>
+    <p class="q">"O que falta para a Q Food Company ser o seu fornecedor número 1 em todos os segmentos?"</p>
+    <div class="field">
+      <textarea id="f-aberto" maxlength="500" placeholder="Anote literalmente o que o cliente falou…"></textarea>
+      <div class="char-count"><span id="char-count">0</span>/500</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-primary" id="btn-salvar" onclick="salvar()">💾 Salvar Avaliação</button>
+    <button class="btn-secondary" onclick="limparForm(true)">🗑️ Limpar Formulário</button>
+  </div>
+</main>
+
+<!-- TELA: DASHBOARD -->
+<main class="wrap" id="screen-dash" style="display:none">
+  <div class="dash-filters">
+    <select id="dash-periodo">
+      <option value="7">Últimos 7 dias</option>
+      <option value="30" selected>Últimos 30 dias</option>
+      <option value="90">Últimos 90 dias</option>
+      <option value="365">Últimos 12 meses</option>
+      <option value="all">Tudo</option>
+    </select>
+    <select id="dash-vendedor"><option value="">Todos os vendedores</option></select>
+    <select id="dash-segmento"><option value="">Todos os segmentos</option></select>
+    <select id="dash-potencial">
+      <option value="">Todos potenciais</option>
+      <option value="A">Potencial A</option><option value="B">Potencial B</option><option value="C">Potencial C</option>
+    </select>
+    <select id="dash-categoria">
+      <option value="">Todas categorias NPS</option>
+      <option value="Promotor">Promotores</option>
+      <option value="Neutro">Neutros</option>
+      <option value="Detrator">Detratores</option>
+    </select>
+    <button class="refresh" onclick="recarregarDashboard(true)">🔄 Atualizar</button>
+  </div>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="export-bar">
+    <button onclick="exportarCSV()">📥 Exportar CSV</button>
+    <button onclick="resumoWhatsApp()">📋 Resumo p/ WhatsApp</button>
+  </div>
+
+  <div class="section">
+    <h2>🎯 Radar dos 5 Pilares</h2>
+    <div class="chart-wrap"><canvas id="radar-chart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <h2>📊 Raio-X por Pilar</h2>
+    <table class="pilar-table">
+      <thead><tr><th>Área</th><th>Peso</th><th>Média</th><th>Status</th></tr></thead>
+      <tbody id="pilar-tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>📈 Evolução Mensal do NPS</h2>
+    <div class="chart-wrap"><canvas id="line-chart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <h2>🏆 Ranking de Vendedores <small>(por Nota Comercial — única métrica que o vendedor controla)</small></h2>
+    <div id="vendor-list"></div>
+  </div>
+
+  <div class="section">
+    <h2>🔥 Problemas Relatados</h2>
+    <div id="problema-bars"></div>
+  </div>
+
+  <div class="section">
+    <h2>🚨 Clientes em Risco — Ação Imediata</h2>
+    <div id="risk-list"></div>
+  </div>
+
+  <div class="section" id="sec-revisar" style="display:none">
+    <h2>⚠️ Avaliações para Revisão <small>(preenchimento &lt; 90 segundos)</small></h2>
+    <div id="revisar-list"></div>
+  </div>
+
+  <div class="section">
+    <h2>🚛 Menções a Motorista</h2>
+    <div id="motorista-list"></div>
+  </div>
+
+  <div class="section">
+    <h2>💬 Comentários do Cliente</h2>
+    <input type="text" id="search-comments" placeholder="Filtrar por palavra-chave…" style="width:100%;padding:9px;background:var(--bg-2);border:1px solid var(--line);border-radius:8px;color:var(--txt);margin-bottom:10px;font-size:13px">
+    <div id="comment-list"></div>
+  </div>
+
+  <div class="dash-footer">
+    Score Operacional = <code>0.25 × Comercial + 0.30 × Logística + 0.20 × Qualidade + 0.15 × Financeiro + 0.10 × Mix</code><br>
+    Cliente em Risco: NPS ≤ 6 <strong>OU</strong> Logística ≤ 2 <strong>OU</strong> Financeiro ≤ 2
+  </div>
+</main>
+
+<div id="toast"></div>
+<div class="modal-bg" id="modal-detalhes" onclick="if(event.target===this)fecharModal()">
+  <div class="modal">
+    <button class="close-btn" onclick="fecharModal()">✕</button>
+    <h3 id="modal-titulo">Detalhes</h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+/* ============================================================
+   Index_NPS.html — Estrutura JS em 14 blocos
+   1.CONFIG · 2.AUTH · 3.CSV_PARSER · 4.CACHE
+   5.API · 6.LOOKUPS · 7.DRAFT_QUEUE · 8.FORM
+   9.VALIDATION · 10.SUBMIT · 11.DASHBOARD
+   12.CHARTS · 13.UI · 14.UTILS
+   ============================================================ */
+
+/* ═══════ 1. CONFIG ═══════ */
+var CONFIG = {
+  WEBAPP_URL: "https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec",  // Web App qfood-dashboard (mesma URL de Tarefas/Checkpoint/CRM/Trocas)
+  CSV: {
+    UNPS:     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1742739926&single=true&output=csv",
+    BASE_PDV: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1880583941&single=true&output=csv",
+    UUSR:     "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv"
+  },
+  BASE_PDV: {
+    // Mapeamento REAL da BASE_PDV do Rodrigo (validado em 13/05/2026)
+    COL_NOME_FANTASIA:  0,   // A  → Nome Fantasia
+    COL_CNPJ:           1,   // B  → CNPJ
+    COL_FONE:           6,   // G  → Fone1
+    COL_WHATSAPP:       7,   // H  → WhatsApp
+    COL_SEGMENTO:      42    // AQ → Segmento
+    // Obs: BASE_PDV não tem coluna separada de Razão Social. O front usa Nome Fantasia
+    // como identificador principal e o gestor pode preencher Razão Social manualmente.
+  },
+  PESOS: { comercial:0.25, logistica:0.30, qualidade:0.20, financeiro:0.15, mix:0.10 },
+  CACHE_TTL: { BASE_PDV: 15*60*1000, UNPS: 60*1000, UUSR: 15*60*1000 },
+  SESSION_KEY: "qfood_session",
+  DRAFT_KEY:   "nps_draft_v1",
+  QUEUE_KEY:   "nps_queue_v1",
+  CACHE_PREFIX:"nps_cache_",
+  FALLBACK_USERS_NPS: [
+    "rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br",
+    "celio@qfoodcompany.com.br","barbara@qfoodcompany.com.br",
+    "camila@qfoodcompany.com.br"
+  ],
+  ADMIN_EMAILS: ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"]
+};
+
+var SESSION = null;
+var IS_ADMIN = false;
+var TIMESTAMP_INICIO = null;
+var BASE_PDV_INDEX = null;
+var VENDEDORES = [];
+var CURRENT_DATA = [];
+var CHART_RADAR = null, CHART_LINE = null;
+
+/* ═══════ 2. AUTH ═══════ */
+function carregarSessao(){
+  try {
+    var raw = localStorage.getItem(CONFIG.SESSION_KEY);
+    if (!raw) return null;
+    var s = JSON.parse(raw);
+    if (!s || !s.email) return null;
+    if (s.expira && Date.now() > s.expira){
+      localStorage.removeItem(CONFIG.SESSION_KEY); return null;
+    }
+    return s;
+  } catch(e){ return null; }
+}
+
+function verificarPermissaoNPS(callback){
+  SESSION = carregarSessao();
+  if (!SESSION){
+    alert("Sessão expirada. Faça login novamente.");
+    window.location.href = "Index_Menu.html"; return;
+  }
+
+  var emailL = SESSION.email.toLowerCase();
+  fetchCsv(CONFIG.CSV.UUSR, "uusr", CONFIG.CACHE_TTL.UUSR, function(rows){
+    var autorizado = false;
+    if (rows && rows.length > 1){
+      var hdr = rows[0].map(function(h){return String(h||"").trim();});
+      var iEmail = idxByName(hdr, "email");
+      var iNps   = idxByName(hdr, "NPS");
+      if (iEmail >= 0 && iNps >= 0){
+        for (var r = 1; r < rows.length; r++){
+          var row = rows[r]; if (!row) continue;
+          var el = String(row[iEmail]||"").trim().toLowerCase();
+          if (el === emailL){
+            var marca = String(row[iNps]||"").trim().toLowerCase();
+            if (marca === "x" || marca.indexOf("x") === 0) autorizado = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!autorizado && CONFIG.FALLBACK_USERS_NPS.indexOf(emailL) >= 0) autorizado = true;
+    if (!autorizado){
+      alert("Você não tem permissão para acessar o módulo NPS.\nFale com Rodrigo ou Adilson.");
+      window.location.href = "Index_Menu.html"; return;
+    }
+    IS_ADMIN = CONFIG.ADMIN_EMAILS.indexOf(emailL) >= 0;
+    document.getElementById("hdr-sub").textContent = (SESSION.nome || SESSION.email) + (IS_ADMIN ? " · admin" : "");
+    if (IS_ADMIN) document.getElementById("sec-revisar").style.display = "block";
+    callback();
+  }, function(){
+    if (CONFIG.FALLBACK_USERS_NPS.indexOf(emailL) >= 0){
+      IS_ADMIN = CONFIG.ADMIN_EMAILS.indexOf(emailL) >= 0;
+      document.getElementById("hdr-sub").textContent = (SESSION.nome || SESSION.email) + " · offline";
+      if (IS_ADMIN) document.getElementById("sec-revisar").style.display = "block";
+      callback();
+    } else {
+      alert("Sem conexão e usuário fora do fallback.");
+      window.location.href = "Index_Menu.html";
+    }
+  });
+}
+
+/* ═══════ 3. CSV PARSER (RFC 4180) ═══════ */
+function parseCSV(text){
+  var rows = [], cur = [], field = "", inQ = false;
+  for (var i = 0; i < text.length; i++){
+    var c = text[i];
+    if (inQ){
+      if (c === '"' && text[i+1] === '"'){ field += '"'; i++; }
+      else if (c === '"'){ inQ = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ','){ cur.push(field); field = ""; }
+      else if (c === '\r'){ /* skip */ }
+      else if (c === '\n'){ cur.push(field); rows.push(cur); cur = []; field = ""; }
+      else field += c;
+    }
+  }
+  if (field.length > 0 || cur.length > 0){ cur.push(field); rows.push(cur); }
+  return rows;
+}
+
+function idxByName(hdr, name){
+  for (var i = 0; i < hdr.length; i++){
+    if (String(hdr[i]||"").trim().toLowerCase() === String(name).toLowerCase()) return i;
+  }
+  return -1;
+}
+
+/* ═══════ 4. CACHE ═══════ */
+function cacheGet(key){
+  try { return JSON.parse(sessionStorage.getItem(CONFIG.CACHE_PREFIX + key) || "null"); }
+  catch(e){ return null; }
+}
+function cacheSet(key, data, ttl){
+  try {
+    sessionStorage.setItem(CONFIG.CACHE_PREFIX + key,
+      JSON.stringify({ data: data, ts: Date.now(), ttl: ttl }));
+  } catch(e){}
+}
+function cacheValid(obj, ttl){
+  return obj && obj.ts && (Date.now() - obj.ts) < (ttl || obj.ttl || 60000);
+}
+
+/* ═══════ 5. API ═══════ */
+function fetchCsv(url, cacheKey, ttl, onSuccess, onError){
+  if (cacheKey){
+    var c = cacheGet(cacheKey);
+    if (cacheValid(c, ttl)){ try { onSuccess(c.data); } catch(_){}; return; }
+  }
+  fetch(url + (url.indexOf("?")>=0 ? "&" : "?") + "t=" + Date.now())
+    .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+    .then(function(txt){
+      var rows = parseCSV(txt);
+      if (cacheKey) cacheSet(cacheKey, rows, ttl);
+      onSuccess(rows);
+    })
+    .catch(function(err){
+      console.warn("fetchCsv falhou:", url, err);
+      if (cacheKey){
+        var c2 = cacheGet(cacheKey);
+        if (c2 && c2.data){ onSuccess(c2.data); return; }
+      }
+      if (onError) onError(err);
+    });
+}
+
+function postWebApp(payload, onOk, onErr){
+  if (!CONFIG.WEBAPP_URL || CONFIG.WEBAPP_URL.indexOf("COLOQUE_AQUI") >= 0){
+    onErr(new Error("WEBAPP_URL não configurada — edite CONFIG.WEBAPP_URL no início do script"));
+    return;
+  }
+  var url = CONFIG.WEBAPP_URL + (CONFIG.WEBAPP_URL.indexOf("?")>=0 ? "&" : "?") +
+            "modulo=nps&action=" + encodeURIComponent(payload.action || "salvar");
+  fetch(url, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain;charset=utf-8"},
+    body: JSON.stringify(payload),
+    redirect: "follow"
+  })
+  .then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+  .then(function(txt){
+    var resp;
+    try { resp = JSON.parse(txt); } catch(e){ throw new Error("Resposta não-JSON: " + txt.substring(0,200)); }
+    if (!resp.ok) throw new Error(resp.error || "Erro desconhecido");
+    onOk(resp);
+  })
+  .catch(function(err){ console.warn("postWebApp:", err); onErr(err); });
+}
+
+/* ═══════ 6. LOOKUPS ═══════ */
+function carregarBasePdv(callback){
+  fetchCsv(CONFIG.CSV.BASE_PDV, "base_pdv", CONFIG.CACHE_TTL.BASE_PDV, function(rows){
+    BASE_PDV_INDEX = {};
+    if (rows && rows.length > 1){
+      for (var r = 1; r < rows.length; r++){
+        var row = rows[r]; if (!row) continue;
+        var cnpj = somenteDigitos(row[CONFIG.BASE_PDV.COL_CNPJ] || "");
+        if (!cnpj || cnpj.length !== 14) continue;
+        BASE_PDV_INDEX[cnpj] = {
+          nome:     "",   // BASE_PDV não tem coluna separada de Razão Social
+          fantasia: String(row[CONFIG.BASE_PDV.COL_NOME_FANTASIA] || "").trim(),
+          fone:     String(row[CONFIG.BASE_PDV.COL_FONE] || "").trim(),
+          whatsapp: String(row[CONFIG.BASE_PDV.COL_WHATSAPP] || "").trim(),
+          segmento: String(row[CONFIG.BASE_PDV.COL_SEGMENTO] || "").trim()
+        };
+      }
+    }
+    callback && callback();
+  }, function(){ BASE_PDV_INDEX = {}; callback && callback(); });
+}
+
+function carregarVendedores(){
+  fetchCsv(CONFIG.CSV.UUSR, "uusr", CONFIG.CACHE_TTL.UUSR, function(rows){
+    VENDEDORES = [];
+    if (rows && rows.length > 1){
+      var hdr = rows[0].map(function(h){return String(h||"").trim();});
+      var iEmail = idxByName(hdr, "email");
+      var iNome  = idxByName(hdr, "nome");
+      var iPerf  = idxByName(hdr, "perfil");
+      var iSigla = idxByName(hdr, "sigla");
+      for (var r = 1; r < rows.length; r++){
+        var row = rows[r]; if (!row) continue;
+        var perfil = String(row[iPerf]||"").trim().toLowerCase();
+        if (perfil !== "vendedor") continue;
+        var sigla = iSigla>=0 ? String(row[iSigla]||"").trim() : "";
+        var nome  = iNome >=0 ? String(row[iNome ]||"").trim() : "";
+        var email = String(row[iEmail]||"").trim();
+        if (!sigla || !nome) continue;
+        VENDEDORES.push({sigla: sigla, nome: nome, email: email});
+      }
+    }
+    var sel = document.getElementById("f-vendedor");
+    sel.innerHTML = '<option value="">Selecione…</option>';
+    VENDEDORES.sort(function(a,b){return a.nome.localeCompare(b.nome);});
+    VENDEDORES.forEach(function(v){
+      var opt = document.createElement("option");
+      opt.value = v.sigla;
+      opt.textContent = v.sigla + " — " + v.nome;
+      sel.appendChild(opt);
+    });
+    if (VENDEDORES.length === 0){
+      sel.innerHTML = '<option value="">Nenhum vendedor na UUSR</option>';
+    }
+  }, function(){
+    document.getElementById("f-vendedor").innerHTML = '<option value="">Erro ao carregar UUSR</option>';
+  });
+}
+
+var cnpjDebounceTimer = null;
+function lookupCnpj(cnpjFormatado){
+  if (cnpjDebounceTimer) clearTimeout(cnpjDebounceTimer);
+  cnpjDebounceTimer = setTimeout(function(){
+    var cnpj = somenteDigitos(cnpjFormatado);
+    var hint = document.getElementById("cnpj-hint");
+    var inp = document.getElementById("f-cnpj");
+    var fNome = document.getElementById("f-nome");
+    var fFant = document.getElementById("f-nomefantasia");
+    var fSeg  = document.getElementById("f-segmento");
+    var telBox = document.getElementById("tel-inline");
+    var telFone = document.getElementById("tel-fone");
+    var telWa = document.getElementById("tel-wa");
+
+    inp.classList.remove("found","notfound");
+    telBox.classList.remove("show");
+
+    if (cnpj.length !== 14){
+      hint.textContent = "Digite 14 dígitos";
+      hint.className = "hint";
+      return;
+    }
+    if (!BASE_PDV_INDEX){
+      hint.textContent = "Aguardando BASE_PDV…"; hint.className = "hint warn"; return;
+    }
+
+    var info = BASE_PDV_INDEX[cnpj];
+    if (info){
+      inp.classList.add("found");
+      hint.innerHTML = "✓ <strong>" + escapeHtml(info.fantasia || "Cliente encontrado") + "</strong>";
+      hint.className = "hint ok";
+      fFant.value = info.fantasia || "";
+      // Razão Social: só preenche se BASE_PDV tiver (atualmente não tem coluna separada — fica em branco para preenchimento manual)
+      if (info.nome) fNome.value = info.nome;
+      if (info.segmento){
+        var match = Array.prototype.find.call(fSeg.options, function(o){
+          return o.value.toLowerCase() === info.segmento.toLowerCase();
+        });
+        if (match) fSeg.value = match.value;
+        else { fSeg.add(new Option(info.segmento, info.segmento)); fSeg.value = info.segmento; }
+      }
+      // Telefones inline
+      var temFone = info.fone && somenteDigitos(info.fone).length >= 8;
+      var temWa = info.whatsapp && somenteDigitos(info.whatsapp).length >= 8;
+      if (temFone || temWa){
+        telBox.classList.add("show");
+        telFone.innerHTML = temFone ? "📞 " + escapeHtml(info.fone) : "";
+        telWa.innerHTML   = temWa   ? "📱 " + escapeHtml(info.whatsapp) : "";
+      }
+    } else {
+      inp.classList.add("notfound");
+      hint.textContent = "⚠️ CNPJ não encontrado — preencha manualmente";
+      hint.className = "hint warn";
+    }
+    salvarDraft();
+  }, 300);
+}
+
+/* ═══════ 7. DRAFT + QUEUE OFFLINE ═══════ */
+function coletarFormulario(){
+  return {
+    data_visita:        document.getElementById("f-data").value,
+    cnpj:               document.getElementById("f-cnpj").value,
+    nome_cliente:       document.getElementById("f-nome").value,
+    nome_fantasia:      document.getElementById("f-nomefantasia").value,
+    segmento:           document.getElementById("f-segmento").value,
+    potencial_abc:      document.getElementById("f-potencial").value,
+    vendedor_sigla:     document.getElementById("f-vendedor").value,
+    vendedor_nome:      (function(){
+      var sel = document.getElementById("f-vendedor");
+      var t = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : "";
+      return t.replace(/^[^—]+—\s*/, "").trim();
+    })(),
+    nps_score:          getNpsScore(),
+    nota_comercial:     getStars("comercial"),
+    nota_logistica:     getStars("logistica"),
+    nota_qualidade:     getStars("qualidade"),
+    nota_financeiro:    getStars("financeiro"),
+    nota_mix:           getStars("mix"),
+    observacao_motorista: document.getElementById("f-obs-motorista").value,
+    problema_30d:       getRadio("problema"),
+    indicaria_hoje:     getTri(),
+    texto_aberto:       document.getElementById("f-aberto").value,
+    timestamp_inicio:   TIMESTAMP_INICIO || new Date().toISOString(),
+    gestor_email:       SESSION ? SESSION.email : "",
+    gestor_nome:        SESSION ? SESSION.nome  : ""
+  };
+}
+
+function salvarDraft(){
+  try {
+    var d = coletarFormulario();
+    if (!d.cnpj && d.nps_score === null && !d.texto_aberto) return;
+    localStorage.setItem(CONFIG.DRAFT_KEY, JSON.stringify({data:d, ts:Date.now()}));
+  } catch(e){}
+}
+
+function checarDraft(){
+  try {
+    var raw = localStorage.getItem(CONFIG.DRAFT_KEY);
+    if (!raw) return;
+    var obj = JSON.parse(raw);
+    if (!obj || !obj.data) return;
+    var idade = Math.round((Date.now() - obj.ts) / 60000);
+    var d = obj.data;
+    var info = "Iniciada há " + idade + " min";
+    if (d.nome_fantasia || d.nome_cliente) info += " · " + (d.nome_fantasia || d.nome_cliente);
+    if (d.cnpj) info += " (" + d.cnpj + ")";
+    document.getElementById("draft-info").textContent = info;
+    document.getElementById("draft-banner").classList.add("show");
+  } catch(e){}
+}
+
+function recuperarDraft(){
+  try {
+    var obj = JSON.parse(localStorage.getItem(CONFIG.DRAFT_KEY));
+    if (!obj || !obj.data) return;
+    aplicarDados(obj.data);
+    document.getElementById("draft-banner").classList.remove("show");
+    toast("📋 Avaliação recuperada", "success");
+  } catch(e){ toast("Erro ao recuperar", "error"); }
+}
+function descartarDraft(){
+  localStorage.removeItem(CONFIG.DRAFT_KEY);
+  document.getElementById("draft-banner").classList.remove("show");
+}
+
+function aplicarDados(d){
+  if (d.data_visita)    document.getElementById("f-data").value = d.data_visita;
+  if (d.cnpj)           { document.getElementById("f-cnpj").value = d.cnpj; lookupCnpj(d.cnpj); }
+  if (d.nome_cliente)   document.getElementById("f-nome").value = d.nome_cliente;
+  if (d.nome_fantasia)  document.getElementById("f-nomefantasia").value = d.nome_fantasia;
+  if (d.segmento)       document.getElementById("f-segmento").value = d.segmento;
+  if (d.potencial_abc)  document.getElementById("f-potencial").value = d.potencial_abc;
+  if (d.vendedor_sigla) document.getElementById("f-vendedor").value = d.vendedor_sigla;
+  if (d.nps_score !== null && d.nps_score !== undefined) setNpsScore(d.nps_score);
+  ["comercial","logistica","qualidade","financeiro","mix"].forEach(function(p){
+    if (d["nota_"+p]) setStars(p, d["nota_"+p]);
+  });
+  if (d.observacao_motorista) document.getElementById("f-obs-motorista").value = d.observacao_motorista;
+  if (d.problema_30d)   setRadio("problema", d.problema_30d);
+  if (d.indicaria_hoje) setTri(d.indicaria_hoje);
+  if (d.texto_aberto)   { document.getElementById("f-aberto").value = d.texto_aberto; atualizarContadorChars(); }
+  if (d.timestamp_inicio) TIMESTAMP_INICIO = d.timestamp_inicio;
+}
+
+function carregarFila(){ try { return JSON.parse(localStorage.getItem(CONFIG.QUEUE_KEY) || "[]"); } catch(e){ return []; } }
+function salvarFila(arr){ try { localStorage.setItem(CONFIG.QUEUE_KEY, JSON.stringify(arr)); } catch(e){} }
+function atualizarBadgePendentes(){
+  var fila = carregarFila();
+  var bar = document.getElementById("pending-bar");
+  if (fila.length > 0){
+    document.getElementById("pending-count").textContent = fila.length;
+    bar.classList.add("show");
+  } else bar.classList.remove("show");
+}
+function adicionarNaFila(payload){
+  var fila = carregarFila();
+  payload._localId = "local-" + Date.now() + "-" + Math.random().toString(36).slice(2,7);
+  fila.push(payload);
+  salvarFila(fila);
+  atualizarBadgePendentes();
+}
+function reenviarFila(){
+  var fila = carregarFila();
+  if (fila.length === 0) return;
+  if (!navigator.onLine){ toast("Sem internet — tente quando voltar", "warn"); return; }
+  toast("📤 Enviando " + fila.length + " avaliação(ões)…", "warn");
+  postWebApp({action:"salvarLote", payload:{lista: fila}}, function(resp){
+    var resultados = resp.resultados || [];
+    var ok = resultados.filter(function(x){return x.ok;}).length;
+    var falhas = [];
+    resultados.forEach(function(r, i){ if (!r.ok) falhas.push(fila[i]); });
+    if (falhas.length === 0){
+      salvarFila([]);
+      toast("✅ " + ok + " sincronizada(s)", "success");
+    } else {
+      salvarFila(falhas);
+      toast("⚠️ " + ok + " enviadas / " + falhas.length + " falharam", "warn");
+    }
+    atualizarBadgePendentes();
+  }, function(err){
+    toast("❌ Reenvio falhou: " + err.message, "error");
+  });
+}
+
+/* ═══════ 8. FORM (render dos componentes) ═══════ */
+function renderNpsScale(){
+  var wrap = document.getElementById("nps-scale");
+  wrap.innerHTML = "";
+  for (var i = 0; i <= 10; i++){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "nps-btn";
+    b.dataset.score = i;
+    b.dataset.cat = i <= 6 ? "detrator" : i <= 8 ? "neutro" : "promotor";
+    b.textContent = i;
+    b.onclick = function(){ setNpsScore(Number(this.dataset.score)); marcarInicio(); salvarDraft(); };
+    wrap.appendChild(b);
+  }
+}
+
+function setNpsScore(v){
+  document.querySelectorAll(".nps-btn").forEach(function(b){
+    b.classList.toggle("selected", Number(b.dataset.score) === Number(v));
+  });
+  var cat = v <= 6 ? "detrator" : v <= 8 ? "neutro" : "promotor";
+  var lbl = cat === "detrator" ? "🔴 Detrator (0-6)" : cat === "neutro" ? "🟡 Neutro (7-8)" : "🟢 Promotor (9-10)";
+  var fb = document.getElementById("nps-feedback");
+  fb.textContent = lbl;
+  fb.className = "nps-feedback show " + cat;
+}
+function getNpsScore(){
+  var sel = document.querySelector(".nps-btn.selected");
+  return sel ? Number(sel.dataset.score) : null;
+}
+
+function renderStars(){
+  document.querySelectorAll("[data-stars]").forEach(function(wrap){
+    var pilar = wrap.dataset.stars;
+    wrap.innerHTML = "";
+    for (var i = 1; i <= 5; i++){
+      var s = document.createElement("button");
+      s.type = "button"; s.className = "star";
+      s.dataset.val = i; s.dataset.pilar = pilar;
+      s.textContent = "★";
+      s.onclick = function(){ setStars(this.dataset.pilar, Number(this.dataset.val)); marcarInicio(); salvarDraft(); };
+      wrap.appendChild(s);
+    }
+  });
+}
+function setStars(pilar, val){
+  var wrap = document.querySelector('[data-stars="'+pilar+'"]');
+  if (!wrap) return;
+  wrap.querySelectorAll(".star").forEach(function(s){
+    var v = Number(s.dataset.val);
+    s.classList.toggle("active", v <= Number(val));
+  });
+  var legendas = {1:"Muito Insatisfeito",2:"Insatisfeito",3:"Neutro",4:"Satisfeito",5:"Muito Satisfeito"};
+  var leg = document.querySelector('[data-legend="'+pilar+'"]');
+  if (leg) leg.textContent = legendas[val] || "—";
+  var pilarEl = document.querySelector('[data-pilar="'+pilar+'"]');
+  if (pilarEl) pilarEl.classList.add("has-rating");
+}
+function getStars(pilar){
+  var actives = document.querySelectorAll('[data-stars="'+pilar+'"] .star.active');
+  return actives.length || null;
+}
+
+function setRadio(name, val){
+  document.querySelectorAll('input[name="'+name+'"]').forEach(function(r){
+    r.checked = r.value === val;
+    var lbl = r.closest(".radio-opt");
+    if (lbl) lbl.classList.toggle("selected", r.checked);
+  });
+}
+function getRadio(name){
+  var sel = document.querySelector('input[name="'+name+'"]:checked');
+  return sel ? sel.value : null;
+}
+
+function setTri(val){
+  document.querySelectorAll(".tri-btn").forEach(function(b){
+    b.classList.toggle("selected", b.dataset.tri === val);
+  });
+}
+function getTri(){
+  var sel = document.querySelector(".tri-btn.selected");
+  return sel ? sel.dataset.tri : null;
+}
+
+function atualizarContadorChars(){
+  var v = document.getElementById("f-aberto").value;
+  document.getElementById("char-count").textContent = v.length;
+}
+
+function aplicarMascaraCnpj(v){
+  v = somenteDigitos(v).slice(0,14);
+  if (v.length > 12) return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2}).*/, "$1.$2.$3/$4-$5");
+  if (v.length > 8)  return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, "$1.$2.$3/$4");
+  if (v.length > 5)  return v.replace(/^(\d{2})(\d{3})(\d{0,3}).*/, "$1.$2.$3");
+  if (v.length > 2)  return v.replace(/^(\d{2})(\d{0,3}).*/, "$1.$2");
+  return v;
+}
+
+function limparForm(confirmar){
+  if (confirmar && !window.confirm("Limpar todos os campos? O draft também será descartado.")) return;
+  document.getElementById("f-data").value = hojeIso();
+  document.getElementById("f-cnpj").value = "";
+  document.getElementById("f-nome").value = "";
+  document.getElementById("f-nomefantasia").value = "";
+  document.getElementById("f-segmento").value = "";
+  document.getElementById("f-potencial").value = "";
+  document.getElementById("f-vendedor").value = "";
+  document.querySelectorAll(".nps-btn.selected").forEach(function(b){b.classList.remove("selected");});
+  document.getElementById("nps-feedback").classList.remove("show");
+  document.querySelectorAll(".star.active").forEach(function(s){s.classList.remove("active");});
+  document.querySelectorAll(".pilar.has-rating").forEach(function(p){p.classList.remove("has-rating");});
+  document.querySelectorAll('[data-legend]').forEach(function(l){l.textContent="Toque uma estrela";});
+  document.getElementById("f-obs-motorista").value = "";
+  document.querySelectorAll('input[name="problema"]').forEach(function(r){
+    r.checked = false; var p = r.closest(".radio-opt"); if (p) p.classList.remove("selected");
+  });
+  document.querySelectorAll(".tri-btn").forEach(function(b){b.classList.remove("selected");});
+  document.getElementById("f-aberto").value = "";
+  atualizarContadorChars();
+  document.getElementById("cnpj-hint").textContent = "Digite 14 dígitos";
+  document.getElementById("cnpj-hint").className = "hint";
+  document.getElementById("f-cnpj").classList.remove("found","notfound");
+  document.getElementById("tel-inline").classList.remove("show");
+  descartarDraft();
+  TIMESTAMP_INICIO = null;
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+function marcarInicio(){
+  if (!TIMESTAMP_INICIO) TIMESTAMP_INICIO = new Date().toISOString();
+}
+
+/* ═══════ 9. VALIDATION ═══════ */
+function validarFormulario(){
+  var d = coletarFormulario();
+  var erros = [];
+  if (!d.data_visita) erros.push("Data da Visita");
+  if (somenteDigitos(d.cnpj).length !== 14) erros.push("CNPJ válido (14 dígitos)");
+  if (!d.nome_fantasia) erros.push("Nome Fantasia");
+  if (!d.segmento) erros.push("Segmento");
+  if (!d.potencial_abc) erros.push("Potencial do Cliente (A/B/C)");
+  if (!d.vendedor_sigla) erros.push("Vendedor Responsável");
+  if (d.nps_score === null || d.nps_score === undefined) erros.push("Nota Geral NPS (0-10)");
+  if (!d.nota_comercial)  erros.push("Nota — Time Comercial");
+  if (!d.nota_logistica)  erros.push("Nota — Logística");
+  if (!d.nota_qualidade)  erros.push("Nota — Qualidade");
+  if (!d.nota_financeiro) erros.push("Nota — Financeiro");
+  if (!d.nota_mix)        erros.push("Nota — Mix de Produtos");
+  if (!d.problema_30d)    erros.push("Problema nos últimos 30 dias");
+  if (!d.indicaria_hoje)  erros.push("Indicaria hoje?");
+  return erros;
+}
+
+/* ═══════ 10. SUBMIT ═══════ */
+function salvar(){
+  var erros = validarFormulario();
+  if (erros.length > 0){
+    alert("⚠️ Preencha antes de salvar:\n\n• " + erros.join("\n• "));
+    return;
+  }
+  var d = coletarFormulario();
+  var btn = document.getElementById("btn-salvar");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Enviando…';
+
+  postWebApp({action:"salvar", payload:d}, function(resp){
+    btn.disabled = false;
+    btn.innerHTML = "💾 Salvar Avaliação";
+    var r = resp.resultado || {};
+    var msg = "✅ Avaliação salva! ID " + (r.id || "—");
+    if (r.cliente_risco === "SIM") msg += " · ⚠️ Cliente em RISCO";
+    toast(msg, "success");
+    descartarDraft();
+    limparForm(false);
+    // invalida cache do dashboard pra próxima abertura
+    sessionStorage.removeItem(CONFIG.CACHE_PREFIX + "unps");
+  }, function(err){
+    btn.disabled = false;
+    btn.innerHTML = "💾 Salvar Avaliação";
+    // Cai na fila offline
+    adicionarNaFila({action:"salvar", payload:d});
+    toast("⚠️ Sem conexão — salvo na fila para reenvio", "warn");
+    descartarDraft();
+    limparForm(false);
+  });
+}
+
+/* ═══════ 11. DASHBOARD ═══════ */
+function carregarDashboardData(force, callback){
+  if (force) sessionStorage.removeItem(CONFIG.CACHE_PREFIX + "unps");
+  fetchCsv(CONFIG.CSV.UNPS, "unps", CONFIG.CACHE_TTL.UNPS, function(rows){
+    CURRENT_DATA = parseUnpsRows(rows);
+    callback && callback();
+  }, function(){
+    CURRENT_DATA = [];
+    callback && callback();
+  });
+}
+
+function parseUnpsRows(rows){
+  if (!rows || rows.length < 2) return [];
+  var hdr = rows[0].map(function(h){return String(h||"").trim();});
+  var idx = {};
+  ["ID","Data_Visita","Gestor_Email","Gestor_Nome","CNPJ_Cliente","Nome_Cliente","Nome_Fantasia",
+   "Segmento","Potencial_ABC","Vendedor_Sigla","Vendedor_Nome","NPS_Score","NPS_Categoria",
+   "Nota_Comercial","Nota_Logistica","Nota_Qualidade","Nota_Financeiro","Nota_Mix","Score_Operacional",
+   "Problema_30d","Indicaria_Hoje","Cliente_Risco","Texto_Aberto","Observacao_Motorista",
+   "Timestamp_Inicio","Timestamp_Submit","Duracao_Segundos","Flag_Revisar"].forEach(function(col){
+    idx[col] = idxByName(hdr, col);
+  });
+  var out = [];
+  for (var r = 1; r < rows.length; r++){
+    var row = rows[r]; if (!row || !row[idx.ID]) continue;
+    out.push({
+      id: row[idx.ID],
+      data: parseData(row[idx.Data_Visita]),
+      gestorEmail: row[idx.Gestor_Email],
+      gestorNome: row[idx.Gestor_Nome],
+      cnpj: somenteDigitos(row[idx.CNPJ_Cliente]),
+      nomeCliente: row[idx.Nome_Cliente],
+      nomeFantasia: row[idx.Nome_Fantasia],
+      segmento: row[idx.Segmento],
+      potencial: row[idx.Potencial_ABC],
+      vendedorSigla: row[idx.Vendedor_Sigla],
+      vendedorNome: row[idx.Vendedor_Nome],
+      nps: Number(row[idx.NPS_Score]) || 0,
+      categoria: row[idx.NPS_Categoria],
+      notaCom: Number(row[idx.Nota_Comercial]) || 0,
+      notaLog: Number(row[idx.Nota_Logistica]) || 0,
+      notaQua: Number(row[idx.Nota_Qualidade]) || 0,
+      notaFin: Number(row[idx.Nota_Financeiro]) || 0,
+      notaMix: Number(row[idx.Nota_Mix]) || 0,
+      score: Number(row[idx.Score_Operacional]) || 0,
+      problema: row[idx.Problema_30d],
+      indicaria: row[idx.Indicaria_Hoje],
+      risco: row[idx.Cliente_Risco],
+      textoAberto: row[idx.Texto_Aberto],
+      obsMotorista: row[idx.Observacao_Motorista],
+      duracao: Number(row[idx.Duracao_Segundos]) || 0,
+      flagRevisar: row[idx.Flag_Revisar]
+    });
+  }
+  return out;
+}
+
+function filtrarDados(){
+  var periodo = document.getElementById("dash-periodo").value;
+  var vend = document.getElementById("dash-vendedor").value;
+  var seg = document.getElementById("dash-segmento").value;
+  var pot = document.getElementById("dash-potencial").value;
+  var cat = document.getElementById("dash-categoria").value;
+
+  var inicio = null;
+  if (periodo !== "all"){
+    inicio = new Date(); inicio.setHours(0,0,0,0);
+    inicio.setDate(inicio.getDate() - Number(periodo));
+  }
+  return CURRENT_DATA.filter(function(d){
+    if (inicio && d.data && d.data < inicio) return false;
+    if (vend && d.vendedorSigla !== vend) return false;
+    if (seg && d.segmento !== seg) return false;
+    if (pot && d.potencial !== pot) return false;
+    if (cat && d.categoria !== cat) return false;
+    return true;
+  });
+}
+
+function popularFiltros(){
+  var selV = document.getElementById("dash-vendedor");
+  var selS = document.getElementById("dash-segmento");
+  var vendSet = {}, segSet = {};
+  CURRENT_DATA.forEach(function(d){
+    if (d.vendedorSigla) vendSet[d.vendedorSigla] = d.vendedorNome || d.vendedorSigla;
+    if (d.segmento) segSet[d.segmento] = true;
+  });
+  var atV = selV.value, atS = selS.value;
+  selV.innerHTML = '<option value="">Todos os vendedores</option>';
+  Object.keys(vendSet).sort().forEach(function(s){
+    selV.innerHTML += '<option value="'+escapeHtml(s)+'">'+escapeHtml(s+' — '+vendSet[s])+'</option>';
+  });
+  selV.value = atV;
+  selS.innerHTML = '<option value="">Todos os segmentos</option>';
+  Object.keys(segSet).sort().forEach(function(s){
+    selS.innerHTML += '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>';
+  });
+  selS.value = atS;
+}
+
+function renderDashboard(){
+  var dados = filtrarDados();
+  renderKpis(dados);
+  renderRadar(dados);
+  renderPilarTable(dados);
+  renderLineChart(dados);
+  renderVendorRanking(dados);
+  renderProblemaBars(dados);
+  renderRiskList(dados);
+  if (IS_ADMIN) renderRevisarList(dados);
+  renderMotoristaList(dados);
+  renderCommentList(dados);
+}
+
+function renderKpis(dados){
+  var n = dados.length;
+  var prom = dados.filter(function(d){return d.categoria==="Promotor";}).length;
+  var det  = dados.filter(function(d){return d.categoria==="Detrator";}).length;
+  var risco = dados.filter(function(d){return d.risco==="SIM";}).length;
+  var pctP = n ? Math.round(prom/n*100) : 0;
+  var pctD = n ? Math.round(det/n*100) : 0;
+  var nps = n ? (pctP - pctD) : 0;
+  var scoreMed = n ? mediaProp(dados,"score") : 0;
+  var npsZona = nps > 75 ? "gold" : nps > 50 ? "green" : nps >= 0 ? "yellow" : "red";
+  var npsLbl = nps > 75 ? "🏆 Excelência" : nps > 50 ? "Zona verde" : nps >= 0 ? "Zona amarela" : "Zona vermelha";
+
+  document.getElementById("kpi-grid").innerHTML =
+    kpi("NPS Geral", nps, npsLbl, npsZona) +
+    kpi("Avaliações", n, "no período", "") +
+    kpi("% Promotores", pctP+"%", prom+" de "+n, n && pctP>=50 ? "green" : "") +
+    kpi("% Detratores", pctD+"%", det+" de "+n, det===0 ? "green" : pctD>15 ? "red" : "yellow") +
+    kpi("Clientes em Risco", risco, risco>0 ? "🚨 Investigar" : "Nenhum", risco>0 ? "red" : "green") +
+    kpi("Score Operacional", scoreMed.toFixed(2), "média ponderada", scoreMed>=4.3 ? "green" : scoreMed>=3.5 ? "yellow" : "red");
+}
+function kpi(label, val, sub, cls){
+  return '<div class="kpi '+(cls||"")+'"><div class="kpi-label">'+escapeHtml(label)+
+         '</div><div class="kpi-value">'+escapeHtml(String(val))+
+         '</div><div class="kpi-sub">'+escapeHtml(sub)+'</div></div>';
+}
+
+function renderPilarTable(dados){
+  var pilares = [
+    {nome:"Comercial",  campo:"notaCom", peso:CONFIG.PESOS.comercial},
+    {nome:"Logística",  campo:"notaLog", peso:CONFIG.PESOS.logistica},
+    {nome:"Qualidade",  campo:"notaQua", peso:CONFIG.PESOS.qualidade},
+    {nome:"Financeiro", campo:"notaFin", peso:CONFIG.PESOS.financeiro},
+    {nome:"Mix",        campo:"notaMix", peso:CONFIG.PESOS.mix}
+  ];
+  var html = "";
+  pilares.forEach(function(p){
+    var med = mediaProp(dados, p.campo);
+    var status = med < 3.5 ? "red" : med < 4.3 ? "yellow" : "green";
+    var lbl = med < 3.5 ? "🔴 Alerta" : med < 4.3 ? "🟡 Atenção" : "🟢 Ótimo";
+    html += '<tr><td>'+p.nome+'</td><td>'+(p.peso*100)+'%</td>'+
+            '<td class="nota">'+med.toFixed(2)+'</td>'+
+            '<td><span class="tag '+status+'">'+lbl+'</span></td></tr>';
+  });
+  document.getElementById("pilar-tbody").innerHTML = html || '<tr><td colspan="4" class="empty">Sem dados</td></tr>';
+}
+
+function renderVendorRanking(dados){
+  var byV = {};
+  dados.forEach(function(d){
+    if (!d.vendedorSigla) return;
+    if (!byV[d.vendedorSigla]) byV[d.vendedorSigla] = {sigla:d.vendedorSigla, nome:d.vendedorNome, qtd:0, somaCom:0, somaNps:0, det:0};
+    var v = byV[d.vendedorSigla];
+    v.qtd++; v.somaCom += d.notaCom; v.somaNps += d.nps;
+    if (d.categoria === "Detrator") v.det++;
+  });
+  var arr = Object.keys(byV).map(function(k){
+    var v = byV[k];
+    return {
+      sigla:v.sigla, nome:v.nome, qtd:v.qtd,
+      mediaCom: v.qtd ? v.somaCom/v.qtd : 0,
+      mediaNps: v.qtd ? v.somaNps/v.qtd : 0,
+      det: v.det
+    };
+  }).sort(function(a,b){return b.mediaCom - a.mediaCom;});
+
+  if (arr.length === 0){
+    document.getElementById("vendor-list").innerHTML = '<div class="empty">Sem avaliações no período</div>';
+    return;
+  }
+  var html = "";
+  arr.forEach(function(v, i){
+    var pos = i+1;
+    var posCls = pos === 1 ? "gold" : "";
+    var posTxt = pos === 1 ? "🏆" : pos+"º";
+    var ini = v.sigla.substring(0,2);
+    html += '<div class="vendor-row">'+
+      '<div class="vendor-pos '+posCls+'">'+posTxt+'</div>'+
+      '<div class="vendor-avatar">'+escapeHtml(ini)+'</div>'+
+      '<div class="vendor-info"><div class="vendor-name">'+escapeHtml(v.sigla+' — '+(v.nome||""))+'</div>'+
+      '<div class="vendor-stats">'+v.qtd+' avaliação(ões) · NPS médio: '+v.mediaNps.toFixed(0)+
+      (v.det>0?' · <span style="color:var(--danger)">'+v.det+' detrator(es)</span>':'')+'</div></div>'+
+      '<div class="vendor-nota">'+v.mediaCom.toFixed(1)+'</div></div>';
+  });
+  document.getElementById("vendor-list").innerHTML = html;
+}
+
+function renderProblemaBars(dados){
+  var labels = {"Nao":"✅ Sem problemas","Pedido-Entrega":"📦 Pedido/Entrega","Financeiro":"💸 Financeiro","Atendimento":"📞 Atendimento"};
+  var counts = {Nao:0, "Pedido-Entrega":0, Financeiro:0, Atendimento:0};
+  dados.forEach(function(d){ if (counts[d.problema] !== undefined) counts[d.problema]++; });
+  var max = Math.max.apply(null, Object.keys(counts).map(function(k){return counts[k];})) || 1;
+  var html = "";
+  Object.keys(counts).forEach(function(k){
+    var n = counts[k];
+    var pct = (n / max) * 100;
+    html += '<div class="bar-row '+(k==="Nao"?"ok":"")+'">'+
+      '<div class="lbl">'+labels[k]+'</div>'+
+      '<div class="bar"><div class="bar-fill" style="width:'+pct+'%"></div></div>'+
+      '<div class="val">'+n+'</div></div>';
+  });
+  document.getElementById("problema-bars").innerHTML = html;
+}
+
+function whatsappLink(numero, mensagem){
+  var digits = somenteDigitos(numero);
+  if (!digits) return "";
+  if (digits.length === 10 || digits.length === 11) digits = "55" + digits;
+  return "https://wa.me/" + digits + "?text=" + encodeURIComponent(mensagem);
+}
+
+function buildMensagemWhats(d){
+  var saudacao = (SESSION && SESSION.nome) ? (SESSION.nome.split(" ")[0]) : "a equipe";
+  var nome = d.nomeFantasia || d.nomeCliente || "amigo(a)";
+  // Identifica o pilar pior
+  var pilares = [
+    {nome:"comercial", n:d.notaCom, txt:"o atendimento do seu consultor"},
+    {nome:"logistica", n:d.notaLog, txt:"a logística/entrega"},
+    {nome:"qualidade", n:d.notaQua, txt:"a qualidade dos produtos"},
+    {nome:"financeiro",n:d.notaFin, txt:"o financeiro/cobrança"},
+    {nome:"mix",       n:d.notaMix, txt:"a variedade de produtos"}
+  ].sort(function(a,b){return a.n-b.n;});
+  var pior = pilares[0];
+  var ref = pior.n <= 3 ? pior.txt : "alguns pontos da nossa operação";
+  return "Olá, " + nome + "! Tudo bem? Aqui é " + saudacao + " da Q Food Company. " +
+         "Recebemos seu feedback recente e percebi que você teve uma experiência abaixo do esperado com " + ref + ". " +
+         "Gostaria muito de te ouvir pra entender melhor e resolvermos juntos. Pode me contar o que aconteceu?";
+}
+
+function renderRiskList(dados){
+  var arr = dados.filter(function(d){return d.risco==="SIM";});
+  arr.sort(function(a,b){
+    if ((b.data||0) - (a.data||0) !== 0) return (b.data||0) - (a.data||0);
+    return a.nps - b.nps;
+  });
+  if (arr.length === 0){
+    document.getElementById("risk-list").innerHTML = '<div class="empty">🎉 Nenhum cliente em risco no período. Bom trabalho!</div>';
+    return;
+  }
+  var html = "";
+  var hoje = new Date();
+  arr.forEach(function(d){
+    var diasDesde = d.data ? Math.round((hoje - d.data)/86400000) : 99;
+    var recente = diasDesde <= 7;
+    var info = BASE_PDV_INDEX ? BASE_PDV_INDEX[d.cnpj] : null;
+    var fone = info ? info.fone : "";
+    var wa = info ? info.whatsapp : "";
+    var nome = d.nomeFantasia || d.nomeCliente || d.cnpj;
+    var pilarBad = [];
+    if (d.notaLog<=2) pilarBad.push('<span class="bad">Log: '+d.notaLog+'</span>');
+    if (d.notaFin<=2) pilarBad.push('<span class="bad">Fin: '+d.notaFin+'</span>');
+    if (d.notaCom<=2) pilarBad.push('<span class="bad">Com: '+d.notaCom+'</span>');
+    if (d.notaQua<=2) pilarBad.push('<span class="bad">Qual: '+d.notaQua+'</span>');
+    var dataFmt = d.data ? formatDataBr(d.data) : "—";
+    var msgWa = buildMensagemWhats(d);
+    var waUrl = wa ? whatsappLink(wa, msgWa) : (fone ? whatsappLink(fone, msgWa) : "");
+    var telUrl = fone ? "tel:+55" + somenteDigitos(fone) : (wa ? "tel:+55" + somenteDigitos(wa) : "");
+
+    html += '<div class="risk-card '+(recente?"recent":"")+'">'+
+      '<h4>⚠️ '+escapeHtml(nome)+
+        ' <span class="pot">'+escapeHtml(d.potencial||"?")+'</span>'+
+        (d.segmento ? '<span class="seg">'+escapeHtml(d.segmento)+'</span>':'')+'</h4>'+
+      '<div class="meta">CNPJ '+formatCnpj(d.cnpj)+' · Vendedor: '+escapeHtml(d.vendedorSigla||"—")+
+        ' · Visita: '+dataFmt+' ('+diasDesde+'d)</div>'+
+      '<div class="notas"><span>NPS: <strong>'+d.nps+'</strong></span>'+ pilarBad.join("") +'</div>'+
+      (d.textoAberto ? '<div class="quote">"'+escapeHtml(d.textoAberto)+'"</div>' : '') +
+      '<div class="btns">'+
+        (waUrl ? '<a href="'+waUrl+'" target="_blank" class="btn-wa">📱 WhatsApp</a>' :
+                 '<span class="btn-disabled">📱 Sem WhatsApp</span>') +
+        (telUrl ? '<a href="'+telUrl+'" class="btn-tel">📞 Ligar</a>' :
+                  '<span class="btn-disabled">📞 Sem telefone</span>') +
+        '<button onclick="abrirDetalhes(\''+d.id+'\')">📋 Detalhes</button>'+
+      '</div></div>';
+  });
+  document.getElementById("risk-list").innerHTML = html;
+}
+
+function renderRevisarList(dados){
+  var arr = dados.filter(function(d){return d.flagRevisar==="SIM";});
+  if (arr.length === 0){
+    document.getElementById("revisar-list").innerHTML = '<div class="empty">Nenhuma avaliação suspeita de preenchimento rápido.</div>';
+    return;
+  }
+  var html = "";
+  arr.forEach(function(d){
+    html += '<div class="list-comment">'+
+      '<div class="meta"><span>'+escapeHtml(d.nomeFantasia||d.nomeCliente||d.cnpj)+
+      ' · '+escapeHtml(d.gestorNome||d.gestorEmail||"—")+
+      '</span><span>'+(d.data?formatDataBr(d.data):"—")+' · '+d.duracao+'s</span></div>'+
+      '<div class="txt">NPS '+d.nps+' · Score '+d.score.toFixed(2)+
+      ' <button onclick="abrirDetalhes(\''+d.id+'\')" style="float:right;font-size:11px;background:var(--bg-3);padding:3px 8px;border-radius:4px;">Ver</button></div>'+
+      '</div>';
+  });
+  document.getElementById("revisar-list").innerHTML = html;
+}
+
+function renderMotoristaList(dados){
+  var arr = dados.filter(function(d){return d.obsMotorista && d.obsMotorista.trim();});
+  arr.sort(function(a,b){return (b.data||0)-(a.data||0);});
+  arr = arr.slice(0, 20);
+  if (arr.length === 0){
+    document.getElementById("motorista-list").innerHTML = '<div class="empty">Nenhuma menção a motorista no período.</div>';
+    return;
+  }
+  var html = "";
+  arr.forEach(function(d){
+    html += '<div class="list-comment">'+
+      '<div class="meta"><span>'+escapeHtml(d.nomeFantasia||d.cnpj)+' · '+escapeHtml(d.vendedorSigla||"—")+'</span>'+
+      '<span>'+(d.data?formatDataBr(d.data):"—")+'</span></div>'+
+      '<div class="txt">"'+escapeHtml(d.obsMotorista)+'"</div></div>';
+  });
+  html += '<div style="text-align:center;margin-top:10px"><a href="Index_Logistica.html" style="color:var(--info);font-size:12px">→ Ver Painel Custo de Motoristas</a></div>';
+  document.getElementById("motorista-list").innerHTML = html;
+}
+
+function renderCommentList(dados){
+  var q = (document.getElementById("search-comments").value || "").trim().toLowerCase();
+  var arr = dados.filter(function(d){return d.textoAberto && d.textoAberto.trim();});
+  if (q) arr = arr.filter(function(d){return d.textoAberto.toLowerCase().indexOf(q) >= 0;});
+  arr.sort(function(a,b){return (b.data||0)-(a.data||0);});
+  arr = arr.slice(0, 20);
+  if (arr.length === 0){
+    document.getElementById("comment-list").innerHTML = '<div class="empty">'+(q?'Nenhum comentário com "'+escapeHtml(q)+'"':'Nenhum comentário')+'</div>';
+    return;
+  }
+  var html = "";
+  arr.forEach(function(d){
+    var corCat = d.categoria==="Promotor"?"var(--ok)":d.categoria==="Detrator"?"var(--danger)":"var(--warn)";
+    html += '<div class="list-comment">'+
+      '<div class="meta">'+
+        '<span style="color:'+corCat+'">'+escapeHtml(d.categoria||"")+' · NPS '+d.nps+'</span>'+
+        '<span>'+escapeHtml(d.nomeFantasia||d.cnpj)+' · '+(d.data?formatDataBr(d.data):"—")+'</span>'+
+      '</div>'+
+      '<div class="txt">"'+escapeHtml(d.textoAberto)+'"</div></div>';
+  });
+  document.getElementById("comment-list").innerHTML = html;
+}
+
+function abrirDetalhes(id){
+  var d = CURRENT_DATA.find(function(x){return x.id===id;});
+  if (!d){ toast("Avaliação não encontrada", "error"); return; }
+  document.getElementById("modal-titulo").textContent = "📋 " + (d.nomeFantasia || d.nomeCliente || d.cnpj);
+  var info = BASE_PDV_INDEX ? BASE_PDV_INDEX[d.cnpj] : null;
+  var body = "";
+  body += dRow("ID", d.id);
+  body += dRow("Data da Visita", d.data ? formatDataBr(d.data) : "—");
+  body += dRow("CNPJ", formatCnpj(d.cnpj));
+  body += dRow("Razão Social", d.nomeCliente || "(não informada)");
+  body += dRow("Nome Fantasia", d.nomeFantasia || "—");
+  body += dRow("Segmento", d.segmento || "—");
+  body += dRow("Potencial", d.potencial || "—");
+  body += dRow("Vendedor", (d.vendedorSigla||"") + " — " + (d.vendedorNome||""));
+  body += dRow("Gestor que aplicou", d.gestorNome || d.gestorEmail || "—");
+  if (info){
+    body += dRow("📞 Fone1 (BASE_PDV)", info.fone || "—");
+    body += dRow("📱 WhatsApp (BASE_PDV)", info.whatsapp || "—");
+  }
+  body += dRow("NPS Score", d.nps + " (" + (d.categoria||"") + ")");
+  body += dRow("Score Operacional", d.score.toFixed(2));
+  body += dRow("Notas (Com/Log/Qual/Fin/Mix)", d.notaCom+"/"+d.notaLog+"/"+d.notaQua+"/"+d.notaFin+"/"+d.notaMix);
+  body += dRow("Problema 30d", d.problema || "—");
+  body += dRow("Indicaria hoje?", d.indicaria || "—");
+  body += dRow("Cliente em Risco", d.risco === "SIM" ? "🚨 SIM" : "Não");
+  body += dRow("Duração de preenchimento", d.duracao + "s" + (d.flagRevisar==="SIM"?" ⚠️ Revisar":""));
+  if (d.textoAberto) body += dRow("💬 Comentário aberto", '"' + d.textoAberto + '"');
+  if (d.obsMotorista) body += dRow("🚛 Observação do motorista", '"' + d.obsMotorista + '"');
+  document.getElementById("modal-body").innerHTML = body;
+  document.getElementById("modal-detalhes").classList.add("show");
+}
+function dRow(label, val){
+  return '<div class="modal-detail-row"><strong>'+escapeHtml(label)+'</strong>'+escapeHtml(String(val))+'</div>';
+}
+function fecharModal(){
+  document.getElementById("modal-detalhes").classList.remove("show");
+}
+
+function recarregarDashboard(force){
+  toast("🔄 Atualizando…", "warn");
+  carregarDashboardData(force, function(){
+    popularFiltros();
+    renderDashboard();
+    toast("✅ Atualizado", "success");
+  });
+}
+
+/* ═══════ 12. CHARTS (radar + linha) ═══════ */
+function renderRadar(dados){
+  var ctx = document.getElementById("radar-chart");
+  if (!ctx) return;
+  var atual = [
+    mediaProp(dados,"notaCom"), mediaProp(dados,"notaLog"),
+    mediaProp(dados,"notaQua"), mediaProp(dados,"notaFin"),
+    mediaProp(dados,"notaMix")
+  ];
+  // período anterior (mesma duração imediatamente antes)
+  var periodo = document.getElementById("dash-periodo").value;
+  var anterior = [0,0,0,0,0];
+  if (periodo !== "all"){
+    var dias = Number(periodo);
+    var hoje = new Date(); hoje.setHours(0,0,0,0);
+    var fimAnt = new Date(hoje); fimAnt.setDate(fimAnt.getDate() - dias);
+    var iniAnt = new Date(fimAnt); iniAnt.setDate(iniAnt.getDate() - dias);
+    var datsAnt = CURRENT_DATA.filter(function(d){
+      return d.data && d.data >= iniAnt && d.data < fimAnt;
+    });
+    anterior = [
+      mediaProp(datsAnt,"notaCom"), mediaProp(datsAnt,"notaLog"),
+      mediaProp(datsAnt,"notaQua"), mediaProp(datsAnt,"notaFin"),
+      mediaProp(datsAnt,"notaMix")
+    ];
+  }
+
+  if (CHART_RADAR) CHART_RADAR.destroy();
+  CHART_RADAR = new Chart(ctx, {
+    type: "radar",
+    data: {
+      labels: ["Comercial","Logística","Qualidade","Financeiro","Mix"],
+      datasets: [
+        { label:"Período atual", data:atual, backgroundColor:"rgba(63,185,80,.18)",
+          borderColor:"#3fb950", pointBackgroundColor:"#3fb950", borderWidth:2 },
+        { label:"Período anterior", data:anterior, backgroundColor:"rgba(200,200,200,.08)",
+          borderColor:"rgba(180,180,180,.5)", borderDash:[5,5], pointBackgroundColor:"rgba(180,180,180,.5)", borderWidth:1.5 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: { r: {
+        min:0, max:5, ticks:{stepSize:1, color:"#9a9aab", backdropColor:"transparent"},
+        grid:{color:"rgba(150,150,170,.18)"}, angleLines:{color:"rgba(150,150,170,.18)"},
+        pointLabels:{color:"#ecedf2", font:{size:12}}
+      }},
+      plugins:{ legend:{labels:{color:"#ecedf2"}} }
+    }
+  });
+}
+
+function renderLineChart(dados){
+  var ctx = document.getElementById("line-chart");
+  if (!ctx) return;
+  // Agrupa por mês YYYY-MM
+  var meses = {};
+  dados.forEach(function(d){
+    if (!d.data) return;
+    var k = d.data.getFullYear() + "-" + String(d.data.getMonth()+1).padStart(2,"0");
+    if (!meses[k]) meses[k] = {npsList:[], scoreList:[]};
+    meses[k].npsList.push(d.nps);
+    meses[k].scoreList.push(d.score);
+  });
+  var keys = Object.keys(meses).sort();
+  var labels = keys.map(function(k){
+    var p = k.split("-");
+    var nomesM = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+    return nomesM[Number(p[1])-1] + "/" + p[0].slice(2);
+  });
+  var npsArr = keys.map(function(k){
+    var l = meses[k].npsList;
+    var prom = l.filter(function(n){return n>=9;}).length;
+    var det  = l.filter(function(n){return n<=6;}).length;
+    return l.length ? Math.round((prom-det)/l.length*100) : 0;
+  });
+  var scoreArr = keys.map(function(k){
+    var l = meses[k].scoreList;
+    if (!l.length) return 0;
+    return l.reduce(function(a,b){return a+b;},0) / l.length;
+  });
+
+  if (CHART_LINE) CHART_LINE.destroy();
+  CHART_LINE = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: labels,
+      datasets: [
+        { label:"NPS Mensal", data:npsArr, yAxisID:"y1",
+          borderColor:"#3fb950", backgroundColor:"rgba(63,185,80,.15)", fill:true, tension:.3, borderWidth:2.5 },
+        { label:"Score Operacional", data:scoreArr, yAxisID:"y2",
+          borderColor:"#d4a574", backgroundColor:"transparent", tension:.3, borderWidth:2, borderDash:[5,3] }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      scales: {
+        x: { ticks:{color:"#9a9aab"}, grid:{color:"rgba(150,150,170,.1)"} },
+        y1:{ position:"left", min:-100, max:100, ticks:{color:"#3fb950"}, grid:{color:"rgba(150,150,170,.1)"}, title:{display:true, text:"NPS", color:"#3fb950"} },
+        y2:{ position:"right", min:0, max:5, ticks:{color:"#d4a574"}, grid:{display:false}, title:{display:true, text:"Score 0-5", color:"#d4a574"} }
+      },
+      plugins:{ legend:{labels:{color:"#ecedf2"}} }
+    }
+  });
+}
+
+/* ═══════ 13. UI (toggle, toast, etc) ═══════ */
+function trocarAba(qual){
+  document.getElementById("screen-form").style.display = qual === "form" ? "block" : "none";
+  document.getElementById("screen-dash").style.display = qual === "dash" ? "block" : "none";
+  document.getElementById("tab-form").classList.toggle("active", qual==="form");
+  document.getElementById("tab-dash").classList.toggle("active", qual==="dash");
+  window.scrollTo({top:0, behavior:"smooth"});
+  if (qual === "dash"){
+    if (CURRENT_DATA.length === 0) recarregarDashboard(false);
+    else renderDashboard();
+  }
+}
+
+function toast(msg, tipo){
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "show " + (tipo || "");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function(){ el.classList.remove("show"); }, 3500);
+}
+
+function atualizarStatusRede(){
+  var el = document.getElementById("net-status");
+  if (navigator.onLine){ el.textContent = "✓ Online"; el.className = "hdr-status ok"; }
+  else { el.textContent = "⚠ Offline"; el.className = "hdr-status off"; }
+}
+
+/* ═══════ 14. UTILS ═══════ */
+function somenteDigitos(v){ return String(v||"").replace(/\D/g,""); }
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function hojeIso(){
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function parseData(v){
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  var s = String(v).trim();
+  if (!s) return null;
+  // tenta ISO ou DD/MM/YYYY
+  if (s.indexOf("/") >= 0){
+    var p = s.split(" ")[0].split("/");
+    if (p.length === 3){
+      var ano = p[2].length === 2 ? "20"+p[2] : p[2];
+      return new Date(Number(ano), Number(p[1])-1, Number(p[0]));
+    }
+  }
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+function formatDataBr(d){
+  if (!d) return "—";
+  return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear();
+}
+function formatCnpj(v){
+  var s = somenteDigitos(v);
+  if (s.length !== 14) return v || "—";
+  return s.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+function mediaProp(arr, prop){
+  if (!arr || arr.length === 0) return 0;
+  var soma = arr.reduce(function(s,x){return s + (Number(x[prop])||0);}, 0);
+  var validos = arr.filter(function(x){return Number(x[prop])>0;}).length;
+  return validos ? soma/validos : 0;
+}
+
+function exportarCSV(){
+  var dados = filtrarDados();
+  if (dados.length === 0){ toast("Nada para exportar", "warn"); return; }
+  var headers = ["ID","Data","Gestor","CNPJ","Nome_Fantasia","Segmento","Potencial","Vendedor","NPS","Categoria","Comercial","Logistica","Qualidade","Financeiro","Mix","Score","Problema","Indicaria","Risco","Texto_Aberto","Obs_Motorista","Duracao_seg"];
+  var csv = headers.join(",") + "\n";
+  dados.forEach(function(d){
+    var row = [d.id, d.data?formatDataBr(d.data):"", d.gestorNome||d.gestorEmail, formatCnpj(d.cnpj),
+               d.nomeFantasia, d.segmento, d.potencial, d.vendedorSigla, d.nps, d.categoria,
+               d.notaCom, d.notaLog, d.notaQua, d.notaFin, d.notaMix, d.score, d.problema, d.indicaria,
+               d.risco, (d.textoAberto||"").replace(/"/g,'""'), (d.obsMotorista||"").replace(/"/g,'""'), d.duracao];
+    csv += row.map(function(c){return '"'+String(c==null?"":c)+'"';}).join(",") + "\n";
+  });
+  var blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url; a.download = "nps_qfood_"+hojeIso()+".csv";
+  a.click();
+  URL.revokeObjectURL(url);
+  toast("📥 CSV exportado", "success");
+}
+
+function resumoWhatsApp(){
+  var dados = filtrarDados();
+  if (dados.length === 0){ toast("Sem dados pra resumir", "warn"); return; }
+  var n = dados.length;
+  var prom = dados.filter(function(d){return d.categoria==="Promotor";}).length;
+  var det  = dados.filter(function(d){return d.categoria==="Detrator";}).length;
+  var neut = n - prom - det;
+  var pctP = Math.round(prom/n*100);
+  var pctD = Math.round(det/n*100);
+  var nps = pctP - pctD;
+  var zona = nps > 75 ? "🏆 EXCELÊNCIA" : nps > 50 ? "🟢 Zona verde" : nps >= 0 ? "🟡 Zona amarela" : "🔴 Zona vermelha";
+  var risco = dados.filter(function(d){return d.risco==="SIM";}).length;
+  var scoreMed = mediaProp(dados,"score");
+
+  var pilares = [
+    {n:"Comercial", m:mediaProp(dados,"notaCom")},
+    {n:"Logística", m:mediaProp(dados,"notaLog")},
+    {n:"Qualidade", m:mediaProp(dados,"notaQua")},
+    {n:"Financeiro",m:mediaProp(dados,"notaFin")},
+    {n:"Mix",       m:mediaProp(dados,"notaMix")}
+  ];
+  var pior = pilares.slice().sort(function(a,b){return a.m-b.m;})[0];
+  var melhor = pilares.slice().sort(function(a,b){return b.m-a.m;})[0];
+
+  var detrators = dados.filter(function(d){return d.categoria==="Detrator";})
+    .sort(function(a,b){return (b.data||0)-(a.data||0);}).slice(0,3);
+
+  var periodo = document.getElementById("dash-periodo");
+  var lblPeriodo = periodo.options[periodo.selectedIndex].textContent;
+
+  var txt = "*📊 NPS Q Food — Resumo*\n";
+  txt += "Período: " + lblPeriodo + "\n\n";
+  txt += "*NPS Geral:* " + nps + " (" + zona + ")\n";
+  txt += "*Score Operacional:* " + scoreMed.toFixed(2) + "/5\n";
+  txt += "*Avaliações:* " + n + "\n";
+  txt += "Promotores: " + prom + " · Neutros: " + neut + " · Detratores: " + det + "\n";
+  txt += "🚨 *Clientes em risco:* " + risco + "\n\n";
+  txt += "🔴 Pilar mais fraco: *" + pior.n + "* (" + pior.m.toFixed(2) + ")\n";
+  txt += "🟢 Pilar mais forte: *" + melhor.n + "* (" + melhor.m.toFixed(2) + ")\n";
+  if (detrators.length){
+    txt += "\n*Detratores recentes:*\n";
+    detrators.forEach(function(d){
+      txt += "- " + (d.nomeFantasia||d.cnpj) + " (" + (d.vendedorSigla||"?") + ") — NPS " + d.nps + "\n";
+    });
+  }
+  txt += "\n_Auditado por " + (SESSION ? SESSION.nome : "—") + "_";
+
+  var waUrl = "https://wa.me/?text=" + encodeURIComponent(txt);
+  window.open(waUrl, "_blank");
+}
+
+/* ═══════ BOOT ═══════ */
+document.addEventListener("DOMContentLoaded", function(){
+  verificarPermissaoNPS(function(){
+    renderNpsScale();
+    renderStars();
+    document.getElementById("f-data").value = hojeIso();
+
+    // CNPJ máscara + lookup
+    var cnpjInp = document.getElementById("f-cnpj");
+    cnpjInp.addEventListener("input", function(){
+      this.value = aplicarMascaraCnpj(this.value);
+      lookupCnpj(this.value);
+      marcarInicio();
+    });
+
+    // Eventos save-draft
+    ["f-data","f-nome","f-nomefantasia","f-segmento","f-potencial","f-vendedor","f-obs-motorista","f-aberto"]
+      .forEach(function(id){
+        var el = document.getElementById(id);
+        if (el) el.addEventListener("change", function(){ marcarInicio(); salvarDraft(); });
+      });
+    document.getElementById("f-aberto").addEventListener("input", function(){
+      atualizarContadorChars(); marcarInicio(); salvarDraft();
+    });
+
+    // Radio events
+    document.querySelectorAll('input[name="problema"]').forEach(function(r){
+      r.addEventListener("change", function(){
+        document.querySelectorAll(".radio-opt").forEach(function(l){l.classList.remove("selected");});
+        if (this.checked){ var lbl = this.closest(".radio-opt"); if (lbl) lbl.classList.add("selected"); }
+        marcarInicio(); salvarDraft();
+      });
+    });
+
+    // Tri buttons
+    document.querySelectorAll(".tri-btn").forEach(function(b){
+      b.addEventListener("click", function(){
+        setTri(this.dataset.tri); marcarInicio(); salvarDraft();
+      });
+    });
+
+    // Search comentários
+    var search = document.getElementById("search-comments");
+    if (search) search.addEventListener("input", function(){
+      var dados = filtrarDados();
+      renderCommentList(dados);
+    });
+
+    // Filtros do dashboard
+    ["dash-periodo","dash-vendedor","dash-segmento","dash-potencial","dash-categoria"].forEach(function(id){
+      document.getElementById(id).addEventListener("change", function(){
+        if (document.getElementById("screen-dash").style.display !== "none") renderDashboard();
+      });
+    });
+
+    // Carrega BASE_PDV e vendedores em paralelo
+    carregarBasePdv(function(){});
+    carregarVendedores();
+    checarDraft();
+    atualizarBadgePendentes();
+    atualizarStatusRede();
+    window.addEventListener("online", function(){ atualizarStatusRede(); reenviarFila(); });
+    window.addEventListener("offline", atualizarStatusRede);
+
+    // Tenta reenvio automático ao carregar e a cada 60s
+    if (navigator.onLine && carregarFila().length > 0) setTimeout(reenviarFila, 2000);
+    setInterval(function(){
+      if (navigator.onLine && carregarFila().length > 0) reenviarFila();
+    }, 60000);
+  });
+});
+</script>
+</body>
+</html>
