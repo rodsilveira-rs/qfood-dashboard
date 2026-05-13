@@ -37,6 +37,9 @@ td{padding:11px 12px;border-bottom:1px solid #f0f2f7;vertical-align:middle;font-
 .fg label{font-size:.67rem;color:#8fa0c0;display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 input,select,textarea{width:100%;border:1.5px solid #dde2ef;border-radius:8px;padding:9px 12px;font-size:.85rem;color:#1a1f2e;background:#fff;outline:none;font-family:inherit;transition:border .15s}
 input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3px rgba(160,124,246,.1)}
+input[readonly]{background:#f4f6fa;color:#4a5d80;cursor:default;border-color:#e3e8f1}
+input[readonly]:focus{border-color:#e3e8f1;box-shadow:none}
+input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97a}
 .pi{position:relative}
 .pi span{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#6b7ea8;font-size:.85rem;pointer-events:none}
 .pi input{padding-left:34px}
@@ -91,6 +94,13 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
         <div class="il"><label>Data da Solicitação</label><span id="xdata">—</span></div>
         <div class="il"><label>Nº de Itens</label><span id="xitens">—</span></div>
       </div>
+      <div id="xdest" style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f2f7;display:none">
+        <div style="font-size:.7rem;color:#8fa0c0;text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Esta cotação foi enviada para:</div>
+        <div class="ig">
+          <div class="il"><label>E-mail</label><span id="xdestmail" style="word-break:break-all">—</span></div>
+          <div class="il"><label>Representante</label><span id="xdestcont">—</span></div>
+        </div>
+      </div>
       <div id="xobs" style="margin-top:12px;padding-top:12px;border-top:1px solid #f0f2f7;font-size:.82rem;color:#6b7ea8;display:none"></div>
     </div>
 
@@ -118,12 +128,15 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
     </div>
 
     <div class="card">
-      <div class="ct">Seus Dados — Fornecedor</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap">
+        <div class="ct" style="margin:0">Seus Dados — Fornecedor</div>
+        <button type="button" id="BTNEDIT" onclick="toggleEditar()" style="background:#fff;border:1px solid #d8e0ee;color:#4a5d80;padding:6px 12px;border-radius:6px;font-size:.74rem;font-weight:600;cursor:pointer;display:none">✏️ Corrigir dados</button>
+      </div>
       <div class="fg2">
-        <div class="fg"><label>Nome / Empresa *</label><input type="text" id="fnome" placeholder="Ex: Seiwa Bussan Imp Exp Ltda"></div>
-        <div class="fg"><label>E-mail para resposta *</label><input type="email" id="femail" placeholder="vendas@empresa.com.br"></div>
-        <div class="fg"><label>Contato / Representante</label><input type="text" id="fcontato" placeholder="Nome do representante *"></div>
-        <div class="fg"><label>Prazo de entrega estimado</label>
+        <div class="fg"><label>Nome / Empresa *</label><input type="text" id="fnome" placeholder="Ex: Seiwa Bussan Imp Exp Ltda" data-prefilled="0"></div>
+        <div class="fg"><label>E-mail para resposta *</label><input type="email" id="femail" placeholder="vendas@empresa.com.br" data-prefilled="0"></div>
+        <div class="fg"><label>Contato / Representante *</label><input type="text" id="fcontato" placeholder="Nome do representante" data-prefilled="0"></div>
+        <div class="fg"><label>Prazo de entrega estimado *</label>
           <select id="fprazo">
             <option value="">Selecione...</option>
             <option>Imediato (estoque disponível)</option>
@@ -138,6 +151,12 @@ input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3p
       <div class="fg" style="margin-top:4px">
         <label>Observações / Condições especiais</label>
         <textarea id="fobs" rows="3" placeholder="Ex: Desconto para pedido acima de X unidades, frete grátis acima de R$ Y..."></textarea>
+      </div>
+      <div id="CONFBOX" style="display:none;margin-top:14px;padding:12px 14px;background:#f0f7ff;border:1px solid #c9dcf5;border-radius:8px">
+        <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:.84rem;color:#2a3d5e;line-height:1.5;font-weight:600">
+          <input type="checkbox" id="fconf" style="width:18px;height:18px;flex-shrink:0;margin-top:1px;cursor:pointer">
+          <span>Confirmo que os dados acima (nome da empresa, e-mail e representante) estão corretos para esta cotação.</span>
+        </label>
       </div>
     </div>
 
@@ -187,12 +206,19 @@ function dec(s) {
 }
 
 function normalize(raw) {
-  if (raw.fornecedor && raw.itens) return raw;
+  if (raw.fornecedor && raw.itens) {
+    // Já está no formato verboso — apenas garante os novos campos
+    raw.emailForn   = raw.emailForn   || raw.e || '';
+    raw.contatoForn = raw.contatoForn || raw.c || '';
+    return raw;
+  }
   if (!raw.f || !raw.i) return null;
   return {
     fornecedor: raw.f,
     data: raw.d || '',
     obs: raw.o || '',
+    emailForn:   raw.e || '',
+    contatoForn: raw.c || '',
     itens: raw.i.map(function(a) {
       return {
         cod: String(a[0] || ''),
@@ -214,6 +240,10 @@ function render() {
   document.getElementById('xforn').textContent = COT.fornecedor || '—';
   document.getElementById('xdata').textContent = COT.data || '—';
   document.getElementById('xitens').textContent = COT.itens.length + ' item(ns)';
+
+  // Pré-preenchimento dos dados do fornecedor (vindos do Index_Compras)
+  preencherDadosFornecedor();
+
   if (COT.obs) {
     var ob = document.getElementById('xobs');
     ob.style.display = 'block';
@@ -405,6 +435,78 @@ function montarCorpo() {
   };
 }
 
+function preencherDadosFornecedor(){
+  var nomeForn   = COT.fornecedor || '';
+  var emailForn  = COT.emailForn || '';
+  var contatoForn= COT.contatoForn || '';
+
+  var elNome = document.getElementById('fnome');
+  var elMail = document.getElementById('femail');
+  var elCont = document.getElementById('fcontato');
+  var btnEdit= document.getElementById('BTNEDIT');
+  var confBox= document.getElementById('CONFBOX');
+  var destBox= document.getElementById('xdest');
+  var destMail=document.getElementById('xdestmail');
+  var destCont=document.getElementById('xdestcont');
+
+  // Sempre pre-preenche o nome da empresa (vem do fornecedor da cotação)
+  if (nomeForn) {
+    elNome.value = nomeForn;
+    elNome.setAttribute('readonly','readonly');
+    elNome.dataset.prefilled = '1';
+  }
+  if (emailForn) {
+    elMail.value = emailForn;
+    elMail.setAttribute('readonly','readonly');
+    elMail.dataset.prefilled = '1';
+  }
+  if (contatoForn) {
+    elCont.value = contatoForn;
+    elCont.setAttribute('readonly','readonly');
+    elCont.dataset.prefilled = '1';
+  }
+
+  // Se PELO MENOS UM campo veio preenchido, mostra botão Corrigir + checkbox
+  var algumPreenchido = (nomeForn || emailForn || contatoForn);
+  if (algumPreenchido) {
+    btnEdit.style.display = 'inline-block';
+    confBox.style.display = 'block';
+  }
+
+  // Mostra resumo no topo se tem email OU contato (nome já aparece como Fornecedor)
+  if (emailForn || contatoForn) {
+    destBox.style.display = 'block';
+    destMail.textContent = emailForn || '—';
+    destCont.textContent = contatoForn || '—';
+  }
+}
+
+function toggleEditar(){
+  var ids = ['fnome','femail','fcontato'];
+  var btn = document.getElementById('BTNEDIT');
+  var editando = ids.some(function(id){ return !document.getElementById(id).hasAttribute('readonly'); });
+  if (editando) {
+    // Voltar para read-only
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if (el.dataset.prefilled === '1') el.setAttribute('readonly','readonly');
+    });
+    btn.innerHTML = '✏️ Corrigir dados';
+    btn.style.background = '#fff';
+    btn.style.color = '#4a5d80';
+  } else {
+    // Liberar edição
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if (el.dataset.prefilled === '1') el.removeAttribute('readonly');
+    });
+    btn.innerHTML = '🔒 Bloquear edição';
+    btn.style.background = '#fff4d6';
+    btn.style.color = '#8a6a00';
+    document.getElementById('fnome').focus();
+  }
+}
+
 function enviar() {
   var erros = [];
   if (!document.getElementById('fnome').value.trim()) erros.push('Informe o nome/empresa');
@@ -416,6 +518,13 @@ function enviar() {
   if (!temP) erros.push('Informe o preço de ao menos 1 item');
   if (!document.getElementById('fcontato').value.trim()) erros.push('Informe o nome do representante');
   if (!document.getElementById('fprazo').value) erros.push('Informe o prazo de entrega');
+  // Se há dados pré-preenchidos, exige confirmação
+  var confBox = document.getElementById('CONFBOX');
+  if (confBox && confBox.style.display !== 'none') {
+    if (!document.getElementById('fconf').checked) {
+      erros.push('Confirme que os dados do fornecedor estão corretos');
+    }
+  }
   // Validade obrigatória para cada item com preço preenchido
   COT.itens.forEach(function(it, i) {
     var p = parseFloat(document.getElementById('p' + i).value) || 0;
@@ -435,15 +544,13 @@ function enviar() {
   status.textContent = 'Enviando proposta para a equipe de Compras Q Food...';
 
   // Destinatários (primeiro é o principal no path; demais vão em _cc)
-  // ⚠️ TEMPORÁRIO: usando rodsilveira2012@gmail.com como principal enquanto
-  // compras@qfoodcompany.com.br ainda não confirmou o FormSubmit.
-  // Quando compras@ confirmar: trocar PRINCIPAL para 'compras@qfoodcompany.com.br'
-  // e remover 'compras@qfoodcompany.com.br' da CC_LISTA (mover gmail pra CC se quiser manter).
-  var PRINCIPAL = 'rodsilveira2012@gmail.com';
+  // IMPORTANTE: na 1ª vez que cada endereço recebe, o FormSubmit envia um e-mail de
+  // confirmação que precisa ser aceito — depois funciona automaticamente.
+  var PRINCIPAL = 'compras@qfoodcompany.com.br';
   var CC_LISTA  = [
-    'compras@qfoodcompany.com.br',
     'adm@qfoodcompany.com.br',
     'logistica@qfoodcompany.com.br',
+    'rodsilveira2012@gmail.com',
     d.email  // cópia para o próprio fornecedor
   ].join(',');
 
