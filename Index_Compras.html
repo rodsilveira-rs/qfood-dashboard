@@ -177,6 +177,24 @@ tbody tr:hover td{background:var(--s2);}
 .cmp-qty:focus{border-color:#a07cf6;}
 .val-sel{background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;outline:none;}
 .val-sel:focus{border-color:#a07cf6;}
+
+/* Estoque físico e validade atual (input editável ou read-only) */
+.cmp-est{width:64px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 6px;color:var(--tx);font-size:.78rem;text-align:center;outline:none;}
+.cmp-est:focus{border-color:#4d8ef5;}
+.cmp-val-at{width:108px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 6px;color:var(--tx);font-size:.76rem;text-align:center;outline:none;}
+.cmp-val-at:focus{border-color:#4d8ef5;}
+.cmp-est-ro{font-size:.8rem;font-weight:600;color:#4d8ef5;}
+.cmp-est-ro.empty{color:var(--mu2);font-weight:400;font-style:italic;}
+
+/* Badge de cobertura (Estoque ÷ Giro mensal) */
+.cob-tag{display:inline-block;padding:2px 7px;border-radius:10px;font-size:.65rem;font-weight:700;letter-spacing:.3px;white-space:nowrap;}
+.cob-urg{background:rgba(255,77,79,.18);color:#ff7875;border:1px solid rgba(255,77,79,.35);}
+.cob-ok{background:rgba(54,207,160,.18);color:#36cfa0;border:1px solid rgba(54,207,160,.35);}
+.cob-exc{background:rgba(255,170,43,.18);color:#ffaa2b;border:1px solid rgba(255,170,43,.35);}
+.cob-na{color:var(--mu2);font-size:.7rem;}
+
+/* Aviso "Deve ter aprovação Gestor Logística" */
+.aprov-flag{display:inline-block;font-size:.62rem;padding:2px 7px;border-radius:10px;background:rgba(255,170,43,.12);color:#ffaa2b;border:1px solid rgba(255,170,43,.3);font-weight:600;margin-top:3px;white-space:nowrap;}
 .giro-tag{padding:2px 7px;border-radius:4px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
 .giro-alto{background:rgba(54,207,160,.15);color:#36cfa0;border:1px solid rgba(54,207,160,.3);}
 .giro-normal{background:rgba(143,160,192,.1);color:#8fa0c0;border:1px solid rgba(143,160,192,.2);}
@@ -311,12 +329,24 @@ td:not(:first-child){text-align:right;}
           &nbsp;|&nbsp;
           <span style="color:#8fa0c0;font-weight:600">&#9679; Giro Normal</span> = demais &mdash; validade m&#237;nima: 80% do prazo total
         </div>
+        <div style="display:flex;gap:14px;margin-bottom:14px;font-size:.7rem;color:var(--mu);flex-wrap:wrap;align-items:center;padding:8px 12px;background:rgba(77,142,245,.06);border:1px solid rgba(77,142,245,.18);border-radius:8px">
+          <span style="color:#4d8ef5;font-weight:600">&#128230; Estoque / &#128197; Val. Atual:</span>
+          <span>preenchido por Maiko/Jonathas &mdash; refer&#234;ncia interna, NAO vai para o fornecedor</span>
+          &nbsp;|&nbsp;
+          <span style="color:#4d8ef5;font-weight:600">&#128202; Cobertura:</span>
+          <span class="cob-tag cob-urg">&lt;1m urgente</span>
+          <span class="cob-tag cob-ok">1-6m ok</span>
+          <span class="cob-tag cob-exc">&gt;6m excesso</span>
+        </div>
         <div class="twrap">
           <table>
             <thead><tr>
-              <th style="text-align:left;width:38%">Produto</th>
+              <th style="text-align:left;width:32%">Produto</th>
               <th style="text-align:center">Giro 12m</th>
               <th style="text-align:center">Perfil</th>
+              <th style="text-align:center;color:#4d8ef5" title="Estoque físico atual — preenchido por Maiko/Jonathas">&#128230; Estoque</th>
+              <th style="text-align:center;color:#4d8ef5" title="Validade atual do lote em estoque">&#128197; Val. Atual</th>
+              <th style="text-align:center;color:#4d8ef5" title="Cobertura = Estoque ÷ (Giro 12m ÷ 12)">&#128202; Cobertura</th>
               <th style="text-align:left">Val. Total do Produto</th>
               <th style="text-align:center;color:#a07cf6">Val. M&#237;nima Aceit&#225;vel</th>
               <th style="text-align:center;color:#a07cf6">Qtd. Solicitar</th>
@@ -454,6 +484,32 @@ var VALIDADES_SYNC_URL = "https://script.google.com/macros/s/AKfycbxohOKq4Au2UYz
 // Token compartilhado — DEVE ser idêntico ao SHARED_SECRET no Apps Script
 var VALIDADES_SYNC_TOKEN = "qfood-rs-2026-xK9pL3mQ7vN2bT8";
 
+// URL da aba "EstoqueAtual" — contagem física do Maiko/Jonathas
+var UESTOQUE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=271375618&single=true&output=csv";
+
+// Whitelist de quem pode EDITAR estoque/validade atual
+// (demais usuários veem como leitura — Cristina/compras@ só consulta)
+var CMP_ESTOQUE_EDITORS = [
+  "maiko@qfoodcompany.com.br",
+  "jonathas@qfoodcompany.com.br",
+  "rodrigo@qfoodcompany.com.br",
+  "adilson@qfoodcompany.com.br",
+  "celio@qfoodcompany.com.br",
+  "gustavo@qfoodcompany.com.br"
+];
+
+// Determina se o usuário logado pode editar estoque
+function cmpPodeEditarEstoque(){
+  try{
+    var sess = JSON.parse(localStorage.getItem("qfood_session") || "{}");
+    return CMP_ESTOQUE_EDITORS.indexOf((sess.email||"").toLowerCase()) >= 0;
+  }catch(e){ return false; }
+}
+
+// Cache em memória do estoque (Codigo -> { estoque, valAtual, atualizadoPor, atualizadoEm })
+var cmpEstoqueMap = {};
+var cmpEstoqueLoaded = false;
+
 // Cache em memória das validades (Codigo -> Validade_Meses)
 var cmpValidadesMap = {};
 var cmpValidadesLoaded = false;
@@ -507,6 +563,161 @@ async function cmpSyncValidade(codigo, validadeMeses, fornecedor){
   }catch(e){
     console.warn("Falha de rede ao sincronizar validade:", e.message);
     return { ok: false, erro: e.message };
+  }
+}
+
+// ============================================================
+// ESTOQUE ATUAL — leitura do CSV + sincronização via Apps Script
+// ============================================================
+async function cmpLoadEstoque(){
+  try{
+    var r = await fetch(UESTOQUE + "&t=" + Date.now());
+    var txt = await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("Aba EstoqueAtual nao publicada como CSV.");
+    var rows = csv(txt);
+    cmpEstoqueMap = {};
+    rows.forEach(function(row){
+      var cod = String(row["Codigo"] || "").trim();
+      if(!cod) return;
+      cmpEstoqueMap[cod] = {
+        estoque:       parseFloat(String(row["Estoque_Fisico"]||"").replace(",",".")) || 0,
+        valAtual:      String(row["Validade_Atual"]||"").trim(),
+        atualizadoEm:  String(row["Atualizado_em"]||"").trim(),
+        atualizadoPor: String(row["Atualizado_por"]||"").trim(),
+        obs:           String(row["Obs"]||"").trim()
+      };
+    });
+    cmpEstoqueLoaded = true;
+    console.log("Estoque carregado:", Object.keys(cmpEstoqueMap).length, "produtos");
+  }catch(e){
+    console.warn("Erro ao carregar estoque:", e.message);
+    cmpEstoqueLoaded = false;
+  }
+}
+
+// Grava estoque/validade atual no Google Sheets (mesmo Web App das Validades, com tipo="estoque")
+async function cmpSyncEstoque(codigo, estoque, valAtual, fornecedor){
+  if(!VALIDADES_SYNC_URL || VALIDADES_SYNC_URL.indexOf("COLE_AQUI") >= 0){
+    console.warn("VALIDADES_SYNC_URL nao configurada — alteracao ficou so local.");
+    return { ok: false, erro: "URL nao configurada" };
+  }
+  try{
+    var sess = JSON.parse(localStorage.getItem("qfood_session") || "{}");
+    var payload = {
+      token: VALIDADES_SYNC_TOKEN,
+      tipo:  "estoque",
+      dado: {
+        Codigo:         String(codigo),
+        Estoque_Fisico: (estoque === "" || estoque == null) ? "" : (parseFloat(estoque) || 0),
+        Validade_Atual: valAtual || "",
+        Atualizado_em:  new Date().toISOString(),
+        Atualizado_por: sess.nome || sess.email || "desconhecido",
+        Fornecedor:     fornecedor || "",
+        Obs:            ""
+      }
+    };
+    var r = await fetch(VALIDADES_SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    var resp = await r.json();
+    if(!resp.ok) console.warn("Erro ao sincronizar estoque:", resp.erro);
+    return resp;
+  }catch(e){
+    console.warn("Falha de rede ao sincronizar estoque:", e.message);
+    return { ok: false, erro: e.message };
+  }
+}
+
+// Salva alteração de estoque/validade — chamado pelos inputs da tabela
+function cmpSaveEstoque(el){
+  var i = parseInt(el.dataset.idx);
+  var p = cmpProdutos[i];
+  if(!p) return;
+
+  // Lê os 2 inputs da linha
+  var inpEst = document.querySelector(".cmp-est[data-idx='"+i+"']");
+  var inpVal = document.querySelector(".cmp-val-at[data-idx='"+i+"']");
+  var estoque = inpEst ? inpEst.value.trim() : "";
+  var valAt   = inpVal ? inpVal.value.trim() : "";
+
+  // Atualiza cache local
+  if(estoque === "" && valAt === ""){
+    delete cmpEstoqueMap[p.cod];
+  } else {
+    cmpEstoqueMap[p.cod] = {
+      estoque: parseFloat(estoque.replace(",",".")) || 0,
+      valAtual: valAt,
+      atualizadoEm: new Date().toISOString(),
+      atualizadoPor: (JSON.parse(localStorage.getItem("qfood_session")||"{}")).nome || "voce",
+      obs: ""
+    };
+  }
+
+  // Atualiza badge de cobertura na própria linha
+  cmpAtualizarCobertura(i);
+
+  // Atualiza flag de aprovação (esconde quando dados foram preenchidos)
+  cmpAtualizarAprovFlag(i);
+
+  // Sincroniza com Sheets (assíncrono)
+  var forn = document.getElementById("cmp-fornecedor");
+  cmpSyncEstoque(p.cod, estoque, valAt, forn ? forn.value : "").then(function(resp){
+    if(resp && resp.ok){
+      el.style.borderColor = "#36cfa0";
+      setTimeout(function(){ el.style.borderColor = ""; }, 1500);
+    } else {
+      el.style.borderColor = "#ff4d4f";
+      console.warn("Estoque nao foi salvo no Sheets:", resp);
+    }
+  });
+}
+
+// Calcula cobertura em meses (estoque ÷ giro mensal) e retorna {texto, classe}
+function cmpCalcCobertura(estoque, giro12m){
+  if(!estoque || estoque <= 0 || !giro12m || giro12m <= 0){
+    return { texto: "—", classe: "cob-na", meses: null };
+  }
+  var giroMes = giro12m / 12;
+  var meses = estoque / giroMes;
+  var txt = meses.toFixed(1) + " m";
+  var cls = "cob-ok";
+  if(meses < 1) cls = "cob-urg";
+  else if(meses > 6) cls = "cob-exc";
+  return { texto: txt, classe: cls, meses: meses };
+}
+
+// Atualiza a célula de cobertura de uma linha específica
+function cmpAtualizarCobertura(i){
+  var p = cmpProdutos[i];
+  if(!p) return;
+  var info = cmpEstoqueMap[p.cod] || {};
+  var cob = cmpCalcCobertura(info.estoque || 0, p.giro);
+  var cell = document.getElementById("cmp-cob-"+i);
+  if(cell){
+    if(cob.meses == null){
+      cell.innerHTML = "<span class='cob-na'>—</span>";
+    } else {
+      cell.innerHTML = "<span class='cob-tag "+cob.classe+"'>"+cob.texto+"</span>";
+    }
+  }
+}
+
+// Atualiza a flag "Deve ter aprovação Gestor Logística" de uma linha
+function cmpAtualizarAprovFlag(i){
+  var p = cmpProdutos[i];
+  if(!p) return;
+  var info = cmpEstoqueMap[p.cod] || {};
+  var temEstoque = (info.estoque !== undefined && info.estoque !== null && info.estoque !== "" && info.estoque > 0);
+  var temValAtual = (info.valAtual && String(info.valAtual).trim() !== "");
+  var flag = document.getElementById("cmp-aprov-"+i);
+  if(flag){
+    if(temEstoque || temValAtual){
+      flag.style.display = "none";
+    } else {
+      flag.style.display = "inline-block";
+    }
   }
 }
 
@@ -615,8 +826,8 @@ async function cmpLoad(force){
     var txt=await r.text();
     if(txt.trim().startsWith("<"))throw new Error("Planilha nao publicada como CSV.");
     cmpAllRows=csv(txt);cmpLoaded=true;
-    // Carrega validades em paralelo (nao bloqueia se falhar)
-    await cmpLoadValidades();
+    // Carrega validades e estoque em paralelo (nao bloqueia se falhar)
+    await Promise.all([cmpLoadValidades(), cmpLoadEstoque()]);
     if(ldg)ldg.style.display="none";
     if(cont)cont.style.display="block";
     cmpDebugCols();
@@ -687,6 +898,7 @@ function cmpSelectFornecedor(){
 }
 function cmpRenderProdutos(){
   var tbody=document.getElementById("cmp-tbody");if(!tbody)return;
+  var podeEditar = cmpPodeEditarEstoque();
   tbody.innerHTML=cmpProdutos.map(function(p,i){
     var vm=cmpValidadesMap[p.cod]||0;
     var gt=p.classe==="alto"?"<span class='giro-tag giro-alto'>&#128308; Alto</span>":"<span class='giro-tag giro-normal'>&#9679; Normal</span>";
@@ -699,15 +911,52 @@ function cmpRenderProdutos(){
     var ativo=String(p.row["Ativo?"]||"").trim();
     var emLinha=String(p.row["Em Linha?"]||"").trim();
     var estTag=estDisp&&estDisp!=="0"
-      ?"<span style='font-size:.65rem;color:#36cfa0;margin-left:4px'>Estq: "+estDisp+"</span>"
-      :"<span style='font-size:.65rem;color:var(--mu2);margin-left:4px'>Sem estoque</span>";
+      ?"<span style='font-size:.65rem;color:#36cfa0;margin-left:4px'>Estq RP: "+estDisp+"</span>"
+      :"<span style='font-size:.65rem;color:var(--mu2);margin-left:4px'>Sem estoque RP</span>";
     var atvTag=(ativo==="Não"||emLinha==="Não")
       ?"<span style='font-size:.62rem;color:#ff4d4f;margin-left:4px'>Inativo</span>":"";
+
+    // ===== Estoque Físico + Validade Atual (do cmpEstoqueMap) =====
+    var infoEst = cmpEstoqueMap[p.cod] || {};
+    var valEst  = (infoEst.estoque !== undefined && infoEst.estoque !== null && infoEst.estoque !== "") ? infoEst.estoque : "";
+    var valVA   = infoEst.valAtual || "";
+    var temDado = (valEst !== "" && valEst > 0) || (valVA && String(valVA).trim() !== "");
+
+    var celEstoque, celValAtual;
+    if(podeEditar){
+      celEstoque = "<input type='number' min='0' step='1' class='cmp-est' data-idx='"+i+"' value='"+(valEst===""?"":valEst)+"' onchange='cmpSaveEstoque(this)' placeholder='—'>";
+      celValAtual = "<input type='text' class='cmp-val-at' data-idx='"+i+"' value='"+valVA+"' onchange='cmpSaveEstoque(this)' placeholder='dd/mm/aaaa' maxlength='10' oninput=\"this.value=this.value.replace(/[^0-9/]/g,'').replace(/^(\\d{2})(\\d)/,'$1/$2').replace(/^(\\d{2}\\/\\d{2})(\\d)/,'$1/$2')\">";
+    } else {
+      celEstoque = valEst!==""
+        ? "<span class='cmp-est-ro'>"+valEst+"</span>"
+        : "<span class='cmp-est-ro empty'>—</span>";
+      celValAtual = valVA
+        ? "<span class='cmp-est-ro'>"+valVA+"</span>"
+        : "<span class='cmp-est-ro empty'>—</span>";
+    }
+    // tooltip de quem atualizou
+    var tipAtt = infoEst.atualizadoPor
+      ? " title='Atualizado por "+infoEst.atualizadoPor+(infoEst.atualizadoEm?" em "+new Date(infoEst.atualizadoEm).toLocaleString("pt-BR"):"")+"'"
+      : "";
+
+    // ===== Cobertura =====
+    var cob = cmpCalcCobertura(valEst || 0, p.giro);
+    var celCob = cob.meses == null
+      ? "<span class='cob-na'>—</span>"
+      : "<span class='cob-tag "+cob.classe+"'>"+cob.texto+"</span>";
+
+    // ===== Flag de aprovação Gestor Logística =====
+    var aprovFlag = "<div id='cmp-aprov-"+i+"' class='aprov-flag' style='display:"+(temDado?"none":"inline-block")+"'>&#9888; Aprov. Gestor Log&#237;stica</div>";
+
     return "<tr"+(ativo==="Não"?" style='opacity:.5'":"")+">" +
       "<td style='font-size:.82rem'><div style='font-weight:600'>"+(p.desc||p.cod)+atvTag+"</div>"+
-        "<div style='font-size:.7rem;color:var(--mu);margin-top:2px'>"+p.cod+estTag+"</div></td>"+
+        "<div style='font-size:.7rem;color:var(--mu);margin-top:2px'>"+p.cod+estTag+"</div>"+
+        aprovFlag+"</td>"+
       "<td style='text-align:center;font-weight:600'>"+(p.giro>0?p.giro.toFixed(0):"<span style='color:var(--mu2)'>Novo</span>")+"</td>"+
       "<td style='text-align:center'>"+gt+"</td>"+
+      "<td style='text-align:center'"+tipAtt+">"+celEstoque+"</td>"+
+      "<td style='text-align:center'"+tipAtt+">"+celValAtual+"</td>"+
+      "<td style='text-align:center' id='cmp-cob-"+i+"'>"+celCob+"</td>"+
       "<td><select class='val-sel' data-idx='"+i+"' onchange='cmpSaveVal(this)'>"+opts+"</select>"+
         "<div style='font-size:.65rem;color:var(--mu);margin-top:2px'>Regra: consumir at&#233; "+pct+" do prazo</div></td>"+
       "<td style='text-align:center'><span id='cmp-mv-"+i+"' style='"+mdc+";font-size:.82rem'>"+md+"</span></td>"+
