@@ -337,6 +337,7 @@ td:not(:first-child){text-align:right;}
           <span class="cob-tag cob-urg">&lt;1m urgente</span>
           <span class="cob-tag cob-ok">1-6m ok</span>
           <span class="cob-tag cob-exc">&gt;6m excesso</span>
+          <span id="cmp-sync-status" style="margin-left:auto;font-size:.72rem;color:var(--mu2);font-weight:600">Sincroniza&#231;&#227;o: aguardando</span>
         </div>
         <div class="twrap">
           <table>
@@ -658,6 +659,26 @@ async function cmpLoadEstoque(){
   }
 }
 
+// Atualiza badge de status de sincronização no topo da tabela
+function cmpSetSyncStatus(estado, msg){
+  var el = document.getElementById("cmp-sync-status");
+  if(!el) return;
+  var hh = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  if(estado === "saving"){
+    el.style.color = "#ff9800";
+    el.innerHTML = "&#9203; Salvando...";
+  } else if(estado === "ok"){
+    el.style.color = "#36cfa0";
+    el.innerHTML = "&#10003; Salvo &#224;s " + hh + (msg ? " &middot; " + msg : "");
+  } else if(estado === "erro"){
+    el.style.color = "#ff4d4f";
+    el.innerHTML = "&#10007; Erro ao salvar" + (msg ? " &middot; " + msg : "") + " &middot; verifique conex&#227;o";
+  } else {
+    el.style.color = "var(--mu2)";
+    el.innerHTML = "Sincroniza&#231;&#227;o: aguardando";
+  }
+}
+
 // Grava estoque/validade atual no Google Sheets (mesmo Web App das Validades, com tipo="estoque")
 async function cmpSyncEstoque(codigo, estoque, valAtual, fornecedor){
   if(!VALIDADES_SYNC_URL || VALIDADES_SYNC_URL.indexOf("COLE_AQUI") >= 0){
@@ -724,15 +745,20 @@ function cmpSaveEstoque(el){
   // Atualiza flag de aprovação (esconde quando dados foram preenchidos)
   cmpAtualizarAprovFlag(i);
 
+  // Indicador de status: salvando...
+  cmpSetSyncStatus("saving");
+
   // Sincroniza com Sheets (assíncrono)
   var forn = document.getElementById("cmp-fornecedor");
   cmpSyncEstoque(p.cod, estoque, valAt, forn ? forn.value : "").then(function(resp){
     if(resp && resp.ok){
       el.style.borderColor = "#36cfa0";
       setTimeout(function(){ el.style.borderColor = ""; }, 1500);
+      cmpSetSyncStatus("ok", "c&#243;d. " + p.cod);
     } else {
       el.style.borderColor = "#ff4d4f";
       console.warn("Estoque nao foi salvo no Sheets:", resp);
+      cmpSetSyncStatus("erro", "c&#243;d. " + p.cod);
     }
   });
 }
