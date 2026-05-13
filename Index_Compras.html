@@ -433,7 +433,90 @@ td:not(:first-child){text-align:right;}
    Cópia fiel do módulo de Compras do sistema antigo
    ============================================================ */
 
-// Guarda de sessão: sem login, manda de volta pro Menu
+// ============================================================
+// PERMISSÕES — lidas dinamicamente do UUSR (fonte única de verdade)
+// ============================================================
+var UUSR_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+
+// Cache do perfil do usuário logado (preenchido por usrCarregarPerfil)
+var USR_ATUAL = null;
+
+// Carrega a linha do UUSR correspondente ao usuário logado
+// Retorna objeto com todas as colunas (perfil, Compras, sigla, etc.) ou null
+async function usrCarregarPerfil(){
+  try{
+    var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
+    if(!sess || !sess.email) return null;
+
+    // Cache de 5min no sessionStorage pra não bater no CSV toda hora
+    var cacheKey = "uusr_perfil_" + sess.email;
+    var cached = sessionStorage.getItem(cacheKey);
+    if(cached){
+      try{
+        var obj = JSON.parse(cached);
+        if(Date.now() - obj._ts < 5*60*1000){
+          USR_ATUAL = obj.perfil;
+          return obj.perfil;
+        }
+      }catch(e){}
+    }
+
+    var r = await fetch(UUSR_URL + "&t=" + Date.now());
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var txt = await r.text();
+    if(txt.trim().startsWith("<")) throw new Error("UUSR não publicada como CSV");
+
+    var rows = csv(txt);
+    var emailAlvo = String(sess.email).toLowerCase().trim();
+    var encontrado = null;
+    rows.forEach(function(r){
+      if(String(r["email"]||"").toLowerCase().trim() === emailAlvo){
+        encontrado = r;
+      }
+    });
+
+    if(encontrado){
+      sessionStorage.setItem(cacheKey, JSON.stringify({ perfil: encontrado, _ts: Date.now() }));
+    }
+    USR_ATUAL = encontrado;
+    return encontrado;
+  }catch(e){
+    console.warn("Falha ao carregar UUSR:", e.message);
+    return null;
+  }
+}
+
+// Verifica se tem acesso ao módulo Compras (X ou * na coluna)
+function usrTemAcessoCompras(perfil){
+  if(!perfil) return false;
+  if(String(perfil.perfil||"").toLowerCase() === "admin") return true;
+  var v = String(perfil["Compras"]||"").trim().toLowerCase();
+  return v === "x" || v === "*";
+}
+
+// Verifica se pode EDITAR estoque/validade
+// Regra: admins + gestores (exceto compras@/Cris) + coordenadores
+function usrPodeEditarEstoque(perfil){
+  if(!perfil) return false;
+  var papel = String(perfil.perfil||"").toLowerCase();
+  if(papel === "admin") return true;
+  if(papel === "coordenador") return true;
+  if(papel === "gestor"){
+    // Cris (compras@) é gestor mas só consulta — decisão do Rodrigo
+    var email = String(perfil.email||"").toLowerCase();
+    if(email === "compras@qfoodcompany.com.br") return false;
+    return true;
+  }
+  return false;
+}
+
+// Helper síncrono usado pelo cmpRenderProdutos (USR_ATUAL já foi populado no init)
+function cmpPodeEditarEstoque(){
+  return usrPodeEditarEstoque(USR_ATUAL);
+}
+
+// Guarda de sessão SIMPLES — checa só se está logado.
+// A validação real de permissão é feita no init (assíncrono, depois de ler UUSR).
 (function checkSession(){
   var sess = JSON.parse(localStorage.getItem("qfood_session") || "null");
   if(!sess || (Date.now() - sess.ts >= 8*60*60*1000)){
@@ -441,26 +524,25 @@ td:not(:first-child){text-align:right;}
     location.href = "Index_Menu.html";
     return;
   }
-  // Verifica permissão: admin, gestor com 'compras' nas abas
-  var USERS_ABAS = {
-    "rodrigo@qfoodcompany.com.br": "all",
-    "adilson@qfoodcompany.com.br": "all",
-    "celio@qfoodcompany.com.br":   "all",
-    "gustavo@qfoodcompany.com.br": "all",
-    "compras@qfoodcompany.com.br": "comercial,financeiro,logistica,compras",
-    "jonathas@qfoodcompany.com.br":"logistica,compras",
-    "eduardo@qfoodcompany.com.br": "logistica,compras"
-  };
-  var perm = USERS_ABAS[sess.email] || "";
-  var temAcesso = (perm === "all") || (perm.indexOf("compras") >= 0);
-  if(!temAcesso){
-    alert("Voce nao tem permissao para acessar o modulo de Compras.");
-    location.href = "Index_Menu.html";
-    return;
-  }
   var ui = document.getElementById("user-info");
   if(ui) ui.textContent = sess.nome;
 })();
+
+// Verificação de permissão assíncrona — chamada no DOMContentLoaded
+async function verificarPermissaoCompras(){
+  var perfil = await usrCarregarPerfil();
+  if(!perfil){
+    alert("Usuario nao encontrado no UUSR. Redirecionando...");
+    location.href = "Index_Menu.html";
+    return false;
+  }
+  if(!usrTemAcessoCompras(perfil)){
+    alert("Voce nao tem permissao para acessar o modulo de Compras.");
+    location.href = "Index_Menu.html";
+    return false;
+  }
+  return true;
+}
 
 function logout(){
   if(confirm("Sair do sistema?")){
@@ -486,25 +568,6 @@ var VALIDADES_SYNC_TOKEN = "qfood-rs-2026-xK9pL3mQ7vN2bT8";
 
 // URL da aba "EstoqueAtual" — contagem física do Maiko/Jonathas
 var UESTOQUE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=271375618&single=true&output=csv";
-
-// Whitelist de quem pode EDITAR estoque/validade atual
-// (demais usuários veem como leitura — Cristina/compras@ só consulta)
-var CMP_ESTOQUE_EDITORS = [
-  "maiko@qfoodcompany.com.br",
-  "jonathas@qfoodcompany.com.br",
-  "rodrigo@qfoodcompany.com.br",
-  "adilson@qfoodcompany.com.br",
-  "celio@qfoodcompany.com.br",
-  "gustavo@qfoodcompany.com.br"
-];
-
-// Determina se o usuário logado pode editar estoque
-function cmpPodeEditarEstoque(){
-  try{
-    var sess = JSON.parse(localStorage.getItem("qfood_session") || "{}");
-    return CMP_ESTOQUE_EDITORS.indexOf((sess.email||"").toLowerCase()) >= 0;
-  }catch(e){ return false; }
-}
 
 // Cache em memória do estoque (Codigo -> { estoque, valAtual, atualizadoPor, atualizadoEm })
 var cmpEstoqueMap = {};
@@ -1367,8 +1430,10 @@ document.addEventListener("DOMContentLoaded",function(){
   });
 });
 
-// Inicialização: carregar dados automaticamente ao abrir a página
-document.addEventListener("DOMContentLoaded", function(){
+// Inicialização: valida permissão via UUSR, depois carrega dados
+document.addEventListener("DOMContentLoaded", async function(){
+  var ok = await verificarPermissaoCompras();
+  if(!ok) return;
   initCompras();
 });
 </script>
