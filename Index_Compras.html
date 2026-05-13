@@ -721,25 +721,94 @@ function cmpAtualizarAprovFlag(i){
   }
 }
 
-// Parser CSV do sistema antigo
+// Parser CSV RFC 4180 — trata aspas duplas E quebras de linha DENTRO de campos quoted
+// Substitui o parser antigo que quebrava quando a Observação tinha texto multi-linha
 function csv(txt){
-  var rows=txt.trim().split("\n");
-  function parseRow(row){
-    var result=[],cur="",inQ=false;
-    for(var i=0;i<row.length;i++){
-      var c=row[i];
-      if(c==='"'){inQ=!inQ;}
-      else if(c===","&&!inQ){result.push(cur.trim());cur="";}
-      else{cur+=c;}
+  if(!txt) return [];
+  // Remove BOM se presente
+  if(txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);
+
+  var rows = [];
+  var cur = "";
+  var row = [];
+  var inQ = false;
+  var i = 0;
+  var len = txt.length;
+
+  while(i < len){
+    var c = txt[i];
+
+    if(inQ){
+      // Dentro de aspas
+      if(c === '"'){
+        if(i + 1 < len && txt[i+1] === '"'){
+          // Aspas escapadas ("" → ")
+          cur += '"';
+          i += 2;
+          continue;
+        } else {
+          // Fim do campo quoted
+          inQ = false;
+          i++;
+          continue;
+        }
+      } else {
+        // Qualquer outro char (inclusive \n e \r) faz parte do campo
+        cur += c;
+        i++;
+        continue;
+      }
+    } else {
+      // Fora de aspas
+      if(c === '"' && cur === ""){
+        // Início de campo quoted
+        inQ = true;
+        i++;
+        continue;
+      }
+      if(c === ','){
+        row.push(cur.trim());
+        cur = "";
+        i++;
+        continue;
+      }
+      if(c === '\r'){
+        // Ignora \r (Windows usa \r\n)
+        i++;
+        continue;
+      }
+      if(c === '\n'){
+        // Fim de linha
+        row.push(cur.trim());
+        rows.push(row);
+        row = [];
+        cur = "";
+        i++;
+        continue;
+      }
+      cur += c;
+      i++;
     }
-    result.push(cur.trim());
-    return result;
   }
-  var hdr=parseRow(rows[0]).map(function(h){return h.replace(/^"|"$/g,"").trim();});
-  return rows.slice(1).map(function(row){
-    var vals=parseRow(row).map(function(v){return v.replace(/^"|"$/g,"").trim();});
-    var o={};hdr.forEach(function(h,i){o[h]=vals[i]||"";});return o;
-  }).filter(function(r){return Object.values(r).some(function(v){return v!="";});});
+  // Última célula/linha (arquivo pode não terminar com \n)
+  if(cur !== "" || row.length > 0){
+    row.push(cur.trim());
+    rows.push(row);
+  }
+
+  if(rows.length === 0) return [];
+
+  // Primeira linha = headers
+  var hdr = rows[0].map(function(h){ return h.replace(/^"|"$/g,"").trim(); });
+
+  // Demais linhas viram objetos {header: valor}
+  return rows.slice(1).map(function(r){
+    var o = {};
+    hdr.forEach(function(h, idx){ o[h] = (r[idx] !== undefined ? String(r[idx]).replace(/^"|"$/g,"").trim() : ""); });
+    return o;
+  }).filter(function(r){
+    return Object.values(r).some(function(v){ return v !== ""; });
+  });
 }
 
 
