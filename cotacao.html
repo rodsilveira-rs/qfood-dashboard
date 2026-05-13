@@ -574,31 +574,74 @@ function enviar() {
     method: 'POST',
     body: formData
   })
-  .then(function(r){ return r.json(); })
+  .then(function(r){
+    // Mesmo com erro HTTP, FormSubmit retorna JSON com success:false
+    return r.json().catch(function(){
+      // Não conseguiu parsear JSON = falha grave (rede/CORS/servidor offline)
+      throw { tipo: 'rede', msg: 'Resposta inválida do servidor (HTTP ' + r.status + ')' };
+    });
+  })
   .then(function(res){
-    if(res.success === 'true' || res.success === true){
+    var ok = (res.success === 'true' || res.success === true);
+    if(ok){
+      // ✅ Sucesso real — FormSubmit confirmou disparo do e-mail
       document.getElementById('DIV_FORM').style.display = 'none';
       document.getElementById('DIV_OK').style.display = 'block';
       window.scrollTo({top: 0, behavior: 'smooth'});
     } else {
-      throw new Error('FormSubmit retornou erro');
+      // ❌ FormSubmit recebeu mas rejeitou — joga erro com a mensagem real
+      throw { tipo: 'formsubmit', msg: res.message || 'FormSubmit rejeitou o envio (sem mensagem).' };
     }
   })
-  .catch(function(){
-    // Fallback: mailto (abre cliente de e-mail do fornecedor)
-    status.textContent = '⚠️ Abrindo cliente de e-mail como alternativa...';
-    var sub = encodeURIComponent('Cotacao Q Food - ' + d.nome + ' - ' + d.today);
-    var bod = encodeURIComponent(d.corpo);
-    window.open(
-      'mailto:' + PRINCIPAL + '?cc=' + encodeURIComponent(CC_LISTA) +
-      '&subject=' + sub + '&body=' + bod,
-      '_blank'
-    );
-    setTimeout(function(){
-      document.getElementById('DIV_FORM').style.display = 'none';
-      document.getElementById('DIV_OK').style.display = 'block';
-      window.scrollTo({top: 0, behavior: 'smooth'});
-    }, 1500);
+  .catch(function(err){
+    // Recupera UI do botão para permitir nova tentativa
+    btn.disabled = false;
+    btn.textContent = '✅ Enviar Proposta de Cotação';
+
+    if (err && err.tipo === 'formsubmit') {
+      // Caso 1: FormSubmit retornou success:false (ativação pendente, captcha, etc.)
+      // Aqui NÃO devemos mostrar "Proposta enviada!" — o envio NÃO ocorreu.
+      status.style.display = 'block';
+      status.style.color = '#c0392b';
+      status.style.fontWeight = '600';
+      status.innerHTML = '❌ <b>O envio falhou.</b><br>' +
+        '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Detalhe técnico: ' + esc(err.msg) + '</span><br>' +
+        '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Por favor, contate o time de Compras: <b>compras@qfoodcompany.com.br</b></span>';
+      window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+      return;
+    }
+
+    // Caso 2: Falha de rede real (fetch caiu, sem internet, CORS) → oferece fallback mailto MAS pede confirmação
+    status.style.display = 'block';
+    status.style.color = '#b8860b';
+    status.style.fontWeight = '600';
+    status.innerHTML =
+      '⚠️ <b>Não conseguimos enviar automaticamente.</b><br>' +
+      '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">' +
+      'Vamos abrir seu cliente de e-mail (Outlook/Gmail) com a proposta já preenchida.<br>' +
+      '<b>Importante:</b> você precisará clicar em <b>ENVIAR</b> lá para que a cotação chegue à Q Food.</span><br><br>' +
+      '<button id="BTN_MAILTO" style="background:#e63329;border:none;color:#fff;padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.82rem">📧 Abrir cliente de e-mail</button>';
+
+    document.getElementById('BTN_MAILTO').onclick = function(){
+      var sub = encodeURIComponent('Cotacao Q Food - ' + d.nome + ' - ' + d.today);
+      var bod = encodeURIComponent(d.corpo);
+      window.open(
+        'mailto:' + PRINCIPAL + '?cc=' + encodeURIComponent(CC_LISTA) +
+        '&subject=' + sub + '&body=' + bod,
+        '_blank'
+      );
+      // Agora mostra confirmação separada — usuário deve marcar que ENVIOU pelo cliente
+      status.innerHTML =
+        '⚠️ <b>Cliente de e-mail aberto.</b><br>' +
+        '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Clique em <b>Enviar</b> no Outlook/Gmail. Depois confirme abaixo:</span><br><br>' +
+        '<button id="BTN_CONF_ENV" style="background:#0c7a5e;border:none;color:#fff;padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.82rem">✅ Já enviei pelo meu e-mail</button>';
+      document.getElementById('BTN_CONF_ENV').onclick = function(){
+        document.getElementById('DIV_FORM').style.display = 'none';
+        document.getElementById('DIV_OK').style.display = 'block';
+        window.scrollTo({top: 0, behavior: 'smooth'});
+      };
+    };
+    window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
   });
 }
 
