@@ -137,20 +137,19 @@ input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97
         <div class="fg"><label>E-mail para resposta *</label><input type="email" id="femail" placeholder="vendas@empresa.com.br" data-prefilled="0"></div>
         <div class="fg"><label>Contato / Representante *</label><input type="text" id="fcontato" placeholder="Nome do representante" data-prefilled="0"></div>
         <div class="fg"><label>Prazo de entrega estimado *</label>
-          <select id="fprazo">
-            <option value="">Selecione...</option>
-            <option>Imediato (estoque disponível)</option>
-            <option>1 a 3 dias úteis</option>
-            <option>4 a 7 dias úteis</option>
-            <option>8 a 15 dias úteis</option>
-            <option>16 a 30 dias úteis</option>
-            <option>Sob consulta</option>
-          </select>
+          <input type="date" id="fprazo" onchange="calcPrazo()" min="">
+          <div id="prazo-info" style="margin-top:6px;font-size:.74rem;color:#6b7ea8;min-height:18px">Selecione a data prevista de entrega</div>
         </div>
       </div>
-      <div class="fg" style="margin-top:4px">
+      <div id="banner-ajuste-prazo" style="display:none;margin-top:12px;padding:12px 14px;background:#fff8e8;border:1px solid #f0d175;border-radius:8px;font-size:.82rem;line-height:1.5"></div>
+      <div class="fg" style="margin-top:14px">
         <label>Observações / Condições especiais</label>
-        <textarea id="fobs" rows="3" placeholder="Ex: Desconto para pedido acima de X unidades, frete grátis acima de R$ Y..."></textarea>
+        <textarea id="fobs" rows="3" placeholder="Ex: Desconto para pedido acima de X unidades, frete grátis acima de R$ Y..." oninput="atualizarBlocoJustificativa()"></textarea>
+      </div>
+      <div id="bloco-justificativa" style="display:none;margin-top:14px;padding:14px;background:#fff4f4;border:1.5px solid #f5b5b5;border-radius:8px">
+        <label id="label-justificativa" style="display:block;font-size:.78rem;color:#c0392b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">⚠️ Justificativa obrigatória</label>
+        <div style="font-size:.77rem;color:#8a3a3a;margin-bottom:8px">Um ou mais itens estão com validade abaixo do mínimo exigido pela Q Food. Por favor, justifique abaixo (motivo da exceção, conduta de armazenamento, garantias adicionais, etc).</div>
+        <textarea id="fjustif" rows="3" placeholder="Ex: Lote produzido em XX/XX/2026, condições especiais de armazenamento refrigerado, garantia de troca caso necessário..." style="border-color:#f5b5b5;background:#fff"></textarea>
       </div>
       <div id="CONFBOX" style="display:none;margin-top:14px;padding:12px 14px;background:#f0f7ff;border:1px solid #c9dcf5;border-radius:8px">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:.84rem;color:#2a3d5e;line-height:1.5;font-weight:600">
@@ -207,7 +206,6 @@ function dec(s) {
 
 function normalize(raw) {
   if (raw.fornecedor && raw.itens) {
-    // Já está no formato verboso — apenas garante os novos campos
     raw.emailForn   = raw.emailForn   || raw.e || '';
     raw.contatoForn = raw.contatoForn || raw.c || '';
     return raw;
@@ -225,11 +223,23 @@ function normalize(raw) {
         desc: String(a[1] || a[0] || ''),
         qtd: parseInt(a[2]) || 1,
         classe: a[3] === 1 ? 'alto' : 'normal',
-        valMeses: parseInt(a[4]) || 0,
+        valQtd: parseInt(a[4]) || 0,
+        valMeses: parseInt(a[4]) || 0, // compat
+        valUnidade: String(a[6] || 'meses').toLowerCase(),
         minDate: a[5] || null
       };
     })
   };
+}
+
+// Formata validade de forma legivel ("30 dias", "3 meses", "1 ano")
+function fmtValidade(qtd, unidade){
+  var q = parseInt(qtd) || 0;
+  if (q <= 0) return '';
+  var u = String(unidade || 'meses').toLowerCase();
+  if (u === 'dias')  return q + (q === 1 ? ' dia' : ' dias');
+  if (u === 'anos')  return q + (q === 1 ? ' ano' : ' anos');
+  return q + (q === 1 ? ' mês' : ' meses');
 }
 
 function esc(s) {
@@ -243,6 +253,9 @@ function render() {
 
   // Pré-preenchimento dos dados do fornecedor (vindos do Index_Compras)
   preencherDadosFornecedor();
+
+  // Configura datepicker do prazo (min = hoje)
+  setarMinPrazo();
 
   if (COT.obs) {
     var ob = document.getElementById('xobs');
@@ -258,11 +271,21 @@ function render() {
     var gt = it.classe === 'alto'
       ? "<span class='gb ga'>🔴 Alto</span>"
       : "<span class='gb gn'>⚪ Normal</span>";
-    var vm = it.minDate
-      ? "<span class='vmin'>" + esc(it.minDate) + "</span>"
-      : "<span style='color:#8fa0c0;font-size:.75rem'>—</span>";
-    var vi = it.valMeses
-      ? "<span style='font-size:.67rem;color:#8fa0c0'>" + it.valMeses + "m × " + (it.classe === 'alto' ? '70' : '80') + "% mín</span>"
+    // Val. Mínima — agora calculada dinamicamente (considera prazo de entrega)
+    var calcIni = it.valQtd ? calcValMinima(it) : null;
+    var vmInicial;
+    if(calcIni){
+      var cor = calcIni.ajustado ? '#b8860b' : '#e63329';
+      var icone = calcIni.ajustado ? '⚠️ ' : '';
+      vmInicial = '<span style="color:'+cor+';font-weight:700;font-size:.82rem">' + icone + fmtDias(calcIni.minDias) + '</span>';
+      if(calcIni.ajustado){
+        vmInicial += '<div style="font-size:.62rem;color:#8a6a00;margin-top:2px">' + calcIni.minDiasOriginal + ' + ' + calcIni.diasEntrega + ' (entrega)</div>';
+      }
+    } else {
+      vmInicial = "<span style='color:#8fa0c0;font-size:.75rem'>—</span>";
+    }
+    var vi = it.valQtd
+      ? "<span style='font-size:.67rem;color:#8fa0c0'>Total: " + fmtValidade(it.valQtd, it.valUnidade) + " × " + (it.classe === 'alto' ? '70' : '80') + "%</span>"
       : '';
     var uOpts = uns.map(function(u) { return '<option value="' + u + '">' + u + '</option>'; }).join('');
     return '<tr>' +
@@ -274,7 +297,7 @@ function render() {
           'style="width:70px;padding:6px 8px;background:#f6f8fc;border:1px solid #d5dce8;border-radius:6px;text-align:center;font-weight:600;color:#1a1f2e">' +
         '<div id="qtdMsg' + i + '" style="font-size:.65rem;color:#e89200;margin-top:3px;font-weight:600;display:none"></div>' +
       '</td>' +
-      '<td>' + vm + '<div>' + vi + '</div></td>' +
+      '<td><div id="vmin' + i + '">' + vmInicial + '</div><div>' + vi + '</div></td>' +
       '<td><div class="pi"><span>R$</span>' +
         '<input type="number" min="0" step="0.01" id="p' + i + '" placeholder="0,00" oninput="calc()">' +
       '</div><div style="font-size:.67rem;color:#8fa0c0;margin-top:2px" id="sub' + i + '"></div></td>' +
@@ -304,26 +327,89 @@ function chkQty(i) {
   }
 }
 
+// Tolerância de prazo de entrega: até 7 dias corridos não exige ajuste
+var PRAZO_TOLERANCIA_DIAS = 7;
+
+// Calcula a validade mínima EM DIAS que o produto precisa ter na data da entrega
+// Considera: validade total + percentual aceito + ajuste por prazo de entrega
+// Retorna: { minDias, minDiasOriginal, ajustado, diasEntrega }
+function calcValMinima(it){
+  var pct = it.classe === 'alto' ? 0.70 : 0.80;
+  // Converte validade total para dias
+  var valTotalDias;
+  if(it.valUnidade === 'dias')      valTotalDias = it.valQtd;
+  else if(it.valUnidade === 'anos') valTotalDias = it.valQtd * 365;
+  else                              valTotalDias = it.valQtd * 30; // meses default
+  // Validade mínima base (sem considerar entrega)
+  var minDiasOriginal = Math.ceil(valTotalDias * pct);
+
+  // Olha prazo de entrega
+  var diasEntrega = obterDiasEntrega();
+  // Se até 7 dias corridos, não ajusta
+  var ajustado = diasEntrega > PRAZO_TOLERANCIA_DIAS;
+  var minDias = ajustado ? (minDiasOriginal + diasEntrega) : minDiasOriginal;
+
+  return {
+    minDias: minDias,
+    minDiasOriginal: minDiasOriginal,
+    ajustado: ajustado,
+    diasEntrega: diasEntrega,
+    valTotalDias: valTotalDias
+  };
+}
+
+// Obtém dias corridos até a entrega (a partir de hoje)
+// Retorna 0 se não há data informada
+function obterDiasEntrega(){
+  var input = document.getElementById('fprazo');
+  if(!input || !input.value) return 0;
+  var partes = input.value.split('-');
+  if(partes.length !== 3) return 0;
+  var dataEntrega = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  dataEntrega.setHours(0,0,0,0);
+  var dias = Math.round((dataEntrega - hoje) / (24*60*60*1000));
+  return dias > 0 ? dias : 0;
+}
+
+// Converte número de dias em texto legível ("45 dias", "1,5 meses", "1 ano")
+function fmtDias(d){
+  if(d <= 0) return '0';
+  if(d < 60)  return d + ' dias';
+  if(d < 365) return (d/30).toFixed(1).replace('.0','').replace('.',',') + ' meses (' + d + ' dias)';
+  return (d/365).toFixed(1).replace('.0','').replace('.',',') + ' anos (' + d + ' dias)';
+}
+
 function chkv(i) {
   var it = COT.itens[i];
   var m = parseInt(document.getElementById('v' + i).value) || 0;
   var el = document.getElementById('vs' + i);
   if (!m) { el.style.display = 'none'; calc(); return; }
-  if (!it.valMeses) {
+  if (!it.valQtd) {
     el.className = 'vs vnovo'; el.textContent = '⭐ Produto novo — sem mínimo definido';
     el.style.display = 'block'; calc(); return;
   }
-  var min = Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80));
-  if (m >= min) {
-    el.className = 'vs vok'; el.textContent = '✅ Aceita (' + m + ' meses ≥ mín. ' + min + ')';
+  // Fornecedor informa em meses → converte pra dias
+  var ofereceDias = m * 30;
+  var calc_ = calcValMinima(it);
+  var min = calc_.minDias;
+
+  if (ofereceDias >= min) {
+    el.className = 'vs vok';
+    el.textContent = '✅ Aceita (' + m + ' meses ≈ ' + ofereceDias + ' dias ≥ mín. ' + min + ' dias)';
   } else {
-    el.className = 'vs vwarn'; el.textContent = '❌ Abaixo do mínimo — precisamos de ' + min + ' meses';
+    el.className = 'vs vwarn';
+    var detalhe = calc_.ajustado
+      ? '❌ Abaixo do mínimo ajustado (' + min + ' dias = ' + calc_.minDiasOriginal + ' + ' + calc_.diasEntrega + ' dias de entrega)'
+      : '❌ Abaixo do mínimo — precisamos de ' + min + ' dias (≈ ' + Math.ceil(min/30) + ' meses)';
+    el.textContent = detalhe;
   }
   el.style.display = 'block'; calc();
 }
 
 function calc() {
   var tot = 0, totQ = 0, lines = '', has = false;
+  window.QTD_ITENS_ABAIXO = 0; // exposto para validação no envio
   COT.itens.forEach(function(it, i) {
     var p = parseFloat(document.getElementById('p' + i).value) || 0;
     var u = document.getElementById('un' + i).value;
@@ -336,9 +422,14 @@ function calc() {
     if (sub) sub.textContent = p ? '= R$ ' + s.toLocaleString('pt-BR', {minimumFractionDigits:2}) : '';
     if (!p && !v) return;
     has = true; tot += s; totQ += qtdEdit;
-    var min = it.valMeses ? Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80)) : 0;
-    var vok = v && min ? (v >= min ? ' ✅' : ' ❌') : '';
-    // Exibe a qtd com destaque se foi alterada
+    // Nova lógica: mínimo em DIAS considerando prazo de entrega
+    var ofereceDias = v * 30; // fornecedor informa em meses
+    var calc_ = it.valQtd ? calcValMinima(it) : null;
+    var minDias = calc_ ? calc_.minDias : 0;
+    var vok = (v && minDias) ? (ofereceDias >= minDias ? ' ✅' : ' ❌') : '';
+    if (v && minDias && ofereceDias < minDias) {
+      window.QTD_ITENS_ABAIXO++;
+    }
     var qtdDisp = qtdDiff
       ? '<span style="color:#e89200;font-weight:600">' + qtdEdit + '</span> <span style="color:#8fa0c0;font-size:.7rem;text-decoration:line-through">' + it.qtd + '</span> <span style="background:#fff3dd;color:#e89200;font-size:.65rem;padding:1px 5px;border-radius:4px;font-weight:600">ALTERADA</span>'
       : qtdEdit;
@@ -358,13 +449,17 @@ function calc() {
       '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;font-size:.92rem;border-top:2px solid #e63329;margin-top:3px">' +
       '<span>Total geral</span><span style="color:#e63329">R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span></div>';
   } else if (rc) rc.style.display = 'none';
+
+  // Atualiza visibilidade do bloco de justificativa
+  atualizarBlocoJustificativa();
 }
 
 function montarCorpo() {
   var nome    = document.getElementById('fnome').value.trim();
   var email   = document.getElementById('femail').value.trim();
   var contato = document.getElementById('fcontato').value.trim();
-  var prazo   = document.getElementById('fprazo').value;
+  var prazoRaw = document.getElementById('fprazo').value;
+  var prazo   = formatarPrazoEntrega(prazoRaw); // "19/05/2026 (5 dias corridos · 4 dias úteis)"
   var obs     = document.getElementById('fobs').value.trim();
   var today   = new Date().toLocaleDateString('pt-BR');
   var alteradas = 0;
@@ -377,10 +472,20 @@ function montarCorpo() {
     var qtdEdit = qEl ? (parseInt(qEl.value) || it.qtd) : it.qtd;
     var qtdDiff = qtdEdit !== it.qtd;
     if (qtdDiff) alteradas++;
-    var min = it.valMeses ? Math.ceil(it.valMeses * (it.classe === 'alto' ? 0.70 : 0.80)) : 0;
-    var st = v && min ? (v >= min ? '✅ ACEITA' : '❌ ABAIXO DO MÍNIMO') : '';
-    var valIcon = v && min ? (v >= min ? '✅' : '❌') : '⚪';
+    // Nova logica de validade minima (em dias, considerando prazo de entrega)
+    var calcMin = it.valQtd ? calcValMinima(it) : null;
+    var minDias = calcMin ? calcMin.minDias : 0;
+    var ofereceDias = v * 30;
+    var st = v && minDias ? (ofereceDias >= minDias ? '✅ ACEITA' : '❌ ABAIXO DO MÍNIMO') : '';
+    var valIcon = v && minDias ? (ofereceDias >= minDias ? '✅' : '❌') : '⚪';
     var totItem = p * qtdEdit;
+    var linhaMinima = '';
+    if(calcMin){
+      linhaMinima = '   📅 Val. mínima exigida: ' + fmtDias(calcMin.minDias);
+      if(calcMin.ajustado){
+        linhaMinima += ' (BASE = ' + calcMin.minDiasOriginal + ' dias + ' + calcMin.diasEntrega + ' dias entrega)';
+      }
+    }
     return '▸ Item ' + (i + 1) + ': ' + (it.desc || it.cod).toUpperCase() + '\n' +
       '   Código: ' + it.cod + '\n' +
       (qtdDiff
@@ -389,8 +494,8 @@ function montarCorpo() {
       ) + '\n' +
       (p ? '   💲 Preço unit.: R$ ' + p.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '/' + u +
            ' → Total: R$ ' + totItem.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' : '') +
-      (v ? '   ' + valIcon + ' Validade: ' + v + ' meses' + (st ? ' — ' + st : '') + '\n' : '') +
-      (it.minDate ? '   📅 Val. mínima exigida: ' + it.minDate : '');
+      (v ? '   ' + valIcon + ' Validade ofertada: ' + v + ' meses' + (st ? ' — ' + st : '') + '\n' : '') +
+      linhaMinima;
   }).join('\n\n');
 
   var tot = COT.itens.reduce(function(s, it, i) {
@@ -404,6 +509,24 @@ function montarCorpo() {
     ? '\n⚠️  ATENÇÃO: ' + alteradas + ' item(ns) com quantidade ALTERADA pelo fornecedor.\n    Verifique as linhas marcadas abaixo.\n'
     : '';
 
+  // Bloco de prazo ajustado (quando entrega > 7 dias)
+  var diasEntrega = obterDiasEntrega();
+  var avisoPrazo = '';
+  if(diasEntrega > PRAZO_TOLERANCIA_DIAS){
+    avisoPrazo = '\n⚠️  PRAZO DE ENTREGA SUPERIOR A ' + PRAZO_TOLERANCIA_DIAS + ' DIAS (' + diasEntrega + ' dias).\n' +
+                 '    As validades mínimas exigidas foram recalculadas com base na DATA DE ENTREGA,\n' +
+                 '    não na data de hoje (' + today + ').\n';
+  }
+
+  // Justificativa (se houver itens abaixo do mínimo)
+  var justif = document.getElementById('fjustif');
+  var justifTxt = (justif && justif.value.trim()) ? justif.value.trim() : '';
+  var blocoJustif = '';
+  if((window.QTD_ITENS_ABAIXO || 0) > 0 && justifTxt){
+    blocoJustif = '\n🚨 JUSTIFICATIVA DO FORNECEDOR (itens abaixo da validade mínima):\n' +
+                  justifTxt + '\n\n';
+  }
+
   var corpoTexto =
     '╔══════════════════════════════════════════╗\n' +
     '║      RESPOSTA DE COTAÇÃO — ' + nome.substring(0,16).toUpperCase() + '\n' +
@@ -414,6 +537,7 @@ function montarCorpo() {
     (contato ? '👤 Representante: ' + contato + '\n' : '') +
     (prazo   ? '🚚 Prazo de entrega: ' + prazo + '\n' : '') +
     aviso +
+    avisoPrazo +
     '\n' + SEP + '\n' +
     '📦 FORNECEDOR NA COTAÇÃO: ' + COT.fornecedor + '\n' +
     '📋 Solicitação: ' + (COT.data || today) + '\n' +
@@ -425,14 +549,166 @@ function montarCorpo() {
     '\n\n' + SEP + '\n' +
     '💰 TOTAL GERAL: R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '\n' +
     SEP + '\n' +
+    blocoJustif +
     (obs ? '\n📝 OBSERVAÇÕES DO FORNECEDOR:\n' + obs + '\n\n' : '') +
     'Enviado via Formulário de Cotação — Q Food Company\n' +
     'compras@qfoodcompany.com.br';
 
   return {
     nome: nome, email: email, contato: contato, prazo: prazo, obs: obs, today: today,
-    corpo: corpoTexto, alteradas: alteradas
+    corpo: corpoTexto, alteradas: alteradas, justificativa: justifTxt,
+    qtdAbaixo: window.QTD_ITENS_ABAIXO || 0, diasEntrega: diasEntrega
   };
+}
+
+// Recebe data ISO (YYYY-MM-DD) e retorna string formatada para o email
+function formatarPrazoEntrega(iso){
+  if(!iso) return '';
+  var partes = iso.split('-');
+  if(partes.length !== 3) return iso;
+  var dataEntrega = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  dataEntrega.setHours(0,0,0,0);
+  var msDia = 24*60*60*1000;
+  var dCorridos = Math.round((dataEntrega - hoje) / msDia);
+
+  var dUteis = 0;
+  var cursor = new Date(hoje);
+  cursor.setDate(cursor.getDate() + 1);
+  while(cursor <= dataEntrega){
+    var dia = cursor.getDay();
+    if(dia !== 0 && dia !== 6) dUteis++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  var dataFmt = dataEntrega.toLocaleDateString('pt-BR');
+  if(dCorridos === 0) return dataFmt + ' (entrega hoje mesmo)';
+  if(dCorridos < 0)   return dataFmt + ' (data informada)';
+  return dataFmt + ' (' + dCorridos + ' dia(s) corrido(s) · ' + dUteis + ' dia(s) útil(eis) a partir de ' + hoje.toLocaleDateString('pt-BR') + ')';
+}
+
+// Calcula dias corridos e dias úteis entre hoje e a data escolhida pelo fornecedor
+function calcPrazo(){
+  var input = document.getElementById('fprazo');
+  var info = document.getElementById('prazo-info');
+  if(!input || !info) return;
+  var val = input.value;
+  if(!val){
+    info.innerHTML = 'Selecione a data prevista de entrega';
+    info.style.color = '#6b7ea8';
+    atualizarBannerPrazo(0);
+    revalidarTodosItens();
+    return;
+  }
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var partes = val.split('-');
+  var dataEntrega = new Date(parseInt(partes[0]), parseInt(partes[1])-1, parseInt(partes[2]));
+  dataEntrega.setHours(0,0,0,0);
+  var msDia = 24 * 60 * 60 * 1000;
+  var diasCorridos = Math.round((dataEntrega - hoje) / msDia);
+
+  if(diasCorridos < 0){
+    info.innerHTML = '⚠️ Data no passado — selecione uma data igual ou posterior a hoje';
+    info.style.color = '#c0392b';
+    atualizarBannerPrazo(0);
+    revalidarTodosItens();
+    return;
+  }
+  if(diasCorridos === 0){
+    info.innerHTML = '⚡ Entrega <b>hoje mesmo</b> (' + dataEntrega.toLocaleDateString('pt-BR') + ')';
+    info.style.color = '#0c7a5e';
+    atualizarBannerPrazo(0);
+    revalidarTodosItens();
+    return;
+  }
+
+  // Dias úteis (excluindo sábados e domingos)
+  var diasUteis = 0;
+  var cursor = new Date(hoje);
+  cursor.setDate(cursor.getDate() + 1);
+  while(cursor <= dataEntrega){
+    var dia = cursor.getDay();
+    if(dia !== 0 && dia !== 6) diasUteis++;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  var dataFmt = dataEntrega.toLocaleDateString('pt-BR');
+  info.innerHTML = '↳ <b>' + diasCorridos + ' dia(s) corrido(s)</b> · ' + diasUteis + ' dia(s) útil(eis) a partir de ' + hoje.toLocaleDateString('pt-BR') + ' · entrega em <b>' + dataFmt + '</b>';
+  info.style.color = '#0c7a5e';
+
+  // Atualiza banner de aviso e recalcula tudo
+  atualizarBannerPrazo(diasCorridos);
+  revalidarTodosItens();
+}
+
+// Mostra/oculta banner de ajuste de validade conforme prazo de entrega
+function atualizarBannerPrazo(diasCorridos){
+  var banner = document.getElementById('banner-ajuste-prazo');
+  if(!banner) return;
+  if(diasCorridos > PRAZO_TOLERANCIA_DIAS){
+    banner.style.display = 'block';
+    banner.innerHTML =
+      '<div style="display:flex;align-items:flex-start;gap:10px">' +
+      '<span style="font-size:1.2rem">⚠️</span>' +
+      '<div>' +
+        '<div style="font-weight:700;color:#8a6a00;margin-bottom:4px">Prazo de entrega de ' + diasCorridos + ' dias (acima de ' + PRAZO_TOLERANCIA_DIAS + ').</div>' +
+        '<div style="color:#6b4d00">As validades mínimas exigidas foram <b>recalculadas</b> considerando que os produtos chegarão daqui a ' + diasCorridos + ' dias. A coluna <b>"Val. mínima exigida"</b> de cada item já está atualizada.</div>' +
+      '</div>' +
+      '</div>';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// Recalcula visualmente "Val. mínima exigida" de cada linha e re-roda chkv
+function revalidarTodosItens(){
+  COT.itens.forEach(function(it, i){
+    var calc_ = it.valQtd ? calcValMinima(it) : null;
+    var cell = document.getElementById('vmin' + i);
+    if(cell){
+      if(!calc_){
+        cell.innerHTML = '<span style="color:#8fa0c0">—</span>';
+      } else {
+        var cor = calc_.ajustado ? '#b8860b' : '#2a3d5e';
+        var icone = calc_.ajustado ? '⚠️ ' : '';
+        cell.innerHTML = '<span style="color:'+cor+';font-weight:600">' + icone + fmtDias(calc_.minDias) + '</span>';
+        if(calc_.ajustado){
+          cell.innerHTML += '<div style="font-size:.62rem;color:#8a6a00;margin-top:2px">' + calc_.minDiasOriginal + ' + ' + calc_.diasEntrega + ' (entrega)</div>';
+        }
+      }
+    }
+    // Re-roda checagem da validade informada para esse item
+    var v = document.getElementById('v' + i);
+    if(v && v.value) chkv(i);
+  });
+  calc();
+}
+
+// Mostra/esconde bloco de justificativa quando há itens abaixo do mínimo
+function atualizarBlocoJustificativa(){
+  var bloco = document.getElementById('bloco-justificativa');
+  if(!bloco) return;
+  var qtd = window.QTD_ITENS_ABAIXO || 0;
+  if(qtd > 0){
+    bloco.style.display = 'block';
+    var lbl = document.getElementById('label-justificativa');
+    if(lbl) lbl.innerHTML = '⚠️ Justificativa obrigatória <span style="font-weight:400;color:#8a6a00">(' + qtd + ' item(ns) abaixo da validade mínima exigida)</span>';
+  } else {
+    bloco.style.display = 'none';
+    var ta = document.getElementById('fjustif');
+    if(ta) ta.value = '';
+  }
+}
+
+// Garante que o min do datepicker é hoje (impede datas no passado)
+function setarMinPrazo(){
+  var input = document.getElementById('fprazo');
+  if(!input) return;
+  var hoje = new Date();
+  var ano = hoje.getFullYear();
+  var mes = String(hoje.getMonth()+1).padStart(2,'0');
+  var dia = String(hoje.getDate()).padStart(2,'0');
+  input.setAttribute('min', ano + '-' + mes + '-' + dia);
 }
 
 function preencherDadosFornecedor(){
@@ -531,6 +807,13 @@ function enviar() {
     var v = parseInt(document.getElementById('v' + i).value) || 0;
     if (p > 0 && !v) erros.push('Informe a validade do item: ' + (it.desc||it.cod).substring(0,25));
   });
+  // Se há itens abaixo do mínimo, justificativa é obrigatória
+  if ((window.QTD_ITENS_ABAIXO || 0) > 0) {
+    var just = document.getElementById('fjustif');
+    if (!just || !just.value.trim() || just.value.trim().length < 10) {
+      erros.push('Justificativa obrigatória (mín. 10 caracteres) — há itens abaixo da validade mínima');
+    }
+  }
   var eEl = document.getElementById('FERR');
   if (erros.length) { eEl.style.display = 'block'; eEl.textContent = '⚠️ ' + erros.join(' · '); return; }
   eEl.style.display = 'none';
@@ -569,6 +852,13 @@ function enviar() {
   formData.append('Prazo',        d.prazo || '—');
   formData.append('Total_itens',  COT.itens.length);
   formData.append('Qtd_alteradas',d.alteradas);
+  if(d.qtdAbaixo > 0){
+    formData.append('Itens_abaixo_validade', d.qtdAbaixo);
+    formData.append('Justificativa_validade', d.justificativa);
+  }
+  if(d.diasEntrega > PRAZO_TOLERANCIA_DIAS){
+    formData.append('Aviso_prazo_ajustado', 'SIM — entrega em ' + d.diasEntrega + ' dias; validades recalculadas');
+  }
   formData.append('Proposta',     d.corpo);
 
   fetch('https://formsubmit.co/ajax/' + encodeURIComponent(PRINCIPAL), {
