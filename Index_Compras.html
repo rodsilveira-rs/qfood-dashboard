@@ -337,16 +337,18 @@ td:not(:first-child){text-align:right;}
           <span class="cob-tag cob-urg">&lt;1m urgente</span>
           <span class="cob-tag cob-ok">1-6m ok</span>
           <span class="cob-tag cob-exc">&gt;6m excesso</span>
+          <button type="button" id="btn-limpar-todos" onclick="cmpLimparTodosEstoques()" style="background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.35);color:#ff7875;padding:5px 12px;border-radius:6px;font-size:.7rem;font-weight:600;cursor:pointer;margin-left:8px" onmouseover="this.style.background='rgba(255,77,79,.22)'" onmouseout="this.style.background='rgba(255,77,79,.12)'">&#128465; Limpar todos do fornecedor</button>
           <span id="cmp-sync-status" style="margin-left:auto;font-size:.72rem;color:var(--mu2);font-weight:600">Sincroniza&#231;&#227;o: aguardando</span>
         </div>
         <div class="twrap">
           <table>
             <thead><tr>
-              <th style="text-align:left;width:32%">Produto</th>
+              <th style="text-align:left;width:30%">Produto</th>
               <th style="text-align:center">Giro 12m</th>
               <th style="text-align:center">Perfil</th>
               <th style="text-align:center;color:#4d8ef5" title="Estoque físico atual — preenchido por Maiko/Jonathas">&#128230; Estoque</th>
               <th style="text-align:center;color:#4d8ef5" title="Validade atual do lote em estoque">&#128197; Val. Atual</th>
+              <th style="text-align:center" title="Limpar Estoque e Val. Atual desta linha">&nbsp;</th>
               <th style="text-align:center;color:#4d8ef5" title="Cobertura = Estoque ÷ (Giro 12m ÷ 12)">&#128202; Cobertura</th>
               <th style="text-align:left">Val. Total do Produto</th>
               <th style="text-align:center;color:#a07cf6">Val. M&#237;nima Aceit&#225;vel</th>
@@ -574,7 +576,8 @@ var UESTOQUE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcx
 var cmpEstoqueMap = {};
 var cmpEstoqueLoaded = false;
 
-// Cache em memória das validades (Codigo -> Validade_Meses)
+// Cache em memória das validades (Codigo -> {qtd, unidade})
+// Unidades suportadas: "dias", "meses" (default legado), "anos"
 var cmpValidadesMap = {};
 var cmpValidadesLoaded = false;
 async function cmpLoadValidades(){
@@ -587,7 +590,9 @@ async function cmpLoadValidades(){
     rows.forEach(function(row){
       var cod = String(row["Codigo"] || "").trim();
       var m = parseInt(row["Validade_Meses"]) || 0;
-      if(cod && m > 0) cmpValidadesMap[cod] = m;
+      var u = String(row["Validade_Unidade"] || "meses").toLowerCase().trim();
+      if(["dias","meses","anos"].indexOf(u) < 0) u = "meses";
+      if(cod && m > 0) cmpValidadesMap[cod] = { qtd: m, unidade: u };
     });
     cmpValidadesLoaded = true;
     console.log("Validades carregadas:", Object.keys(cmpValidadesMap).length, "produtos");
@@ -598,24 +603,29 @@ async function cmpLoadValidades(){
 }
 
 // Grava validade no Google Sheets via Apps Script Web App
-async function cmpSyncValidade(codigo, validadeMeses, fornecedor){
+async function cmpSyncValidade(codigo, validadeQtd, unidade, fornecedor){
   if(!VALIDADES_SYNC_URL || VALIDADES_SYNC_URL.indexOf("COLE_AQUI") >= 0){
     console.warn("VALIDADES_SYNC_URL nao configurada — alteracao ficou so local.");
     return { ok: false, erro: "URL nao configurada" };
   }
   try{
     var sess = JSON.parse(localStorage.getItem("qfood_session") || "{}");
+    var qtd = parseInt(validadeQtd) || 0;
+    var uni = String(unidade || "meses").toLowerCase();
+    if(["dias","meses","anos"].indexOf(uni) < 0) uni = "meses";
     var payload = {
       token: VALIDADES_SYNC_TOKEN,
+      // Se qtd=0, é DELETE; senão, UPSERT
+      acao: qtd <= 0 ? "delete" : "upsert",
       dado: {
-        Codigo:           String(codigo),
-        Validade_Meses:   parseInt(validadeMeses) || 0,
-        Atualizado_em:    new Date().toISOString(),
-        Atualizado_por:   sess.nome || sess.email || "desconhecido",
-        Fornecedor:       fornecedor || ""
+        Codigo:            String(codigo),
+        Validade_Meses:    qtd,             // campo legado (guarda quantidade, não importa unidade)
+        Validade_Unidade:  uni,             // nova coluna
+        Atualizado_em:     new Date().toISOString(),
+        Atualizado_por:    sess.nome || sess.email || "desconhecido",
+        Fornecedor:        fornecedor || ""
       }
     };
-    // Apps Script exige text/plain para evitar preflight CORS
     var r = await fetch(VALIDADES_SYNC_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -909,10 +919,34 @@ function csv(txt){
 var cmpAllRows=[],cmpLoaded=false,cmpProdutos=[];
 // Validades agora vem da aba "Validades" do Google Sheets (cmpValidadesMap)
 
-function cmpMinVal(meses,classe){
-  var pct=classe==="alto"?0.30:0.20;
-  var m=Math.ceil(meses*(1-pct));
-  var d=new Date();d.setMonth(d.getMonth()+m);return d;
+// Calcula a data minima aceitavel da validade total
+// Recebe quantidade + unidade (dias/meses/anos) + classe (alto/normal)
+// Regra: alto consome 30% do prazo, normal consome 20%
+function cmpMinVal(qtd, unidade, classe){
+  var pct = classe === "alto" ? 0.30 : 0.20;
+  var u = String(unidade || "meses").toLowerCase();
+  var q = parseInt(qtd) || 0;
+
+  // Converte tudo para dias para calculo preciso
+  var diasTotal;
+  if(u === "dias")       diasTotal = q;
+  else if(u === "anos")  diasTotal = q * 365;
+  else                   diasTotal = q * 30; // meses (default)
+
+  var diasRestar = Math.ceil(diasTotal * (1 - pct));
+  var d = new Date();
+  d.setDate(d.getDate() + diasRestar);
+  return d;
+}
+
+// Helper: descreve a validade total de forma legivel (ex: "30 dias", "3 meses", "1 ano")
+function cmpFmtValidade(qtd, unidade){
+  var q = parseInt(qtd) || 0;
+  if(q <= 0) return "—";
+  var u = String(unidade || "meses").toLowerCase();
+  if(u === "dias")  return q + (q === 1 ? " dia" : " dias");
+  if(u === "anos")  return q + (q === 1 ? " ano" : " anos");
+  return q + (q === 1 ? " mês" : " meses");
 }
 function cmpFmtDate(d){return d.toLocaleDateString("pt-BR");}
 function cmpGF(r,keys){
@@ -1058,13 +1092,27 @@ function cmpRenderProdutos(){
   var tbody=document.getElementById("cmp-tbody");if(!tbody)return;
   var podeEditar = cmpPodeEditarEstoque();
   tbody.innerHTML=cmpProdutos.map(function(p,i){
-    var vm=cmpValidadesMap[p.cod]||0;
+    // ===== Validade Total (nova estrutura: qtd + unidade) =====
+    var infoVal = cmpValidadesMap[p.cod] || { qtd: 0, unidade: "meses" };
+    var vQtd = infoVal.qtd || 0;
+    var vUni = infoVal.unidade || "meses";
     var gt=p.classe==="alto"?"<span class='giro-tag giro-alto'>&#128308; Alto</span>":"<span class='giro-tag giro-normal'>&#9679; Normal</span>";
     var pct=p.classe==="alto"?"30%":"20%";
-    var md=vm>0?cmpFmtDate(cmpMinVal(vm,p.classe)):"&#8212;";
-    var mdc=vm>0?"color:#a07cf6;font-weight:700":"color:var(--mu2)";
-    var opts="<option value='0'>Informe a validade total</option>";
-    for(var m=1;m<=36;m++){opts+="<option value='"+m+"'"+(m===vm?" selected":"")+">"+(m===1?"1 m&#234;s":m+" meses")+"</option>";}
+    var md = vQtd > 0 ? cmpFmtDate(cmpMinVal(vQtd, vUni, p.classe)) : "&#8212;";
+    var mdc = vQtd > 0 ? "color:#a07cf6;font-weight:700" : "color:var(--mu2)";
+
+    // Input numérico + select unidade
+    var valFlex =
+      "<div style='display:flex;gap:4px;align-items:center;justify-content:center'>" +
+        "<input type='number' min='0' step='1' class='cmp-vqtd' data-idx='"+i+"' value='"+(vQtd||"")+"' onchange='cmpSaveValFlex("+i+")' placeholder='—' style='width:54px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 6px;color:var(--tx);font-size:.78rem;text-align:center;outline:none' onfocus='this.style.borderColor=\"#a07cf6\"' onblur='this.style.borderColor=\"\"'>" +
+        "<select class='cmp-vuni' data-idx='"+i+"' onchange='cmpSaveValFlex("+i+")' style='background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 6px;color:var(--tx);font-size:.75rem;outline:none'>" +
+          "<option value='dias'"+(vUni==="dias"?" selected":"")+">dias</option>" +
+          "<option value='meses'"+(vUni==="meses"?" selected":"")+">meses</option>" +
+          "<option value='anos'"+(vUni==="anos"?" selected":"")+">anos</option>" +
+        "</select>" +
+      "</div>" +
+      "<div style='font-size:.65rem;color:var(--mu);margin-top:2px;text-align:center'>Regra: consumir at&#233; "+pct+" do prazo</div>";
+
     var estDisp=String(p.row["E. Disp."]||p.row["Disp."]||p.row["Virtual"]||"").trim();
     var ativo=String(p.row["Ativo?"]||"").trim();
     var emLinha=String(p.row["Em Linha?"]||"").trim();
@@ -1080,10 +1128,14 @@ function cmpRenderProdutos(){
     var valVA   = infoEst.valAtual || "";
     var temDado = (valEst !== "" && valEst > 0) || (valVA && String(valVA).trim() !== "");
 
-    var celEstoque, celValAtual;
+    var celEstoque, celValAtual, celLixeira;
     if(podeEditar){
       celEstoque = "<input type='number' min='0' step='1' class='cmp-est' data-idx='"+i+"' value='"+(valEst===""?"":valEst)+"' onchange='cmpSaveEstoque(this)' placeholder='—'>";
       celValAtual = "<input type='text' class='cmp-val-at' data-idx='"+i+"' value='"+valVA+"' onchange='cmpSaveEstoque(this)' placeholder='dd/mm/aaaa' maxlength='10' oninput=\"this.value=this.value.replace(/[^0-9/]/g,'').replace(/^(\\d{2})(\\d)/,'$1/$2').replace(/^(\\d{2}\\/\\d{2})(\\d)/,'$1/$2')\">";
+      // Ícone lixeira só aparece se há dados nessa linha
+      celLixeira = temDado
+        ? "<button type='button' title='Limpar estoque e validade atual desta linha' onclick='cmpLimparEstoqueLinha("+i+")' style='background:transparent;border:none;cursor:pointer;color:#ff7875;font-size:1rem;padding:2px 4px' onmouseover='this.style.color=\"#ff4d4f\"' onmouseout='this.style.color=\"#ff7875\"'>&#128465;</button>"
+        : "";
     } else {
       celEstoque = valEst!==""
         ? "<span class='cmp-est-ro'>"+valEst+"</span>"
@@ -1091,8 +1143,8 @@ function cmpRenderProdutos(){
       celValAtual = valVA
         ? "<span class='cmp-est-ro'>"+valVA+"</span>"
         : "<span class='cmp-est-ro empty'>—</span>";
+      celLixeira = "";
     }
-    // tooltip de quem atualizou
     var tipAtt = infoEst.atualizadoPor
       ? " title='Atualizado por "+infoEst.atualizadoPor+(infoEst.atualizadoEm?" em "+new Date(infoEst.atualizadoEm).toLocaleString("pt-BR"):"")+"'"
       : "";
@@ -1114,35 +1166,158 @@ function cmpRenderProdutos(){
       "<td style='text-align:center'>"+gt+"</td>"+
       "<td style='text-align:center'"+tipAtt+">"+celEstoque+"</td>"+
       "<td style='text-align:center'"+tipAtt+">"+celValAtual+"</td>"+
+      "<td style='text-align:center'>"+celLixeira+"</td>"+
       "<td style='text-align:center' id='cmp-cob-"+i+"'>"+celCob+"</td>"+
-      "<td><select class='val-sel' data-idx='"+i+"' onchange='cmpSaveVal(this)'>"+opts+"</select>"+
-        "<div style='font-size:.65rem;color:var(--mu);margin-top:2px'>Regra: consumir at&#233; "+pct+" do prazo</div></td>"+
+      "<td>"+valFlex+"</td>"+
       "<td style='text-align:center'><span id='cmp-mv-"+i+"' style='"+mdc+";font-size:.82rem'>"+md+"</span></td>"+
       "<td style='text-align:center'><input type='number' min='0' step='1' class='cmp-qty' data-idx='"+i+"' value='0' oninput='cmpUpdateCount()'></td>"+
     "</tr>";
   }).join("");
   cmpUpdateCount();
 }
-function cmpSaveVal(sel){
-  var i=parseInt(sel.dataset.idx),m=parseInt(sel.value),p=cmpProdutos[i];if(!p)return;
-  // Atualiza cache em memoria
-  if(m>0)cmpValidadesMap[p.cod]=m;else delete cmpValidadesMap[p.cod];
-  var cell=document.getElementById("cmp-mv-"+i);
-  if(cell){
-    if(m>0){cell.style.color="#a07cf6";cell.style.fontWeight="700";cell.textContent=cmpFmtDate(cmpMinVal(m,p.classe));}
-    else{cell.style.color="var(--mu2)";cell.style.fontWeight="400";cell.innerHTML="&#8212;";}
+
+// Salva validade total flexivel (qtd + unidade)
+function cmpSaveValFlex(i){
+  var p = cmpProdutos[i];
+  if(!p) return;
+  var inpQtd = document.querySelector(".cmp-vqtd[data-idx='"+i+"']");
+  var selUni = document.querySelector(".cmp-vuni[data-idx='"+i+"']");
+  if(!inpQtd || !selUni) return;
+  var qtd = parseInt(inpQtd.value) || 0;
+  var uni = selUni.value;
+
+  // Atualiza cache local
+  if(qtd > 0){
+    cmpValidadesMap[p.cod] = { qtd: qtd, unidade: uni };
+  } else {
+    delete cmpValidadesMap[p.cod];
   }
-  // Grava no Google Sheets (assincrono — nao bloqueia a UI)
-  var forn = document.getElementById("cmp-fornecedor");
-  cmpSyncValidade(p.cod, m, forn ? forn.value : "").then(function(resp){
-    if(resp && resp.ok){
-      sel.style.borderColor = "#36cfa0"; // verde = salvo
-      setTimeout(function(){ sel.style.borderColor = ""; }, 1500);
+
+  // Recalcula data minima
+  var cell = document.getElementById("cmp-mv-"+i);
+  if(cell){
+    if(qtd > 0){
+      cell.style.color = "#a07cf6";
+      cell.style.fontWeight = "700";
+      cell.textContent = cmpFmtDate(cmpMinVal(qtd, uni, p.classe));
     } else {
-      sel.style.borderColor = "#ff4d4f"; // vermelho = falhou
+      cell.style.color = "var(--mu2)";
+      cell.style.fontWeight = "400";
+      cell.innerHTML = "&#8212;";
+    }
+  }
+
+  // Indicador de status
+  cmpSetSyncStatus("saving");
+
+  // Grava no Sheets
+  var forn = document.getElementById("cmp-fornecedor");
+  cmpSyncValidade(p.cod, qtd, uni, forn ? forn.value : "").then(function(resp){
+    if(resp && resp.ok){
+      inpQtd.style.borderColor = "#36cfa0";
+      setTimeout(function(){ inpQtd.style.borderColor = ""; }, 1500);
+      cmpSetSyncStatus("ok", "validade c&#243;d. " + p.cod);
+    } else {
+      inpQtd.style.borderColor = "#ff4d4f";
+      cmpSetSyncStatus("erro", "validade c&#243;d. " + p.cod);
       console.warn("Validade nao foi salva no Sheets:", resp);
     }
   });
+}
+
+// Apaga estoque + validade atual de UMA linha (cód específico)
+function cmpLimparEstoqueLinha(i){
+  var p = cmpProdutos[i];
+  if(!p) return;
+  if(!confirm("Limpar Estoque e Validade Atual do produto "+(p.desc||p.cod)+"?\n\nEsta acao remove os dados do Sheets e nao pode ser desfeita.")) return;
+
+  // Limpa cache local
+  delete cmpEstoqueMap[p.cod];
+
+  // Limpa inputs da UI
+  var inpEst = document.querySelector(".cmp-est[data-idx='"+i+"']");
+  var inpVal = document.querySelector(".cmp-val-at[data-idx='"+i+"']");
+  if(inpEst) inpEst.value = "";
+  if(inpVal) inpVal.value = "";
+
+  // Recalcula cobertura e aprov flag
+  cmpAtualizarCobertura(i);
+  cmpAtualizarAprovFlag(i);
+
+  // Re-render linha (escondê ícone lixeira)
+  cmpRenderProdutos();
+
+  // Indicador de status
+  cmpSetSyncStatus("saving");
+
+  // Envia delete pro Apps Script (envia estoque vazio + validade vazia, que via _upsertEstoque grava em branco)
+  // Mas o ideal é deletar a linha — usamos a acao=delete que ja existe no Apps Script
+  cmpDeleteEstoque(p.cod).then(function(resp){
+    if(resp && resp.ok){
+      cmpSetSyncStatus("ok", "limpou c&#243;d. " + p.cod);
+    } else {
+      cmpSetSyncStatus("erro", "falha ao limpar c&#243;d. " + p.cod);
+    }
+  });
+}
+
+// Deleta linha de estoque no Sheets via Apps Script
+async function cmpDeleteEstoque(codigo){
+  if(!VALIDADES_SYNC_URL || VALIDADES_SYNC_URL.indexOf("COLE_AQUI") >= 0){
+    return { ok: false, erro: "URL nao configurada" };
+  }
+  try{
+    var payload = {
+      token: VALIDADES_SYNC_TOKEN,
+      tipo: "estoque",
+      acao: "delete",
+      dado: { Codigo: String(codigo) }
+    };
+    var r = await fetch(VALIDADES_SYNC_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+    return await r.json();
+  }catch(e){
+    return { ok: false, erro: e.message };
+  }
+}
+
+// Limpa TODOS os estoques do fornecedor atual de uma vez
+async function cmpLimparTodosEstoques(){
+  var forn = document.getElementById("cmp-fornecedor");
+  var nomeForn = forn ? forn.value : "";
+  if(!nomeForn){ alert("Selecione um fornecedor primeiro."); return; }
+
+  var codigosComDado = cmpProdutos.filter(function(p){
+    return cmpEstoqueMap[p.cod];
+  }).map(function(p){ return p.cod; });
+
+  if(codigosComDado.length === 0){
+    alert("Nenhum produto deste fornecedor possui Estoque/Validade Atual preenchido.");
+    return;
+  }
+
+  if(!confirm("ATENCAO: vai limpar Estoque + Validade Atual de "+codigosComDado.length+" produto(s) do fornecedor "+nomeForn+".\n\nEsta acao nao pode ser desfeita.\n\nContinuar?")) return;
+
+  cmpSetSyncStatus("saving");
+  var sucessos = 0, falhas = 0;
+  for(var k = 0; k < codigosComDado.length; k++){
+    var cod = codigosComDado[k];
+    delete cmpEstoqueMap[cod];
+    var resp = await cmpDeleteEstoque(cod);
+    if(resp && resp.ok) sucessos++; else falhas++;
+  }
+
+  cmpRenderProdutos();
+  if(falhas === 0){
+    cmpSetSyncStatus("ok", "limpou "+sucessos+" produtos");
+    alert("✓ Limpou "+sucessos+" produto(s) com sucesso.");
+  } else {
+    cmpSetSyncStatus("erro", sucessos+" ok / "+falhas+" falharam");
+    alert("⚠ "+sucessos+" limpos / "+falhas+" falharam.\nVerifique a conexao.");
+  }
 }
 function cmpUpdateCount(){
   var t=0, totalQtd=0;
@@ -1168,8 +1343,17 @@ function cmpGetItens(){
   document.querySelectorAll(".cmp-qty").forEach(function(inp){
     var q=parseInt(inp.value);if(q<=0)return;
     var i=parseInt(inp.dataset.idx),p=cmpProdutos[i];if(!p)return;
-    var vm=cmpValidadesMap[p.cod]||0;
-    it.push({p:p,qtd:q,valMeses:vm,minDate:vm>0?cmpMinVal(vm,p.classe):null});
+    var info = cmpValidadesMap[p.cod] || null;
+    var vQtd = info ? info.qtd : 0;
+    var vUni = info ? info.unidade : "meses";
+    it.push({
+      p: p,
+      qtd: q,
+      valQtd: vQtd,
+      valUnidade: vUni,
+      valMeses: vQtd, // compatibilidade
+      minDate: vQtd > 0 ? cmpMinVal(vQtd, vUni, p.classe) : null
+    });
   });
   return it;
 }
@@ -1208,8 +1392,9 @@ function cmpGerarLink(it, forn, obs, email, contato){
         x.p.desc||x.p.cod,                               // 1: descricao
         x.qtd,                                            // 2: quantidade
         x.p.classe==="alto"?1:0,                          // 3: classe (1=alto,0=normal)
-        x.valMeses||0,                                    // 4: validade total (meses)
-        x.minDate ? x.minDate.toLocaleDateString("pt-BR") : "" // 5: data minima
+        x.valQtd||x.valMeses||0,                          // 4: validade total (quantidade)
+        x.minDate ? x.minDate.toLocaleDateString("pt-BR") : "", // 5: data minima
+        x.valUnidade||"meses"                             // 6: unidade (dias/meses/anos)
       ];
     })
   };
@@ -1242,7 +1427,7 @@ function cmpUpdateEmailPreview(it,forn){
     parts.push("   Quantidade: "+x.qtd);
     if(x.minDate){
       parts.push("   *** VALIDADE MÍNIMA ACEITÁVEL: "+cmpFmtDate(x.minDate)+" ***");
-      parts.push("   (Prazo total: "+x.valMeses+(x.valMeses===1?" mês":" meses")+
+      parts.push("   (Prazo total: "+cmpFmtValidade(x.valQtd, x.valUnidade)+
                  " — aceitamos "+(x.p.classe==="alto"?"70%":"80%")+" do prazo restante)");
     } else {
       parts.push("   Validade mínima: A CONFIRMAR (informe a validade total para cálculo)");
