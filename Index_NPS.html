@@ -391,8 +391,8 @@ input,select,textarea{font-family:inherit;font-size:inherit}
       <input type="text" id="f-nomefantasia" placeholder="Será preenchido automaticamente">
     </div>
     <div class="field">
-      <label>Razão Social <span style="color:var(--txt-mute);font-weight:400;font-size:10px;text-transform:none">(opcional)</span></label>
-      <input type="text" id="f-nome" placeholder="Preencha se souber — não obrigatório">
+      <label>Razão Social</label>
+      <input type="text" id="f-nome" placeholder="Auto-preenchido pelo CNPJ">
     </div>
 
     <div class="field">
@@ -678,13 +678,17 @@ var CONFIG = {
     CRM_CONTATOS:  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=188575172&single=true&output=csv"
   },
   BASE_PDV: {
-    // Mapeamento REAL da BASE_PDV do Rodrigo (validado em 13/05/2026)
-    COL_NOME_FANTASIA:  0,   // A  → Nome Fantasia
-    COL_CNPJ:           1,   // B  → CNPJ
-    COL_FONE:           6,   // G  → Fone1
-    COL_WHATSAPP:       7,   // H  → WhatsApp
-    COL_VENDEDOR:      35,   // AJ → Vendedor (sigla ou nome)
-    COL_SEGMENTO:      42    // AQ → Segmento
+    // Mapeamento DEFINITIVO baseado na planilha real (validado em 15/05/2026)
+    COL_ID:             0,   // A  → ID
+    COL_NOME_RAZAO:     1,   // B  → Nome (Razão Social)
+    COL_NOME_FANTASIA:  2,   // C  → Nome Fantasia
+    COL_CNPJ:           3,   // D  → CNPJ
+    COL_GRUPO:          6,   // G  → Grupo Econômico
+    COL_FONE:           8,   // I  → Fone1
+    COL_WHATSAPP:       9,   // J  → WhatsApp
+    COL_VENDEDOR:      37,   // AL → Vendedor
+    COL_SEGMENTO:      44,   // AS → Segmento
+    COL_NOVO_WHATSAPP: 49    // AX → Novo_WhatsApp (mais recente que coluna J)
   },
   CRM_CONTATOS: {
     // Aba alimentada pelos vendedores — prioridade sobre BASE_PDV
@@ -886,10 +890,16 @@ function carregarBasePdv(callback){
         var row = rows[r]; if (!row) continue;
         var cnpj = somenteDigitos(row[CONFIG.BASE_PDV.COL_CNPJ] || "");
         if (!cnpj || cnpj.length !== 14) continue;
+        // WhatsApp: prioriza Novo_WhatsApp (col AX), fallback pro WhatsApp (col J)
+        var novoWa = String(row[CONFIG.BASE_PDV.COL_NOVO_WHATSAPP] || "").trim();
+        var waPadrao = String(row[CONFIG.BASE_PDV.COL_WHATSAPP] || "").trim();
         BASE_PDV_INDEX[cnpj] = {
+          razao:    String(row[CONFIG.BASE_PDV.COL_NOME_RAZAO] || "").trim(),
           fantasia: String(row[CONFIG.BASE_PDV.COL_NOME_FANTASIA] || "").trim(),
+          grupo:    String(row[CONFIG.BASE_PDV.COL_GRUPO] || "").trim(),
           fone:     String(row[CONFIG.BASE_PDV.COL_FONE] || "").trim(),
-          whatsapp: String(row[CONFIG.BASE_PDV.COL_WHATSAPP] || "").trim(),
+          whatsapp: novoWa || waPadrao,
+          waFonte:  novoWa ? "novo_whatsapp" : (waPadrao ? "whatsapp" : ""),
           vendedor: String(row[CONFIG.BASE_PDV.COL_VENDEDOR] || "").trim(),
           segmento: String(row[CONFIG.BASE_PDV.COL_SEGMENTO] || "").trim()
         };
@@ -937,7 +947,9 @@ function resolverContato(cnpj){
   var basePdv = BASE_PDV_INDEX ? BASE_PDV_INDEX[cnpj] : null;
   var crm     = CRM_CONTATOS_INDEX ? CRM_CONTATOS_INDEX[cnpj] : null;
   var out = {
+    razao:       basePdv ? basePdv.razao : "",
     fantasia:    basePdv ? basePdv.fantasia : "",
+    grupo:       basePdv ? basePdv.grupo : "",
     segmento:    basePdv ? basePdv.segmento : "",
     vendedor:    basePdv ? basePdv.vendedor : "",
     fone:        basePdv ? basePdv.fone : "",
@@ -949,13 +961,13 @@ function resolverContato(cnpj){
     encontrouEmBase: !!basePdv,
     encontrouEmCrm:  !!crm
   };
-  // WhatsApp: prioridade CRM_CONTATOS, fallback BASE_PDV
+  // WhatsApp: prioridade CRM_CONTATOS, fallback BASE_PDV (que já priorizou Novo_WhatsApp)
   if (crm && crm.whatsapp){
     out.whatsapp = crm.whatsapp;
     out.fonteWpp = "crm";
   } else if (basePdv && basePdv.whatsapp){
     out.whatsapp = basePdv.whatsapp;
-    out.fonteWpp = "base_pdv";
+    out.fonteWpp = basePdv.waFonte === "novo_whatsapp" ? "base_pdv_novo" : "base_pdv";
   }
   if (crm){
     out.nomeContato = crm.nomeContato;
@@ -1053,8 +1065,9 @@ function lookupCnpj(cnpjFormatado){
       base_pdv: contato.encontrouEmBase, crm_contatos: contato.encontrouEmCrm
     });
 
-    // Auto-preenche Nome Fantasia
+    // Auto-preenche Nome Fantasia e Razão Social
     if (contato.fantasia) fFant.value = contato.fantasia;
+    if (contato.razao) fNome.value = contato.razao;
 
     // Segmento
     if (contato.segmento){
@@ -1111,8 +1124,14 @@ function lookupCnpj(cnpjFormatado){
       if (contato.fonteWpp === "crm"){
         fonteTxt = "WhatsApp da CRM_CONTATOS (atualizado pelos vendedores)";
         if (contato.crmAtualizadoEm) fonteTxt += " · " + contato.crmAtualizadoEm;
+      } else if (contato.fonteWpp === "base_pdv_novo"){
+        fonteTxt = "WhatsApp da BASE_PDV (Novo_WhatsApp)";
       } else if (contato.fonteWpp === "base_pdv"){
         fonteTxt = "WhatsApp da BASE_PDV (cadastro original)";
+      }
+      // Adiciona grupo econômico se houver
+      if (contato.grupo && contato.grupo !== "[ÚNICO]"){
+        fonteTxt = (fonteTxt ? fonteTxt + " · " : "") + "Grupo: " + contato.grupo;
       }
       telFonte.textContent = fonteTxt;
     }
@@ -1708,12 +1727,12 @@ function renderRiskList(dados){
   arr.forEach(function(d){
     var diasDesde = d.data ? Math.round((hoje - d.data)/86400000) : 99;
     var recente = diasDesde <= 7;
-    var basePdv = BASE_PDV_INDEX ? BASE_PDV_INDEX[d.cnpj] : null;
-    var crm     = CRM_CONTATOS_INDEX ? CRM_CONTATOS_INDEX[d.cnpj] : null;
-    // Prioridade: CRM_CONTATOS.WhatsApp > BASE_PDV.WhatsApp; Fone só da BASE_PDV
-    var wa   = (crm && crm.whatsapp) ? crm.whatsapp : (basePdv ? basePdv.whatsapp : "");
-    var fone = basePdv ? basePdv.fone : "";
-    var nomeContato = crm ? crm.nomeContato : "";
+    var contato = resolverContato(d.cnpj);
+    // resolverContato já trata prioridade Novo_WhatsApp + Crm_Contatos
+    var wa   = contato.whatsapp;
+    var fone = contato.fone;
+    var nomeContato = contato.nomeContato;
+    var grupo = contato.grupo;
     var nome = d.nomeFantasia || d.nomeCliente || d.cnpj;
     var pilarBad = [];
     if (d.notaLog<=2) pilarBad.push('<span class="bad">Log: '+d.notaLog+'</span>');
@@ -1727,7 +1746,8 @@ function renderRiskList(dados){
 
     html += '<div class="risk-card '+(recente?"recent":"")+'">'+
       '<h4>⚠️ '+escapeHtml(nome)+
-        (d.segmento ? '<span class="seg">'+escapeHtml(d.segmento)+'</span>':'')+'</h4>'+
+        (d.segmento ? '<span class="seg">'+escapeHtml(d.segmento)+'</span>':'')+
+        (grupo && grupo !== "[ÚNICO]" ? '<span class="seg" style="color:var(--gold)">'+escapeHtml(grupo)+'</span>':'')+'</h4>'+
       (nomeContato ? '<div class="meta" style="color:var(--ok);font-weight:600">👤 Falar com: '+escapeHtml(nomeContato)+'</div>' : '')+
       '<div class="meta">CNPJ '+formatCnpj(d.cnpj)+' · Vendedor: '+escapeHtml(d.vendedorSigla||"—")+
         ' · Visita: '+dataFmt+' ('+diasDesde+'d)</div>'+
