@@ -686,7 +686,7 @@ var CONFIG = {
     COL_GRUPO:          6,   // G  → Grupo Econômico
     COL_FONE:           8,   // I  → Fone1
     COL_WHATSAPP:       9,   // J  → WhatsApp
-    COL_VENDEDOR:      37,   // AL → Vendedor
+    COL_VENDEDOR:      34,   // AI → Setor (que é o vendedor no padrão do Rodrigo)
     COL_SEGMENTO:      44,   // AS → Segmento
     COL_NOVO_WHATSAPP: 49    // AX → Novo_WhatsApp (mais recente que coluna J)
   },
@@ -1079,15 +1079,24 @@ function lookupCnpj(cnpjFormatado){
     }
 
     // Vendedor — tenta achar na lista do dropdown
+    // Formato BASE_PDV: "CLAUDIA.GOMES" / "VERA.SILVA" / "DAYANE.NASCIMENTO"
+    // Formato dropdown: "CG — Claudia Gomes" / "VS — Vera Silva"
+    // Normaliza ambos: remove acento, ponto, "—", sigla, e compara por inclusão
     if (contato.vendedor){
-      var v = String(contato.vendedor).trim();
+      var vRaw = String(contato.vendedor).trim();
+      var vNorm = normalizarNome(vRaw);
       var encontrou = false;
       for (var i = 0; i < fVend.options.length; i++){
         var opt = fVend.options[i];
         if (!opt.value) continue;
-        // bate por sigla exata OU nome contido
-        if (opt.value.toLowerCase() === v.toLowerCase() ||
-            opt.textContent.toLowerCase().indexOf(v.toLowerCase()) >= 0){
+        // Extrai só o nome do dropdown (depois do "—")
+        var nomeDrop = opt.textContent.replace(/^[^—]+—\s*/, "").trim();
+        var nomeNorm = normalizarNome(nomeDrop);
+        // Bate se nomes normalizados são iguais OU um contém o outro
+        if (nomeNorm === vNorm ||
+            opt.value.toLowerCase() === vRaw.toLowerCase() ||
+            (nomeNorm.length > 2 && vNorm.indexOf(nomeNorm) >= 0) ||
+            (vNorm.length > 2 && nomeNorm.indexOf(vNorm) >= 0)){
           fVend.value = opt.value;
           encontrou = true;
           if (vendHint) {
@@ -1098,7 +1107,7 @@ function lookupCnpj(cnpjFormatado){
         }
       }
       if (!encontrou && vendHint){
-        vendHint.innerHTML = '⚠️ BASE_PDV indica "' + escapeHtml(v) + '" mas não bate com a lista — selecione manualmente';
+        vendHint.innerHTML = '⚠️ BASE_PDV indica "' + escapeHtml(vRaw) + '" mas não bate com a lista — selecione manualmente';
         vendHint.className = "hint warn";
       }
     }
@@ -2029,6 +2038,14 @@ function escapeHtml(s){
   return String(s==null?"":s).replace(/[&<>"']/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
+}
+// Normaliza nome de vendedor: tira acento, ponto, espaço, deixa lowercase
+// "CLAUDIA.GOMES" → "claudiagomes" / "Claudia Gomes" → "claudiagomes"
+function normalizarNome(s){
+  return String(s||"")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")  // tira acento
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");                        // só letras e números
 }
 function hojeIso(){
   var d = new Date();
