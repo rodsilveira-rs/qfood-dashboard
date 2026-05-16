@@ -37,6 +37,16 @@ td{padding:11px 12px;border-bottom:1px solid #f0f2f7;vertical-align:middle;font-
 .fg label{font-size:.67rem;color:#8fa0c0;display:block;margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 input,select,textarea{width:100%;border:1.5px solid #dde2ef;border-radius:8px;padding:9px 12px;font-size:.85rem;color:#1a1f2e;background:#fff;outline:none;font-family:inherit;transition:border .15s}
 input:focus,select:focus,textarea:focus{border-color:#a07cf6;box-shadow:0 0 0 3px rgba(160,124,246,.1)}
+
+.bonif-opt{display:flex;align-items:center;gap:6px;padding:8px 14px;background:#fff;border:1.5px solid #dde2ef;border-radius:8px;cursor:pointer;font-size:.82rem;color:#4a5d80;font-weight:600;transition:all .15s}
+.bonif-opt:hover{border-color:#a07cf6;background:#fafbff}
+.bonif-opt input[type=radio]{width:16px;height:16px;margin:0;cursor:pointer}
+.bonif-opt input[type=radio]:checked + span{color:#0c7a5e}
+.bonif-opt:has(input:checked){background:#e8f5ee;border-color:#0c7a5e}
+.bonif-prod-row{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#fff;border:1px solid #e3e8f1;border-radius:6px;margin-bottom:4px;font-size:.78rem}
+.bonif-prod-row .desc{flex:1;color:#2a3d5e}
+.bonif-prod-row .qtd{color:#0c7a5e;font-weight:600;min-width:80px;text-align:right}
+.bonif-prod-row button{background:#fff;border:none;color:#c0392b;cursor:pointer;font-size:1rem;padding:0 4px}
 input[readonly]{background:#f4f6fa;color:#4a5d80;cursor:default;border-color:#e3e8f1}
 input[readonly]:focus{border-color:#e3e8f1;box-shadow:none}
 input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97a}
@@ -156,6 +166,83 @@ input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97
           <input type="checkbox" id="fconf" style="width:18px;height:18px;flex-shrink:0;margin-top:1px;cursor:pointer">
           <span>Confirmo que os dados acima (nome da empresa, e-mail e representante) estão corretos para esta cotação.</span>
         </label>
+      </div>
+    </div>
+
+    <div class="card" id="BONIF_CARD">
+      <div class="ct">🎁 Bonificação (opcional)</div>
+      <div style="font-size:.78rem;color:#6b7ea8;margin-bottom:12px">
+        Se desejar oferecer bonificação para esta cotação, selecione abaixo. Caso contrário, deixe em "Sem bonificação".
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+        <label class="bonif-opt" data-tipo="NENHUMA">
+          <input type="radio" name="bonif_tipo" value="NENHUMA" checked onchange="atualizarBonificacao()">
+          <span>Sem bonificação</span>
+        </label>
+        <label class="bonif-opt" data-tipo="PERCENTUAL">
+          <input type="radio" name="bonif_tipo" value="PERCENTUAL" onchange="atualizarBonificacao()">
+          <span>% sobre o total</span>
+        </label>
+        <label class="bonif-opt" data-tipo="VALOR_FIXO">
+          <input type="radio" name="bonif_tipo" value="VALOR_FIXO" onchange="atualizarBonificacao()">
+          <span>Valor fixo em R$</span>
+        </label>
+        <label class="bonif-opt" data-tipo="PRODUTOS">
+          <input type="radio" name="bonif_tipo" value="PRODUTOS" onchange="atualizarBonificacao()">
+          <span>Produtos bonificados</span>
+        </label>
+      </div>
+
+      <!-- Modalidade: % -->
+      <div id="bonif_percentual" style="display:none;padding:12px;background:#f0f7ff;border:1px solid #c9dcf5;border-radius:8px">
+        <label style="font-size:.74rem;color:#4a5d80;font-weight:600">Percentual sobre o total do pedido (%)</label>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+          <input type="number" id="bonif_pct" min="0" max="100" step="0.5" placeholder="Ex: 5" oninput="calcBonifPercentual()" style="width:120px">
+          <span style="font-size:.78rem;color:#6b7ea8">% =</span>
+          <span id="bonif_pct_valor" style="font-size:.95rem;font-weight:700;color:#0c7a5e">R$ 0,00</span>
+        </div>
+      </div>
+
+      <!-- Modalidade: Valor Fixo -->
+      <div id="bonif_valor_fixo" style="display:none;padding:12px;background:#f0f7ff;border:1px solid #c9dcf5;border-radius:8px">
+        <label style="font-size:.74rem;color:#4a5d80;font-weight:600">Valor fixo de bonificação (R$)</label>
+        <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+          <span style="font-size:.85rem;color:#4a5d80">R$</span>
+          <input type="number" id="bonif_valor" min="0" step="0.01" placeholder="0,00" oninput="atualizarResumoBonificacao()" style="width:160px">
+        </div>
+      </div>
+
+      <!-- Modalidade: Produtos -->
+      <div id="bonif_produtos" style="display:none;padding:12px;background:#f0f7ff;border:1px solid #c9dcf5;border-radius:8px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+          <label style="font-size:.74rem;color:#4a5d80;font-weight:600">Adicionar produto bonificado:</label>
+          <select id="bonif_prod_select" style="flex:1;min-width:200px"></select>
+          <button type="button" onclick="adicionarProdutoBonif()" style="background:#0c7a5e;border:none;color:#fff;padding:6px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.78rem">+ Adicionar</button>
+        </div>
+        <div style="font-size:.7rem;color:#8fa0c0;margin-bottom:10px">
+          💡 Não achou na lista? <button type="button" onclick="abrirProdutoManual()" style="background:none;border:none;color:#a07cf6;text-decoration:underline;cursor:pointer;font-size:.7rem;padding:0">Cadastrar produto manualmente</button>
+        </div>
+        <div id="bonif_prod_manual_box" style="display:none;padding:10px;background:#fff8e8;border:1px solid #f0d175;border-radius:6px;margin-bottom:10px">
+          <div style="font-size:.7rem;color:#8a6a00;font-weight:600;margin-bottom:6px">⚠️ Produto novo (não está no portfólio Q Food)</div>
+          <div style="display:grid;grid-template-columns:100px 1fr 80px;gap:8px">
+            <input type="text" id="bonif_man_cod" placeholder="Cód. (opcional)">
+            <input type="text" id="bonif_man_desc" placeholder="Descrição do produto">
+            <input type="number" id="bonif_man_valor" placeholder="R$ unit." step="0.01" min="0">
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <input type="number" id="bonif_man_qtd" placeholder="Qtd" min="1" style="width:80px">
+            <select id="bonif_man_un" style="width:80px">
+              <option>UN</option><option>CX</option><option>KG</option><option>PCT</option><option>FD</option><option>LT</option>
+            </select>
+            <button type="button" onclick="adicionarProdutoManual()" style="background:#0c7a5e;border:none;color:#fff;padding:6px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.74rem">+ Adicionar manual</button>
+            <button type="button" onclick="fecharProdutoManual()" style="background:#fff;border:1px solid #ccc;color:#666;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.74rem">Cancelar</button>
+          </div>
+        </div>
+        <div id="bonif_prod_lista" style="margin-top:8px"></div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #c9dcf5;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:.78rem;color:#4a5d80">Valor total equivalente da bonificação:</span>
+          <span id="bonif_prod_total" style="font-size:.95rem;font-weight:700;color:#0c7a5e">R$ 0,00</span>
+        </div>
       </div>
     </div>
 
@@ -783,6 +870,233 @@ function toggleEditar(){
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// BONIFICAÇÃO — controle de modalidades e cálculos
+// ═══════════════════════════════════════════════════════════════
+
+// Estado interno da bonificação
+var BONIF_STATE = {
+  tipo: 'NENHUMA',
+  percentual: 0,
+  valor_fixo_rs: 0,
+  produtos: [],
+  valor_equivalente_rs: 0
+};
+
+// URL do CSV de produtos UGIRO para popular dropdown da bonificação
+var BONIF_UGIRO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+
+var BONIF_PRODUTOS_PORTFOLIO = []; // produtos do fornecedor atual carregados do UGIRO
+
+// Atualiza UI conforme a modalidade selecionada
+function atualizarBonificacao() {
+  var tipoEl = document.querySelector('input[name="bonif_tipo"]:checked');
+  var tipo = tipoEl ? tipoEl.value : 'NENHUMA';
+  BONIF_STATE.tipo = tipo;
+
+  document.getElementById('bonif_percentual').style.display  = (tipo === 'PERCENTUAL') ? 'block' : 'none';
+  document.getElementById('bonif_valor_fixo').style.display  = (tipo === 'VALOR_FIXO') ? 'block' : 'none';
+  document.getElementById('bonif_produtos').style.display    = (tipo === 'PRODUTOS')   ? 'block' : 'none';
+
+  // Carrega produtos do UGIRO sob demanda (só na primeira vez)
+  if (tipo === 'PRODUTOS' && BONIF_PRODUTOS_PORTFOLIO.length === 0) {
+    carregarPortfolioFornecedor();
+  }
+
+  atualizarResumoBonificacao();
+}
+
+// Carrega produtos do fornecedor atual a partir do CSV UGIRO
+async function carregarPortfolioFornecedor() {
+  if (!COT || !COT.fornecedor) return;
+  var sel = document.getElementById('bonif_prod_select');
+  sel.innerHTML = '<option value="">Carregando produtos do fornecedor...</option>';
+
+  try {
+    var r = await fetch(BONIF_UGIRO_URL + "&t=" + Date.now());
+    var txt = await r.text();
+    var rows = csvSimples(txt);
+
+    BONIF_PRODUTOS_PORTFOLIO = rows.filter(function(row) {
+      var forn = String(row["Fornecedor"] || row["FORNECEDOR"] || "").trim().toUpperCase();
+      var fornCotacao = String(COT.fornecedor || "").trim().toUpperCase();
+      return forn && fornCotacao && forn === fornCotacao;
+    }).map(function(row) {
+      return {
+        codigo: String(row["Codigo"] || row["Cod"] || "").trim(),
+        descricao: String(row["Descricao"] || row["Descrição"] || row["Produto"] || "").trim(),
+        valor_unit: parseFloat(String(row["Valor Unit"] || row["Preco"] || row["Preço"] || "0").replace(",", ".")) || 0
+      };
+    }).filter(function(p) { return p.codigo && p.descricao; });
+
+    // Popula o select
+    if (BONIF_PRODUTOS_PORTFOLIO.length === 0) {
+      sel.innerHTML = '<option value="">Nenhum produto deste fornecedor no portfólio Q Food</option>';
+    } else {
+      sel.innerHTML = '<option value="">Selecione um produto...</option>' +
+        BONIF_PRODUTOS_PORTFOLIO.map(function(p, i) {
+          return '<option value="' + i + '">' + p.codigo + ' - ' + p.descricao + '</option>';
+        }).join('');
+    }
+  } catch (e) {
+    sel.innerHTML = '<option value="">Erro ao carregar — use cadastro manual abaixo</option>';
+    console.warn("Erro ao carregar portfolio:", e);
+  }
+}
+
+// CSV parser simples para o portfolio (igual ao Index_Compras)
+function csvSimples(txt) {
+  if (!txt) return [];
+  if (txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);
+  var rows = [], cur = "", row = [], inQ = false, i = 0, len = txt.length;
+  while (i < len) {
+    var c = txt[i];
+    if (inQ) {
+      if (c === '"') {
+        if (i + 1 < len && txt[i + 1] === '"') { cur += '"'; i += 2; continue; }
+        else { inQ = false; i++; continue; }
+      } else { cur += c; i++; continue; }
+    } else {
+      if (c === '"' && cur === "") { inQ = true; i++; continue; }
+      if (c === ',') { row.push(cur.trim()); cur = ""; i++; continue; }
+      if (c === '\r') { i++; continue; }
+      if (c === '\n') { row.push(cur.trim()); rows.push(row); row = []; cur = ""; i++; continue; }
+      cur += c; i++;
+    }
+  }
+  if (cur !== "" || row.length > 0) { row.push(cur.trim()); rows.push(row); }
+  if (rows.length === 0) return [];
+  var hdr = rows[0].map(function(h) { return h.replace(/^"|"$/g, "").trim(); });
+  return rows.slice(1).map(function(r) {
+    var o = {};
+    hdr.forEach(function(h, idx) { o[h] = (r[idx] !== undefined ? String(r[idx]).replace(/^"|"$/g, "").trim() : ""); });
+    return o;
+  }).filter(function(r) { return Object.values(r).some(function(v) { return v !== ""; }); });
+}
+
+// Calcula valor equivalente quando é %
+function calcBonifPercentual() {
+  var pct = parseFloat(document.getElementById('bonif_pct').value) || 0;
+  var tot = 0;
+  COT.itens.forEach(function(it, i) {
+    var p = parseFloat(document.getElementById('p' + i).value) || 0;
+    var qEl = document.getElementById('qtd' + i);
+    var qtdEdit = qEl ? (parseInt(qEl.value) || it.qtd) : it.qtd;
+    tot += p * qtdEdit;
+  });
+  var valor = (tot * pct / 100);
+  BONIF_STATE.percentual = pct;
+  BONIF_STATE.valor_equivalente_rs = valor;
+  document.getElementById('bonif_pct_valor').textContent = 'R$ ' + valor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+}
+
+// Atualiza valor equivalente quando é valor fixo
+function atualizarResumoBonificacao() {
+  if (BONIF_STATE.tipo === 'VALOR_FIXO') {
+    var v = parseFloat(document.getElementById('bonif_valor').value) || 0;
+    BONIF_STATE.valor_fixo_rs = v;
+    BONIF_STATE.valor_equivalente_rs = v;
+  } else if (BONIF_STATE.tipo === 'NENHUMA') {
+    BONIF_STATE.valor_equivalente_rs = 0;
+  } else if (BONIF_STATE.tipo === 'PERCENTUAL') {
+    calcBonifPercentual();
+  } else if (BONIF_STATE.tipo === 'PRODUTOS') {
+    atualizarTotalProdutos();
+  }
+}
+
+// Adiciona produto do select (lista UGIRO) à bonificação
+function adicionarProdutoBonif() {
+  var sel = document.getElementById('bonif_prod_select');
+  var idx = sel.value;
+  if (idx === '') { alert('Selecione um produto da lista'); return; }
+  var p = BONIF_PRODUTOS_PORTFOLIO[parseInt(idx)];
+  if (!p) return;
+  var qtd = prompt('Quantos itens de "' + p.descricao + '" o fornecedor está bonificando?', '1');
+  if (!qtd || isNaN(parseInt(qtd)) || parseInt(qtd) <= 0) return;
+  BONIF_STATE.produtos.push({
+    codigo: p.codigo,
+    descricao: p.descricao,
+    qtd: parseInt(qtd),
+    unidade: 'UN',
+    valor_unit: p.valor_unit,
+    origem: 'PORTFOLIO'
+  });
+  sel.value = '';
+  renderListaProdutosBonif();
+  atualizarTotalProdutos();
+}
+
+// Abre cadastro manual
+function abrirProdutoManual() {
+  document.getElementById('bonif_prod_manual_box').style.display = 'block';
+}
+function fecharProdutoManual() {
+  document.getElementById('bonif_prod_manual_box').style.display = 'none';
+  ['bonif_man_cod','bonif_man_desc','bonif_man_valor','bonif_man_qtd'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+}
+
+// Adiciona produto manual
+function adicionarProdutoManual() {
+  var cod = document.getElementById('bonif_man_cod').value.trim() || 'NOVO';
+  var desc = document.getElementById('bonif_man_desc').value.trim();
+  var valor = parseFloat(document.getElementById('bonif_man_valor').value) || 0;
+  var qtd = parseInt(document.getElementById('bonif_man_qtd').value);
+  var un = document.getElementById('bonif_man_un').value;
+  if (!desc) { alert('Informe a descrição do produto'); return; }
+  if (!qtd || qtd <= 0) { alert('Informe a quantidade'); return; }
+  BONIF_STATE.produtos.push({
+    codigo: cod, descricao: desc, qtd: qtd, unidade: un,
+    valor_unit: valor, origem: 'MANUAL'
+  });
+  fecharProdutoManual();
+  renderListaProdutosBonif();
+  atualizarTotalProdutos();
+}
+
+// Renderiza lista de produtos adicionados
+function renderListaProdutosBonif() {
+  var box = document.getElementById('bonif_prod_lista');
+  if (BONIF_STATE.produtos.length === 0) { box.innerHTML = '<div style="font-size:.74rem;color:#8fa0c0;font-style:italic;padding:8px 0">Nenhum produto adicionado ainda.</div>'; return; }
+  box.innerHTML = BONIF_STATE.produtos.map(function(p, i) {
+    var tag = p.origem === 'MANUAL' ? '<span style="background:#fff8e8;color:#8a6a00;padding:1px 5px;border-radius:3px;font-size:.6rem;font-weight:700">NOVO</span> ' : '';
+    var valor = p.valor_unit > 0 ? '<span style="color:#8fa0c0;font-size:.7rem"> (R$ ' + (p.qtd * p.valor_unit).toFixed(2).replace('.', ',') + ' equiv.)</span>' : '';
+    return '<div class="bonif-prod-row">' +
+      '<span class="desc">' + tag + p.codigo + ' — ' + p.descricao + '</span>' +
+      '<span class="qtd">' + p.qtd + ' ' + p.unidade + valor + '</span>' +
+      '<button onclick="removerProdutoBonif(' + i + ')" title="Remover">✕</button>' +
+      '</div>';
+  }).join('');
+}
+
+function removerProdutoBonif(i) {
+  BONIF_STATE.produtos.splice(i, 1);
+  renderListaProdutosBonif();
+  atualizarTotalProdutos();
+}
+
+function atualizarTotalProdutos() {
+  var total = BONIF_STATE.produtos.reduce(function(s, p) { return s + (p.qtd * (p.valor_unit || 0)); }, 0);
+  BONIF_STATE.valor_equivalente_rs = total;
+  var el = document.getElementById('bonif_prod_total');
+  if (el) el.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+}
+
+// Monta o objeto de bonificação final para enviar ao Apps Script
+function montarBonificacao() {
+  atualizarResumoBonificacao();
+  var b = {
+    tipo: BONIF_STATE.tipo,
+    valor_equivalente_rs: BONIF_STATE.valor_equivalente_rs
+  };
+  if (BONIF_STATE.tipo === 'PERCENTUAL') b.percentual = BONIF_STATE.percentual;
+  if (BONIF_STATE.tipo === 'VALOR_FIXO') b.valor_fixo_rs = BONIF_STATE.valor_fixo_rs;
+  if (BONIF_STATE.tipo === 'PRODUTOS') b.produtos = BONIF_STATE.produtos;
+  return b;
+}
+
 function enviar() {
   var erros = [];
   if (!document.getElementById('fnome').value.trim()) erros.push('Informe o nome/empresa');
@@ -826,112 +1140,141 @@ function enviar() {
   status.style.display = 'block';
   status.textContent = 'Enviando proposta para a equipe de Compras Q Food...';
 
-  // Destinatários:
-  // - PRINCIPAL: Gmail pessoal (aceita ativação do FormSubmit em 1 clique, sem antispam corporativo)
-  // - CC: e-mail oficial compras@ + adm@ + logistica@ + e-mail do fornecedor
-  // Todos recebem a mesma cotação. O Reply-To é o e-mail do fornecedor (campo _replyto abaixo).
-  var PRINCIPAL = 'rodsilveira2012@gmail.com';
-  var CC_LISTA  = [
-    'compras@qfoodcompany.com.br',
-    'adm@qfoodcompany.com.br',
-    'logistica@qfoodcompany.com.br',
-    d.email  // cópia para o próprio fornecedor
-  ].join(',');
+  // ═══════════════════════════════════════════════════════════════
+  // ENVIO VIA APPS SCRIPT (mesmo Web App de Validades/Estoque)
+  // tipo=cotacao → grava na aba Cotacoes_Recebidas + dispara e-mail
+  // ═══════════════════════════════════════════════════════════════
+  var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxohOKq4Au2UYztDTNXS6kODOJXnTufkkVAkuRFrMrvXmRyh-sUSAJ3aOfVXjkB0bUG/exec";
+  var APPS_SCRIPT_TOKEN = "qfood-rs-2026-xK9pL3mQ7vN2bT8";
 
-  var formData = new FormData();
-  formData.append('_cc',       CC_LISTA);
-  formData.append('_subject',  'Cotacao Q Food — ' + COT.fornecedor + ' | ' + d.nome + ' — ' + d.today);
-  formData.append('_template', 'table');
-  formData.append('_captcha',  'false');
-  formData.append('_replyto',  d.email);
-  formData.append('Fornecedor',   COT.fornecedor);
-  formData.append('Data',         d.today);
-  formData.append('Empresa',      d.nome);
-  formData.append('Representante',d.contato || '—');
-  formData.append('Email',        d.email);
-  formData.append('Prazo',        d.prazo || '—');
-  formData.append('Total_itens',  COT.itens.length);
-  formData.append('Qtd_alteradas',d.alteradas);
-  if(d.qtdAbaixo > 0){
-    formData.append('Itens_abaixo_validade', d.qtdAbaixo);
-    formData.append('Justificativa_validade', d.justificativa);
-  }
-  if(d.diasEntrega > PRAZO_TOLERANCIA_DIAS){
-    formData.append('Aviso_prazo_ajustado', 'SIM — entrega em ' + d.diasEntrega + ' dias; validades recalculadas');
-  }
-  formData.append('Proposta',     d.corpo);
+  // Monta lista de itens completos com todos os campos para auditoria no Sheets
+  var itensCompletos = COT.itens.map(function(it, i){
+    var preco = parseFloat(document.getElementById('p' + i).value) || 0;
+    var qEl = document.getElementById('qtd' + i);
+    var qtdEdit = qEl ? (parseInt(qEl.value) || it.qtd) : it.qtd;
+    var unid = document.getElementById('un' + i).value;
+    var val = parseInt(document.getElementById('v' + i).value) || 0;
+    var calcMin = it.valQtd ? calcValMinima(it) : null;
+    return {
+      codigo: it.cod,
+      descricao: it.desc,
+      qtd_solicitada: it.qtd,
+      qtd_confirmada: qtdEdit,
+      qtd_alterada: qtdEdit !== it.qtd,
+      preco_unit: preco,
+      unidade: unid,
+      validade_ofertada_meses: val,
+      validade_total_qtd: it.valQtd || 0,
+      validade_total_unidade: it.valUnidade || 'meses',
+      validade_min_exigida_dias: calcMin ? calcMin.minDias : 0,
+      total: preco * qtdEdit,
+      classe: it.classe
+    };
+  });
 
-  fetch('https://formsubmit.co/ajax/' + encodeURIComponent(PRINCIPAL), {
+  var totGeral = itensCompletos.reduce(function(s, it){ return s + (it.total || 0); }, 0);
+
+  // Payload completo para o Apps Script
+  var payload = {
+    token: APPS_SCRIPT_TOKEN,
+    tipo: "cotacao",
+    dado: {
+      // Identificação (suporta reenvio)
+      id_original: window.COTACAO_ID_ORIGINAL || "",
+      contador_reenvio: window.COTACAO_CONTADOR_REENVIO || 0,
+      // Cabeçalho da cotação
+      fornecedor_cotacao: COT.fornecedor,
+      nome_empresa: d.nome,
+      email_fornecedor: d.email,
+      contato: d.contato,
+      prazo_entrega: d.prazo,
+      dias_entrega: d.diasEntrega || 0,
+      prazo_ajustado: (d.diasEntrega || 0) > PRAZO_TOLERANCIA_DIAS,
+      // Métricas
+      total_itens: COT.itens.length,
+      total_geral: totGeral,
+      qtd_alteradas: d.alteradas || 0,
+      itens_abaixo_min: d.qtdAbaixo || 0,
+      justificativa: d.justificativa || "",
+      observacoes: d.obs || "",
+      // Bonificação (3 modalidades suportadas)
+      bonificacao: montarBonificacao(),
+      // Detalhes completos
+      itens_completos: itensCompletos,
+      corpo_email: d.corpo
+    }
+  };
+
+  // Apps Script exige text/plain para evitar preflight CORS
+  fetch(APPS_SCRIPT_URL, {
     method: 'POST',
-    body: formData
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
   })
   .then(function(r){
-    // Mesmo com erro HTTP, FormSubmit retorna JSON com success:false
     return r.json().catch(function(){
-      // Não conseguiu parsear JSON = falha grave (rede/CORS/servidor offline)
       throw { tipo: 'rede', msg: 'Resposta inválida do servidor (HTTP ' + r.status + ')' };
     });
   })
   .then(function(res){
-    var ok = (res.success === 'true' || res.success === true);
-    if(ok){
-      // ✅ Sucesso real — FormSubmit confirmou disparo do e-mail
+    if(res.ok){
+      // ✅ Sucesso! Apps Script gravou no Sheets e disparou o e-mail
+      window.ULTIMA_COTACAO_ID = res.id || "";
+      window.ULTIMO_TIPO_ENVIO = res.tipo_envio || "ORIGINAL";
+
+      // Atualiza tela de sucesso com ID + botão "Corrigir e Reenviar"
+      var divOk = document.getElementById('DIV_OK');
+      var extraInfo = divOk.querySelector('.cot-extra-info');
+      if(!extraInfo){
+        extraInfo = document.createElement('div');
+        extraInfo.className = 'cot-extra-info';
+        extraInfo.style.cssText = 'margin-top:24px;padding:14px 18px;background:#f8f9fc;border:1px solid #e3e8f1;border-radius:8px;font-size:.82rem;color:#4a5d80;max-width:520px;margin-left:auto;margin-right:auto';
+        divOk.appendChild(extraInfo);
+      }
+      var tipoEnvioLbl = window.ULTIMO_TIPO_ENVIO === "REENVIO"
+        ? '<span style="background:#fff4d6;color:#8a6a00;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700">REENVIO</span>'
+        : '<span style="background:#e8f5ee;color:#0c7a5e;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700">ORIGINAL</span>';
+      extraInfo.innerHTML =
+        '<div style="margin-bottom:10px"><b>ID desta cotação:</b> ' + esc(res.id || '—') + ' ' + tipoEnvioLbl + '</div>' +
+        '<div style="font-size:.76rem;color:#6b7ea8;margin-bottom:14px">Guarde este código para eventuais consultas com o time de Compras.</div>' +
+        '<button id="BTN_REENVIO" style="background:#fff;border:1.5px solid #d8e0ee;color:#4a5d80;padding:8px 16px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.78rem">⚠️ Precisa corrigir? Reenviar proposta</button>';
+
+      // Handler do botão "Corrigir e Reenviar"
+      document.getElementById('BTN_REENVIO').onclick = function(){
+        if(!confirm("Tem certeza que deseja CORRIGIR e REENVIAR esta cotação?\n\nA versão atual já foi enviada à Q Food com o ID:\n" + res.id + "\n\nO reenvio será marcado como [REENVIO] no e-mail.")) return;
+        // Preserva ID original para que o Apps Script gere ID derivado (-r1, -r2...)
+        window.COTACAO_ID_ORIGINAL = res.id || window.COTACAO_ID_ORIGINAL || "";
+        window.COTACAO_CONTADOR_REENVIO = (window.COTACAO_CONTADOR_REENVIO || 0) + 1;
+        // Volta para o formulário com dados preservados
+        document.getElementById('DIV_OK').style.display = 'none';
+        document.getElementById('DIV_FORM').style.display = 'block';
+        var b = document.getElementById('BTNENV');
+        b.disabled = false;
+        b.textContent = '🔄 Enviar Correção (REENVIO #' + window.COTACAO_CONTADOR_REENVIO + ')';
+        b.style.background = '#e89200';
+        status.style.display = 'none';
+        window.scrollTo({top: 0, behavior: 'smooth'});
+      };
+
       document.getElementById('DIV_FORM').style.display = 'none';
       document.getElementById('DIV_OK').style.display = 'block';
       window.scrollTo({top: 0, behavior: 'smooth'});
     } else {
-      // ❌ FormSubmit recebeu mas rejeitou — joga erro com a mensagem real
-      throw { tipo: 'formsubmit', msg: res.message || 'FormSubmit rejeitou o envio (sem mensagem).' };
+      // ❌ Apps Script retornou erro lógico (token inválido, aba ausente, etc.)
+      throw { tipo: 'appsscript', msg: res.erro || 'Apps Script rejeitou o envio (sem mensagem).' };
     }
   })
   .catch(function(err){
-    // Recupera UI do botão para permitir nova tentativa
+    // Falha real: rede caiu, Apps Script offline, etc.
     btn.disabled = false;
     btn.textContent = '✅ Enviar Proposta de Cotação';
-
-    if (err && err.tipo === 'formsubmit') {
-      // Caso 1: FormSubmit retornou success:false (ativação pendente, captcha, etc.)
-      // Aqui NÃO devemos mostrar "Proposta enviada!" — o envio NÃO ocorreu.
-      status.style.display = 'block';
-      status.style.color = '#c0392b';
-      status.style.fontWeight = '600';
-      status.innerHTML = '❌ <b>O envio falhou.</b><br>' +
-        '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Detalhe técnico: ' + esc(err.msg) + '</span><br>' +
-        '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Por favor, contate o time de Compras: <b>compras@qfoodcompany.com.br</b></span>';
-      window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
-      return;
-    }
-
-    // Caso 2: Falha de rede real (fetch caiu, sem internet, CORS) → oferece fallback mailto MAS pede confirmação
     status.style.display = 'block';
-    status.style.color = '#b8860b';
+    status.style.color = '#c0392b';
     status.style.fontWeight = '600';
-    status.innerHTML =
-      '⚠️ <b>Não conseguimos enviar automaticamente.</b><br>' +
-      '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">' +
-      'Vamos abrir seu cliente de e-mail (Outlook/Gmail) com a proposta já preenchida.<br>' +
-      '<b>Importante:</b> você precisará clicar em <b>ENVIAR</b> lá para que a cotação chegue à Q Food.</span><br><br>' +
-      '<button id="BTN_MAILTO" style="background:#e63329;border:none;color:#fff;padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.82rem">📧 Abrir cliente de e-mail</button>';
-
-    document.getElementById('BTN_MAILTO').onclick = function(){
-      var sub = encodeURIComponent('Cotacao Q Food - ' + d.nome + ' - ' + d.today);
-      var bod = encodeURIComponent(d.corpo);
-      window.open(
-        'mailto:' + PRINCIPAL + '?cc=' + encodeURIComponent(CC_LISTA) +
-        '&subject=' + sub + '&body=' + bod,
-        '_blank'
-      );
-      // Agora mostra confirmação separada — usuário deve marcar que ENVIOU pelo cliente
-      status.innerHTML =
-        '⚠️ <b>Cliente de e-mail aberto.</b><br>' +
-        '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Clique em <b>Enviar</b> no Outlook/Gmail. Depois confirme abaixo:</span><br><br>' +
-        '<button id="BTN_CONF_ENV" style="background:#0c7a5e;border:none;color:#fff;padding:8px 18px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.82rem">✅ Já enviei pelo meu e-mail</button>';
-      document.getElementById('BTN_CONF_ENV').onclick = function(){
-        document.getElementById('DIV_FORM').style.display = 'none';
-        document.getElementById('DIV_OK').style.display = 'block';
-        window.scrollTo({top: 0, behavior: 'smooth'});
-      };
-    };
+    var msgErro = (err && err.msg) ? esc(err.msg) : 'Erro de rede';
+    status.innerHTML = '❌ <b>O envio falhou.</b><br>' +
+      '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Detalhe técnico: ' + msgErro + '</span><br>' +
+      '<span style="font-weight:400;color:#6b7ea8;font-size:.78rem">Por favor, tente novamente em alguns minutos ou contate o time de Compras: <b>compras@qfoodcompany.com.br</b></span>';
     window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
   });
 }
