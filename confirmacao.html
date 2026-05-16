@@ -537,35 +537,39 @@ async function enviar(){
   btn.textContent='Enviando...';
 
   try{
-    const params=new URLSearchParams();
-    params.append('tipo','confirmar_fornecedor');
-    params.append('id_cotacao',idCotacao);
-    params.append('hash',hash);
-    params.append('previsao_coleta',dataColeta);
-    params.append('observacoes',obs);
-
-    const resp=await fetch(CFG.APPS_SCRIPT_URL,{
-      method:'POST',
-      headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:params.toString()
+    // v3: enviar como JSON via text/plain (mesmo padrão do Index_Compras, evita preflight CORS)
+    const payload = {
+      tipo: 'confirmar_fornecedor',
+      dado: {
+        id_cotacao: idCotacao,
+        hash: hash,
+        previsao_coleta: dataColeta,
+        observacoes: obs
+      }
+    };
+    const resp = await fetch(CFG.APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
     });
-    const txt=await resp.text();
+    const txt = await resp.text();
     let result;
-    try{ result=JSON.parse(txt); }
-    catch(e){ throw new Error('Resposta inválida do servidor: '+txt.substring(0,100)); }
+    try { result = JSON.parse(txt); }
+    catch(e) { throw new Error('Resposta inválida do servidor: '+txt.substring(0,150)); }
 
-    if(result.ok||result.success||result.status==='ok'){
+    if(result.ok || result.success || result.status === 'ok'){
       showOk(dataColeta);
     } else {
-      throw new Error(result.erro||result.error||result.message||'Erro ao registrar confirmação');
+      throw new Error(result.erro || result.error || result.message || 'Erro ao registrar confirmação');
     }
   } catch(err){
     console.error(err);
-    btn.disabled=false;
-    btn.textContent='✅ Enviar Confirmação';
-    errBox.textContent='⚠️ '+err.message;
-    errBox.style.display='block';
-    showToast('Falha ao enviar: '+err.message,true);
+    btn.disabled = false;
+    btn.textContent = '✅ Enviar Confirmação';
+    errBox.textContent = '⚠️ '+err.message;
+    errBox.style.display = 'block';
+    showToast('Falha ao enviar: '+err.message, true);
   }
 }
 
@@ -574,25 +578,42 @@ function renderPagina(cotacao,transp){
   document.getElementById('DIV_LOADING').style.display='none';
   document.getElementById('DIV_MAIN').style.display='block';
 
-  document.getElementById('xid').textContent=cotacao.ID_Cotacao||cotacao.ID||'—';
-  document.getElementById('xforn').textContent=cotacao.Fornecedor||'—';
-  document.getElementById('xdata').textContent=cotacao.Aprovado_em||cotacao.Data_Aprovacao||cotacao.Data_Envio||'—';
+  // v3: fallbacks robustos para nome do fornecedor (a sheet pode usar várias variações)
+  const aprovado = parseAprovado(cotacao.Itens_Aprovados_JSON);
+  const nomeForn = cotacao.Fornecedor
+                || cotacao.fornecedor
+                || cotacao.FORNECEDOR
+                || cotacao.Nome_Fornecedor
+                || cotacao.Fornecedor_Nome
+                || cotacao.Forn
+                || (aprovado && aprovado.fornecedor)
+                || (aprovado && aprovado.fornecedor_nome)
+                || '—';
 
-  const aprovado=parseAprovado(cotacao.Itens_Aprovados_JSON);
-  const itens=aprovado?.itens||[];
-  const totalAprov=aprovado?.total_aprovado
+  document.getElementById('xid').textContent = cotacao.ID_Cotacao || cotacao.ID || '—';
+  document.getElementById('xforn').textContent = nomeForn;
+  document.getElementById('xdata').textContent = cotacao.Aprovado_em
+                                              || cotacao.Aprovado_Em
+                                              || cotacao.Data_Aprovacao
+                                              || cotacao.Data_Envio
+                                              || cotacao.Data
+                                              || cotacao.Timestamp
+                                              || '—';
+
+  const itens = aprovado?.itens || [];
+  const totalAprov = aprovado?.total_aprovado
     || parseFloat((cotacao.Total_Geral||'0').replace(/\./g,'').replace(',','.'))
     || 0;
-  const bonif=aprovado?.bonificacao;
-  const textoLivre=aprovado?.texto_livre;
+  const bonif = aprovado?.bonificacao;
+  const textoLivre = aprovado?.texto_livre;
 
-  renderItens(itens,totalAprov);
+  renderItens(itens, totalAprov);
   renderBonif(bonif);
   renderMsg(textoLivre);
   renderTransp(transp);
 
-  const status=(cotacao.Status||'').toUpperCase();
-  const jaConfirmado=!!cotacao.Fornecedor_Confirmou_em
+  const status = (cotacao.Status||'').toUpperCase();
+  const jaConfirmado = !!cotacao.Fornecedor_Confirmou_em
     || ['AGUARDANDO_COLETA','EM_TRANSITO','RECEBIDO','CONCLUIDO'].includes(status);
 
   if(jaConfirmado){
