@@ -531,10 +531,42 @@ function calc() {
   var rc = document.getElementById('RCARD'), rv = document.getElementById('RCONT');
   if (has && rv) {
     rc.style.display = 'block';
-    rv.innerHTML = lines +
-      '<div style="display:flex;justify-content:space-between;padding:6px 0 2px;font-size:.8rem;color:#6b7ea8"><span>Total unidades</span><span>' + totQ + ' un.</span></div>' +
+
+    // Calcula valor da bonificação atual (qualquer modalidade) e monta linhas extras
+    var bonifValor = 0;
+    var bonifLabel = '';
+    if (typeof BONIF_STATE !== 'undefined') {
+      if (BONIF_STATE.tipo === 'PERCENTUAL') {
+        var pct = parseFloat((document.getElementById('bonif_pct') || {}).value) || 0;
+        bonifValor = tot * pct / 100;
+        if (pct > 0) bonifLabel = 'Bonificação (' + pct.toLocaleString('pt-BR') + '%)';
+      } else if (BONIF_STATE.tipo === 'VALOR_FIXO') {
+        bonifValor = parseFloat((document.getElementById('bonif_valor') || {}).value) || 0;
+        if (bonifValor > 0) bonifLabel = 'Bonificação (valor fixo)';
+      } else if (BONIF_STATE.tipo === 'PRODUTOS' && Array.isArray(BONIF_STATE.produtos)) {
+        bonifValor = BONIF_STATE.produtos.reduce(function(acc, p) {
+          return acc + (parseFloat(p.valor_unit) || 0) * (parseInt(p.qtd) || 0);
+        }, 0);
+        if (bonifValor > 0) bonifLabel = 'Bonificação (' + BONIF_STATE.produtos.length + ' produto' + (BONIF_STATE.produtos.length>1?'s':'') + ')';
+      }
+    }
+
+    var totalGeral = tot + bonifValor;
+    var resumoHtml = lines +
+      '<div style="display:flex;justify-content:space-between;padding:6px 0 2px;font-size:.8rem;color:#6b7ea8"><span>Total unidades</span><span>' + totQ + ' un.</span></div>';
+
+    if (bonifValor > 0) {
+      // Mostra subtotal + bonificação + total geral
+      resumoHtml +=
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.84rem;color:#4a5d80"><span>Subtotal itens</span><span>R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span></div>' +
+        '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:.84rem;color:#0c7a5e"><span>🎁 ' + bonifLabel + '</span><span style="font-weight:600">+ R$ ' + bonifValor.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span></div>';
+    }
+
+    resumoHtml +=
       '<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;font-size:.92rem;border-top:2px solid #e63329;margin-top:3px">' +
-      '<span>Total geral</span><span style="color:#e63329">R$ ' + tot.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span></div>';
+      '<span>Total geral</span><span style="color:#e63329">R$ ' + totalGeral.toLocaleString('pt-BR',{minimumFractionDigits:2}) + '</span></div>';
+
+    rv.innerHTML = resumoHtml;
   } else if (rc) rc.style.display = 'none';
 
   // Atualiza visibilidade do bloco de justificativa
@@ -904,6 +936,8 @@ function atualizarBonificacao() {
   }
 
   atualizarResumoBonificacao();
+  // v5: re-renderizar resumo geral pra mostrar/ocultar linha de bonificação
+  if (typeof calc === 'function') calc();
 }
 
 // Carrega produtos do fornecedor atual a partir do CSV UGIRO
@@ -912,18 +946,37 @@ async function carregarPortfolioFornecedor() {
   var sel = document.getElementById('bonif_prod_select');
   sel.innerHTML = '<option value="">Carregando produtos do fornecedor...</option>';
 
+  // Normaliza string: tira acentos, espaços extras, deixa upper
+  function norm(s) {
+    return String(s || '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')  // remove acentos
+      .toUpperCase()
+      .replace(/[^A-Z0-9 ]/g, ' ')   // troca pontuação por espaço
+      .replace(/\s+/g, ' ')          // espaços múltiplos viram um só
+      .trim();
+  }
+
   try {
     var r = await fetch(BONIF_UGIRO_URL + "&t=" + Date.now());
     var txt = await r.text();
     var rows = csvSimples(txt);
 
+    var fornCotacao = norm(COT.fornecedor);
+    var tokens = fornCotacao.split(' ').filter(function(t){ return t.length >= 3; });
+
     BONIF_PRODUTOS_PORTFOLIO = rows.filter(function(row) {
-      var forn = String(row["Fornecedor"] || row["FORNECEDOR"] || "").trim().toUpperCase();
-      var fornCotacao = String(COT.fornecedor || "").trim().toUpperCase();
-      return forn && fornCotacao && forn === fornCotacao;
+      var forn = norm(row["Fornecedor"] || row["FORNECEDOR"] || row["Forn"] || row["fornecedor"] || "");
+      if (!forn || !fornCotacao) return false;
+      // Match exato
+      if (forn === fornCotacao) return true;
+      // Match "contém" (cobre "SESAMO REAL" vs "SESAMO REAL LTDA" e vice-versa)
+      if (forn.indexOf(fornCotacao) >= 0 || fornCotacao.indexOf(forn) >= 0) return true;
+      // Match por token relevante (primeiro nome significativo bate)
+      if (tokens.length > 0 && tokens.every(function(t){ return forn.indexOf(t) >= 0; })) return true;
+      return false;
     }).map(function(row) {
       return {
-        codigo: String(row["Codigo"] || row["Cod"] || "").trim(),
+        codigo: String(row["Codigo"] || row["Cod"] || row["Código"] || "").trim(),
         descricao: String(row["Descricao"] || row["Descrição"] || row["Produto"] || "").trim(),
         valor_unit: parseFloat(String(row["Valor Unit"] || row["Preco"] || row["Preço"] || "0").replace(",", ".")) || 0
       };
@@ -932,6 +985,7 @@ async function carregarPortfolioFornecedor() {
     // Popula o select
     if (BONIF_PRODUTOS_PORTFOLIO.length === 0) {
       sel.innerHTML = '<option value="">Nenhum produto deste fornecedor no portfólio Q Food</option>';
+      console.warn('[bonif] Nenhum produto encontrado para fornecedor:', COT.fornecedor, '(normalizado:', fornCotacao, ')');
     } else {
       sel.innerHTML = '<option value="">Selecione um produto...</option>' +
         BONIF_PRODUTOS_PORTFOLIO.map(function(p, i) {
@@ -988,6 +1042,8 @@ function calcBonifPercentual() {
   BONIF_STATE.percentual = pct;
   BONIF_STATE.valor_equivalente_rs = valor;
   document.getElementById('bonif_pct_valor').textContent = 'R$ ' + valor.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+  // v5: re-renderizar resumo geral pra incluir bonificação no Total
+  if (typeof calc === 'function') calc();
 }
 
 // Atualiza valor equivalente quando é valor fixo
@@ -1003,6 +1059,8 @@ function atualizarResumoBonificacao() {
   } else if (BONIF_STATE.tipo === 'PRODUTOS') {
     atualizarTotalProdutos();
   }
+  // v5: re-renderizar resumo geral pra incluir bonificação no Total
+  if (typeof calc === 'function') calc();
 }
 
 // Adiciona produto do select (lista UGIRO) à bonificação
@@ -1082,6 +1140,8 @@ function atualizarTotalProdutos() {
   BONIF_STATE.valor_equivalente_rs = total;
   var el = document.getElementById('bonif_prod_total');
   if (el) el.textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2});
+  // v5: re-renderizar resumo geral pra incluir bonificação no Total
+  if (typeof calc === 'function') calc();
 }
 
 // Monta o objeto de bonificação final para enviar ao Apps Script
