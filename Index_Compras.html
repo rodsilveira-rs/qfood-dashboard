@@ -277,7 +277,7 @@ td:not(:first-child){text-align:right;}
 .hdr-actions{display:flex;gap:8px;align-items:center;}
 
 /* ============================================================
-   BLOCOS NOVOS v3 — Aprovações, Transportadoras, KPIs Adilson
+   BLOCOS NOVOS v3 — Aprovações, Transportadoras, Visão Executiva
    ============================================================ */
 
 /* Card genérico dos blocos operacionais */
@@ -410,7 +410,7 @@ td:not(:first-child){text-align:right;}
 .preco-hist-hook{font-size:.62rem;color:var(--mu2);font-style:italic;margin-top:2px;}
 
 /* ============================================================
-   KPIs ADILSON
+   KPIs — VISÃO EXECUTIVA
    ============================================================ */
 .kpi-period-toggle{display:flex;gap:4px;flex-wrap:wrap;}
 .kpi-period-toggle button{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:6px;padding:5px 12px;font-size:.72rem;cursor:pointer;font-weight:500;}
@@ -505,6 +505,9 @@ td:not(:first-child){text-align:right;}
 .op-loading{text-align:center;padding:30px 20px;color:var(--mu);font-size:.8rem;}
 .op-loading .spin-mini{width:18px;height:18px;border:2px solid var(--b2);border-top-color:var(--red);border-radius:50%;animation:sp .7s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px;}
 
+/* Hover das opções de status no modal */
+#m-st-opcoes .m-st-opt:hover{border-color:var(--b2)!important;background:var(--s3)!important;}
+
 /* Esconder cards operacionais para usuários não-aprovadores */
 .aprovador-only{display:none;}
 body.is-aprovador .aprovador-only{display:block;}
@@ -563,14 +566,14 @@ body.is-aprovador .aprovador-only{display:block;}
     <div class="opsh-title">📈 Consulta &amp; Administração</div>
   </div>
 
-  <!-- KPIs Adilson -->
+  <!-- Visão Executiva (KPIs) -->
   <div id="v3-kpis-card" class="collapse-card">
     <div class="collapse-hdr" onclick="v3ToggleCollapse('v3-kpis-card', v3CarregarKPIs)">
       <div class="ch-l">
-        <span style="font-size:1.2rem">📊</span>
+        <span style="font-size:1.2rem">🎯</span>
         <div>
-          <div class="ch-title">KPIs do Adilson</div>
-          <div class="ch-sub">Indicadores estratégicos · Fase do Mês · Volume aprovado vs cotado</div>
+          <div class="ch-title">Visão Executiva</div>
+          <div class="ch-sub">Indicadores de performance · Fase do Mês · Volume aprovado vs cotado</div>
         </div>
       </div>
       <span class="chevron">▼</span>
@@ -753,6 +756,39 @@ body.is-aprovador .aprovador-only{display:block;}
         <button class="btn-modal-cancel" onclick="v3FecharModal('modal-transp')">Cancelar</button>
         <button class="btn-modal-primary" id="m-trp-save" onclick="v3SalvarTransp()">Salvar</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MODAL: ATUALIZAR STATUS (pedidos em andamento)
+     ============================================================ -->
+<div class="ov" id="modal-status">
+  <div class="modal">
+    <button class="mclose" onclick="v3FecharModal('modal-status')">✕</button>
+    <div class="mhdr">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(160,124,246,.18);color:#a07cf6;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0">🔄</div>
+      <div style="flex:1;min-width:0">
+        <div class="mn">Atualizar Status do Pedido</div>
+        <div class="ms" id="m-st-sub"></div>
+      </div>
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:4px">Status atual</div>
+      <div id="m-st-atual" style="font-size:.9rem;font-weight:600;color:var(--tx)">—</div>
+    </div>
+    <div>
+      <div style="font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Selecione o novo status</div>
+      <div id="m-st-opcoes" style="display:grid;gap:8px;margin-bottom:14px"></div>
+    </div>
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Observação (opcional)</label>
+      <textarea id="m-st-obs" class="modal-textarea" rows="2" maxlength="500" placeholder="Ex: motorista chegou às 14h, carga conferida ok..."></textarea>
+    </div>
+    <div id="m-st-err" style="color:#ff7875;font-size:.78rem;display:none;margin-bottom:10px;padding:8px 12px;background:rgba(255,77,79,.08);border-radius:6px"></div>
+    <div class="modal-foot">
+      <button class="btn-modal-cancel" onclick="v3FecharModal('modal-status')">Cancelar</button>
+      <button class="btn-modal-primary" id="m-st-btn" onclick="v3ConfirmarStatus()" disabled>Confirmar Mudança</button>
     </div>
   </div>
 </div>
@@ -3060,41 +3096,114 @@ async function v3ConfirmarDesignacao(){
 }
 
 // ============================================================
-// MUDAR STATUS (Maiko / aprovadores)
+// MUDAR STATUS (modal próprio — Maiko/aprovadores)
 // ============================================================
-async function v3MudarStatus(idCotacao){
+function v3MudarStatus(idCotacao){
   var c = V3._state.cotacoes.find(function(x){ return (x.ID_Cotacao||x.ID||'').trim() === idCotacao; });
-  if(!c){ return; }
-  var st = (c.Status||'').toUpperCase();
-  var opcoes = {
-    'AGUARDANDO_FORNECEDOR': ['AGUARDANDO_COLETA', 'EM_TRANSITO'],
-    'AGUARDANDO_COLETA': ['EM_TRANSITO', 'RECEBIDO'],
-    'EM_TRANSITO': ['RECEBIDO']
+  if(!c){ v3ToastShow('Pedido não encontrado.', 'error'); return; }
+
+  V3._state.cotacaoAtiva = c;
+  V3._state.statusEscolhido = null;
+
+  var st = (c.Status||'').trim().toUpperCase();
+  var labelAtual = {
+    'AGUARDANDO_FORNECEDOR':'⏳ Aguardando Fornecedor',
+    'AGUARDANDO_COLETA':'🚛 Aguardando Coleta',
+    'EM_TRANSITO':'🚚 Em Trânsito',
+    'RECEBIDO':'✅ Recebido',
+    'CONCLUIDO':'🏁 Concluído'
+  }[st] || st;
+
+  // Próximos status válidos a partir do atual
+  var fluxo = {
+    'AGUARDANDO_FORNECEDOR': [
+      { v:'AGUARDANDO_COLETA',  l:'🚛 Aguardando Coleta',  d:'Fornecedor confirmou e está preparando a mercadoria.' },
+      { v:'EM_TRANSITO',        l:'🚚 Em Trânsito',         d:'Transportadora já coletou e está a caminho.' }
+    ],
+    'AGUARDANDO_COLETA': [
+      { v:'EM_TRANSITO',        l:'🚚 Em Trânsito',         d:'Transportadora coletou a mercadoria.' },
+      { v:'RECEBIDO',           l:'✅ Recebido',             d:'Mercadoria foi entregue na Q Food.' }
+    ],
+    'EM_TRANSITO': [
+      { v:'RECEBIDO',           l:'✅ Recebido',             d:'Mercadoria foi entregue na Q Food.' }
+    ],
+    'RECEBIDO': [
+      { v:'CONCLUIDO',          l:'🏁 Concluído',           d:'Pedido finalizado e arquivado.' }
+    ]
   };
-  var lista = opcoes[st] || ['CONCLUIDO'];
-  var msg = 'Pedido: ' + (c.ID_Cotacao||c.ID) + '\nStatus atual: ' + st + '\n\nNovo status:\n';
-  lista.forEach(function(s,i){ msg += (i+1) + ') ' + s + '\n'; });
-  var escolha = prompt(msg + '\nDigite o número da opção:');
-  if(!escolha) return;
-  var idx = parseInt(escolha,10) - 1;
-  if(isNaN(idx) || idx < 0 || idx >= lista.length){ v3ToastShow('Opção inválida.', 'error'); return; }
-  var novoStatus = lista[idx];
+  var opcoes = fluxo[st] || [{ v:'CONCLUIDO', l:'🏁 Concluído', d:'Finalizar e arquivar este pedido.' }];
+
+  // Preenche modal
+  document.getElementById('m-st-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + (c.Fornecedor||'—');
+  document.getElementById('m-st-atual').innerHTML = '<span class="status-pill status-'+st+'">'+v3Esc(labelAtual)+'</span>';
+  document.getElementById('m-st-obs').value = '';
+  document.getElementById('m-st-err').style.display = 'none';
+  document.getElementById('m-st-btn').disabled = true;
+  document.getElementById('m-st-btn').textContent = 'Confirmar Mudança';
+
+  var opBox = document.getElementById('m-st-opcoes');
+  opBox.innerHTML = opcoes.map(function(op, i){
+    return '<div class="m-st-opt" data-status="'+v3Esc(op.v)+'" onclick="v3SelStatus(this, \''+v3Esc(op.v).replace(/'/g,"\\'")+'\')" '+
+      'style="background:var(--s2);border:1.5px solid var(--br);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .15s">'+
+      '<div style="font-size:.92rem;font-weight:600;color:var(--tx);margin-bottom:3px">'+v3Esc(op.l)+'</div>'+
+      '<div style="font-size:.74rem;color:var(--mu)">'+v3Esc(op.d)+'</div>'+
+    '</div>';
+  }).join('');
+
+  v3AbrirModal('modal-status');
+}
+
+// Seleciona uma opção de status no modal
+function v3SelStatus(el, status){
+  // remove seleção anterior
+  document.querySelectorAll('#m-st-opcoes .m-st-opt').forEach(function(x){
+    x.style.borderColor = 'var(--br)';
+    x.style.background = 'var(--s2)';
+  });
+  // marca selecionada
+  el.style.borderColor = '#a07cf6';
+  el.style.background = 'rgba(160,124,246,.08)';
+  V3._state.statusEscolhido = status;
+  document.getElementById('m-st-btn').disabled = false;
+}
+
+async function v3ConfirmarStatus(){
+  var c = V3._state.cotacaoAtiva;
+  var novoStatus = V3._state.statusEscolhido;
+  var err = document.getElementById('m-st-err');
+  err.style.display = 'none';
+
+  if(!c || !novoStatus){
+    err.textContent = 'Selecione o novo status.';
+    err.style.display = 'block';
+    return;
+  }
+
+  var obs = (document.getElementById('m-st-obs').value || '').trim();
+  var btn = document.getElementById('m-st-btn');
+  btn.disabled = true;
+  btn.textContent = 'Atualizando...';
 
   try {
     await v3PostAppsScript('atualizar_status', {
       id_cotacao: c.ID_Cotacao || c.ID,
       novo_status: novoStatus,
-      atualizado_por: v3UsuarioLogado()
+      atualizado_por: v3UsuarioLogado(),
+      observacao: obs
     });
-    v3ToastShow('Status atualizado para '+novoStatus, 'success');
+    v3ToastShow('Status atualizado para ' + novoStatus, 'success');
+    v3FecharModal('modal-status');
     await v3CarregarOperacional(true);
   } catch(e){
-    v3ToastShow('Erro: '+e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Confirmar Mudança';
+    err.textContent = 'Erro: ' + e.message;
+    err.style.display = 'block';
   }
 }
 
 // ============================================================
-// KPIs ADILSON
+// VISÃO EXECUTIVA (KPIs)
 // ============================================================
 async function v3CarregarKPIs(){
   // setup dos toggles (apenas uma vez)
@@ -3302,8 +3411,8 @@ function v3RenderFaseMes(cot, usarAprovado){
   }
 
   document.getElementById('v3-kpis-fase').innerHTML =
-    '<div class="kpi-fase-title">💡 Inteligência — Hipótese do Adilson</div>'+
-    '<div class="kpi-fase-sub">"Cotar no fim do mês economiza, porque fornecedores estão correndo pra bater meta"</div>'+
+    '<div class="kpi-fase-title">💡 Inteligência de Mercado — Fase do Mês</div>'+
+    '<div class="kpi-fase-sub">Análise empírica do timing de cotação: cotar no fim do mês economiza?</div>'+
     '<div class="kpi-fase-grid">'+
       makeCell('inicio', 'Início', '1–10')+
       makeCell('meio', 'Meio', '11–20')+
