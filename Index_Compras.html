@@ -2194,14 +2194,62 @@ function v3Esc(s){
 }
 function v3BRL(n){
   if(n===null||n===undefined||n==='') return 'R$ 0,00';
-  var v = typeof n==='string' ? parseFloat(String(n).replace(/\./g,'').replace(',','.')) : Number(n);
+  // Se já é número, usa direto; se é string, passa pelo parser robusto
+  var v = (typeof n==='number') ? n : v3Num(n);
   if(isNaN(v)) return 'R$ 0,00';
   return v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 }
 function v3Num(n){
   if(n===null||n===undefined||n==='') return 0;
-  var v = typeof n==='string' ? parseFloat(String(n).replace(/\./g,'').replace(',','.')) : Number(n);
-  return isNaN(v) ? 0 : v;
+  if(typeof n === 'number') return isFinite(n) ? n : 0;
+  var s = String(n).trim();
+  if(!s || s === '—' || s === '-') return 0;
+  // Detecta notação científica (E+12, e+5, etc) — sempre erro de export
+  if(/[eE]/.test(s)) {
+    console.warn('[v3Num] valor com notação científica ignorado:', s);
+    return 0;
+  }
+  // Parse robusto BR: remove R$, espaços, pontos de milhar, troca vírgula decimal por ponto
+  var clean = s.replace(/R\$\s*/gi, '').replace(/\s/g, '');
+  var lastDot = clean.lastIndexOf('.');
+  var lastCom = clean.lastIndexOf(',');
+
+  if(lastCom >= 0 && lastDot >= 0){
+    // Tem ambos os separadores — o último deles é o decimal
+    if(lastCom > lastDot){
+      // BR clássico: 1.234.567,89
+      clean = clean.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US clássico: 1,234,567.89
+      clean = clean.replace(/,/g, '');
+    }
+  } else if(lastCom >= 0){
+    // Só vírgula: trata como decimal BR (15,00)
+    clean = clean.replace(',', '.');
+  } else if(lastDot >= 0){
+    // Só ponto: AMBÍGUO (15.00 = US decimal ou 2.013 = BR milhar?)
+    // Heurística: se TODOS os segmentos depois do primeiro ponto têm exatamente 3 dígitos,
+    // é separador de milhar BR. Senão é decimal US.
+    var partes = clean.split('.');
+    var ultima = partes[partes.length - 1];
+    var todosMilhar = partes.length >= 2 && ultima.length === 3
+                      && partes.slice(1).every(function(p){ return p.length === 3; });
+    if(todosMilhar){
+      // BR milhar: 2.013 / 1.234.567
+      clean = clean.replace(/\./g, '');
+    }
+    // Senão deixa como decimal US (15.00)
+  }
+  // Senão (sem separadores): integer puro como '2013010'
+
+  var v = parseFloat(clean);
+  if(isNaN(v) || !isFinite(v)) return 0;
+  // Sanity check: nenhuma cotação Q Food deveria passar de R$ 5 milhões por linha
+  if(Math.abs(v) > 5000000){
+    console.warn('[v3Num] valor absurdo descartado:', s, '=> parsed=', v);
+    return 0;
+  }
+  return v;
 }
 function v3ToastShow(msg, kind){
   var t = document.getElementById('v3-toast');
@@ -2240,6 +2288,21 @@ function v3FormatarDataHora(d){
     if(isNaN(dt.getTime())) return d;
     return dt.toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'});
   } catch(e){ return d; }
+}
+
+// v3.3: Helper centralizado para ler nome do fornecedor da cotação
+// Schema real da sheet Cotacoes_Recebidas:
+//   - Nome_Empresa = razão social digitada pelo fornecedor (preferida)
+//   - Fornecedor_Cotacao = identificador interno do nosso cadastro (fallback)
+function v3GetFornecedor(c){
+  if(!c) return '—';
+  return c.Nome_Empresa
+      || c.Fornecedor_Cotacao
+      || c.nome_empresa
+      || c.fornecedor_cotacao
+      || c.Fornecedor
+      || c.fornecedor
+      || '—';
 }
 
 // ----- CSV Parser RFC 4180 -----
@@ -2408,7 +2471,7 @@ function v3RenderAprovacoes(){
   box.className = 'op-card';
   var rows = pend.map(function(c){
     var id      = c.ID_Cotacao || c.ID || '—';
-    var forn    = c.Fornecedor || '—';
+    var forn = v3GetFornecedor(c);
     var total   = v3BRL(c.Total_Geral || 0);
     var nItens  = c.N_Itens || c.Qtd_Itens || '—';
     var data    = v3FormatarData(c.Data_Envio || c.Data || c.Timestamp);
@@ -2466,7 +2529,7 @@ function v3RenderDesignacao(){
   box.className = 'op-card';
   var rows = pend.map(function(c){
     var id     = c.ID_Cotacao || c.ID || '—';
-    var forn   = c.Fornecedor || '—';
+    var forn = v3GetFornecedor(c);
     var ja     = v3ParseJSON(c.Itens_Aprovados_JSON);
     var totalAp = (ja && ja.total_aprovado) || v3Num(c.Total_Geral);
     var qtdIt  = (ja && Array.isArray(ja.itens)) ? ja.itens.length : (c.N_Itens || '—');
@@ -2520,7 +2583,7 @@ function v3RenderAndamento(){
   box.className = 'op-card';
   var rows = emAndamento.map(function(c){
     var id   = c.ID_Cotacao || c.ID || '—';
-    var forn = c.Fornecedor || '—';
+    var forn = v3GetFornecedor(c);
     var st   = (c.Status || '').trim().toUpperCase();
     var stLabel = st === 'AGUARDANDO_FORNECEDOR' ? 'Aguardando Fornecedor'
                 : st === 'AGUARDANDO_COLETA' ? 'Aguardando Coleta'
@@ -2583,7 +2646,7 @@ function v3AbrirAprovacao(idCotacao){
   var bonif = det.bonificacao || { tipo:'NENHUMA' };
 
   document.getElementById('m-aprov-sub').textContent =
-    (c.ID_Cotacao||c.ID||'—') + ' · ' + (c.Fornecedor||'—') + ' · ' + v3FormatarData(c.Data_Envio||c.Data);
+    (c.ID_Cotacao||c.ID||'—') + ' · ' + v3GetFornecedor(c) + ' · ' + v3FormatarData(c.Data_Envio||c.Data);
 
   document.getElementById('m-aprov-body').innerHTML = v3MontarBodyAprovacao(itens, bonif);
 
@@ -2957,7 +3020,7 @@ function v3AbrirRecusa(idCotacao){
   var c = V3._state.cotacoes.find(function(x){ return (x.ID_Cotacao||x.ID||'').trim() === idCotacao; });
   if(!c){ v3ToastShow('Cotação não encontrada.', 'error'); return; }
   V3._state.cotacaoAtiva = c;
-  document.getElementById('m-rec-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + (c.Fornecedor||'—');
+  document.getElementById('m-rec-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + v3GetFornecedor(c);
   document.getElementById('m-rec-motivo').value = '';
   v3AbrirModal('modal-recusar');
 }
@@ -2995,7 +3058,7 @@ async function v3AbrirDesignacao(idCotacao){
   if(!c){ v3ToastShow('Cotação não encontrada.', 'error'); return; }
   V3._state.cotacaoAtiva = c;
 
-  document.getElementById('m-des-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + (c.Fornecedor||'—');
+  document.getElementById('m-des-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + v3GetFornecedor(c);
   document.getElementById('m-des-obs').value = '';
 
   // popula select com transportadoras ativas
@@ -3134,7 +3197,7 @@ function v3MudarStatus(idCotacao){
   var opcoes = fluxo[st] || [{ v:'CONCLUIDO', l:'🏁 Concluído', d:'Finalizar e arquivar este pedido.' }];
 
   // Preenche modal
-  document.getElementById('m-st-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + (c.Fornecedor||'—');
+  document.getElementById('m-st-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + v3GetFornecedor(c);
   document.getElementById('m-st-atual').innerHTML = '<span class="status-pill status-'+st+'">'+v3Esc(labelAtual)+'</span>';
   document.getElementById('m-st-obs').value = '';
   document.getElementById('m-st-err').style.display = 'none';
@@ -3187,7 +3250,7 @@ async function v3ConfirmarStatus(){
   try {
     await v3PostAppsScript('atualizar_status', {
       id_cotacao: c.ID_Cotacao || c.ID,
-      novo_status: novoStatus,
+      status_novo: novoStatus,
       atualizado_por: v3UsuarioLogado(),
       observacao: obs
     });
@@ -3283,7 +3346,7 @@ function v3RenderKPIs(){
   var usarAprovado = V3._state.kpiVolume === 'aprovado';
 
   var nCot = cot.length;
-  var fornUnicos = new Set(cot.map(function(c){ return c.Fornecedor||''; })).size;
+  var fornUnicos = new Set(cot.map(function(c){ return v3GetFornecedor(c)||''; })).size;
 
   var volumeTotal = 0;
   var nComBonif = 0;
