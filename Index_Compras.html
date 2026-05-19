@@ -309,6 +309,8 @@ td:not(:first-child){text-align:right;}
 /* Botões dos pedidos */
 .btn-aprov{background:var(--ok);color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
 .btn-aprov:hover{background:#2eb088;transform:translateY(-1px);}
+.btn-reneg{background:transparent;color:#f0c040;border:1px solid rgba(240,192,64,.5);border-radius:7px;padding:7px 12px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-reneg:hover{background:rgba(240,192,64,.15);}
 .btn-recusa{background:transparent;color:#ff7875;border:1px solid rgba(255,77,79,.4);border-radius:7px;padding:7px 12px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
 .btn-recusa:hover{background:rgba(255,77,79,.12);}
 .btn-desig{background:#a07cf6;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
@@ -840,6 +842,36 @@ body.is-aprovador .aprovador-only{display:block;}
 </div>
 
 <!-- ============================================================
+     🆕 v3.5: MODAL DE RENEGOCIAÇÃO (Recusar + Reenviar com ajustes)
+     ============================================================ -->
+<div class="ov" id="modal-renegociar">
+  <div class="modal">
+    <button class="mclose" onclick="v3FecharModal('modal-renegociar')">✕</button>
+    <div class="mhdr">
+      <div style="width:48px;height:48px;border-radius:50%;background:rgba(240,192,64,.18);color:#f0c040;display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0">↻</div>
+      <div>
+        <div class="mn">Renegociar Cotação</div>
+        <div class="ms" id="m-reneg-sub"></div>
+      </div>
+    </div>
+    <div style="padding:0 4px">
+      <div style="background:rgba(240,192,64,.08);border:1px solid rgba(240,192,64,.3);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:.78rem;color:var(--tx);line-height:1.6">
+        💡 <b>Como funciona:</b> ao confirmar, esta cotação será marcada como <b>RECUSADA</b> com o motivo abaixo, e você será direcionado ao gerador de cotação para criar uma nova proposta ao mesmo fornecedor — preservando o histórico.
+      </div>
+      <label style="display:block;font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Motivo da renegociação <span style="color:var(--red)">*</span></label>
+      <textarea id="m-reneg-motivo" class="modal-textarea" placeholder="Ex: Preço fora do mercado — pedir 5% de desconto; prazo de entrega inviável; quantidade precisa de ajuste..."></textarea>
+      <div style="font-size:.72rem;color:var(--mu);margin-top:8px">
+        Este motivo fica registrado no histórico e ajuda você a montar a nova cotação.
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-modal-cancel" onclick="v3FecharModal('modal-renegociar')">Cancelar</button>
+      <button class="btn-modal-primary" id="m-reneg-btn" onclick="v3ConfirmarRenegociacao()" style="background:#f0c040;color:#1a1f2e">↻ Recusar e Renegociar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
      MODAL: DESIGNAR TRANSPORTADORA
      ============================================================ -->
 <div class="ov" id="modal-desig">
@@ -861,6 +893,28 @@ body.is-aprovador .aprovador-only{display:block;}
       </div>
     </div>
     <div class="desig-preview" id="m-des-preview"></div>
+
+    <!-- 🆕 v3.5: Tipo de Frete -->
+    <div style="margin-bottom:14px;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:14px 16px">
+      <label style="display:block;font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:10px">Tipo de Frete <span style="color:var(--red)">*</span></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <label style="display:flex;align-items:flex-start;gap:8px;background:var(--bg);border:1.5px solid var(--br);border-radius:8px;padding:10px 12px;cursor:pointer;transition:border .15s" onclick="v3SelTipoFrete('CIF')">
+          <input type="radio" name="m-des-frete" id="m-des-frete-cif" value="CIF" onchange="v3OnFreteChange()" style="margin-top:2px;flex-shrink:0">
+          <div>
+            <div style="font-weight:700;color:var(--tx);font-size:.86rem">CIF</div>
+            <div style="font-size:.7rem;color:var(--mu);line-height:1.4">Frete por conta do <b>fornecedor</b><br>(ele contrata e paga a transportadora)</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:8px;background:var(--bg);border:1.5px solid var(--br);border-radius:8px;padding:10px 12px;cursor:pointer;transition:border .15s" onclick="v3SelTipoFrete('FOB')">
+          <input type="radio" name="m-des-frete" id="m-des-frete-fob" value="FOB" onchange="v3OnFreteChange()" style="margin-top:2px;flex-shrink:0">
+          <div>
+            <div style="font-weight:700;color:var(--tx);font-size:.86rem">FOB</div>
+            <div style="font-size:.7rem;color:var(--mu);line-height:1.4">Frete por conta da <b>Q Food</b><br>(nós contratamos e pagamos a transportadora)</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
     <div style="margin-bottom:14px">
       <label style="display:block;font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Observações para o fornecedor (opcional)</label>
       <textarea id="m-des-obs" class="modal-textarea" placeholder="Ex: Coleta apenas em horário comercial, contatar até as 17h, etc." rows="2"></textarea>
@@ -1088,6 +1142,41 @@ body.is-aprovador .aprovador-only{display:block;}
         <div id="cmp-resumo" style="font-size:.82rem;line-height:1.8;color:var(--tx)"></div>
       </div>
     </div>
+    <!-- 🆕 v3.5: Condições Comerciais sugeridas pela Cris -->
+    <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:20px">
+      <div class="sec" style="margin-bottom:12px;font-size:.85rem">💳 Condições Comerciais Sugeridas <span style="font-size:.7rem;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">(o fornecedor pode contraproposta)</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div>
+          <label style="font-size:.7rem;color:var(--mu);display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Forma de pagamento</label>
+          <select id="cmp-forma-pag" onchange="cmpAtualizarPreview()"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.88rem;outline:none">
+            <option value="">— Selecione —</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Cartão">Cartão</option>
+            <option value="Pix">Pix</option>
+            <option value="Transferência">Transferência</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--mu);display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Prazo de pagamento</label>
+          <input id="cmp-prazo-pag" type="text" placeholder="Ex: 30 dias DD" oninput="cmpAtualizarPreview()"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.88rem;outline:none">
+        </div>
+        <div>
+          <label style="font-size:.7rem;color:var(--mu);display:block;margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Tipo de Frete (preliminar)</label>
+          <select id="cmp-tipo-frete" onchange="cmpAtualizarPreview()"
+            style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.88rem;outline:none">
+            <option value="">— A definir na designação —</option>
+            <option value="CIF">CIF (frete por conta do fornecedor)</option>
+            <option value="FOB">FOB (frete por conta da Q Food)</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-top:10px;font-size:.72rem;color:var(--mu);font-style:italic">
+        💡 Forma e prazo são <b>obrigatórios</b> e seguem como sugestão no formulário do fornecedor — ele pode propor diferente. O tipo de frete será confirmado quando a transportadora for designada.
+      </div>
+    </div>
+
     <!-- LINK DO FORMULÁRIO — em destaque -->
     <div style="background:rgba(160,124,246,.08);border:2px solid #a07cf6;border-radius:12px;padding:20px;margin-bottom:16px">
       <div style="font-size:.7rem;color:#a07cf6;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">&#128279; Link do Formul&#225;rio para o Fornecedor</div>
@@ -1779,6 +1868,30 @@ function cmpSelectFornecedor(){
   if(b){b.style.display="block";b.textContent=prods.length+" SKUs · "+prods.filter(function(p){return p.classe==="alto";}).length+" giro alto";}
   cmpRenderProdutos();
   document.getElementById("cmp-produtos-wrap").style.display="block";
+
+  // 🆕 v3.5: Auto-preencher email/contato do fornecedor (se já cadastrado)
+  cmpBuscarContatoFornecedor(forn);
+}
+
+// 🆕 v3.5: Busca contato salvo do fornecedor e preenche email/contato se vazios
+async function cmpBuscarContatoFornecedor(fornecedor){
+  if(!fornecedor) return;
+  try {
+    var resp = await v3PostAppsScript('contato_get', { fornecedor: fornecedor });
+    if(resp && resp.contato){
+      var elEmail = document.getElementById('cmp-email');
+      var elCont  = document.getElementById('cmp-contato');
+      // Só preenche se estiver vazio (não sobrescreve digitação do usuário)
+      if(elEmail && !elEmail.value.trim() && resp.contato.email){
+        elEmail.value = resp.contato.email;
+      }
+      if(elCont && !elCont.value.trim() && resp.contato.nome_contato){
+        elCont.value = resp.contato.nome_contato;
+      }
+    }
+  } catch(e){
+    console.warn('contato_get:', e.message);
+  }
 }
 function cmpRenderProdutos(){
   var tbody=document.getElementById("cmp-tbody");if(!tbody)return;
@@ -2069,15 +2182,17 @@ function cmpBackStep(){
   document.getElementById("cmp-step2").style.display="none";
   document.getElementById("cmp-step1").style.display="block";
 }
-function cmpGerarLink(it, forn, obs, email, contato){
+function cmpGerarLink(it, forn, obs, email, contato, formaPag, prazoPag){
   // Payload minimo — sem desc longa e giro para encurtar URL
-  // Campos: f=fornecedor, d=data, o=obs, e=email, c=contato, i=itens
+  // Campos: f=fornecedor, d=data, o=obs, e=email, c=contato, fp=formaPag, pp=prazoPag, i=itens
   var payload={
     f: forn,
     d: new Date().toLocaleDateString("pt-BR"),
     o: obs||"",
     e: email||"",
     c: contato||"",
+    fp: formaPag||"",   // 🆕 v3.5 forma de pagamento sugerida
+    pp: prazoPag||"",   // 🆕 v3.5 prazo de pagamento sugerido
     i: it.map(function(x){
       return [
         x.p.cod,                                          // 0: codigo
@@ -2104,12 +2219,16 @@ function cmpUpdateEmailPreview(it,forn){
   var contato=(document.getElementById("cmp-contato").value||"").trim();
   var email  =(document.getElementById("cmp-email").value||"").trim();
   var obs=(document.getElementById("cmp-obs").value||"").trim();
+  // 🆕 v3.5: lê condições comerciais
+  var formaPag=(document.getElementById("cmp-forma-pag")||{}).value||"";
+  var prazoPag=((document.getElementById("cmp-prazo-pag")||{}).value||"").trim();
+  var tipoFrete=(document.getElementById("cmp-tipo-frete")||{}).value||"";
   var today=new Date().toLocaleDateString("pt-BR");
   var NL="\n";
   var SEP="─────────────────────────────────────────────";
 
   // Gera o link do formulário na hora (longo — será encurtado ao copiar/abrir)
-  var formLink = cmpGerarLink(it, forn, obs, email, contato);
+  var formLink = cmpGerarLink(it, forn, obs, email, contato, formaPag, prazoPag);
   var assunto  = "Cotação Q Food — " + forn + " — " + today;
 
   var linhas=it.map(function(x,i){
@@ -2126,6 +2245,28 @@ function cmpUpdateEmailPreview(it,forn){
     }
     return parts.join(NL);
   }).join(NL+NL);
+
+  // 🆕 v3.5: bloco de condições comerciais (se preenchidas)
+  var blocoCondicoes = "";
+  if (formaPag || prazoPag || tipoFrete) {
+    var partes = [];
+    partes.push("");
+    partes.push("┌─────────────────────────────────────────────┐");
+    partes.push("│         CONDIÇÕES COMERCIAIS                │");
+    partes.push("└─────────────────────────────────────────────┘");
+    partes.push("");
+    if (formaPag) partes.push("💳 Forma de pagamento sugerida: " + formaPag);
+    if (prazoPag) partes.push("📅 Prazo de pagamento sugerido: " + prazoPag);
+    if (tipoFrete) {
+      var descFrete = tipoFrete === "CIF" ? "CIF (frete por conta do fornecedor)"
+                     : tipoFrete === "FOB" ? "FOB (frete por conta da Q Food)"
+                     : tipoFrete;
+      partes.push("🚛 Tipo de frete (preliminar): " + descFrete);
+    }
+    partes.push("");
+    partes.push("Você pode propor diferente no formulário — vamos avaliar.");
+    blocoCondicoes = partes.join(NL);
+  }
 
   var corpo=[
     "▶ ASSUNTO: " + assunto,
@@ -2146,6 +2287,7 @@ function cmpUpdateEmailPreview(it,forn){
     "└─────────────────────────────────────────────┘",
     "",
     linhas,
+    blocoCondicoes,
     "",
     SEP,
     "",
@@ -2186,6 +2328,13 @@ function cmpUpdateEmailPreview(it,forn){
   return corpo;
 }
 
+// 🆕 v3.5: atalho usado pelos onchange/oninput dos novos campos
+function cmpAtualizarPreview(){
+  var it = (typeof cmpGetItens === 'function') ? cmpGetItens() : [];
+  var forn = (document.getElementById("cmp-fornecedor")||{}).value || "";
+  if (it.length && forn) cmpUpdateEmailPreview(it, forn);
+}
+
 function cmpCopyEmail(){
   var it   =cmpGetItens();
   var forn =document.getElementById("cmp-fornecedor").value;
@@ -2197,7 +2346,7 @@ function cmpCopyEmail(){
 
   // Corpo atual do preview (já contém o link longo)
   var corpoLongo = cmpUpdateEmailPreview(it,forn);
-  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato);
+  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato,(document.getElementById("cmp-forma-pag")||{}).value||"",((document.getElementById("cmp-prazo-pag")||{}).value||"").trim());
 
   if(msg) msg.innerHTML="&#9203; Encurtando link...";
 
@@ -2239,7 +2388,7 @@ function cmpOpenMailto(){
   if(!it.length){ alert("Nenhum item selecionado."); return; }
 
   var corpoLongo = cmpUpdateEmailPreview(it,forn);
-  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato);
+  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato,(document.getElementById("cmp-forma-pag")||{}).value||"",((document.getElementById("cmp-prazo-pag")||{}).value||"").trim());
   var subj       = "Cotação Q Food — "+forn+" — "+today;
 
   function abrir(corpoFinal, linkUsado){
@@ -2275,7 +2424,7 @@ function cmpCopyLink(){
   var obs  = (document.getElementById("cmp-obs").value||"").trim();
   var email=(document.getElementById("cmp-email").value||"").trim();
   var contato=(document.getElementById("cmp-contato").value||"").trim();
-  var link = cmpGerarLink(it, forn, obs, email, contato);
+  var link = cmpGerarLink(it, forn, obs, email, contato, (document.getElementById("cmp-forma-pag")||{}).value||"", ((document.getElementById("cmp-prazo-pag")||{}).value||"").trim());
   var btn  = document.getElementById("btn-copy-link");
   var msgEl= document.getElementById("cmp-send-msg");
   if(btn){ btn.innerHTML="&#9203; Encurtando..."; btn.disabled=true; }
@@ -2330,7 +2479,7 @@ function cmpPreviewLink(){
   var obs  = (document.getElementById("cmp-obs").value||"").trim();
   var email=(document.getElementById("cmp-email").value||"").trim();
   var contato=(document.getElementById("cmp-contato").value||"").trim();
-  var link = cmpGerarLink(it, forn, obs, email, contato);
+  var link = cmpGerarLink(it, forn, obs, email, contato, (document.getElementById("cmp-forma-pag")||{}).value||"", ((document.getElementById("cmp-prazo-pag")||{}).value||"").trim());
   window.open(link, "_blank");
 }
 
@@ -2690,6 +2839,7 @@ function v3RenderAprovacoes(){
         '</div>'+
         '<div class="pedido-actions">'+
           '<button class="btn-aprov" onclick="v3AbrirAprovacao(\''+v3Esc(id).replace(/'/g,"\\'")+'\')">✓ Aprovar</button>'+
+          '<button class="btn-reneg" onclick="v3AbrirRenegociar(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Recusar esta cotação e abrir o gerador preenchido para reenviar com ajustes">↻ Renegociar</button>'+
           '<button class="btn-recusa" onclick="v3AbrirRecusa(\''+v3Esc(id).replace(/'/g,"\\'")+'\')">Recusar</button>'+
         '</div>'+
       '</div>';
@@ -3242,6 +3392,58 @@ async function v3ConfirmarRecusa(){
 }
 
 // ============================================================
+// 🆕 v3.5: MODAL DE RENEGOCIAÇÃO (Recusar + Reenviar com ajustes)
+// ============================================================
+function v3AbrirRenegociar(idCotacao){
+  if(!v3EhAprovador()){
+    v3ToastShow('Apenas aprovadores podem renegociar.', 'error');
+    return;
+  }
+  var c = V3._state.cotacoes.find(function(x){ return (x.ID_Cotacao||x.ID||'').trim() === idCotacao; });
+  if(!c){ v3ToastShow('Cotação não encontrada.', 'error'); return; }
+  V3._state.cotacaoAtiva = c;
+  document.getElementById('m-reneg-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + v3GetFornecedor(c);
+  document.getElementById('m-reneg-motivo').value = '';
+  v3AbrirModal('modal-renegociar');
+}
+
+async function v3ConfirmarRenegociacao(){
+  var btn = document.getElementById('m-reneg-btn');
+  var motivo = (document.getElementById('m-reneg-motivo').value || '').trim();
+  if(!motivo || motivo.length < 5){ v3ToastShow('Descreva o motivo (mín. 5 caracteres).', 'error'); return; }
+  var cot = V3._state.cotacaoAtiva;
+  if(!cot){ return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Processando...';
+  try {
+    var resp = await v3PostAppsScript('renegociar', {
+      id_cotacao: cot.ID_Cotacao || cot.ID,
+      aprovado_por: v3UsuarioLogado(),
+      aprovacao_obs: motivo
+    });
+    v3FecharModal('modal-renegociar');
+
+    // Guarda payload pra usuário usar quando navegar pro gerador
+    V3._state.renegociacaoPayload = resp.payload_reenvio || null;
+
+    // Mostra toast com instrução clara
+    v3ToastShow('Cotação recusada como renegociação. Abra o gerador de cotação pra reenviar com ajustes.', 'success', 8000);
+    await v3CarregarOperacional(true);
+
+    // Scroll automático até o gerador
+    setTimeout(function(){
+      var ger = document.getElementById('cmp-step1');
+      if(ger) ger.scrollIntoView({behavior:'smooth', block:'start'});
+    }, 500);
+  } catch(e){
+    btn.disabled = false;
+    btn.textContent = 'Recusar e Renegociar';
+    v3ToastShow('Erro: '+e.message, 'error');
+  }
+}
+
+// ============================================================
 // MODAL DESIGNAR TRANSPORTADORA
 // ============================================================
 async function v3AbrirDesignacao(idCotacao){
@@ -3251,6 +3453,16 @@ async function v3AbrirDesignacao(idCotacao){
 
   document.getElementById('m-des-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + v3GetFornecedor(c);
   document.getElementById('m-des-obs').value = '';
+
+  // 🆕 v3.5: reset tipo de frete + pré-preenche se já veio sugerido na cotação
+  var rCif = document.getElementById('m-des-frete-cif');
+  var rFob = document.getElementById('m-des-frete-fob');
+  if(rCif) rCif.checked = false;
+  if(rFob) rFob.checked = false;
+  var freteSugerido = String(c.Tipo_Frete||'').toUpperCase();
+  if(freteSugerido === 'CIF' && rCif){ rCif.checked = true; }
+  else if(freteSugerido === 'FOB' && rFob){ rFob.checked = true; }
+  v3OnFreteChange();
 
   // popula select com transportadoras ativas
   var sel = document.getElementById('m-des-transp');
@@ -3273,12 +3485,11 @@ async function v3PreviewTransp(){
   var idTr = document.getElementById('m-des-transp').value;
   var prev = document.getElementById('m-des-preview');
   var linkBox = document.getElementById('m-des-link');
-  var btn = document.getElementById('m-des-btn');
 
   if(!idTr){
     prev.classList.remove('show');
     linkBox.classList.remove('show');
-    btn.disabled = true;
+    v3AtualizarBotaoDesignar();
     return;
   }
 
@@ -3306,7 +3517,7 @@ async function v3PreviewTransp(){
       console.warn('Erro ao gerar link:', e);
     }
   }
-  btn.disabled = false;
+  v3AtualizarBotaoDesignar();
 }
 
 async function v3ConfirmarDesignacao(){
@@ -3317,6 +3528,11 @@ async function v3ConfirmarDesignacao(){
   if(!t){ return; }
   var cot = V3._state.cotacaoAtiva;
   if(!cot){ return; }
+
+  // 🆕 v3.5: tipo de frete obrigatório
+  var freteEl = document.querySelector('input[name="m-des-frete"]:checked');
+  var tipoFrete = freteEl ? freteEl.value : '';
+  if(!tipoFrete){ v3ToastShow('Selecione o tipo de frete (CIF ou FOB).', 'error'); return; }
 
   var obs = (document.getElementById('m-des-obs').value || '').trim();
   // Lê dados já aprovados pra repassar (Apps Script precisa pra montar e-mail)
@@ -3334,6 +3550,7 @@ async function v3ConfirmarDesignacao(){
       transportadora_email: t.Email || '',
       transportadora_cidade: t.Cidade || '',
       transportadora_obs: obs || t.Observacoes || '',
+      tipo_frete: tipoFrete,   // 🆕 v3.5
       designada_por: v3UsuarioLogado(),
       texto_livre: aprov.texto_livre || '',
       bonificacao_aprovada: aprov.bonificacao || null,
@@ -3347,6 +3564,39 @@ async function v3ConfirmarDesignacao(){
     btn.textContent = 'Designar e Notificar Fornecedor';
     v3ToastShow('Erro: '+e.message, 'error');
   }
+}
+
+// 🆕 v3.5: Helpers do radio CIF/FOB no modal de designação
+function v3SelTipoFrete(valor){
+  var radio = document.getElementById('m-des-frete-' + valor.toLowerCase());
+  if(radio){ radio.checked = true; v3OnFreteChange(); }
+}
+function v3OnFreteChange(){
+  // Destaca visualmente o card selecionado
+  ['cif','fob'].forEach(function(t){
+    var r = document.getElementById('m-des-frete-' + t);
+    if(r){
+      var label = r.closest('label');
+      if(label){
+        if(r.checked){
+          label.style.borderColor = '#a07cf6';
+          label.style.background = 'rgba(160,124,246,.08)';
+        } else {
+          label.style.borderColor = '';
+          label.style.background = '';
+        }
+      }
+    }
+  });
+  // Habilita o botão "Designar" se tudo OK
+  v3AtualizarBotaoDesignar();
+}
+function v3AtualizarBotaoDesignar(){
+  var btn = document.getElementById('m-des-btn');
+  if(!btn) return;
+  var transp = document.getElementById('m-des-transp').value;
+  var frete = document.querySelector('input[name="m-des-frete"]:checked');
+  btn.disabled = !(transp && frete);
 }
 
 // ============================================================
