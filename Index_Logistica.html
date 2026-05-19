@@ -282,6 +282,8 @@ tbody tr:hover td{background:var(--s2);}
 .pnl-btn{background:var(--s2);border:1px solid var(--br);color:var(--mu);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:.8rem;padding:0;line-height:1}
 .pnl-btn:hover{background:var(--s3);color:var(--tx)}
 .pnl-collapsed .pnl-body{display:none !important}
+.pnl-summary{display:none;font-size:.72rem;color:var(--mu);font-weight:500;margin-left:8px}
+.pnl-collapsed .pnl-summary{display:inline}
 .pnl-fs-active{position:fixed !important;inset:20px !important;z-index:3000 !important;margin:0 !important;max-width:none !important;overflow:auto !important;box-shadow:0 20px 60px rgba(0,0,0,.6) !important}
 .pnl-fs-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2999}
 .pnl-fs-backdrop.on{display:block}
@@ -393,14 +395,15 @@ tbody tr:hover td{background:var(--s2);}
        PAINEL SAÍDA DE CARROS (frota e ocupação)
        Fonte: SAIDA_CARROS (gid=950734094)
        ═══════════════════════════════════════════════════════════════ -->
-  <div id="pnl-saida" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
+  <div id="pnl-saida" class="pnl-collapsed" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
-        <div style="font-size:.72rem;color:#4d8ef5;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px">
+        <div style="font-size:.72rem;color:#4d8ef5;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="display:inline-block;width:3px;height:14px;background:#4d8ef5;border-radius:2px"></span>
           🚛 Saída de Carros · Frota & Ocupação
+          <span class="pnl-summary" id="sum-saida"></span>
           <span class="pnl-btns">
-            <button class="pnl-btn pnl-btn-toggle" onclick="pnlToggle('pnl-saida')" title="Recolher/Expandir">▾</button>
+            <button class="pnl-btn pnl-btn-toggle" onclick="pnlToggle('pnl-saida')" title="Recolher/Expandir">▸</button>
             <button class="pnl-btn pnl-btn-fs" onclick="pnlFullscreen('pnl-saida')" title="Tela cheia">⛶</button>
           </span>
         </div>
@@ -457,14 +460,15 @@ tbody tr:hover td{background:var(--s2);}
        PAINEL DE CUSTO DE MOTORISTAS
        Edição restrita: rodrigo@ / maiko@qfoodcompany.com.br
        ═══════════════════════════════════════════════════════════════ -->
-  <div id="pnl-custo" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
+  <div id="pnl-custo" class="pnl-collapsed" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
-        <div style="font-size:.72rem;color:#ffaa2b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px">
+        <div style="font-size:.72rem;color:#ffaa2b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <span style="display:inline-block;width:3px;height:14px;background:#ffaa2b;border-radius:2px"></span>
           💰 Custo de Motoristas
+          <span class="pnl-summary" id="sum-custo"></span>
           <span class="pnl-btns">
-            <button class="pnl-btn pnl-btn-toggle" onclick="pnlToggle('pnl-custo')" title="Recolher/Expandir">▾</button>
+            <button class="pnl-btn pnl-btn-toggle" onclick="pnlToggle('pnl-custo')" title="Recolher/Expandir">▸</button>
             <button class="pnl-btn pnl-btn-fs" onclick="pnlFullscreen('pnl-custo')" title="Tela cheia">⛶</button>
           </span>
         </div>
@@ -808,7 +812,7 @@ function pnlFullscreen(id){
   if(!id) return;
   var el=document.getElementById(id);
   if(!el) return;
-  // Se estava recolhido, expande automaticamente em tela cheia
+  // Quando abre em tela cheia, força expansão (remove collapsed)
   el.classList.remove("pnl-collapsed");
   var btnT=el.querySelector(".pnl-btn-toggle");
   if(btnT) btnT.textContent="▾";
@@ -1308,6 +1312,8 @@ function saiRender(rows){
     document.getElementById("sai-regioes").innerHTML = "<div style='color:var(--mu);font-size:.78rem;padding:20px;text-align:center'>Sem dados</div>";
     document.getElementById("sai-ocupacao").innerHTML = "<div style='color:var(--mu);font-size:.78rem;padding:20px;text-align:center'>Sem dados</div>";
     document.getElementById("sai-ranking-tbody").innerHTML = "<tr><td colspan='5' style='padding:20px;text-align:center;color:var(--mu);font-size:.78rem'>Sem dados</td></tr>";
+    var sumSaiE = document.getElementById("sum-saida");
+    if(sumSaiE) sumSaiE.textContent = "(sem dados no período)";
     return;
   }
 
@@ -1351,6 +1357,10 @@ function saiRender(rows){
     kpi("g","Ocupação Média","<b>"+ocupMedia.toFixed(1).replace(".",",")+"%</b>", "média ponderada das saídas")+
     kpi("w","Saídas ≥70%","<b>"+pctAltaOcup.toFixed(0)+"%</b>", altaOcup+" de "+cntPct+" com alta ocupação")+
     kpi("p","Regiões atendidas","<b>"+Object.keys(byRegiao).filter(function(r){return r!=="—";}).length+"</b>","destinos distintos");
+
+  // Summary inline (mostrado no header quando recolhido)
+  var sumSai = document.getElementById("sum-saida");
+  if(sumSai) sumSai.textContent = "🚛 " + n + " saídas · ocup. " + ocupMedia.toFixed(1).replace(".",",") + "% · " + pctAltaOcup.toFixed(0) + "% ≥70%";
 
   // Barras horizontais de região
   var regArr = Object.keys(byRegiao).sort(function(a,b){return byRegiao[b]-byRegiao[a];});
@@ -1654,6 +1664,16 @@ function custoRender(){
     kpi("b","Valor NFs", entFmt(totNF), "total entregue")+
     kpi("g","% Custo / NFs", pctGlobal.toFixed(2).replace(".",",")+"%", "indicador de eficiência");
 
+  // Summary inline (mostrado no header quando recolhido)
+  var sumCusto = document.getElementById("sum-custo");
+  if(sumCusto){
+    if(totCusto > 0){
+      sumCusto.textContent = "💰 " + entFmt(totCusto) + " · " + ativos + " motoristas · " + pctGlobal.toFixed(2).replace(".",",") + "% NFs";
+    } else {
+      sumCusto.textContent = "(sem custos no período)";
+    }
+  }
+
   // Tabela
   var tbody = document.getElementById("ent-custo-tbody");
   if(!tbody) return;
@@ -1810,11 +1830,18 @@ function buildRank(titulo, dados, fmtVal, fmtSub, cor, metricFn) {
 
   // Button uses data-uid — onclick resolved at runtime via entToggleChart
   var pnlId = "pnl-" + uid;
-  return "<div id='" + pnlId + "' style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
-    "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>" +
-      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px'>" + titulo +
+  // Summary do top 1 para mostrar quando recolhido
+  var sumTxt = "";
+  if(top.length > 0){
+    var t1 = top[0];
+    sumTxt = "🥇 " + t1.nome + " · " + fmtVal(mFn(t1));
+  }
+  return "<div id='" + pnlId + "' class='pnl-collapsed' style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+    "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px'>" +
+      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px;flex-wrap:wrap'>" + titulo +
+        "<span class='pnl-summary'>" + sumTxt + "</span>" +
         "<span class='pnl-btns'>" +
-          "<button class='pnl-btn pnl-btn-toggle' onclick=\"pnlToggle('" + pnlId + "')\" title='Recolher/Expandir'>▾</button>" +
+          "<button class='pnl-btn pnl-btn-toggle' onclick=\"pnlToggle('" + pnlId + "')\" title='Recolher/Expandir'>▸</button>" +
           "<button class='pnl-btn pnl-btn-fs' onclick=\"pnlFullscreen('" + pnlId + "')\" title='Tela cheia'>⛶</button>" +
         "</span>" +
       "</div>" +
