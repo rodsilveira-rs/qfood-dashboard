@@ -231,8 +231,23 @@ input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97
           </div>
           <div style="display:flex;gap:8px;margin-top:8px">
             <input type="number" id="bonif_man_qtd" placeholder="Qtd" min="1" style="width:80px">
-            <select id="bonif_man_un" style="width:80px">
-              <option>UN</option><option>CX</option><option>KG</option><option>PCT</option><option>FD</option><option>LT</option>
+            <select id="bonif_man_un" style="width:140px">
+              <option value="Unidade">Unidade</option>
+              <option value="Dúzia">Dúzia</option>
+              <option value="Caixa">Caixa</option>
+              <option value="Fardo">Fardo</option>
+              <option value="Pacote">Pacote</option>
+              <option value="Saco">Saco</option>
+              <option value="Saca">Saca</option>
+              <option value="Bandeja">Bandeja</option>
+              <option value="Engradado">Engradado</option>
+              <option value="Balde">Balde</option>
+              <option value="Pote">Pote</option>
+              <option value="Quilo">Quilo</option>
+              <option value="Grama">Grama</option>
+              <option value="Litro">Litro</option>
+              <option value="Mililitro">Mililitro</option>
+              <option value="Galão">Galão</option>
             </select>
             <button type="button" onclick="adicionarProdutoManual()" style="background:#0c7a5e;border:none;color:#fff;padding:6px 14px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.74rem">+ Adicionar manual</button>
             <button type="button" onclick="fecharProdutoManual()" style="background:#fff;border:1px solid #ccc;color:#666;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:.74rem">Cancelar</button>
@@ -243,6 +258,33 @@ input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97
           <span style="font-size:.78rem;color:#4a5d80">Valor total equivalente da bonificação:</span>
           <span id="bonif_prod_total" style="font-size:.95rem;font-weight:700;color:#0c7a5e">R$ 0,00</span>
         </div>
+      </div>
+    </div>
+
+    <!-- 🆕 v6: Condições Comerciais -->
+    <div class="card" id="CCARD">
+      <div class="ct">Condições Comerciais</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div>
+          <label style="display:block;font-size:.74rem;color:#4a5d80;margin-bottom:4px;font-weight:600">Forma de pagamento <span style="color:#e63329">*</span></label>
+          <select id="forma_pag" style="width:100%;padding:8px 10px;border:1px solid #d5dce8;border-radius:6px;background:#fff;color:#1a1f2e;font-size:.86rem">
+            <option value="">Selecione...</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Cartão">Cartão</option>
+            <option value="Pix">Pix</option>
+            <option value="Transferência">Transferência</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:.74rem;color:#4a5d80;margin-bottom:4px;font-weight:600">Prazo de pagamento <span style="color:#e63329">*</span></label>
+          <input type="text" id="prazo_pag" placeholder="Ex: 30 dias DD / À vista / 28/45/60 dias..." style="width:100%;padding:8px 10px;border:1px solid #d5dce8;border-radius:6px;background:#fff;color:#1a1f2e;font-size:.86rem">
+        </div>
+      </div>
+      <div id="cc_sugestao" style="margin-top:8px;font-size:.74rem;color:#0c7a5e;background:#e6faf5;padding:8px 12px;border-radius:6px;display:none">
+        💡 <b>Sugestão da Q Food:</b> <span id="cc_sugestao_txt"></span>
+      </div>
+      <div style="margin-top:8px;font-size:.7rem;color:#8fa0c0;font-style:italic">
+        Você pode propor uma forma ou prazo diferente do sugerido — a Q Food vai analisar.
       </div>
     </div>
 
@@ -295,6 +337,9 @@ function normalize(raw) {
   if (raw.fornecedor && raw.itens) {
     raw.emailForn   = raw.emailForn   || raw.e || '';
     raw.contatoForn = raw.contatoForn || raw.c || '';
+    // 🆕 v6: condições comerciais
+    raw.formaPag = raw.formaPag || raw.fp || '';
+    raw.prazoPag = raw.prazoPag || raw.pp || '';
     return raw;
   }
   if (!raw.f || !raw.i) return null;
@@ -304,6 +349,9 @@ function normalize(raw) {
     obs: raw.o || '',
     emailForn:   raw.e || '',
     contatoForn: raw.c || '',
+    // 🆕 v6: condições comerciais (vêm do Index_Compras)
+    formaPag: raw.fp || '',
+    prazoPag: raw.pp || '',
     itens: raw.i.map(function(a) {
       return {
         cod: String(a[0] || ''),
@@ -341,6 +389,9 @@ function render() {
   // Pré-preenchimento dos dados do fornecedor (vindos do Index_Compras)
   preencherDadosFornecedor();
 
+  // 🆕 v6: Pré-preencher condições comerciais sugeridas pela Cris
+  preencherCondicoesComerciais();
+
   // Configura datepicker do prazo (min = hoje)
   setarMinPrazo();
 
@@ -353,7 +404,7 @@ function render() {
   for (var m = 1; m <= 36; m++) {
     mOpts += '<option value="' + m + '">' + (m === 1 ? '1 mês' : m + ' meses') + '</option>';
   }
-  var uns = ['UN','CX','KG','PCT','FD','LT'];
+  var uns = ['Unidade','Dúzia','Caixa','Fardo','Pacote','Saco','Saca','Bandeja','Engradado','Balde','Pote','Quilo','Grama','Litro','Mililitro','Galão'];
   document.getElementById('TBODY').innerHTML = COT.itens.map(function(it, i) {
     var gt = it.classe === 'alto'
       ? "<span class='gb ga'>🔴 Alto</span>"
@@ -876,6 +927,44 @@ function preencherDadosFornecedor(){
   }
 }
 
+// 🆕 v6: preenche Forma de Pagamento + Prazo se a Cris já tiver sugerido
+function preencherCondicoesComerciais(){
+  var formaSugerida = COT.formaPag || '';
+  var prazoSugerido = COT.prazoPag || '';
+
+  if (formaSugerida) {
+    var selForma = document.getElementById('forma_pag');
+    if (selForma) {
+      // Tenta achar a opção; se não existir, adiciona como "outra"
+      var encontrou = Array.from(selForma.options).some(function(o){ return o.value === formaSugerida; });
+      if (!encontrou) {
+        var opt = document.createElement('option');
+        opt.value = formaSugerida;
+        opt.textContent = formaSugerida;
+        selForma.appendChild(opt);
+      }
+      selForma.value = formaSugerida;
+    }
+  }
+  if (prazoSugerido) {
+    var inpPrazo = document.getElementById('prazo_pag');
+    if (inpPrazo) inpPrazo.value = prazoSugerido;
+  }
+
+  // Se a Cris sugeriu algo, mostra mensagem de sugestão
+  if (formaSugerida || prazoSugerido) {
+    var box = document.getElementById('cc_sugestao');
+    var txt = document.getElementById('cc_sugestao_txt');
+    if (box && txt) {
+      var partes = [];
+      if (formaSugerida) partes.push('<b>' + esc(formaSugerida) + '</b>');
+      if (prazoSugerido) partes.push('prazo ' + esc(prazoSugerido));
+      txt.innerHTML = partes.join(' · ');
+      box.style.display = 'block';
+    }
+  }
+}
+
 function toggleEditar(){
   var ids = ['fnome','femail','fcontato'];
   var btn = document.getElementById('BTNEDIT');
@@ -1188,6 +1277,11 @@ function enviar() {
       erros.push('Justificativa obrigatória (mín. 10 caracteres) — há itens abaixo da validade mínima');
     }
   }
+  // 🆕 v6: Forma e prazo de pagamento obrigatórios
+  var formaPagEl = document.getElementById('forma_pag');
+  var prazoPagEl = document.getElementById('prazo_pag');
+  if (!formaPagEl || !formaPagEl.value) erros.push('Selecione a forma de pagamento');
+  if (!prazoPagEl || !prazoPagEl.value.trim()) erros.push('Informe o prazo de pagamento');
   var eEl = document.getElementById('FERR');
   if (erros.length) { eEl.style.display = 'block'; eEl.textContent = '⚠️ ' + erros.join(' · '); return; }
   eEl.style.display = 'none';
@@ -1257,6 +1351,9 @@ function enviar() {
       itens_abaixo_min: d.qtdAbaixo || 0,
       justificativa: d.justificativa || "",
       observacoes: d.obs || "",
+      // 🆕 v6: Condições comerciais
+      forma_pagamento: (document.getElementById('forma_pag') || {}).value || "",
+      prazo_pagamento: ((document.getElementById('prazo_pag') || {}).value || "").trim(),
       // Bonificação (3 modalidades suportadas)
       bonificacao: montarBonificacao(),
       // Detalhes completos
