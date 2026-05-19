@@ -422,26 +422,48 @@ function renderTransp(t){
   box.innerHTML=html;
 }
 
-// ---------- RENDER: formulário pendente ----------
-function renderFormPendente(){
+// ---------- RENDER: formulário pendente (v4 — adapta CIF/FOB) ----------
+function renderFormPendente(cotacao){
   const hoje=new Date().toISOString().split('T')[0];
   const card=document.getElementById('FORM_CARD');
+
+  // 🆕 v4: detecta tipo de frete pra ajustar texto do checkbox e título
+  const tipoFrete = String(cotacao && (cotacao.Tipo_Frete || cotacao.tipo_frete) || '').toUpperCase();
+
+  let tituloCard = 'Confirmar Contato com a Transportadora';
+  let textoIntro = 'Após entrar em contato com a transportadora indicada e alinhar a coleta da mercadoria, preencha os campos abaixo para registrar a confirmação.';
+  let textoCheck = 'Confirmo que já entrei em contato com a transportadora indicada acima e alinhei a coleta da mercadoria.';
+  let labelData = 'Previsão de coleta';
+  let badgeFrete = '';
+
+  if (tipoFrete === 'CIF') {
+    tituloCard = 'Confirmar Coleta pela Sua Transportadora';
+    textoIntro = 'Como esta operação é <b>CIF (frete por conta do fornecedor)</b>, sua transportadora indicada irá realizar a coleta. Confirme abaixo a programação.';
+    textoCheck = 'Confirmo que minha transportadora vai realizar a coleta da mercadoria.';
+    badgeFrete = '<span style="display:inline-block;background:#fef9ec;color:#92700a;border:1px solid #f0c040;border-radius:14px;padding:3px 10px;font-size:.7rem;font-weight:700;letter-spacing:.4px;margin-bottom:10px">🚛 CIF · Frete por conta do fornecedor</span>';
+  } else if (tipoFrete === 'FOB') {
+    tituloCard = 'Confirmar Previsão de Coleta';
+    textoIntro = 'Como esta operação é <b>FOB (frete por conta da Q Food)</b>, a transportadora indicada irá retirar a mercadoria no seu endereço. Confirme abaixo a previsão de coleta.';
+    textoCheck = 'Confirmo data prevista de coleta pela transportadora da Q Food.';
+    badgeFrete = '<span style="display:inline-block;background:#e6faf5;color:#0c7a5e;border:1px solid #9fe1cb;border-radius:14px;padding:3px 10px;font-size:.7rem;font-weight:700;letter-spacing:.4px;margin-bottom:10px">🚛 FOB · Frete por conta da Q Food</span>';
+  }
+
   card.innerHTML=`
-    <div class="ct">Confirmar Contato com a Transportadora</div>
+    <div class="ct">${tituloCard}</div>
+    ${badgeFrete}
     <div style="font-size:.82rem;color:#6b7ea8;margin-bottom:16px;line-height:1.6">
-      Após entrar em contato com a transportadora indicada e alinhar a coleta da mercadoria,
-      preencha os campos abaixo para registrar a confirmação.
+      ${textoIntro}
     </div>
 
     <div class="confbox" id="CHK_ROW">
       <label>
         <input type="checkbox" id="CHK_CONTATO">
-        <span>Confirmo que já entrei em contato com a transportadora indicada acima e alinhei a coleta da mercadoria.</span>
+        <span>${textoCheck}</span>
       </label>
     </div>
 
     <div class="fg">
-      <label>Previsão de coleta <span class="req">*</span></label>
+      <label>${labelData} <span class="req">*</span></label>
       <input type="date" id="F_DATA" min="${hoje}">
     </div>
 
@@ -621,7 +643,7 @@ function renderPagina(cotacao,transp){
   if(jaConfirmado){
     renderFormJaConfirmado(cotacao);
   } else {
-    renderFormPendente();
+    renderFormPendente(cotacao);
   }
 }
 
