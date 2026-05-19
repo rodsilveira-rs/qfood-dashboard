@@ -1103,6 +1103,11 @@ var UH="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPv
 var USP="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1173958447&single=true&output=csv";
 var UR="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=667453580&single=true&output=csv";
 var UFAT="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=493739923&single=true&output=csv";
+// BASE_PDV: contagem total de PDVs por setor (DAYANE.NASCIMENTO, LUCAS.BRITES, etc.)
+// Usado no ranking do Checkpoint para mostrar tamanho REAL da carteira por vendedor.
+var UBASEPDV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1880583941&single=true&output=csv";
+// Mapa: primeiro nome em UPPER -> total de PDVs do setor. Preenchido pelo go().
+var BASE_PDV_COUNT={};
 
 // ---- MAPS ----
 var SG={Lucas:"LB",Dayane:"DN",Claudia:"CG",Vera:"VS",Eliane:"EM",Eder:"ED",Deane:"DE",Kenyo:"KE",Camila:"CC"};
@@ -1402,6 +1407,28 @@ async function go(){
         mk:parseInt((r.markup||"0").replace(/[^0-9]/g,""))||0};
     });
     console.log("[DIAG] parse dos dados completo — DM:", DM.length, "DS:", DS.length, "DP:", DP.length);
+
+    // BASE_PDV: contagem por setor (carregamento resiliente — nao quebra se falhar)
+    try{
+      var rBp=await fetch(UBASEPDV);
+      if(rBp.ok){
+        var tBp=await rBp.text();
+        if(!tBp.trim().startsWith("<")){
+          var rows=csv(tBp);
+          var cont={};
+          rows.forEach(function(r){
+            var setor=String(r["Setor"]||r["setor"]||r["SETOR"]||"").trim().toUpperCase();
+            if(!setor) return;
+            // Extrai primeiro nome: "DAYANE.NASCIMENTO" -> "DAYANE"
+            var primeiro=setor.split(/[.\s]/)[0];
+            if(!primeiro) return;
+            cont[primeiro]=(cont[primeiro]||0)+1;
+          });
+          BASE_PDV_COUNT=cont;
+          console.log("[DIAG] BASE_PDV carregada — "+Object.keys(cont).length+" setores:", cont);
+        } else { console.warn("[DIAG] BASE_PDV nao publicada como CSV; usando fallback dp.ca"); }
+      } else { console.warn("[DIAG] BASE_PDV HTTP "+rBp.status+"; usando fallback dp.ca"); }
+    }catch(eBp){ console.warn("[DIAG] BASE_PDV erro:", eBp.message, "; usando fallback dp.ca"); }
     document.getElementById("loading").style.display="none";
     console.log("[DIAG] loading ocultado");
     // Only show comercial tab if no active session (checkSession handles the rest)
@@ -2617,18 +2644,45 @@ function chkBuildRanking(ritmoIdealPct, du, da){
     if(diff >= 0){ cor="g"; label="No ritmo"; }
     else if(diff >= -10){ cor="y"; label="Atenção"; }
     else{ cor="r"; label="Atrasado"; }
-    // pega DP (positivação, margem, markup, novos)
-    var posit = 0, ativos = 0, margem = 0, markup = 0, novos = 0;
+    // pega DP (positivação, margem, markup, novos) + BASE_PDV (carteira real)
+    var atendidos = 0, posit = 0, margem = 0, markup = 0, novos = 0, carteira = 0;
     if(typeof DP !== "undefined" && DP){
       var dp = DP.find(function(x){return x.s===v.s;});
       if(dp){
-        ativos = dp.at || 0;
-        posit  = dp.ca>0 ? (dp.at/dp.ca)*100 : 0;
+        atendidos = dp.at || 0;
         margem = dp.mg || 0;
         markup = dp.mk || 0;
         novos  = dp.nv || 0;
       }
     }
+    // Carteira: primeiro tenta BASE_PDV (contagem por setor). Fallback: dp.ca do PERF_INDIVIDUAL.
+    // Match robusto: o nome no DM pode ser apelido curto ("Eder") e o setor na BASE_PDV
+    // pode ser nome formal ("EDERSON.BARCELOS"). Tentamos match exato, prefixo e substring.
+    var primeiroNomeVendedor = String(v.nome||"").toUpperCase().split(/[.\s]/)[0];
+    if(typeof BASE_PDV_COUNT !== "undefined" && primeiroNomeVendedor){
+      // 1) match exato
+      if(BASE_PDV_COUNT[primeiroNomeVendedor]){
+        carteira = BASE_PDV_COUNT[primeiroNomeVendedor];
+      } else {
+        // 2) prefixo: vendedor "EDER" deve casar com chave "EDERSON" (e vice-versa)
+        var keys = Object.keys(BASE_PDV_COUNT);
+        for(var ki=0; ki<keys.length; ki++){
+          var k=keys[ki];
+          if(k.indexOf(primeiroNomeVendedor)===0 || primeiroNomeVendedor.indexOf(k)===0){
+            // requisito: pelo menos 3 chars em comum pra evitar matches espurios
+            var menor=Math.min(k.length, primeiroNomeVendedor.length);
+            if(menor>=3){ carteira = BASE_PDV_COUNT[k]; break; }
+          }
+        }
+      }
+    }
+    // Fallback final: PERF_INDIVIDUAL
+    if(carteira===0 && typeof DP !== "undefined" && DP){
+      var dpx = DP.find(function(x){return x.s===v.s;});
+      if(dpx) carteira = dpx.ca || 0;
+    }
+    // Positivação recalculada com a carteira nova
+    posit = carteira>0 ? (atendidos/carteira)*100 : 0;
     // projeção individual
     var projecao;
     if(da===0)              projecao = 0;
@@ -2645,7 +2699,9 @@ function chkBuildRanking(ritmoIdealPct, du, da){
     return {
       s: v.s, nome: v.nome, meta: v.meta, real: v.real,
       pctAt: pctAt, diff: diff, cor: cor, label: label,
-      posit: posit, ativos: ativos, margem: margem, markup: markup, novos: novos,
+      posit: posit, atendidos: atendidos, carteira: carteira,
+      ativos: atendidos, // alias mantido para compatibilidade com card visual antigo
+      margem: margem, markup: markup, novos: novos,
       novoFlag: novoFlag,
       projecao: projecao, gapProj: gapProj
     };
@@ -3119,7 +3175,7 @@ function chkRender(d){
         '</div>'+
       '</div>'+
       '<div class="vcard-kpis">'+
-        '<div class="vcard-kpi"><div class="v">'+v.ativos+'</div><div class="l">👥 Ativos</div></div>'+
+        '<div class="vcard-kpi"><div class="v">'+v.atendidos+'/'+v.carteira+'</div><div class="l">👥 Atendidos</div></div>'+
         '<div class="vcard-kpi '+novoCls+'"><div class="v">'+v.novos+'</div><div class="l">🆕 Novos</div></div>'+
         '<div class="vcard-kpi"><div class="v">'+chkFmtPct(v.posit)+'</div><div class="l">📍 Posit.</div></div>'+
         '<div class="vcard-kpi"><div class="v">'+v.margem+'%</div><div class="l">💰 Margem</div></div>'+
@@ -3201,7 +3257,7 @@ function chkExportWhatsApp(){
     var ico = medalhas[i] || (v.cor==="g"?"🟢":v.cor==="y"?"🟡":"🔴");
     txt += ico+" *"+v.nome+"* — "+chkFmtPct(v.pctAt)+"\n";
     txt += "   "+chkFmtBR(v.real)+" / "+chkFmtBR(v.meta)+"\n";
-    txt += "   👥 "+v.ativos+" ativos · 🆕 "+v.novos+" novos · 📍 "+chkFmtPct(v.posit)+" posit\n";
+    txt += "   👥 "+v.atendidos+"/"+v.carteira+" atendidos · 🆕 "+v.novos+" novos · 📍 "+chkFmtPct(v.posit)+" posit\n";
     txt += "   💰 "+v.margem+"% margem · 📈 "+v.markup+"% markup\n";
     if(v.meta>0){
       var sinal = v.gapProj>=0 ? "+" : "";
