@@ -276,9 +276,21 @@ tbody tr:hover td{background:var(--s2);}
 }
 .log-tab:hover{background:var(--s2);color:var(--tx)}
 .log-tab.active{background:#e63329;color:#fff}
+
+/* === PANEL TOGGLE (expandir/recolher) === */
+.pnl-btns{display:inline-flex;gap:5px;margin-left:8px;vertical-align:middle}
+.pnl-btn{background:var(--s2);border:1px solid var(--br);color:var(--mu);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:.8rem;padding:0;line-height:1}
+.pnl-btn:hover{background:var(--s3);color:var(--tx)}
+.pnl-collapsed .pnl-body{display:none !important}
+.pnl-fs-active{position:fixed !important;inset:20px !important;z-index:3000 !important;margin:0 !important;max-width:none !important;overflow:auto !important;box-shadow:0 20px 60px rgba(0,0,0,.6) !important}
+.pnl-fs-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2999}
+.pnl-fs-backdrop.on{display:block}
 </style>
 </head>
 <body>
+
+<!-- Backdrop do modal full-screen de painéis -->
+<div id="pnl-fs-backdrop" class="pnl-fs-backdrop" onclick="pnlFullscreen(null)"></div>
 
 <!-- Header -->
 <div class="page-hdr">
@@ -381,12 +393,16 @@ tbody tr:hover td{background:var(--s2);}
        PAINEL SAÍDA DE CARROS (frota e ocupação)
        Fonte: SAIDA_CARROS (gid=950734094)
        ═══════════════════════════════════════════════════════════════ -->
-  <div id="sai-section" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
+  <div id="pnl-saida" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <div style="font-size:.72rem;color:#4d8ef5;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px">
           <span style="display:inline-block;width:3px;height:14px;background:#4d8ef5;border-radius:2px"></span>
           🚛 Saída de Carros · Frota & Ocupação
+          <span class="pnl-btns">
+            <button class="pnl-btn pnl-btn-toggle" onclick="pnlToggle('pnl-saida')" title="Recolher/Expandir">▾</button>
+            <button class="pnl-btn pnl-btn-fs" onclick="pnlFullscreen('pnl-saida')" title="Tela cheia">⛶</button>
+          </span>
         </div>
         <div id="sai-periodo-label" style="font-size:.7rem;color:var(--mu);margin-top:3px">Carregando...</div>
       </div>
@@ -401,6 +417,7 @@ tbody tr:hover td{background:var(--s2);}
       </div>
     </div>
 
+    <div class="pnl-body">
     <!-- KPIs consolidados -->
     <div class="kpis" id="sai-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px"></div>
 
@@ -433,18 +450,23 @@ tbody tr:hover td{background:var(--s2);}
       </table>
     </div>
     <div style="font-size:.66rem;color:var(--mu);margin-top:8px;line-height:1.5">Ocupação calculada pela média das faixas: <b>Até 50%</b>=40% · <b>Entre 60% e 90%</b>=75% · <b>Acima de 90%</b>=95%. Saídas ≥70% indicam alta eficiência no uso da frota.</div>
+    </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════════
        PAINEL DE CUSTO DE MOTORISTAS
        Edição restrita: rodrigo@ / maiko@qfoodcompany.com.br
        ═══════════════════════════════════════════════════════════════ -->
-  <div id="ent-custo-section" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
+  <div id="pnl-custo" style="background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:20px 22px;margin-bottom:20px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
       <div>
         <div style="font-size:.72rem;color:#ffaa2b;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:8px">
           <span style="display:inline-block;width:3px;height:14px;background:#ffaa2b;border-radius:2px"></span>
           💰 Custo de Motoristas
+          <span class="pnl-btns">
+            <button class="pnl-btn pnl-btn-toggle" onclick="pnlToggle('pnl-custo')" title="Recolher/Expandir">▾</button>
+            <button class="pnl-btn pnl-btn-fs" onclick="pnlFullscreen('pnl-custo')" title="Tela cheia">⛶</button>
+          </span>
         </div>
         <div id="ent-custo-periodo" style="font-size:.7rem;color:var(--mu);margin-top:3px">Baseado no período filtrado acima</div>
       </div>
@@ -456,6 +478,7 @@ tbody tr:hover td{background:var(--s2);}
       </div>
     </div>
 
+    <div class="pnl-body">
     <!-- KPIs de custo -->
     <div class="kpis" id="ent-custo-kpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px"></div>
 
@@ -477,6 +500,7 @@ tbody tr:hover td{background:var(--s2);}
       </table>
     </div>
     <div id="ent-custo-help" style="font-size:.68rem;color:var(--mu);margin-top:8px;line-height:1.5"></div>
+    </div>
   </div>
 
   <!-- RANKINGS -->
@@ -758,6 +782,46 @@ function logout(){
   localStorage.removeItem("qfood_session");
   window.location.href = "Index_Menu.html";
 }
+
+// ════════════════════════════════════════════════════════════════
+// PANEL TOGGLE — Recolher / Expandir tela cheia
+// ════════════════════════════════════════════════════════════════
+function pnlToggle(id){
+  var el=document.getElementById(id);
+  if(!el) return;
+  el.classList.toggle("pnl-collapsed");
+  var btn=el.querySelector(".pnl-btn-toggle");
+  if(btn) btn.textContent = el.classList.contains("pnl-collapsed") ? "▸" : "▾";
+}
+function pnlFullscreen(id){
+  var bd=document.getElementById("pnl-fs-backdrop");
+  // Fechar se id null OU se já está ativo (toggle)
+  var ativo=document.querySelector(".pnl-fs-active");
+  if(ativo){
+    ativo.classList.remove("pnl-fs-active");
+    var btn=ativo.querySelector(".pnl-btn-fs");
+    if(btn) btn.textContent="⛶";
+    if(bd) bd.classList.remove("on");
+    document.body.style.overflow="";
+    if(!id || (ativo.id===id)) return;  // só fechou; ou era o mesmo (toggle)
+  }
+  if(!id) return;
+  var el=document.getElementById(id);
+  if(!el) return;
+  // Se estava recolhido, expande automaticamente em tela cheia
+  el.classList.remove("pnl-collapsed");
+  var btnT=el.querySelector(".pnl-btn-toggle");
+  if(btnT) btnT.textContent="▾";
+  el.classList.add("pnl-fs-active");
+  var btnF=el.querySelector(".pnl-btn-fs");
+  if(btnF) btnF.textContent="✕";
+  if(bd) bd.classList.add("on");
+  document.body.style.overflow="hidden";
+}
+// ESC fecha o modal
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape" && document.querySelector(".pnl-fs-active")) pnlFullscreen(null);
+});
 
 // Tabs internas
 function logShowTab(tab){
@@ -1745,13 +1809,21 @@ function buildRank(titulo, dados, fmtVal, fmtSub, cor, metricFn) {
   });
 
   // Button uses data-uid — onclick resolved at runtime via entToggleChart
-  return "<div style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+  var pnlId = "pnl-" + uid;
+  return "<div id='" + pnlId + "' style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
     "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px'>" +
-      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px'>" + titulo + "</div>" +
+      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px'>" + titulo +
+        "<span class='pnl-btns'>" +
+          "<button class='pnl-btn pnl-btn-toggle' onclick=\"pnlToggle('" + pnlId + "')\" title='Recolher/Expandir'>▾</button>" +
+          "<button class='pnl-btn pnl-btn-fs' onclick=\"pnlFullscreen('" + pnlId + "')\" title='Tela cheia'>⛶</button>" +
+        "</span>" +
+      "</div>" +
       "<button data-uid='" + uid + "' onclick='entToggleChart(this)' style='padding:3px 10px;background:var(--s2);border:1px solid var(--br);border-radius:6px;color:var(--mu);font-size:.7rem;cursor:pointer'>📈 Gráfico</button>" +
     "</div>" +
-    "<div id='" + uid + "' style='display:none;margin-bottom:12px'></div>" +
-    rows +
+    "<div class='pnl-body'>" +
+      "<div id='" + uid + "' style='display:none;margin-bottom:12px'></div>" +
+      rows +
+    "</div>" +
   "</div>";
 }
 
