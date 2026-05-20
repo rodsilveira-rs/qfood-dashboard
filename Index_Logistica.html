@@ -452,7 +452,7 @@ tbody tr:hover td{background:var(--s2);}
         <tbody id="sai-ranking-tbody"></tbody>
       </table>
     </div>
-    <div style="font-size:.66rem;color:var(--mu);margin-top:8px;line-height:1.5">Ocupação calculada pela média das faixas: <b>Até 50%</b>=40% · <b>Entre 60% e 90%</b>=75% · <b>Acima de 90%</b>=95%. Saídas ≥70% indicam alta eficiência no uso da frota. <span style="color:#ffaa2b">Retiradas de cliente são excluídas deste KPI (não houve saída de veículo).</span></div>
+    <div style="font-size:.66rem;color:var(--mu);margin-top:8px;line-height:1.5">Saídas calculadas a partir das entregas (1 saída = combinação única Motorista × Veículo × Dia). Ocupação e Região vêm da aba <b>Saída de Carros</b> quando informados; quando ausentes, exibe <span style="color:#ffaa2b">"Sem registro"</span>. Retiradas de cliente são excluídas (não houve saída de veículo).</div>
     </div>
   </div>
 
@@ -1301,19 +1301,106 @@ function saiFilterRows(){
 }
 
 function saiApply(){
+  // Garante que aba Saída de Carros está carregada (para enriquecer com ocupação/região)
   if(!saiLoaded){ saiLoad(); return; }
-  var rows = saiFilterRows();
-  // Exclui RETIRADA CLIENTE (cliente foi buscar — não houve saída de carro)
-  rows = rows.filter(function(r){
-    var mot = (r["MOTORISTA"]||"").trim().toUpperCase();
-    return SAI_EXCLUIR_MOTORISTA.indexOf(mot) < 0;
-  });
-  saiRender(rows);
+  // Constrói saídas a partir da REGISTRO (entFiltered) — fonte primária
+  var saidas = saiBuildFromRegistro();
+  saiRender(saidas);
 }
 
-function saiRender(rows){
+// ════════════════════════════════════════════════════════════════
+// Constrói "saídas de carro" a partir da aba REGISTRO (Entregas)
+// 1 saída = 1 combinação única de (Data + Motorista + Veículo)
+// Enriquece com Ocupação e Região da aba Saída de Carros quando existir
+// ════════════════════════════════════════════════════════════════
+function saiBuildFromRegistro(){
+  // Garante que entFiltered existe (pode ser undefined se Entregas não carregou ainda)
+  if(typeof entFiltered === "undefined" || !entFiltered || !entFiltered.length) return [];
+
+  // Indexa a aba Saída de Carros por (data_iso + motorista_upper) para lookup O(1)
+  // Inclui também índice secundário só por (data) caso o motorista não bata
+  var idxSaiCar = {};
+  saiAllRows.forEach(function(r){
+    var d = saiParseData(r["DATA SAIDA"] || r["DATA"] || "");
+    if(!d) return;
+    var mot = (r["MOTORISTA"]||"").trim().toUpperCase();
+    if(!mot || SAI_EXCLUIR_MOTORISTA.indexOf(mot) >= 0) return;
+    var key = saiKeyDataMot(d, mot);
+    if(!idxSaiCar[key]){
+      idxSaiCar[key] = {
+        ocup:  (r["OCUPACAO"]||r["OCUPAÇÃO"]||"").trim(),
+        regiao:(r["ROTA REGIAO"]||r["ROTA"]||"").trim().toUpperCase(),
+        veiculo:(r["VEÍCULO"]||r["VEICULO"]||"").trim()
+      };
+    }
+  });
+
+  // Agrupa entFiltered por (data + motorista + veiculo)
+  var agrup = {};
+  entFiltered.forEach(function(r){
+    var mot = (r["Motorista"]||"").trim().toUpperCase();
+    if(!mot || SAI_EXCLUIR_MOTORISTA.indexOf(mot) >= 0) return;
+    var vei = (r["Veículo"]||r["Veiculo"]||"").trim();
+    // Data: usa "Data Registro" (datetime) ou "Emissão"
+    var dtRaw = r["Data Registro"] || r["Emissão"] || r["Emissao"] || "";
+    var d = saiParseData(dtRaw);
+    if(!d) return;
+    var dKey = d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    var key = dKey + "||" + mot + "||" + vei;
+    if(!agrup[key]){
+      agrup[key] = {
+        data: d,
+        dataKey: dKey,
+        motorista: mot,
+        veiculo: vei,
+        nfs: 0,
+        valor: 0,
+        volume: 0,
+        cidades: {}
+      };
+    }
+    var g = agrup[key];
+    g.nfs++;
+    g.valor  += entNum(r["Total Geral"]);
+    g.volume += entNum(r["Volume"]);
+    var cid = (r["Cidade"]||"").trim().toUpperCase();
+    if(cid) g.cidades[cid] = (g.cidades[cid]||0) + 1;
+  });
+
+  // Converte em array, enriquece com Ocupação/Região da aba Saída de Carros
+  return Object.keys(agrup).map(function(k){
+    var s = agrup[k];
+    var lookupKey = saiKeyDataMot(s.data, s.motorista);
+    var extra = idxSaiCar[lookupKey] || null;
+    // Cidade principal (mais frequente nas NFs) — usada como fallback de região
+    var cidMain = "—", cidCount = 0;
+    Object.keys(s.cidades).forEach(function(c){
+      if(s.cidades[c] > cidCount){ cidCount = s.cidades[c]; cidMain = c; }
+    });
+    return {
+      data: s.data,
+      motorista: s.motorista,
+      veiculo: s.veiculo,
+      nfs: s.nfs,
+      valor: s.valor,
+      volume: s.volume,
+      cidadePrincipal: cidMain,
+      // Da aba Saída de Carros (se existir)
+      ocupacao: extra ? extra.ocup : "",
+      regiao:   extra ? extra.regiao : "",
+      hasExtra: !!extra
+    };
+  }).sort(function(a,b){ return b.data - a.data; });
+}
+
+// Chave de lookup: data ISO + motorista uppercase
+function saiKeyDataMot(d, mot){
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+"||"+(mot||"").trim().toUpperCase();
+}
+
+function saiRender(saidas){
   var lbl = document.getElementById("sai-periodo-label");
-  var n   = rows.length;
+  var n   = saidas.length;
 
   if(!n){
     if(lbl) lbl.textContent = "Sem saídas no período selecionado";
@@ -1326,52 +1413,78 @@ function saiRender(rows){
     return;
   }
 
-  if(lbl) lbl.textContent = n + " saída(s) no período";
-
   // Agregações
-  var byRegiao = {}, byOcup = {}, byMot = {}, veics = {}, totPct = 0, cntPct = 0, altaOcup = 0;
+  var byRegiao = {}, byOcup = {}, byMot = {}, veics = {};
+  var totPct = 0, cntPct = 0, altaOcup = 0;
+  var semExtra = 0;  // saídas sem dados de ocupação/região (cobrar lançamento)
 
-  rows.forEach(function(r){
-    var reg = (r["ROTA REGIAO"]||r["ROTA"]||"—").trim().toUpperCase();
-    var ocp = (r["OCUPACAO"]||r["OCUPAÇÃO"]||"—").trim();
-    var mot = (r["MOTORISTA"]||"—").trim().toUpperCase();
-    var vei = (r["VEÍCULO"]||r["VEICULO"]||"").trim();
-    var pct = saiOcupPct(ocp);
+  saidas.forEach(function(s){
+    // Região: prioriza a da aba Saída de Carros; fallback = "Cidade principal" da REGISTRO
+    var reg = s.regiao || (s.cidadePrincipal !== "—" ? s.cidadePrincipal : "(Sem registro)");
+    var ocp = s.ocupacao || "(Sem registro)";
+    var pct = s.ocupacao ? saiOcupPct(s.ocupacao) : 0;
 
     byRegiao[reg] = (byRegiao[reg]||0) + 1;
     byOcup[ocp]   = (byOcup[ocp]||0) + 1;
-    if(vei) veics[vei] = true;
+    if(s.veiculo) veics[s.veiculo] = true;
+    if(!s.hasExtra) semExtra++;
 
-    if(!byMot[mot]) byMot[mot] = { saidas:0, pctSum:0, pctN:0, regioes:{}, altaOcup:0 };
-    byMot[mot].saidas++;
+    if(!byMot[s.motorista]) byMot[s.motorista] = {
+      saidas:0, pctSum:0, pctN:0, regioes:{}, altaOcup:0, nfs:0, valor:0, hasExtra:0
+    };
+    var m = byMot[s.motorista];
+    m.saidas++;
+    m.nfs   += s.nfs;
+    m.valor += s.valor;
+    if(s.hasExtra) m.hasExtra++;
     if(pct > 0){
-      byMot[mot].pctSum += pct;
-      byMot[mot].pctN++;
+      m.pctSum += pct;
+      m.pctN++;
       totPct += pct;
       cntPct++;
-      if(pct >= 70){ byMot[mot].altaOcup++; altaOcup++; }
+      if(pct >= 70){ m.altaOcup++; altaOcup++; }
     }
-    byMot[mot].regioes[reg] = (byMot[mot].regioes[reg]||0) + 1;
+    m.regioes[reg] = (m.regioes[reg]||0) + 1;
   });
 
   var ocupMedia = cntPct>0 ? totPct/cntPct : 0;
   var pctAltaOcup = cntPct>0 ? (altaOcup/cntPct*100) : 0;
-  var qtMot = Object.keys(byMot).filter(function(m){return m!=="—";}).length;
+  var qtMot = Object.keys(byMot).length;
   var qtVei = Object.keys(veics).length;
 
+  // Aviso sobre saídas sem registro de ocupação/região
+  if(lbl){
+    if(semExtra > 0){
+      lbl.innerHTML = n + " saída(s) no período · <span style='color:#ffaa2b'>"+semExtra+" sem registro de ocupação</span>";
+    } else {
+      lbl.textContent = n + " saída(s) no período";
+    }
+  }
+
   // KPIs
+  var ocupTxt   = cntPct>0 ? ocupMedia.toFixed(1).replace(".",",")+"%" : "Sem registro";
+  var ocupSub   = cntPct>0 ? cntPct+" de "+n+" saídas com dados de ocupação" : "Aguardando lançamento na aba Saída de Carros";
+  var altaTxt   = cntPct>0 ? pctAltaOcup.toFixed(0)+"%" : "—";
+  var altaSub   = cntPct>0 ? altaOcup+" de "+cntPct+" com alta ocupação" : "Sem dados de ocupação no período";
+
   var kWrap = document.getElementById("sai-kpis");
   if(kWrap) kWrap.innerHTML =
     kpi("b","Total de Saídas","<b>"+n+"</b>", qtMot+" motorista(s) · "+qtVei+" veículo(s)")+
-    kpi("g","Ocupação Média","<b>"+ocupMedia.toFixed(1).replace(".",",")+"%</b>", "média ponderada das saídas")+
-    kpi("w","Saídas ≥70%","<b>"+pctAltaOcup.toFixed(0)+"%</b>", altaOcup+" de "+cntPct+" com alta ocupação")+
-    kpi("p","Regiões atendidas","<b>"+Object.keys(byRegiao).filter(function(r){return r!=="—";}).length+"</b>","destinos distintos");
+    kpi("g","Ocupação Média","<b"+(cntPct>0?"":" style='color:var(--mu);font-size:.95rem'")+">"+ocupTxt+"</b>", ocupSub)+
+    kpi("w","Saídas ≥70%","<b"+(cntPct>0?"":" style='color:var(--mu);font-size:.95rem'")+">"+altaTxt+"</b>", altaSub)+
+    kpi("p","Regiões/Cidades","<b>"+Object.keys(byRegiao).filter(function(r){return r!=="(Sem registro)";}).length+"</b>","destinos distintos");
 
   // Summary inline (mostrado no header quando recolhido)
   var sumSai = document.getElementById("sum-saida");
-  if(sumSai) sumSai.textContent = "🚛 " + n + " saídas · ocup. " + ocupMedia.toFixed(1).replace(".",",") + "% · " + pctAltaOcup.toFixed(0) + "% ≥70%";
+  if(sumSai){
+    if(cntPct>0){
+      sumSai.textContent = "🚛 " + n + " saídas · ocup. " + ocupMedia.toFixed(1).replace(".",",") + "% · " + pctAltaOcup.toFixed(0) + "% ≥70%";
+    } else {
+      sumSai.textContent = "🚛 " + n + " saídas · ocupação sem registro";
+    }
+  }
 
-  // Barras horizontais de região
+  // Barras horizontais de região/cidade
   var regArr = Object.keys(byRegiao).sort(function(a,b){return byRegiao[b]-byRegiao[a];});
   var maxReg = Math.max.apply(null, regArr.map(function(r){return byRegiao[r];})) || 1;
   var REG_COL = ["#4d8ef5","#36cfa0","#ffaa2b","#a07cf6","#ff4d4f","#00cec9","#fd79a8"];
@@ -1379,7 +1492,7 @@ function saiRender(rows){
   if(elReg) elReg.innerHTML = regArr.map(function(r,i){
     var pct = byRegiao[r]/maxReg*100;
     var pctTot = (byRegiao[r]/n*100).toFixed(1).replace(".",",");
-    var cor = REG_COL[i%REG_COL.length];
+    var cor = r === "(Sem registro)" ? "#ffaa2b" : REG_COL[i%REG_COL.length];
     return "<div style='margin-bottom:9px'>"+
       "<div style='display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:3px'>"+
         "<span style='font-weight:600'>"+r+"</span>"+
@@ -1393,7 +1506,6 @@ function saiRender(rows){
 
   // Barras de ocupação
   var ocupArr = Object.keys(byOcup).sort(function(a,b){
-    // Ordena por %
     return saiOcupPct(a) - saiOcupPct(b);
   });
   var maxOcup = Math.max.apply(null, ocupArr.map(function(o){return byOcup[o];})) || 1;
@@ -1402,7 +1514,11 @@ function saiRender(rows){
     var pct = byOcup[o]/maxOcup*100;
     var pctTot = (byOcup[o]/n*100).toFixed(1).replace(".",",");
     var p = saiOcupPct(o);
-    var cor = p>=70 ? "#36cfa0" : (p>=50 ? "#ffaa2b" : "#ff4d4f");
+    var cor;
+    if(o === "(Sem registro)")      cor = "#ffaa2b";
+    else if(p>=70)                   cor = "#36cfa0";
+    else if(p>=50)                   cor = "#ffaa2b";
+    else                             cor = "#ff4d4f";
     return "<div style='margin-bottom:9px'>"+
       "<div style='display:flex;justify-content:space-between;font-size:.76rem;margin-bottom:3px'>"+
         "<span style='font-weight:600'>"+o+"</span>"+
@@ -1414,21 +1530,21 @@ function saiRender(rows){
     "</div>";
   }).join("");
 
-  // Ranking cruzado
-  var motList = Object.keys(byMot)
-    .filter(function(m){ return m && m !== "—"; })
-    .map(function(m){
-      var info = byMot[m];
-      var media = info.pctN>0 ? info.pctSum/info.pctN : 0;
-      // Região principal (mais frequente)
-      var regMain = "—", regCount = 0;
-      Object.keys(info.regioes).forEach(function(r){
-        if(info.regioes[r] > regCount){ regCount = info.regioes[r]; regMain = r; }
-      });
-      var pctAlta = info.pctN>0 ? (info.altaOcup/info.pctN*100) : 0;
-      return { nome:m, saidas:info.saidas, ocupMedia:media, regMain:regMain, regCount:regCount, pctAlta:pctAlta };
-    })
-    .sort(function(a,b){ return b.saidas - a.saidas; });
+  // Ranking cruzado por motorista
+  var motList = Object.keys(byMot).map(function(m){
+    var info = byMot[m];
+    var media = info.pctN>0 ? info.pctSum/info.pctN : 0;
+    var regMain = "—", regCount = 0;
+    Object.keys(info.regioes).forEach(function(r){
+      if(info.regioes[r] > regCount){ regCount = info.regioes[r]; regMain = r; }
+    });
+    var pctAlta = info.pctN>0 ? (info.altaOcup/info.pctN*100) : 0;
+    return {
+      nome: m, saidas: info.saidas, ocupMedia: media,
+      regMain: regMain, regCount: regCount, pctAlta: pctAlta,
+      hasExtra: info.hasExtra, pctN: info.pctN
+    };
+  }).sort(function(a,b){ return b.saidas - a.saidas; });
 
   var tbody = document.getElementById("sai-ranking-tbody");
   if(tbody){
@@ -1437,15 +1553,17 @@ function saiRender(rows){
     } else {
       tbody.innerHTML = motList.map(function(m, idx){
         var bg = idx%2 === 0 ? "var(--s2)" : "var(--sf)";
-        var corOcup = m.ocupMedia>=70 ? "#36cfa0" : (m.ocupMedia>=50 ? "#ffaa2b" : "#ff4d4f");
-        var corAlta = m.pctAlta>=60 ? "#36cfa0" : (m.pctAlta>=30 ? "#ffaa2b" : "#ff4d4f");
+        var corOcup = m.pctN>0 ? (m.ocupMedia>=70 ? "#36cfa0" : (m.ocupMedia>=50 ? "#ffaa2b" : "#ff4d4f")) : "var(--mu)";
+        var corAlta = m.pctN>0 ? (m.pctAlta>=60 ? "#36cfa0" : (m.pctAlta>=30 ? "#ffaa2b" : "#ff4d4f")) : "var(--mu)";
         var medal = idx===0?"🥇":(idx===1?"🥈":(idx===2?"🥉":""));
+        var ocupTxt = m.pctN>0 ? m.ocupMedia.toFixed(1).replace(".",",")+"%" : "<span title='Sem registro na aba Saída de Carros'>—</span>";
+        var altaTxt = m.pctN>0 ? m.pctAlta.toFixed(0)+"%" : "—";
         return "<tr style='background:"+bg+";border-top:1px solid var(--br)'>"+
           "<td style='padding:9px 12px;font-weight:600'>"+medal+" "+m.nome+"</td>"+
           "<td style='padding:9px 12px;text-align:center;color:#4d8ef5;font-weight:700'>"+m.saidas+"</td>"+
-          "<td style='padding:9px 12px;text-align:center;color:"+corOcup+";font-weight:700'>"+m.ocupMedia.toFixed(1).replace(".",",")+"%</td>"+
+          "<td style='padding:9px 12px;text-align:center;color:"+corOcup+";font-weight:700'>"+ocupTxt+"</td>"+
           "<td style='padding:9px 12px'>"+m.regMain+" <span style='color:var(--mu);font-size:.7rem'>("+m.regCount+")</span></td>"+
-          "<td style='padding:9px 12px;text-align:center;color:"+corAlta+";font-weight:700'>"+m.pctAlta.toFixed(0)+"%</td>"+
+          "<td style='padding:9px 12px;text-align:center;color:"+corAlta+";font-weight:700'>"+altaTxt+"</td>"+
           "</tr>";
       }).join("");
     }
