@@ -311,6 +311,10 @@ td:not(:first-child){text-align:right;}
 .btn-aprov:hover{background:#2eb088;transform:translateY(-1px);}
 .btn-reneg{background:transparent;color:#f0c040;border:1px solid rgba(240,192,64,.5);border-radius:7px;padding:7px 12px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
 .btn-reneg:hover{background:rgba(240,192,64,.15);}
+.btn-cobrar{background:#a07cf6;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-cobrar:hover{background:#8a63e8;transform:translateY(-1px);}
+.btn-cancel-env{background:transparent;color:var(--mu);border:1px solid var(--br);border-radius:7px;padding:7px 12px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
+.btn-cancel-env:hover{background:rgba(255,77,79,.1);color:#ff7875;border-color:rgba(255,77,79,.4);}
 .btn-recusa{background:transparent;color:#ff7875;border:1px solid rgba(255,77,79,.4);border-radius:7px;padding:7px 12px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
 .btn-recusa:hover{background:rgba(255,77,79,.12);}
 .btn-desig{background:#a07cf6;color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:.78rem;font-weight:600;cursor:pointer;transition:all .15s;}
@@ -660,6 +664,11 @@ body.is-aprovador .aprovador-only{display:block;}
     <!-- Card: Aprovações Pendentes -->
     <div id="v3-card-aprov" class="op-card">
       <div class="op-loading"><span class="spin-mini"></span>Carregando aprovações...</div>
+    </div>
+
+    <!-- 🆕 v3.7: Card Cotações Enviadas (aguardando resposta do fornecedor) -->
+    <div id="v3-card-enviadas" class="op-card">
+      <div class="op-loading"><span class="spin-mini"></span>Carregando cotações enviadas...</div>
     </div>
 
     <!-- Card: Aguardando Designação -->
@@ -1879,6 +1888,8 @@ function cmpBuildFornecedores(){
 }
 function cmpSelectFornecedor(){
   var forn=document.getElementById("cmp-fornecedor").value;
+  // 🆕 v3.7: ao mudar fornecedor, reseta o ID de pré-envio (próximo envio vai ter ID novo)
+  cmpResetarIdPreEnvio();
   if(!forn){document.getElementById("cmp-produtos-wrap").style.display="none";return;}
   var rows=cmpAllRows.filter(function(r){
     return (String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim())===forn;
@@ -2219,17 +2230,102 @@ function cmpBackStep(){
   document.getElementById("cmp-step2").style.display="none";
   document.getElementById("cmp-step1").style.display="block";
 }
+// 🆕 v3.7: HELPERS DE PRÉ-ENVIO
+// =============================================================
+// Gera um ID único por sessão de envio (ID_Pre_Envio)
+// Mantém o mesmo ID durante toda a montagem da cotação atual
+function cmpGerarIdPreEnvio(){
+  if(!V3._state.idPreEnvioAtual){
+    // Formato: PRE-YYYYMMDDHHMMSS-XXXX (data + 4 chars aleatórios)
+    var d = new Date();
+    var pad = function(n){ return String(n).padStart(2,'0'); };
+    var ts = d.getFullYear() + pad(d.getMonth()+1) + pad(d.getDate()) +
+             pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+    var rnd = Math.random().toString(36).substring(2,6).toUpperCase();
+    V3._state.idPreEnvioAtual = "PRE-" + ts + "-" + rnd;
+  }
+  return V3._state.idPreEnvioAtual;
+}
+
+// Reseta o ID (chamar quando muda fornecedor ou volta pro Step 1)
+function cmpResetarIdPreEnvio(){
+  V3._state.idPreEnvioAtual = null;
+  V3._state.preEnvioRegistrado = false;
+}
+
+// Registra o envio no backend (idempotente — só roda 1× por sessão)
+async function cmpRegistrarEnvio(){
+  // Já foi registrado nesta sessão? sai sem fazer nada
+  if(V3._state.preEnvioRegistrado) return { ok: true, ja_registrado: true };
+
+  var it = cmpGetItens();
+  var forn = (document.getElementById("cmp-fornecedor")||{}).value || "";
+  var email = (document.getElementById("cmp-email").value||"").trim();
+  var contato = (document.getElementById("cmp-contato").value||"").trim();
+  var obs = (document.getElementById("cmp-obs").value||"").trim();
+  var formaPag = (document.getElementById("cmp-forma-pag")||{}).value||"";
+  var prazoPag = ((document.getElementById("cmp-prazo-pag")||{}).value||"").trim();
+  var tipoFrete = (document.getElementById("cmp-tipo-frete")||{}).value||"";
+
+  if(!forn || !email || it.length === 0){
+    console.warn('[cmpRegistrarEnvio] dados insuficientes — não registrou');
+    return { ok: false, erro: "Dados insuficientes" };
+  }
+
+  var idPreEnvio = cmpGerarIdPreEnvio();
+  // Nome empresa = fornecedor cotação (mesmo padrão usado no cotacao.html)
+  var nomeEmpresa = forn;
+
+  try {
+    var resp = await v3PostAppsScript('registrar_envio', {
+      id_pre_envio: idPreEnvio,
+      fornecedor_cotacao: forn,
+      nome_empresa: nomeEmpresa,
+      email_fornecedor: email,
+      contato: contato,
+      forma_pagamento: formaPag,
+      prazo_pagamento: prazoPag,
+      tipo_frete: tipoFrete,
+      observacoes: obs,
+      itens: it.map(function(x){
+        return {
+          codigo: x.p.cod,
+          descricao: x.p.desc || x.p.cod,
+          qtd_solicitada: x.qtd,
+          classe: x.p.classe || 'normal',
+          validade_total_qtd: x.valQtd || x.valMeses || 0,
+          validade_total_unidade: x.valUnidade || 'meses'
+        };
+      }),
+      enviada_por: v3UsuarioLogado()
+    });
+
+    V3._state.preEnvioRegistrado = true;
+    if(resp && resp.id){
+      V3._state.idCotacaoGerado = resp.id;
+    }
+    console.log('[cmpRegistrarEnvio] OK ✓', resp);
+    // Refresh leve do operacional pra mostrar a nova cotação enviada
+    setTimeout(function(){ v3CarregarOperacional(true); }, 800);
+    return resp;
+  } catch(e){
+    console.error('[cmpRegistrarEnvio] erro:', e);
+    return { ok: false, erro: String(e.message || e) };
+  }
+}
+
 function cmpGerarLink(it, forn, obs, email, contato, formaPag, prazoPag){
   // Payload minimo — sem desc longa e giro para encurtar URL
-  // Campos: f=fornecedor, d=data, o=obs, e=email, c=contato, fp=formaPag, pp=prazoPag, i=itens
+  // Campos: f=fornecedor, d=data, o=obs, e=email, c=contato, fp=formaPag, pp=prazoPag, idpe=preEnvio, i=itens
   var payload={
     f: forn,
     d: new Date().toLocaleDateString("pt-BR"),
     o: obs||"",
     e: email||"",
     c: contato||"",
-    fp: formaPag||"",   // 🆕 v3.5 forma de pagamento sugerida
-    pp: prazoPag||"",   // 🆕 v3.5 prazo de pagamento sugerido
+    fp: formaPag||"",
+    pp: prazoPag||"",
+    idpe: cmpGerarIdPreEnvio(),   // 🆕 v3.7 — ID pra fazer match no backend
     i: it.map(function(x){
       return [
         x.p.cod,                                          // 0: codigo
@@ -2431,6 +2527,9 @@ function cmpOpenMailto(){
   if(!email){ alert("Informe o e-mail do fornecedor antes de abrir o Outlook."); return; }
   if(!it.length){ alert("Nenhum item selecionado."); return; }
 
+  // 🆕 v3.7: registra o envio na sheet (idempotente — só roda 1× por sessão)
+  cmpRegistrarEnvio();
+
   // Garante que a prévia esteja atualizada (link mais recente)
   cmpUpdateEmailPreview(it, forn);
   var longLink = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato,formaPag,prazoPag);
@@ -2517,6 +2616,12 @@ function cmpCopyLink(){
   var obs  = (document.getElementById("cmp-obs").value||"").trim();
   var email=(document.getElementById("cmp-email").value||"").trim();
   var contato=(document.getElementById("cmp-contato").value||"").trim();
+  if(it.length === 0){ alert("Nenhum item selecionado."); return; }
+  if(!email){ alert("Informe o e-mail do fornecedor antes de copiar o link."); return; }
+
+  // 🆕 v3.7: registra o envio na sheet (idempotente — só roda 1× por sessão)
+  cmpRegistrarEnvio();
+
   var link = cmpGerarLink(it, forn, obs, email, contato, (document.getElementById("cmp-forma-pag")||{}).value||"", ((document.getElementById("cmp-prazo-pag")||{}).value||"").trim());
   var btn  = document.getElementById("btn-copy-link");
   var msgEl= document.getElementById("cmp-send-msg");
@@ -2876,6 +2981,7 @@ async function v3CarregarOperacional(force){
     V3._state.cotacoes = cot;
     V3._state.transps  = tr;
     v3RenderAprovacoes();
+    v3RenderEnviadas();      // 🆕 v3.7
     v3RenderDesignacao();
     v3RenderAndamento();
   } catch(e){
@@ -2943,6 +3049,184 @@ function v3RenderAprovacoes(){
       '<div class="op-title">🔔 Aprovações Pendentes <span class="op-count">'+pend.length+'</span></div>'+
     '</div>'+
     rows;
+}
+
+// ----- 🆕 v3.7: Card Cotações Enviadas (aguardando resposta do fornecedor) -----
+function v3RenderEnviadas(){
+  var box = document.getElementById('v3-card-enviadas');
+  if(!box) return;
+
+  // Esconde card pra não-aprovadores
+  if(!v3EhAprovador()){
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = '';
+
+  var enviadas = V3._state.cotacoes.filter(function(c){
+    return (c.Status || '').trim().toUpperCase() === 'COTACAO_ENVIADA';
+  });
+
+  if(enviadas.length === 0){
+    box.className = 'op-card empty';
+    box.innerHTML = '<div class="op-empty-msg">📨 Sem cotações aguardando resposta de fornecedor</div>';
+    return;
+  }
+
+  // Ordena: mais antigas primeiro (são as mais urgentes pra cobrar)
+  enviadas.sort(function(a,b){
+    var da = new Date(a.Cotacao_Enviada_em || a.Timestamp || 0);
+    var db = new Date(b.Cotacao_Enviada_em || b.Timestamp || 0);
+    return da - db;
+  });
+
+  box.className = 'op-card';
+  var agora = Date.now();
+  var rows = enviadas.map(function(c){
+    var id   = c.ID_Cotacao || c.ID || '—';
+    var forn = v3GetFornecedor(c);
+    var email= c.Email_Fornecedor || '—';
+    var contato = c.Contato || '';
+    var enviadaPor = c.Enviada_por || '—';
+    var dt = c.Cotacao_Enviada_em || c.Timestamp;
+    var dtFmt = v3FormatarData(dt);
+    var diasAtras = 0;
+    if(dt){
+      var d = new Date(dt);
+      if(!isNaN(d.getTime())){
+        diasAtras = Math.floor((agora - d.getTime()) / (24*3600*1000));
+      }
+    }
+    // Tag de urgência
+    var urgTag = '';
+    if(diasAtras >= 5){
+      urgTag = '<span style="color:#ff7875;font-weight:700">🔴 '+diasAtras+' dias sem resposta</span>';
+    } else if(diasAtras >= 2){
+      urgTag = '<span style="color:#ffaa2b;font-weight:600">🟡 '+diasAtras+' dias sem resposta</span>';
+    } else if(diasAtras > 0){
+      urgTag = '<span style="color:var(--mu)">🟢 enviada há '+diasAtras+(diasAtras===1?' dia':' dias')+'</span>';
+    } else {
+      urgTag = '<span style="color:var(--mu)">🟢 enviada hoje</span>';
+    }
+
+    var nItens = parseInt(c.Total_Itens || '0', 10) || 0;
+    var formaPag = c.Forma_Pagamento || '';
+    var prazoPag = c.Prazo_Pagamento || '';
+    var infoCondicoes = '';
+    if (formaPag || prazoPag){
+      infoCondicoes = '<span class="sep">·</span><span style="color:var(--mu)">💳 ' +
+                      v3Esc(formaPag) + (prazoPag ? ' ('+v3Esc(prazoPag)+')' : '') + '</span>';
+    }
+
+    return ''+
+      '<div class="pedido-row">'+
+        '<div class="pedido-info">'+
+          '<div class="pedido-l1">'+
+            '<span class="pedido-id">'+v3Esc(id)+'</span>'+
+            '<span class="pedido-forn">· '+v3Esc(forn)+'</span>'+
+            '<span class="status-pill" style="background:rgba(160,124,246,.18);color:#a07cf6">⏳ Aguardando Resposta</span>'+
+          '</div>'+
+          '<div class="pedido-l2">'+
+            '<span>📅 '+v3Esc(dtFmt)+'</span><span class="sep">·</span>'+
+            '<span>'+nItens+' item(s)</span><span class="sep">·</span>'+
+            urgTag+
+            infoCondicoes+
+          '</div>'+
+          '<div class="pedido-l2" style="margin-top:3px;font-size:.72rem">'+
+            '<span style="color:var(--mu)">📧 '+v3Esc(email)+'</span>'+
+            (contato ? '<span class="sep">·</span><span style="color:var(--mu)">👤 '+v3Esc(contato)+'</span>' : '')+
+            '<span class="sep">·</span><span style="color:var(--mu2)">enviada por '+v3Esc(enviadaPor)+'</span>'+
+          '</div>'+
+        '</div>'+
+        '<div class="pedido-actions">'+
+          '<button class="btn-cobrar" onclick="v3CobrarFornecedor(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Reabre o e-mail no Outlook com texto de cobrança">🔔 Cobrar</button>'+
+          '<button class="btn-cancel-env" onclick="v3CancelarEnvio(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Cancelar este envio (a Cris desistiu ou errou algo)">✕ Cancelar</button>'+
+        '</div>'+
+      '</div>';
+  }).join('');
+
+  box.innerHTML =
+    '<div class="op-hdr">'+
+      '<div class="op-title">⏳ Cotações Enviadas <span class="op-count">'+enviadas.length+'</span> <span style="font-size:.7rem;color:var(--mu);font-weight:400">aguardando resposta do fornecedor</span></div>'+
+    '</div>'+
+    rows;
+}
+
+// 🆕 v3.7: Cobrar fornecedor (reabre Outlook com texto de cobrança)
+function v3CobrarFornecedor(idCotacao){
+  var c = V3._state.cotacoes.find(function(x){ return (x.ID_Cotacao||x.ID||'').trim() === idCotacao; });
+  if(!c){ v3ToastShow('Cotação não encontrada.', 'error'); return; }
+
+  var email = c.Email_Fornecedor || '';
+  var contato = c.Contato || '';
+  var forn = v3GetFornecedor(c);
+  if(!email){ v3ToastShow('E-mail do fornecedor não cadastrado.', 'error'); return; }
+
+  var dt = c.Cotacao_Enviada_em || c.Timestamp;
+  var diasAtras = 0;
+  if(dt){
+    var d = new Date(dt);
+    if(!isNaN(d.getTime())) diasAtras = Math.floor((Date.now() - d.getTime()) / (24*3600*1000));
+  }
+
+  var subj = '🔔 Lembrete — Cotação Q Food pendente (' + forn + ')';
+  var ccFixos = "compras@qfoodcompany.com.br,adm@qfoodcompany.com.br,logistica@qfoodcompany.com.br,rodsilveira2012@gmail.com";
+
+  var corpo = [];
+  corpo.push(contato ? ('Olá ' + contato + ',') : ('Prezado(a) parceiro(a) ' + forn + ','));
+  corpo.push('');
+  corpo.push('Gostaríamos de confirmar o recebimento da nossa cotação enviada ' +
+             (diasAtras === 0 ? 'hoje' : (diasAtras === 1 ? 'ontem' : 'há '+diasAtras+' dias')) + '.');
+  corpo.push('');
+  corpo.push('Para nosso planejamento, precisamos da resposta o quanto antes.');
+  corpo.push('');
+  corpo.push('Se o link enviado anteriormente não estiver acessível, por favor avise-nos para reenviarmos.');
+  corpo.push('');
+  corpo.push('Ficamos no aguardo!');
+  corpo.push('');
+  corpo.push('Atenciosamente,');
+  corpo.push('Equipe de Compras — Q Food Company');
+  corpo.push('compras@qfoodcompany.com.br');
+  corpo.push('');
+  corpo.push('Ref: ' + idCotacao);
+
+  var url = "mailto:" + encodeURIComponent(email) +
+            "?cc=" + encodeURIComponent(ccFixos) +
+            "&subject=" + encodeURIComponent(subj) +
+            "&body=" + encodeURIComponent(corpo.join('\n'));
+
+  window.open(url, "_blank");
+  v3ToastShow('🔔 E-mail de cobrança aberto no Outlook', 'success');
+}
+
+// 🆕 v3.7: Cancelar um envio (Cris errou ou desistiu)
+async function v3CancelarEnvio(idCotacao){
+  if(!v3EhAprovador()){
+    v3ToastShow('Apenas aprovadores podem cancelar.', 'error');
+    return;
+  }
+  var motivo = prompt('Motivo do cancelamento desta cotação enviada?', '');
+  if(motivo === null) return; // cancelou
+  motivo = motivo.trim();
+  if(motivo.length < 3){
+    v3ToastShow('Informe um motivo mais descritivo (mín. 3 caracteres).', 'error');
+    return;
+  }
+  if(!confirm('Tem certeza que deseja cancelar a cotação ' + idCotacao + '?\n\nMotivo: ' + motivo)){
+    return;
+  }
+
+  try {
+    await v3PostAppsScript('cancelar_envio', {
+      id_cotacao: idCotacao,
+      cancelado_por: v3UsuarioLogado(),
+      motivo: motivo
+    });
+    v3ToastShow('Cotação cancelada.', 'success');
+    await v3CarregarOperacional(true);
+  } catch(e){
+    v3ToastShow('Erro: '+e.message, 'error');
+  }
 }
 
 // ----- Card Aguardando Designação -----
