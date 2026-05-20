@@ -3229,40 +3229,80 @@ function chkExportWhatsApp(){
   if(!CHK_DATA){ alert("Aguarde os dados carregarem."); return; }
   var d = CHK_DATA;
 
-  var txt = "🎯 *CHECKPOINT COMERCIAL — "+d.hoje+"*\n\n";
-  txt += "📊 *VISÃO GERAL — "+d.mesLabel+"*\n";
-  txt += "• Meta: "+chkFmtBR(d.totMeta)+"\n";
-  txt += "• Realizado: "+chkFmtBR(d.totReal)+" ("+chkFmtPctInt(d.atingidoPct)+")\n";
-  txt += "• Falta: "+chkFmtBR(d.faltam)+"\n\n";
+  // Separador visual reutilizavel
+  var SEP = "━━━━━━━━━━━━━━━━━━";
 
-  txt += "📈 *TENDÊNCIA DE FECHAMENTO*\n";
-  txt += "• Dia útil: "+d.da+" de "+d.du+" ("+d.diasRest+" restantes)\n";
-  txt += "• Média diária necessária: "+chkFmtBR(d.totMeta/(d.du||1))+"\n";
-  txt += "• Média diária atual: "+chkFmtBR(d.mediaAtualDia)+"\n";
-  txt += "• Projeção: "+chkFmtBR(d.projecao);
-  if(d.gapProjetado < 0) txt += " ("+chkFmtBR(d.gapProjetado)+" abaixo da meta)";
-  else txt += " (+"+chkFmtBR(d.gapProjetado)+" acima da meta)";
-  txt += "\n• Ritmo: "+d.status+"\n\n";
+  // Mapeia status do ritmo para chamada de mobilizacao
+  var ritmoUpper = String(d.status||"").toUpperCase();
+  var alertaMob = "";
+  if(ritmoUpper.indexOf("ATRASADO")>-1)      alertaMob = "⚠️ _Precisamos virar a chave nos próximos "+d.diasRest+" dias!_\n";
+  else if(ritmoUpper.indexOf("ATENÇÃO")>-1 || ritmoUpper.indexOf("ATENCAO")>-1) alertaMob = "⚠️ _Atenção — ainda dá pra virar!_\n";
+  else if(ritmoUpper.indexOf("RITMO")>-1)    alertaMob = "💪 _Mantém o ritmo, time!_\n";
 
-  txt += "📊 *CARTEIRA*\n";
-  txt += "👥 PDVs na carteira: "+chkFmtInt(d.pulso.carteiraTotal)+"\n";
-  txt += "✅ PDVs atendidos: "+chkFmtInt(d.pulso.atendidos)+"\n";
-  txt += "📍 Positivação: "+chkFmtPctInt(d.pulso.positivacaoPct)+"\n";
-  txt += "⏳ Sem atender: "+chkFmtInt(d.pulso.semAtender)+"\n";
+  // ===== CABECALHO =====
+  var txt = "🎯 *CHECKPOINT COMERCIAL*\n";
+  txt += "📅 _"+d.hoje+" — "+d.mesLabel+"_\n\n";
+
+  // ===== VISAO GERAL =====
+  txt += SEP+"\n";
+  txt += "📊 *VISÃO GERAL DO MÊS*\n";
+  txt += SEP+"\n\n";
+  txt += "💰 *Meta:* "+chkFmtBR(d.totMeta)+"\n";
+  txt += "✅ *Realizado:* "+chkFmtBR(d.totReal)+" _("+chkFmtPctInt(d.atingidoPct)+")_\n";
+  txt += "⏳ *Falta:* "+chkFmtBR(d.faltam)+"\n\n";
+
+  // ===== TENDENCIA =====
+  txt += SEP+"\n";
+  txt += "📈 *TENDÊNCIA DO MÊS*\n";
+  txt += SEP+"\n\n";
+  txt += "📆 Dia útil *"+d.da+" de "+d.du+"* — restam *"+d.diasRest+" dias*\n";
+  txt += "🎯 Média/dia necessária: *"+chkFmtBR(d.totMeta/(d.du||1))+"*\n";
+  txt += "📉 Média/dia atual: *"+chkFmtBR(d.mediaAtualDia)+"*\n";
+  txt += "🔮 Projeção: *"+chkFmtBR(d.projecao)+"*\n";
+  if(d.gapProjetado < 0) txt += "       _("+chkFmtBR(d.gapProjetado)+" abaixo da meta)_\n";
+  else                   txt += "       _(+"+chkFmtBR(d.gapProjetado)+" acima da meta)_\n";
+  txt += "\n";
+  txt += "*RITMO: "+d.status+"*\n";
+  if(alertaMob) txt += alertaMob;
   txt += "\n";
 
+  // ===== CARTEIRA GERAL =====
+  txt += SEP+"\n";
+  txt += "📊 *CARTEIRA GERAL*\n";
+  txt += SEP+"\n\n";
+  txt += "👥 PDVs na carteira: *"+chkFmtInt(d.pulso.carteiraTotal)+"*\n";
+  txt += "✅ Atendidos: *"+chkFmtInt(d.pulso.atendidos)+"* _("+chkFmtPctInt(d.pulso.positivacaoPct)+")_\n";
+  txt += "⏳ Sem atender: *"+chkFmtInt(d.pulso.semAtender)+"*\n\n";
+
+  // ===== RANKING =====
+  txt += SEP+"\n";
   txt += "🏆 *RANKING DOS VENDEDORES*\n";
+  txt += SEP+"\n\n";
+
   var medalhas = ["🥇","🥈","🥉"];
   d.ranking.forEach(function(v,i){
-    var ico = medalhas[i] || (v.cor==="g"?"🟢":v.cor==="y"?"🟡":"🔴");
-    txt += ico+" *"+v.nome+"* — "+chkFmtPct(v.pctAt)+"\n";
-    txt += "   "+chkFmtBR(v.real)+" / "+chkFmtBR(v.meta)+"\n";
-    txt += "   👥 "+v.atendidos+"/"+v.carteira+" atendidos · 🆕 "+v.novos+" novos · 📍 "+chkFmtPct(v.posit)+" posit\n";
-    txt += "   💰 "+v.margem+"% margem · 📈 "+v.markup+"% markup\n";
+    // Icone da posicao: medalha pros 3 primeiros, numero ordinal pros demais
+    var ico = medalhas[i] || (i+1)+"º";
+    // Bolinha de status do vendedor
+    var bola = v.cor==="g" ? "🟢" : v.cor==="y" ? "🟡" : "🔴";
+    // Icone da projecao individual
+    var sinal = v.gapProj>=0 ? "+" : "";
+    var icoProj;
+    if(v.gapProj >= 0)                          icoProj = "✅";
+    else if(v.gapProj >= -50000)                icoProj = "⚠️";
+    else                                        icoProj = "🚨";
+
+    txt += ico+" *"+(v.nome||"").toUpperCase()+"* — *"+chkFmtPct(v.pctAt)+"* "+bola+"\n";
+    txt += "💵 "+chkFmtBR(v.real)+" / "+chkFmtBR(v.meta)+"\n";
+    // Concordancia: "1 novo" vs "N novos"
+    var novosTxt = (v.novos===1) ? "1 novo" : (v.novos+" novos");
+    txt += "👥 "+v.atendidos+"/"+v.carteira+" atendidos · 📍 "+chkFmtPct(v.posit)+" posit · 🆕 "+novosTxt+"\n";
+    txt += "💰 Margem "+v.margem+"% · 📈 Markup "+v.markup+"%\n";
     if(v.meta>0){
-      var sinal = v.gapProj>=0 ? "+" : "";
-      txt += "   📊 Projeção: "+chkFmtBR(v.projecao)+" ("+sinal+chkFmtBR(v.gapProj)+")\n";
+      txt += "🔮 Projeção: *"+chkFmtBR(v.projecao)+"* _("+sinal+chkFmtBR(v.gapProj)+")_ "+icoProj+"\n";
     }
+
+    // Cesta + ataque (mesma logica antiga de match de sigla)
     var siglaKey = chkExtraiPrimeiroNome(v.s);
     var ces = (d.cestaPorVendedor||{})[siglaKey];
     if(!ces && siglaKey && siglaKey.length >= 4){
@@ -3274,19 +3314,35 @@ function chkExportWhatsApp(){
       });
     }
     if(ces && ces.total > 0){
-      txt += "   🍱 Cesta: "+ces.critico+" crítico · "+ces.baixo+" baixo · "+ces.medio+" médio · "+ces.bom+" bom";
+      txt += "🍱 Cesta: 🔴 "+ces.critico+" · 🟠 "+ces.baixo+" · 🟡 "+ces.medio+" · 🟢 "+ces.bom+"\n";
       if(ces.topCategoriasInfo && ces.topCategoriasInfo.length){
         var ataque = ces.topCategoriasInfo.slice(0,3).map(function(x){
           return x.cat+" ("+x.vendeEm+"/"+x.totalClientes+")";
         }).join(", ");
-        txt += "\n   🎯 Atacar: "+ataque;
+        txt += "🎯 *Atacar:* "+ataque+"\n";
       }
-      txt += "\n";
+    } else {
+      // Sem cesta: chamada especial para casos criticos
+      if(v.pctAt < 30) txt += "🎯 _Atenção máxima — precisa virar o jogo!_\n";
+    }
+
+    // Separador entre vendedores (exceto apos o ultimo)
+    if(i < d.ranking.length - 1){
+      txt += "\n"+SEP+"\n\n";
     }
   });
-  txt += "\n";
 
-  txt += "_Q Food Company • Gerado automaticamente_";
+  // ===== RODAPE MOTIVACIONAL =====
+  txt += "\n\n"+SEP+"\n";
+  if(d.diasRest > 0 && d.faltam > 0){
+    txt += "💪 *VAMOS PRO ABRAÇO, TIME!*\n";
+    txt += "_Faltam "+d.diasRest+" dias úteis. "+chkFmtBR(d.faltam)+" pela frente._\n";
+    txt += "_Cada visita conta, cada positivação faz diferença!_\n\n";
+  } else if(d.faltam <= 0){
+    txt += "🎉 *META BATIDA, TIME!*\n";
+    txt += "_Parabéns pelo resultado!_\n\n";
+  }
+  txt += "🚀 _Q Food Company_";
 
   // copia pra área de transferência e dá feedback
   if(navigator.clipboard && navigator.clipboard.writeText){
