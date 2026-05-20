@@ -1005,8 +1005,32 @@ body.is-aprovador .aprovador-only{display:block;}
       <div style="font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Selecione o novo status</div>
       <div id="m-st-opcoes" style="display:grid;gap:8px;margin-bottom:14px"></div>
     </div>
+
+    <!-- 🆕 v3.6: Bloco de integridade — aparece apenas quando status escolhido = RECEBIDO -->
+    <div id="m-st-integridade-box" style="display:none;background:rgba(54,207,160,.06);border:1px solid rgba(54,207,160,.3);border-radius:10px;padding:14px;margin-bottom:14px">
+      <div style="font-size:.78rem;color:#36cfa0;font-weight:700;margin-bottom:10px">📦 Confirmação de Recebimento</div>
+      <label style="display:block;font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">Integridade da carga <span style="color:var(--red)">*</span></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+        <label style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:9px 10px;cursor:pointer;transition:all .15s" onclick="v3SelIntegridade('OK')">
+          <input type="radio" name="m-st-integ" value="OK" id="m-st-integ-ok" onchange="v3OnIntegridadeChange()" style="flex-shrink:0">
+          <div style="font-size:.82rem;color:var(--ok);font-weight:600">✅ Tudo OK</div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:9px 10px;cursor:pointer;transition:all .15s" onclick="v3SelIntegridade('PARCIAL')">
+          <input type="radio" name="m-st-integ" value="PARCIAL" id="m-st-integ-par" onchange="v3OnIntegridadeChange()" style="flex-shrink:0">
+          <div style="font-size:.82rem;color:var(--warn);font-weight:600">⚠️ Parcial</div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:9px 10px;cursor:pointer;transition:all .15s" onclick="v3SelIntegridade('DANIFICADO')">
+          <input type="radio" name="m-st-integ" value="DANIFICADO" id="m-st-integ-dan" onchange="v3OnIntegridadeChange()" style="flex-shrink:0">
+          <div style="font-size:.82rem;color:#ff7875;font-weight:600">❌ Danificado</div>
+        </label>
+      </div>
+      <div style="font-size:.66rem;color:var(--mu);font-style:italic">
+        💡 Esta informação será enviada automaticamente por e-mail ao fornecedor e à transportadora.
+      </div>
+    </div>
+
     <div style="margin-bottom:14px">
-      <label style="display:block;font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Observação (opcional)</label>
+      <label style="display:block;font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px" id="m-st-obs-label">Observação (opcional)</label>
       <textarea id="m-st-obs" class="modal-textarea" rows="2" maxlength="500" placeholder="Ex: motorista chegou às 14h, carga conferida ok..."></textarea>
     </div>
     <div id="m-st-err" style="color:#ff7875;font-size:.78rem;display:none;margin-bottom:10px;padding:8px 12px;background:rgba(255,77,79,.08);border-radius:6px"></div>
@@ -1136,6 +1160,19 @@ body.is-aprovador .aprovador-only{display:block;}
           <textarea id="cmp-obs" rows="3" placeholder="Ex: Necessitamos de resposta ate sexta-feira..."
             style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.85rem;outline:none;resize:vertical"></textarea>
         </div>
+        <!-- 🆕 v3.6: CCs automáticos visíveis -->
+        <div style="margin-top:14px;background:rgba(54,207,160,.08);border:1px solid rgba(54,207,160,.25);border-radius:8px;padding:10px 12px">
+          <div style="font-size:.68rem;color:#36cfa0;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📨 CCs automáticos no e-mail</div>
+          <div style="font-size:.74rem;color:var(--tx);line-height:1.7;font-family:monospace">
+            <div>✓ compras@qfoodcompany.com.br</div>
+            <div>✓ adm@qfoodcompany.com.br</div>
+            <div>✓ logistica@qfoodcompany.com.br</div>
+            <div>✓ rodsilveira2012@gmail.com</div>
+          </div>
+          <div style="font-size:.66rem;color:var(--mu);margin-top:6px;font-style:italic">
+            Esses endereços são sempre incluídos automaticamente ao usar o botão "📧 Abrir no Outlook".
+          </div>
+        </div>
       </div>
       <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px">
         <div class="sec" style="margin-bottom:12px;font-size:.85rem">&#128203; Resumo</div>
@@ -1203,7 +1240,7 @@ body.is-aprovador .aprovador-only{display:block;}
 
     <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
       <button onclick="cmpCopyEmail()" style="padding:10px 20px;background:var(--s2);border:1px solid var(--br);border-radius:8px;color:var(--mu);font-weight:600;font-size:.85rem;cursor:pointer">&#128203; Copiar Texto E-mail</button>
-      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer">&#9993; Abrir no E-mail</button>
+      <button onclick="cmpOpenMailto()" style="padding:10px 28px;background:#a07cf6;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer" title="Abre seu Outlook/Gmail/cliente de e-mail já preenchido com destinatário, CCs, assunto e link">📧 Abrir no Outlook (c/ CCs)</button>
     </div>
     <div id="cmp-send-msg" style="font-size:.8rem;color:var(--ok);text-align:right;margin-top:8px"></div>
   </div>
@@ -2377,45 +2414,101 @@ function cmpCopyEmail(){
     .catch(function(){ copiar(corpoLongo, longLink); });
 }
 
+// 🆕 v3.6: CCs fixos para todos os e-mails de cotação
+var CMP_CC_FIXOS = "compras@qfoodcompany.com.br,adm@qfoodcompany.com.br,logistica@qfoodcompany.com.br,rodsilveira2012@gmail.com";
+
 function cmpOpenMailto(){
   var email  =(document.getElementById("cmp-email").value||"").trim();
   var contato=(document.getElementById("cmp-contato").value||"").trim();
   var it     =cmpGetItens();
   var forn   =document.getElementById("cmp-fornecedor").value;
   var obs    =(document.getElementById("cmp-obs").value||"").trim();
+  var formaPag=(document.getElementById("cmp-forma-pag")||{}).value||"";
+  var prazoPag=((document.getElementById("cmp-prazo-pag")||{}).value||"").trim();
+  var tipoFrete=(document.getElementById("cmp-tipo-frete")||{}).value||"";
   var today  =new Date().toLocaleDateString("pt-BR");
   var msg    =document.getElementById("cmp-send-msg");
+  if(!email){ alert("Informe o e-mail do fornecedor antes de abrir o Outlook."); return; }
   if(!it.length){ alert("Nenhum item selecionado."); return; }
 
-  var corpoLongo = cmpUpdateEmailPreview(it,forn);
-  var longLink   = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato,(document.getElementById("cmp-forma-pag")||{}).value||"",((document.getElementById("cmp-prazo-pag")||{}).value||"").trim());
-  var subj       = "Cotação Q Food — "+forn+" — "+today;
+  // Garante que a prévia esteja atualizada (link mais recente)
+  cmpUpdateEmailPreview(it, forn);
+  var longLink = window._cmpLastLink || cmpGerarLink(it,forn,obs,email,contato,formaPag,prazoPag);
+  var subj     = "Cotação Q Food — "+forn+" — "+today;
 
-  function abrir(corpoFinal, linkUsado){
-    // mailto: não aceita assunto no corpo — remove linha "▶ ASSUNTO" pra não duplicar
-    var corpoMail = corpoFinal
-      .replace(/^▶ ASSUNTO:.*\n/,"")
-      .replace(/^─+\n/,"");
-    window.open("mailto:"+email+"?subject="+encodeURIComponent(subj)+"&body="+encodeURIComponent(corpoMail),"_blank");
+  // 🆕 v3.6: Corpo enxuto (estratégia A) — itens estão no formulário, evita estourar limite do mailto
+  function montarCorpoEnxuto(linkFinal){
+    var NL = "\n";
+    var corpo = [];
+    corpo.push(contato ? ("Olá " + contato + ",") : ("Prezado(a) parceiro(a) " + forn + ","));
+    corpo.push("");
+    corpo.push("Segue o link para preenchimento da sua cotação Q Food do dia " + today + ":");
+    corpo.push("");
+    corpo.push("🔗 " + linkFinal);
+    corpo.push("");
+    corpo.push("📦 " + it.length + " item(ns) já pré-carregados — basta informar preços e validades.");
+    if (formaPag || prazoPag) {
+      corpo.push("");
+      corpo.push("💳 Condições sugeridas:");
+      if (formaPag) corpo.push("   • Forma de pagamento: " + formaPag);
+      if (prazoPag) corpo.push("   • Prazo: " + prazoPag);
+      if (tipoFrete) corpo.push("   • Tipo de frete (preliminar): " + tipoFrete);
+      corpo.push("   (você pode propor diferente no formulário — vamos avaliar)");
+    }
+    if (obs) {
+      corpo.push("");
+      corpo.push("📝 Observações: " + obs);
+    }
+    corpo.push("");
+    corpo.push("⚠️ Política de validade: aceitamos produtos com validade mínima conforme indicado para cada item no formulário. Pedidos fora da especificação são devolvidos sem ônus.");
+    corpo.push("");
+    corpo.push("Dúvidas: compras@qfoodcompany.com.br");
+    corpo.push("");
+    corpo.push("Atenciosamente,");
+    corpo.push("Equipe de Compras — Q Food Company");
+    return corpo.join(NL);
+  }
+
+  function abrirMailto(linkUsado){
+    var corpoMail = montarCorpoEnxuto(linkUsado);
+    // 🆕 v3.6: mailto com CC fixo
+    var url = "mailto:" + encodeURIComponent(email) +
+              "?cc=" + encodeURIComponent(CMP_CC_FIXOS) +
+              "&subject=" + encodeURIComponent(subj) +
+              "&body=" + encodeURIComponent(corpoMail);
+
+    // Atenção ao limite de URL (~2000 chars na maioria dos clientes)
+    if (url.length > 1800) {
+      console.warn("[cmpOpenMailto] URL longa (" + url.length + " chars). Pode truncar em alguns clientes.");
+    }
+
+    window.open(url, "_blank");
     if(msg){
-      msg.innerHTML="&#10003; E-mail aberto"+(linkUsado!==longLink?" com link encurtado":"")+" ✓";
-      setTimeout(function(){if(msg)msg.innerHTML="";},5000);
+      msg.innerHTML = "&#10003; Outlook/cliente de e-mail aberto " +
+                      (linkUsado!==longLink?"(link encurtado)":"") +
+                      " &middot; CCs já preenchidos ✓";
+      setTimeout(function(){if(msg)msg.innerHTML="";},6000);
     }
   }
 
-  if(msg) msg.innerHTML="&#9203; Encurtando link...";
+  if(msg) msg.innerHTML="&#9203; Encurtando link e preparando e-mail...";
   fetch("https://tinyurl.com/api-create.php?url="+encodeURIComponent(longLink))
     .then(function(r){return r.ok?r.text():Promise.reject();})
     .then(function(s){
-      var short=s.trim().startsWith("http")?s.trim():longLink;
-      var corpoFinal = corpoLongo.replace(longLink, short);
-      var el=document.getElementById("cmp-email-preview");
-      if(el) el.textContent = corpoFinal;
-      var prev=document.getElementById("cmp-link-preview");
-      if(prev){prev.style.display="block";prev.innerHTML="Link: <a href='"+short+"' target='_blank' style='color:#a07cf6'>"+short+"</a>";}
-      abrir(corpoFinal, short);
+      var short = s.trim().startsWith("http") ? s.trim() : longLink;
+      // Atualiza a prévia visual com link curto
+      var corpoLongo = document.getElementById("cmp-email-preview").textContent || "";
+      if (corpoLongo) {
+        document.getElementById("cmp-email-preview").textContent = corpoLongo.replace(longLink, short);
+      }
+      var prev = document.getElementById("cmp-link-preview");
+      if(prev){
+        prev.style.display="block";
+        prev.innerHTML="Link: <a href='"+short+"' target='_blank' style='color:#a07cf6'>"+short+"</a>";
+      }
+      abrirMailto(short);
     })
-    .catch(function(){ abrir(corpoLongo, longLink); });
+    .catch(function(){ abrirMailto(longLink); });
 }
 
 function cmpCopyLink(){
@@ -3645,6 +3738,22 @@ function v3MudarStatus(idCotacao){
   document.getElementById('m-st-btn').disabled = true;
   document.getElementById('m-st-btn').textContent = 'Confirmar Mudança';
 
+  // 🆕 v3.6: resetar bloco de integridade
+  var integBox = document.getElementById('m-st-integridade-box');
+  if (integBox) integBox.style.display = 'none';
+  document.querySelectorAll('input[name="m-st-integ"]').forEach(function(r){ r.checked = false; });
+  // limpa destaques visuais dos radios
+  ['ok','par','dan'].forEach(function(k){
+    var r = document.getElementById('m-st-integ-' + k);
+    if(r){
+      var lb = r.closest('label');
+      if(lb){ lb.style.borderColor = 'var(--br)'; lb.style.background = 'var(--s2)'; }
+    }
+  });
+  // reset label do obs
+  var obsLabel = document.getElementById('m-st-obs-label');
+  if (obsLabel) obsLabel.textContent = 'Observação (opcional)';
+
   var opBox = document.getElementById('m-st-opcoes');
   opBox.innerHTML = opcoes.map(function(op, i){
     return '<div class="m-st-opt" data-status="'+v3Esc(op.v)+'" onclick="v3SelStatus(this, \''+v3Esc(op.v).replace(/'/g,"\\'")+'\')" '+
@@ -3668,7 +3777,65 @@ function v3SelStatus(el, status){
   el.style.borderColor = '#a07cf6';
   el.style.background = 'rgba(160,124,246,.08)';
   V3._state.statusEscolhido = status;
-  document.getElementById('m-st-btn').disabled = false;
+
+  // 🆕 v3.6: Mostra/esconde bloco de integridade quando status = RECEBIDO
+  var integBox = document.getElementById('m-st-integridade-box');
+  var obsLabel = document.getElementById('m-st-obs-label');
+  var obsTextarea = document.getElementById('m-st-obs');
+  if (integBox) {
+    if (status === 'RECEBIDO') {
+      integBox.style.display = 'block';
+      if (obsLabel) obsLabel.innerHTML = 'Observação do recebimento <span style="color:var(--mu)">(opcional — entra no e-mail ao fornecedor)</span>';
+      if (obsTextarea) obsTextarea.placeholder = 'Ex: 2 caixas com avaria leve, restante OK · NF conferida · pesagem 348kg';
+    } else {
+      integBox.style.display = 'none';
+      // Reseta seleção de integridade
+      document.querySelectorAll('input[name="m-st-integ"]').forEach(function(r){ r.checked = false; });
+      v3OnIntegridadeChange();
+      if (obsLabel) obsLabel.textContent = 'Observação (opcional)';
+      if (obsTextarea) obsTextarea.placeholder = 'Ex: motorista chegou às 14h, carga conferida ok...';
+    }
+  }
+  v3AtualizarBotaoStatus();
+}
+
+// 🆕 v3.6: Helpers do bloco de integridade
+function v3SelIntegridade(valor){
+  var key = valor === 'OK' ? 'ok' : (valor === 'PARCIAL' ? 'par' : 'dan');
+  var radio = document.getElementById('m-st-integ-' + key);
+  if(radio){ radio.checked = true; v3OnIntegridadeChange(); }
+}
+function v3OnIntegridadeChange(){
+  // Destaque visual do card selecionado
+  ['ok','par','dan'].forEach(function(k){
+    var r = document.getElementById('m-st-integ-' + k);
+    if(r){
+      var label = r.closest('label');
+      if(label){
+        if(r.checked){
+          label.style.borderColor = '#a07cf6';
+          label.style.background = 'rgba(160,124,246,.10)';
+        } else {
+          label.style.borderColor = 'var(--br)';
+          label.style.background = 'var(--s2)';
+        }
+      }
+    }
+  });
+  v3AtualizarBotaoStatus();
+}
+function v3AtualizarBotaoStatus(){
+  var btn = document.getElementById('m-st-btn');
+  if(!btn) return;
+  var status = V3._state.statusEscolhido;
+  if(!status){ btn.disabled = true; return; }
+  // Se for RECEBIDO, exige integridade selecionada
+  if(status === 'RECEBIDO'){
+    var integ = document.querySelector('input[name="m-st-integ"]:checked');
+    btn.disabled = !integ;
+  } else {
+    btn.disabled = false;
+  }
 }
 
 async function v3ConfirmarStatus(){
@@ -3683,19 +3850,51 @@ async function v3ConfirmarStatus(){
     return;
   }
 
+  // 🆕 v3.6: Valida integridade obrigatória pra RECEBIDO
+  var integridade = '';
+  if (novoStatus === 'RECEBIDO') {
+    var integEl = document.querySelector('input[name="m-st-integ"]:checked');
+    if (!integEl) {
+      err.textContent = 'Selecione a integridade da carga (Tudo OK / Parcial / Danificado).';
+      err.style.display = 'block';
+      return;
+    }
+    integridade = integEl.value;
+  }
+
   var obs = (document.getElementById('m-st-obs').value || '').trim();
   var btn = document.getElementById('m-st-btn');
   btn.disabled = true;
   btn.textContent = 'Atualizando...';
 
   try {
-    await v3PostAppsScript('atualizar_status', {
+    var payload = {
       id_cotacao: c.ID_Cotacao || c.ID,
       status_novo: novoStatus,
       atualizado_por: v3UsuarioLogado(),
       observacao: obs
-    });
-    v3ToastShow('Status atualizado para ' + novoStatus, 'success');
+    };
+    // 🆕 v3.6: envia campos extras quando RECEBIDO
+    if (novoStatus === 'RECEBIDO') {
+      payload.recebido_integridade = integridade;
+      payload.recebido_obs = obs;
+    }
+
+    var resp = await v3PostAppsScript('atualizar_status', payload);
+
+    // 🆕 v3.6: mensagem mais rica quando RECEBIDO (mostra se e-mails foram disparados)
+    var mensagem = 'Status atualizado para ' + novoStatus;
+    if (novoStatus === 'RECEBIDO' && resp && resp.emails_enviados) {
+      var emails = [];
+      if (resp.emails_enviados.fornecedor) emails.push('fornecedor');
+      if (resp.emails_enviados.transportadora) emails.push('transportadora');
+      if (emails.length > 0) {
+        mensagem += ' · 📧 e-mail enviado p/ ' + emails.join(' e ');
+      } else if (!resp.emails_enviados.transportadora) {
+        mensagem += ' · ⚠️ transportadora sem e-mail cadastrado (não notificada)';
+      }
+    }
+    v3ToastShow(mensagem, 'success', 7000);
     v3FecharModal('modal-status');
     await v3CarregarOperacional(true);
   } catch(e){
