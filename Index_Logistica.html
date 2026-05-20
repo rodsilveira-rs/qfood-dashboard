@@ -452,7 +452,7 @@ tbody tr:hover td{background:var(--s2);}
         <tbody id="sai-ranking-tbody"></tbody>
       </table>
     </div>
-    <div style="font-size:.66rem;color:var(--mu);margin-top:8px;line-height:1.5">Ocupação calculada pela média das faixas: <b>Até 50%</b>=40% · <b>Entre 60% e 90%</b>=75% · <b>Acima de 90%</b>=95%. Saídas ≥70% indicam alta eficiência no uso da frota.</div>
+    <div style="font-size:.66rem;color:var(--mu);margin-top:8px;line-height:1.5">Ocupação calculada pela média das faixas: <b>Até 50%</b>=40% · <b>Entre 60% e 90%</b>=75% · <b>Acima de 90%</b>=95%. Saídas ≥70% indicam alta eficiência no uso da frota. <span style="color:#ffaa2b">Retiradas de cliente são excluídas deste KPI (não houve saída de veículo).</span></div>
     </div>
   </div>
 
@@ -1192,6 +1192,10 @@ var SAI_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYP
 var saiAllRows = [];
 var saiLoaded  = false;
 
+// Motoristas que NÃO devem contar como saída de carro da empresa
+// (cliente foi até a Q Food retirar — não houve saída de veículo)
+var SAI_EXCLUIR_MOTORISTA = ["RETIRADA CLIENTE","RETIRADA","CLIENTE RETIRA","S/N","O PRÓRIO","O PROPRIO","O PRÓPRIO",""];
+
 // Faixas de ocupação → % médio para cálculos numéricos
 function saiOcupPct(txt){
   var s = (txt||"").toLowerCase().trim();
@@ -1299,6 +1303,11 @@ function saiFilterRows(){
 function saiApply(){
   if(!saiLoaded){ saiLoad(); return; }
   var rows = saiFilterRows();
+  // Exclui RETIRADA CLIENTE (cliente foi buscar — não houve saída de carro)
+  rows = rows.filter(function(r){
+    var mot = (r["MOTORISTA"]||"").trim().toUpperCase();
+    return SAI_EXCLUIR_MOTORISTA.indexOf(mot) < 0;
+  });
   saiRender(rows);
 }
 
@@ -1751,10 +1760,12 @@ function entKPIs(){
     return o&&o!=="ok";
   }).length;
 
-  // por motorista
+  // por motorista (exclui RETIRADA CLIENTE — não é desempenho de motorista)
+  var EXC_TOP_MOT = ["RETIRADA CLIENTE","RETIRADA","CLIENTE RETIRA","S/N","O PRÓRIO","O PROPRIO","O PRÓPRIO",""];
   var byMot={};
   rows.forEach(function(r){
     var m=(r["Motorista"]||"S/N").trim();
+    if(EXC_TOP_MOT.indexOf(m.toUpperCase()) >= 0) return;
     if(!byMot[m]) byMot[m]={qtd:0,val:0,vol:0};
     byMot[m].qtd++;byMot[m].val+=entNum(r["Total Geral"]);byMot[m].vol+=entNum(r["Volume"]);
   });
@@ -1836,10 +1847,10 @@ function buildRank(titulo, dados, fmtVal, fmtSub, cor, metricFn) {
     var t1 = top[0];
     sumTxt = "🥇 " + t1.nome + " · " + fmtVal(mFn(t1));
   }
-  return "<div id='" + pnlId + "' class='pnl-collapsed' style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07)'>" +
+  return "<div id='" + pnlId + "' class='pnl-collapsed' style='background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.07);border-left:3px solid " + cor + "'>" +
     "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px'>" +
-      "<div style='font-size:.7rem;color:var(--mu);font-weight:700;text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:6px;flex-wrap:wrap'>" + titulo +
-        "<span class='pnl-summary'>" + sumTxt + "</span>" +
+      "<div style='font-size:.85rem;color:" + cor + ";font-weight:700;letter-spacing:.3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap'>" + titulo +
+        "<span class='pnl-summary' style='color:var(--tx);font-weight:600;font-size:.78rem'>" + sumTxt + "</span>" +
         "<span class='pnl-btns'>" +
           "<button class='pnl-btn pnl-btn-toggle' onclick=\"pnlToggle('" + pnlId + "')\" title='Recolher/Expandir'>▸</button>" +
           "<button class='pnl-btn pnl-btn-fs' onclick=\"pnlFullscreen('" + pnlId + "')\" title='Tela cheia'>⛶</button>" +
@@ -1948,6 +1959,11 @@ function entRankings() {
   var byVend = agrupar("Vendedor", function(r) { return (r["Vendedor"] || "S/N").replace(".", " ").trim(); });
   var byCid  = agrupar("Cidade");
   var byBai  = agrupar("Bairro");
+
+  // Exclui "RETIRADA CLIENTE" dos rankings de motorista
+  // (cliente foi buscar — não é desempenho de motorista da empresa)
+  var EXC_MOT = ["RETIRADA CLIENTE","RETIRADA","CLIENTE RETIRA","S/N","O PRÓRIO","O PROPRIO","O PRÓPRIO",""];
+  byMot = byMot.filter(function(d){ return EXC_MOT.indexOf((d.nome||"").trim().toUpperCase()) < 0; });
 
   var tickMot  = byMot.map(function(d) { return { nome: d.nome, val: d.qtd > 0 ? d.val / d.qtd : 0, qtd: d.qtd, vol: d.vol }; }).sort(function(a, b) { return b.val - a.val; });
   var tickVend = byVend.map(function(d) { return { nome: d.nome, val: d.qtd > 0 ? d.val / d.qtd : 0, qtd: d.qtd, vol: d.vol }; }).sort(function(a, b) { return b.val - a.val; });
