@@ -661,6 +661,14 @@ body.is-aprovador .aprovador-only{display:block;}
       <button class="opsh-refresh" onclick="v3CarregarOperacional(true)" title="Recarregar dados">🔄 Atualizar</button>
     </div>
 
+    <!-- 🆕 v3.8: Busca global nos cards operacionais -->
+    <div style="position:relative;margin-bottom:16px">
+      <input type="text" id="v3-op-busca" placeholder="🔍 Filtrar por fornecedor, ID, e-mail..." oninput="v3FiltrarOperacional()"
+        style="width:100%;background:var(--s2);border:1.5px solid var(--br);border-radius:10px;padding:10px 14px;color:var(--tx);font-size:.88rem;outline:none;transition:border .15s"
+        onfocus="this.style.borderColor='#a07cf6'" onblur="this.style.borderColor='var(--br)'">
+      <span id="v3-op-busca-count" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--mu);pointer-events:none"></span>
+    </div>
+
     <!-- Card: Aprovações Pendentes -->
     <div id="v3-card-aprov" class="op-card">
       <div class="op-loading"><span class="spin-mini"></span>Carregando aprovações...</div>
@@ -2978,15 +2986,121 @@ async function v3CarregarOperacional(force){
       v3FetchSheet(V3.GID_COTACOES, force),
       v3FetchSheet(V3.GID_TRANSPORTADORAS, force).catch(function(){ return []; })
     ]);
-    V3._state.cotacoes = cot;
+    V3._state.cotacoes = v3DeduplicarCotacoes(cot);   // 🆕 v3.8 remove duplicatas por ID
     V3._state.transps  = tr;
     v3RenderAprovacoes();
     v3RenderEnviadas();      // 🆕 v3.7
     v3RenderDesignacao();
     v3RenderAndamento();
+    // 🆕 v3.8: reaplica filtro de busca (se houver texto digitado)
+    if(document.getElementById('v3-op-busca') && document.getElementById('v3-op-busca').value){
+      v3FiltrarOperacional();
+    }
   } catch(e){
     console.error('v3 op:', e);
     v3ToastShow('Erro ao carregar dados: '+e.message, 'error');
+  }
+}
+
+// 🆕 v3.8: De-duplica cotações com mesmo ID — mantém só a do estado MAIS AVANÇADO
+// Resolve o caso do fornecedor responder e criar 2ª linha em vez de atualizar a de pré-envio
+function v3DeduplicarCotacoes(lista){
+  if(!Array.isArray(lista)) return [];
+
+  // Ordem do fluxo (quanto maior o índice, mais avançado)
+  var ordemFluxo = {
+    'CANCELADA': 0,
+    'RECUSADA': 1,
+    'COTACAO_ENVIADA': 2,
+    'COTACAO_RECEBIDA': 3,
+    '': 3,                       // vazio = tratado como recebida (fluxo antigo)
+    'APROVADO': 4,
+    'AGUARDANDO_FORNECEDOR': 5,
+    'AGUARDANDO_COLETA': 6,
+    'EM_TRANSITO': 7,
+    'RECEBIDO': 8,
+    'CONCLUIDO': 9
+  };
+  var rank = function(c){
+    var s = (c.Status || '').trim().toUpperCase();
+    return (ordemFluxo[s] !== undefined) ? ordemFluxo[s] : 3;
+  };
+
+  var porId = {};
+  lista.forEach(function(c){
+    var id = String(c.ID_Cotacao || c.ID || '').trim();
+    if(!id){
+      // sem ID — mantém com chave única pra não perder
+      porId['__sem_id_' + Math.random()] = c;
+      return;
+    }
+    if(!porId[id]){
+      porId[id] = c;
+    } else {
+      // Já existe — fica com o de estado mais avançado
+      var atual = porId[id];
+      if(rank(c) > rank(atual)){
+        porId[id] = c;
+      } else if(rank(c) === rank(atual)){
+        // Empate: fica com o mais recente (Timestamp/Data_Envio mais novo)
+        var dNovo = new Date(c.Data_Envio || c.Timestamp || c.Cotacao_Enviada_em || 0);
+        var dAtual = new Date(atual.Data_Envio || atual.Timestamp || atual.Cotacao_Enviada_em || 0);
+        if(dNovo >= dAtual) porId[id] = c;
+      }
+    }
+  });
+
+  var resultado = Object.keys(porId).map(function(k){ return porId[k]; });
+  var removidas = lista.length - resultado.length;
+  if(removidas > 0){
+    console.log('[v3Dedup] ' + removidas + ' duplicata(s) de cotação removida(s) da visualização.');
+  }
+  return resultado;
+}
+
+// 🆕 v3.8: Filtro de texto nos cards operacionais (esconde linhas que não batem)
+function v3FiltrarOperacional(){
+  var q = (document.getElementById('v3-op-busca').value || '').trim().toLowerCase();
+  var countEl = document.getElementById('v3-op-busca-count');
+
+  // Todas as linhas de pedido dos cards operacionais
+  var cards = ['v3-card-aprov','v3-card-enviadas','v3-card-desig','v3-card-andam'];
+  var totalVisivel = 0, totalGeral = 0;
+
+  cards.forEach(function(cardId){
+    var card = document.getElementById(cardId);
+    if(!card) return;
+    var rows = card.querySelectorAll('.pedido-row');
+    var visivelNoCard = 0;
+    rows.forEach(function(row){
+      totalGeral++;
+      if(!q){
+        row.style.display = '';
+        visivelNoCard++;
+        totalVisivel++;
+        return;
+      }
+      // Texto completo da linha (fornecedor, ID, email, etc)
+      var txt = (row.textContent || '').toLowerCase();
+      if(txt.indexOf(q) >= 0){
+        row.style.display = '';
+        visivelNoCard++;
+        totalVisivel++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    // Esconde o card inteiro se nenhuma linha bate (e há busca ativa)
+    if(q && visivelNoCard === 0){
+      card.style.opacity = '0.35';
+    } else {
+      card.style.opacity = '';
+    }
+  });
+
+  if(countEl){
+    countEl.textContent = q ? (totalVisivel + ' de ' + totalGeral) : '';
   }
 }
 
