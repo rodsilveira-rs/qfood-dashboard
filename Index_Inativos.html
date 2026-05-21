@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Atendimento a Inativos</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;padding:0;}
+
+/* LOGIN */
+.login-overlay{position:fixed;inset:0;background:linear-gradient(135deg,#151929,#1e2438);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-box{background:#242938;border:1px solid rgba(255,255,255,0.14);border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 12px 48px rgba(0,0,0,0.5);}
+.login-title{font-family:var(--fh);font-size:1.3rem;font-weight:700;text-align:center;color:#f0f4ff;margin-bottom:6px;}
+.login-sub{font-size:0.78rem;color:#6b7ea8;text-align:center;margin-bottom:28px;}
+.login-label{font-size:0.72rem;color:#6b7ea8;margin-bottom:6px;display:block;}
+.login-input{width:100%;background:#1a1f2e;border:1px solid rgba(255,255,255,0.14);border-radius:10px;padding:12px 14px;color:#eef1f8;font-size:0.88rem;margin-bottom:14px;font-family:var(--fb);outline:none;}
+.login-input:focus{border-color:#e63329;}
+.login-btn{width:100%;background:#e63329;border:none;border-radius:10px;padding:12px;color:#fff;font-size:0.9rem;font-weight:600;font-family:var(--fh);cursor:pointer;margin-top:4px;}
+.login-btn:hover{background:#c42820;}
+.login-btn:disabled{opacity:0.6;cursor:wait;}
+.login-err{font-size:0.78rem;color:#ef4444;text-align:center;margin-top:10px;min-height:20px;}
+.login-loading{font-size:0.72rem;color:#6b7ea8;text-align:center;margin-top:8px;min-height:16px;}
+
+/* APP */
+.app{display:none;max-width:1100px;margin:0 auto;padding:20px 16px 60px;}
+.app.open{display:block;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;}
+.topbar h1{font-family:var(--fh);font-size:1.5rem;font-weight:800;display:flex;align-items:center;gap:10px;}
+.back-link{font-size:.82rem;color:var(--mu);text-decoration:none;border:1px solid var(--br);padding:7px 14px;border-radius:9px;background:var(--sf);}
+.back-link:hover{border-color:var(--b2);color:var(--tx);}
+.subbar{font-size:.82rem;color:var(--mu);margin-bottom:18px;}
+.subbar b{color:var(--tx);}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px 16px;}
+.kpi .v{font-family:var(--fh);font-size:1.6rem;font-weight:800;}
+.kpi .l{font-size:.72rem;color:var(--mu);margin-top:3px;}
+.kpi.tot .v{color:var(--tx);}
+.kpi.pend .v{color:var(--warn);}
+.kpi.reat .v{color:var(--ok);}
+.kpi.agen .v{color:var(--blue);}
+
+/* Busca + filtros */
+.toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.search{flex:1;min-width:220px;background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:.88rem;font-family:var(--fb);outline:none;}
+.search:focus{border-color:var(--blue);}
+.filtro{background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:11px 14px;color:var(--tx);font-size:.85rem;font-family:var(--fb);outline:none;cursor:pointer;}
+
+/* Lista */
+.lista{display:flex;flex-direction:column;gap:10px;}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:13px;padding:15px 17px;cursor:pointer;transition:all .15s;border-left:4px solid var(--mu2);}
+.card:hover{border-color:var(--b2);transform:translateX(2px);}
+.card.s-em{border-left-color:var(--warn);}
+.card.s-reat{border-left-color:var(--ok);}
+.card.s-agen{border-left-color:var(--blue);}
+.card.s-sem{border-left-color:var(--red);}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.card-nome{font-family:var(--fh);font-size:1.02rem;font-weight:700;line-height:1.25;}
+.card-fant{font-size:.78rem;color:var(--mu);margin-top:2px;}
+.card-badge{font-size:.68rem;padding:4px 9px;border-radius:20px;font-weight:700;white-space:nowrap;}
+.b-novo{background:rgba(143,160,192,.18);color:var(--mu);}
+.b-em{background:rgba(255,170,43,.18);color:var(--warn);}
+.b-reat{background:rgba(54,207,160,.18);color:var(--ok);}
+.b-agen{background:rgba(77,142,245,.18);color:var(--blue);}
+.b-sem{background:rgba(255,77,79,.18);color:var(--red);}
+.card-meta{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:9px;font-size:.78rem;color:var(--mu);}
+.card-meta span b{color:var(--tx);font-weight:500;}
+.card-tags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;}
+.tag{font-size:.68rem;padding:3px 9px;border-radius:6px;background:var(--s2);color:var(--mu);}
+.tag.ori{background:rgba(247,161,69,.16);color:#f7a145;font-weight:600;}
+
+.empty{text-align:center;padding:50px 20px;color:var(--mu);font-size:.9rem;}
+.loading{text-align:center;padding:50px 20px;color:var(--mu);font-size:.9rem;}
+
+/* Modal */
+.modal-ov{position:fixed;inset:0;background:rgba(10,14,24,.75);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:24px 14px;overflow-y:auto;}
+.modal-ov.open{display:flex;}
+.modal{background:var(--sf);border:1px solid var(--b2);border-radius:18px;width:100%;max-width:560px;padding:0;overflow:hidden;margin:auto;}
+.modal-head{padding:20px 22px 16px;border-bottom:1px solid var(--br);position:relative;}
+.modal-head h2{font-family:var(--fh);font-size:1.18rem;font-weight:800;line-height:1.25;padding-right:34px;}
+.modal-head .fant{font-size:.8rem;color:var(--mu);margin-top:3px;}
+.modal-x{position:absolute;top:18px;right:18px;width:30px;height:30px;border:none;background:var(--s2);color:var(--tx);border-radius:8px;font-size:1.1rem;cursor:pointer;line-height:1;}
+.modal-x:hover{background:var(--s3);}
+.modal-body{padding:18px 22px;max-height:62vh;overflow-y:auto;}
+.modal-foot{padding:14px 22px 18px;border-top:1px solid var(--br);display:flex;gap:10px;}
+
+.cli-info{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.82rem;color:var(--mu);margin-bottom:18px;}
+.cli-info span b{color:var(--tx);font-weight:500;}
+.wpp-link{display:inline-flex;align-items:center;gap:6px;background:rgba(54,207,160,.15);color:var(--ok);padding:8px 14px;border-radius:9px;text-decoration:none;font-size:.82rem;font-weight:600;margin-bottom:18px;}
+.wpp-link:hover{background:rgba(54,207,160,.25);}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:.75rem;color:var(--mu);margin-bottom:7px;font-weight:600;letter-spacing:.2px;}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--br);border-radius:9px;padding:11px 13px;color:var(--tx);font-size:.88rem;font-family:var(--fb);outline:none;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);}
+.field textarea{resize:vertical;min-height:64px;}
+
+.status-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+.status-opt{border:1.5px solid var(--br);border-radius:10px;padding:11px;text-align:center;cursor:pointer;font-size:.82rem;font-weight:600;transition:all .12s;background:var(--bg);}
+.status-opt:hover{border-color:var(--b2);}
+.status-opt.sel.em{border-color:var(--warn);background:rgba(255,170,43,.12);color:var(--warn);}
+.status-opt.sel.reat{border-color:var(--ok);background:rgba(54,207,160,.12);color:var(--ok);}
+.status-opt.sel.agen{border-color:var(--blue);background:rgba(77,142,245,.12);color:var(--blue);}
+.status-opt.sel.sem{border-color:var(--red);background:rgba(255,77,79,.12);color:var(--red);}
+
+/* NPS 0-10 */
+.nps-wrap{display:flex;gap:5px;flex-wrap:wrap;}
+.nps-btn{width:38px;height:38px;border:1.5px solid var(--br);border-radius:8px;background:var(--bg);color:var(--mu);font-weight:700;cursor:pointer;font-size:.85rem;transition:all .12s;}
+.nps-btn:hover{border-color:var(--b2);}
+.nps-btn.sel{color:#fff;border-color:transparent;}
+.nps-btn.sel.det{background:var(--red);}
+.nps-btn.sel.neu{background:var(--warn);}
+.nps-btn.sel.pro{background:var(--ok);}
+.nps-legend{font-size:.72rem;color:var(--mu);margin-top:7px;}
+.nps-legend b.det{color:var(--red);}
+.nps-legend b.neu{color:var(--warn);}
+.nps-legend b.pro{color:var(--ok);}
+
+.btn{flex:1;border:none;border-radius:10px;padding:13px;font-size:.9rem;font-weight:700;font-family:var(--fh);cursor:pointer;}
+.btn-save{background:var(--ok);color:#0a1410;}
+.btn-save:hover{background:#2bb88c;}
+.btn-save:disabled{opacity:.5;cursor:wait;}
+.btn-cancel{background:var(--s2);color:var(--tx);flex:0 0 auto;padding:13px 20px;}
+.btn-cancel:hover{background:var(--s3);}
+
+.hist-box{background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:13px 15px;margin-top:6px;font-size:.8rem;color:var(--mu);white-space:pre-wrap;line-height:1.6;max-height:180px;overflow-y:auto;}
+.hist-empty{color:var(--mu2);font-style:italic;}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ok);color:#0a1410;padding:14px 24px;border-radius:11px;font-weight:700;font-size:.88rem;z-index:2000;display:none;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.toast.err{background:var(--red);color:#fff;}
+.toast.show{display:block;}
+
+@media(max-width:600px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .status-row{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <div class="login-title">🔴 Atendimento a Inativos</div>
+    <div class="login-sub">Q Food Company</div>
+    <label class="login-label">E-mail</label>
+    <input type="email" id="login-email" class="login-input" placeholder="seu@qfoodcompany.com.br" autocomplete="username">
+    <label class="login-label">Senha</label>
+    <input type="password" id="login-pwd" class="login-input" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" id="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-loading" id="login-loading"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+  <div class="topbar">
+    <h1>🔴 Atendimento a Inativos</h1>
+    <a href="Index_Menu.html" class="back-link">← Voltar ao Menu</a>
+  </div>
+  <div class="subbar" id="subbar">—</div>
+
+  <div class="kpis">
+    <div class="kpi tot"><div class="v" id="k-tot">—</div><div class="l">Total na sua lista</div></div>
+    <div class="kpi pend"><div class="v" id="k-pend">—</div><div class="l">Ainda não trabalhados</div></div>
+    <div class="kpi reat"><div class="v" id="k-reat">—</div><div class="l">Reativados ✓</div></div>
+    <div class="kpi agen"><div class="v" id="k-agen">—</div><div class="l">Retorno agendado</div></div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" class="search" id="search" placeholder="🔎 Buscar por nome, CNPJ, cidade ou bairro..." oninput="aplicarFiltros()">
+    <select class="filtro" id="f-status" onchange="aplicarFiltros()">
+      <option value="">Todos os status</option>
+      <option value="NOVO">Não trabalhados</option>
+      <option value="EM_ATENDIMENTO">Em atendimento</option>
+      <option value="AGENDADO">Agendados</option>
+      <option value="REATIVADO">Reativados</option>
+      <option value="SEM_SUCESSO">Sem sucesso</option>
+    </select>
+    <select class="filtro" id="f-seg" onchange="aplicarFiltros()">
+      <option value="">Todos os segmentos</option>
+    </select>
+  </div>
+
+  <div class="lista" id="lista">
+    <div class="loading" id="loading">⏳ Carregando inativos...</div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-ov" id="modal-ov">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="m-nome">—</h2>
+      <div class="fant" id="m-fant">—</div>
+      <button class="modal-x" onclick="fecharModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="cli-info" id="m-info"></div>
+      <a id="m-wpp" class="wpp-link" href="#" target="_blank" style="display:none">💬 Chamar no WhatsApp</a>
+
+      <div class="field">
+        <label>Resultado do contato</label>
+        <div class="status-row">
+          <div class="status-opt em"   data-st="EM_ATENDIMENTO" onclick="selStatus(this)">📞 Em atendimento</div>
+          <div class="status-opt agen" data-st="AGENDADO"       onclick="selStatus(this)">📅 Agendar retorno</div>
+          <div class="status-opt reat" data-st="REATIVADO"      onclick="selStatus(this)">✅ Reativado</div>
+          <div class="status-opt sem"  data-st="SEM_SUCESSO"    onclick="selStatus(this)">❌ Sem sucesso</div>
+        </div>
+      </div>
+
+      <div class="field" id="field-retorno" style="display:none">
+        <label>Data do retorno agendado</label>
+        <input type="date" id="m-retorno">
+      </div>
+
+      <div class="field">
+        <label>Motivo de não-recompra</label>
+        <select id="m-motivo" onchange="toggleMotivoOutro()">
+          <option value="">— selecione —</option>
+          <option value="Preço / concorrente mais barato">Preço / concorrente mais barato</option>
+          <option value="Comprando de outro fornecedor">Comprando de outro fornecedor</option>
+          <option value="Sem demanda / estoque parado">Sem demanda / estoque parado</option>
+          <option value="Problema de atendimento anterior">Problema de atendimento anterior</option>
+          <option value="Problema de entrega / logística">Problema de entrega / logística</option>
+          <option value="Problema financeiro / crédito">Problema financeiro / crédito</option>
+          <option value="Estabelecimento fechou / mudou ramo">Estabelecimento fechou / mudou ramo</option>
+          <option value="Não conseguiu contato">Não conseguiu contato</option>
+          <option value="OUTRO">Outro (especificar)</option>
+        </select>
+      </div>
+
+      <div class="field" id="field-motivo-outro" style="display:none">
+        <label>Qual o motivo?</label>
+        <input type="text" id="m-motivo-outro" placeholder="Descreva o motivo...">
+      </div>
+
+      <div class="field">
+        <label>NPS — nota de 0 a 10 (opcional)</label>
+        <div class="nps-wrap" id="m-nps"></div>
+        <div class="nps-legend">0–6 <b class="det">Detrator</b> · 7–8 <b class="neu">Neutro</b> · 9–10 <b class="pro">Promotor</b></div>
+      </div>
+
+      <div class="field">
+        <label>Anotação dessa tentativa</label>
+        <textarea id="m-anotacao" placeholder="Ex: Falei com o dono, vai avaliar proposta na próxima semana..."></textarea>
+      </div>
+
+      <div class="field">
+        <label>📋 Histórico de tentativas</label>
+        <div class="hist-box" id="m-hist"><span class="hist-empty">Nenhum atendimento registrado ainda.</span></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-save" id="btn-save" onclick="salvarAtendimento()">💾 Salvar atendimento</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════
+
+// ⚠️ TROQUE pela URL do seu Web App do Apps Script (a MESMA do CRM)
+//    Termina em /exec — é a mesma usada no Index_CRM.html
+var API_URL = "https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec";
+
+// CSV publicado da BASE_INATIVOS (mesma planilha, gid da aba inativos)
+var BASE_INATIVOS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=428157169&single=true&output=csv";
+
+// UUSR (login) — mesma do Index_Menu
+var UUSR_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
+
+// Índices das colunas da BASE_INATIVOS (0-based)
+var COL = {
+  id:0, nome:1, fantasia:2, cnpj:3, inativo:7, fone:8, whats:9,
+  endereco:18, numero:19, bairro:21, cidade:22, uf:23,
+  setor:34, regiao:39, ramo:40, macrozona:43, segmento:44, email:46
+};
+
+var CURRENT_USER = null;
+var INATIVOS = [];        // lista da base (filtrada por vendedor)
+var CONTATOS_MAP = {};    // cnpj -> {status, observacao, ...} (o que já foi salvo)
+var FILTRADOS = [];
+var MODAL_CNPJ = null;
+var MODAL_NPS = "";
+
+// ════════════════════════════════════════════════════════════
+// CSV PARSER (RFC 4180)
+// ════════════════════════════════════════════════════════════
+function parseCSV(text){
+  var rows=[], row=[], val="", inQ=false;
+  for(var i=0;i<text.length;i++){
+    var c=text[i];
+    if(inQ){
+      if(c==='"'){ if(text[i+1]==='"'){val+='"';i++;} else inQ=false; }
+      else val+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===','){ row.push(val); val=""; }
+      else if(c==='\n'){ row.push(val); rows.push(row); row=[]; val=""; }
+      else if(c==='\r'){}
+      else val+=c;
+    }
+  }
+  if(val!==""||row.length){ row.push(val); rows.push(row); }
+  return rows;
+}
+
+function onlyDigits(s){ return String(s||"").replace(/\D/g,""); }
+
+// ════════════════════════════════════════════════════════════
+// MATCHING DE VENDEDOR (igual backend: DN↔DAYANE, prefixo)
+// ════════════════════════════════════════════════════════════
+function normSigla(s){ return String(s||"").toUpperCase().trim().replace(/\s+/g," "); }
+function primeiroNome(s){
+  var n=normSigla(s);
+  if(!n) return "";
+  if(n.indexOf(".")>=0) return n.split(".")[0];
+  return n;
+}
+function mesmoVendedor(siglaUser, setorLinha){
+  var a=normSigla(siglaUser), b=normSigla(setorLinha);
+  if(!a||!b) return false;
+  if(a===b) return true;
+  var pa=primeiroNome(a), pb=primeiroNome(b);
+  if(!pa||!pb) return false;
+  if(pa===pb) return true;
+  if(pa.length>=4 && pb.indexOf(pa)===0) return true;
+  if(pb.length>=4 && pa.indexOf(pb)===0) return true;
+  return false;
+}
+
+// ════════════════════════════════════════════════════════════
+// LOGIN (mesmo padrão do Index_Menu)
+// ════════════════════════════════════════════════════════════
+var USERS = {};
+
+function buildUsersFromCSV(csvText){
+  var rows = parseCSV(csvText);
+  if(rows.length<2) throw new Error("CSV vazio");
+  var header = rows[0].map(function(h){return h.trim();});
+  function colIdx(name){
+    for(var i=0;i<header.length;i++){ if(header[i].toLowerCase()===name.toLowerCase()) return i; }
+    return -1;
+  }
+  var iEmail=colIdx("email"), iNome=colIdx("nome"), iSenha=colIdx("senha"),
+      iPerfil=colIdx("perfil"), iSigla=colIdx("sigla"), iCrmSig=colIdx("CRM_Sigla"),
+      iInativos=colIdx("ATENDIMENTO INATIVOS");
+  var out={};
+  for(var r=1;r<rows.length;r++){
+    var row=rows[r];
+    var email=(row[iEmail]||"").trim().toLowerCase();
+    if(!email) continue;
+    var temInativos = iInativos>=0 && (row[iInativos]||"").trim().toLowerCase().indexOf("x")===0;
+    out[email]={
+      pwd:(row[iSenha]||"").trim(),
+      role:(row[iPerfil]||"").trim()||"gestor",
+      nome:(row[iNome]||"").trim(),
+      sigla:iSigla>=0?(row[iSigla]||"").trim():"",
+      crmSigla:iCrmSig>=0?(row[iCrmSig]||"").trim():"",
+      temInativos:temInativos
+    };
+  }
+  return out;
+}
+
+function doLogin(){
+  var email=document.getElementById("login-email").value.trim().toLowerCase();
+  var pwd=document.getElementById("login-pwd").value;
+  var err=document.getElementById("login-err");
+  var load=document.getElementById("login-loading");
+  var btn=document.getElementById("login-btn");
+  if(!email||!pwd){ err.textContent="Preencha e-mail e senha."; return; }
+  err.textContent=""; btn.disabled=true; load.textContent="Verificando...";
+
+  fetch(UUSR_URL+"&t="+Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      USERS = buildUsersFromCSV(txt);
+      btn.disabled=false; load.textContent="";
+      var u=USERS[email];
+      if(!u){ err.textContent="E-mail não encontrado."; return; }
+      if(u.pwd!==pwd){ err.textContent="Senha incorreta."; return; }
+      if(!u.temInativos){ err.textContent="Você não tem acesso ao Atendimento de Inativos."; return; }
+      if(!u.crmSigla){ err.textContent="Usuário sem CRM_Sigla — fale com o admin."; return; }
+
+      CURRENT_USER={email:email,role:u.role,nome:u.nome,sigla:u.sigla,crmSigla:u.crmSigla};
+      localStorage.setItem("qfood_session",JSON.stringify({
+        email:email,role:u.role,nome:u.nome,sigla:u.sigla,crmSigla:u.crmSigla,ts:Date.now()
+      }));
+      iniciarApp();
+    })
+    .catch(function(e){ btn.disabled=false; load.textContent=""; err.textContent="Erro ao validar: "+e.message; });
+}
+
+function checkSession(){
+  var sess=JSON.parse(localStorage.getItem("qfood_session")||"null");
+  if(sess && (Date.now()-sess.ts < 8*60*60*1000) && sess.crmSigla){
+    // valida acesso re-lendo UUSR
+    fetch(UUSR_URL+"&t="+Date.now())
+      .then(function(r){return r.text();})
+      .then(function(txt){
+        USERS=buildUsersFromCSV(txt);
+        var u=USERS[sess.email];
+        if(u && u.temInativos && u.crmSigla){
+          CURRENT_USER={email:sess.email,role:u.role,nome:u.nome,sigla:u.sigla,crmSigla:u.crmSigla};
+          iniciarApp();
+        }
+        // se não tem acesso, fica no login
+      })
+      .catch(function(){});
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// APP
+// ════════════════════════════════════════════════════════════
+function iniciarApp(){
+  document.getElementById("login-overlay").style.display="none";
+  document.getElementById("app").classList.add("open");
+
+  var ehAdmin = (CURRENT_USER.crmSigla === "*");
+  document.getElementById("subbar").innerHTML =
+    "Olá, <b>"+CURRENT_USER.nome+"</b> · " +
+    (ehAdmin ? "vendo <b>todos os inativos</b> (admin)" : "vendo os inativos de <b>"+CURRENT_USER.crmSigla+"</b>");
+
+  carregarTudo();
+}
+
+function carregarTudo(){
+  document.getElementById("loading").textContent = "⏳ Carregando inativos...";
+  // 1) carrega base de inativos (CSV) + 2) contatos já salvos (backend)
+  Promise.all([ carregarInativosCSV(), carregarContatosSalvos() ])
+    .then(function(){
+      montarFiltroSegmentos();
+      aplicarFiltros();
+      atualizarKPIs();
+    })
+    .catch(function(e){
+      document.getElementById("loading").textContent = "❌ Erro ao carregar: "+e.message;
+    });
+}
+
+function carregarInativosCSV(){
+  return fetch(BASE_INATIVOS_CSV+"&t="+Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){
+      var rows = parseCSV(txt);
+      var ehAdmin = (CURRENT_USER.crmSigla === "*");
+      INATIVOS = [];
+      for(var i=1;i<rows.length;i++){
+        var r=rows[i];
+        if(!r || r.length<5) continue;
+        var setor=(r[COL.setor]||"").trim();
+        // Filtro por vendedor (só aplica se setor preenchido e usuário não-admin)
+        if(!ehAdmin && setor){
+          if(!mesmoVendedor(CURRENT_USER.crmSigla, setor)) continue;
+        }
+        var cnpj=onlyDigits(r[COL.cnpj]);
+        if(!cnpj) continue;
+        function g(idx){ var v=(r[idx]||"").trim(); return (v.toLowerCase()==="nan"||v.toLowerCase()==="n/d")?"":v; }
+        var wpp=g(COL.whats)||g(COL.fone);
+        INATIVOS.push({
+          cnpj:cnpj,
+          nome:g(COL.nome),
+          fantasia:g(COL.fantasia),
+          fone:g(COL.fone),
+          whatsapp:wpp,
+          email:g(COL.email),
+          endereco:g(COL.endereco)+(g(COL.numero)?", "+g(COL.numero):"")+(g(COL.bairro)?" - "+g(COL.bairro):""),
+          cidade:g(COL.cidade),
+          uf:g(COL.uf),
+          regiao:g(COL.regiao),
+          ramo:g(COL.ramo),
+          segmento:g(COL.segmento),
+          setor:setor
+        });
+      }
+    });
+}
+
+function carregarContatosSalvos(){
+  // lê os contatos já gravados na CRM_CONTATOS via backend
+  var url = API_URL+"?modulo=crm&action=inativos&email="+encodeURIComponent(CURRENT_USER.email);
+  return fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      CONTATOS_MAP = {};
+      // O endpoint "inativos" do backend retorna a lista da base; mas o que
+      // precisamos do backend é o que já foi SALVO. Aqui usamos o action "contatos"
+      // como fonte do que já foi atendido. (fallback robusto abaixo)
+    })
+    .catch(function(){ CONTATOS_MAP={}; });
+}
+
+// Lê os contatos salvos (status/observação) — usa o endpoint "contatos"
+function carregarStatusSalvos(){
+  var url = API_URL+"?modulo=crm&action=contatos&email="+encodeURIComponent(CURRENT_USER.email);
+  return fetch(url)
+    .then(function(r){return r.json();})
+    .then(function(j){
+      CONTATOS_MAP={};
+      if(j && j.ok && j.dados){
+        j.dados.forEach(function(c){
+          CONTATOS_MAP[onlyDigits(c.cnpj)] = {
+            observacao: c.observacao||"",
+            status: extrairStatus(c.observacao||""),
+            whatsapp: c.whatsappManual||"",
+            nome: c.nomeContato||""
+          };
+        });
+      }
+    })
+    .catch(function(){ CONTATOS_MAP={}; });
+}
+
+function extrairStatus(obs){
+  var m = String(obs||"").match(/\[STATUS\]\s*([^\n]+)/);
+  if(!m) return "NOVO";
+  var t = m[1].toUpperCase();
+  if(t.indexOf("REATIVADO")>=0) return "REATIVADO";
+  if(t.indexOf("AGENDAD")>=0)  return "AGENDADO";
+  if(t.indexOf("SEM SUCESSO")>=0 || t.indexOf("SEM_SUCESSO")>=0) return "SEM_SUCESSO";
+  if(t.indexOf("ATENDIMENTO")>=0) return "EM_ATENDIMENTO";
+  return "NOVO";
+}
+
+function ehOriental(seg, ramo){
+  var s=((seg||"")+" "+(ramo||"")).toUpperCase();
+  return s.indexOf("ORIENTAL")>=0 || (s.indexOf("DELIVERY")>=0 && s.indexOf("JAPON")>=0);
+}
+
+// ════════════════════════════════════════════════════════════
+// FILTROS + RENDER
+// ════════════════════════════════════════════════════════════
+function montarFiltroSegmentos(){
+  var segs={};
+  INATIVOS.forEach(function(x){ if(x.segmento) segs[x.segmento]=true; });
+  var sel=document.getElementById("f-seg");
+  Object.keys(segs).sort().forEach(function(s){
+    var o=document.createElement("option"); o.value=s; o.textContent=s; sel.appendChild(o);
+  });
+}
+
+function aplicarFiltros(){
+  var q=document.getElementById("search").value.trim().toLowerCase();
+  var fSt=document.getElementById("f-status").value;
+  var fSeg=document.getElementById("f-seg").value;
+
+  FILTRADOS = INATIVOS.filter(function(x){
+    var st=(CONTATOS_MAP[x.cnpj] && CONTATOS_MAP[x.cnpj].status) || "NOVO";
+    if(fSt && st!==fSt) return false;
+    if(fSeg && x.segmento!==fSeg) return false;
+    if(q){
+      var hay=(x.nome+" "+x.fantasia+" "+x.cnpj+" "+x.cidade+" "+x.endereco).toLowerCase();
+      if(hay.indexOf(q)<0) return false;
+    }
+    return true;
+  });
+  renderLista();
+}
+
+function renderLista(){
+  var el=document.getElementById("lista");
+  if(FILTRADOS.length===0){
+    el.innerHTML='<div class="empty">Nenhum inativo encontrado com esse filtro.</div>';
+    return;
+  }
+  // ordena: não-trabalhados primeiro, depois agendados, em atendimento, reativados/sem sucesso
+  var ordem={NOVO:0,AGENDADO:1,EM_ATENDIMENTO:2,SEM_SUCESSO:3,REATIVADO:4};
+  FILTRADOS.sort(function(a,b){
+    var sa=(CONTATOS_MAP[a.cnpj]&&CONTATOS_MAP[a.cnpj].status)||"NOVO";
+    var sb=(CONTATOS_MAP[b.cnpj]&&CONTATOS_MAP[b.cnpj].status)||"NOVO";
+    return (ordem[sa]||0)-(ordem[sb]||0);
+  });
+
+  var badges={
+    NOVO:['b-novo','Novo'], EM_ATENDIMENTO:['b-em','Em atendimento'],
+    AGENDADO:['b-agen','Agendado'], REATIVADO:['b-reat','Reativado ✓'],
+    SEM_SUCESSO:['b-sem','Sem sucesso']
+  };
+  var cardCls={NOVO:'',EM_ATENDIMENTO:'s-em',AGENDADO:'s-agen',REATIVADO:'s-reat',SEM_SUCESSO:'s-sem'};
+
+  el.innerHTML = FILTRADOS.map(function(x){
+    var st=(CONTATOS_MAP[x.cnpj]&&CONTATOS_MAP[x.cnpj].status)||"NOVO";
+    var bd=badges[st]||badges.NOVO;
+    var ori = ehOriental(x.segmento,x.ramo);
+    return '<div class="card '+(cardCls[st]||'')+'" onclick="abrirModal(\''+x.cnpj+'\')">'+
+      '<div class="card-top">'+
+        '<div><div class="card-nome">'+esc(x.nome||x.fantasia||'(sem nome)')+'</div>'+
+        (x.fantasia&&x.fantasia!==x.nome?'<div class="card-fant">'+esc(x.fantasia)+'</div>':'')+'</div>'+
+        '<span class="card-badge '+bd[0]+'">'+bd[1]+'</span>'+
+      '</div>'+
+      '<div class="card-meta">'+
+        (x.cidade?'<span>📍 <b>'+esc(x.cidade)+(x.uf?'/'+esc(x.uf):'')+'</b></span>':'')+
+        (x.fone?'<span>📞 <b>'+esc(x.fone)+'</b></span>':'')+
+        (x.cnpj?'<span>🧾 <b>'+formatCnpj(x.cnpj)+'</b></span>':'')+
+      '</div>'+
+      '<div class="card-tags">'+
+        (x.segmento?'<span class="tag'+(ori?' ori':'')+'">'+esc(x.segmento)+'</span>':'')+
+        (x.regiao?'<span class="tag">'+esc(x.regiao)+'</span>':'')+
+      '</div>'+
+    '</div>';
+  }).join("");
+}
+
+function atualizarKPIs(){
+  var tot=INATIVOS.length, pend=0, reat=0, agen=0;
+  INATIVOS.forEach(function(x){
+    var st=(CONTATOS_MAP[x.cnpj]&&CONTATOS_MAP[x.cnpj].status)||"NOVO";
+    if(st==="NOVO") pend++;
+    else if(st==="REATIVADO") reat++;
+    else if(st==="AGENDADO") agen++;
+  });
+  document.getElementById("k-tot").textContent=tot;
+  document.getElementById("k-pend").textContent=pend;
+  document.getElementById("k-reat").textContent=reat;
+  document.getElementById("k-agen").textContent=agen;
+}
+
+// ════════════════════════════════════════════════════════════
+// MODAL
+// ════════════════════════════════════════════════════════════
+function abrirModal(cnpj){
+  var x=INATIVOS.find(function(i){return i.cnpj===cnpj;});
+  if(!x) return;
+  MODAL_CNPJ=cnpj; MODAL_NPS="";
+
+  document.getElementById("m-nome").textContent = x.nome||x.fantasia||"(sem nome)";
+  document.getElementById("m-fant").textContent = x.fantasia||"";
+
+  var info=[];
+  if(x.cnpj) info.push('<span>🧾 <b>'+formatCnpj(x.cnpj)+'</b></span>');
+  if(x.cidade) info.push('<span>📍 <b>'+esc(x.cidade)+(x.uf?'/'+esc(x.uf):'')+'</b></span>');
+  if(x.endereco) info.push('<span>🏠 '+esc(x.endereco)+'</span>');
+  if(x.fone) info.push('<span>📞 <b>'+esc(x.fone)+'</b></span>');
+  if(x.segmento) info.push('<span>🏷️ '+esc(x.segmento)+'</span>');
+  document.getElementById("m-info").innerHTML=info.join("");
+
+  // WhatsApp
+  var wppEl=document.getElementById("m-wpp");
+  var wnum=onlyDigits(x.whatsapp);
+  if(wnum.length>=10){
+    if(wnum.length<=11) wnum="55"+wnum;
+    wppEl.href="https://wa.me/"+wnum;
+    wppEl.style.display="inline-flex";
+  } else {
+    wppEl.style.display="none";
+  }
+
+  // reset campos
+  document.querySelectorAll(".status-opt").forEach(function(o){o.classList.remove("sel");});
+  document.getElementById("m-retorno").value="";
+  document.getElementById("field-retorno").style.display="none";
+  document.getElementById("m-motivo").value="";
+  document.getElementById("m-motivo-outro").value="";
+  document.getElementById("field-motivo-outro").style.display="none";
+  document.getElementById("m-anotacao").value="";
+  renderNPS();
+
+  // histórico
+  var salvo=CONTATOS_MAP[cnpj];
+  var histEl=document.getElementById("m-hist");
+  if(salvo && salvo.observacao){
+    histEl.textContent=salvo.observacao;
+  } else {
+    histEl.innerHTML='<span class="hist-empty">Nenhum atendimento registrado ainda.</span>';
+  }
+
+  document.getElementById("modal-ov").classList.add("open");
+}
+
+function fecharModal(){
+  document.getElementById("modal-ov").classList.remove("open");
+  MODAL_CNPJ=null;
+}
+
+function selStatus(el){
+  document.querySelectorAll(".status-opt").forEach(function(o){o.classList.remove("sel");});
+  el.classList.add("sel");
+  var st=el.getAttribute("data-st");
+  document.getElementById("field-retorno").style.display = (st==="AGENDADO")?"block":"none";
+}
+
+function toggleMotivoOutro(){
+  var v=document.getElementById("m-motivo").value;
+  document.getElementById("field-motivo-outro").style.display = (v==="OUTRO")?"block":"none";
+}
+
+function renderNPS(){
+  var wrap=document.getElementById("m-nps");
+  var html="";
+  for(var i=0;i<=10;i++){
+    var cls = i<=6?"det":(i<=8?"neu":"pro");
+    html+='<button class="nps-btn" data-nps="'+i+'" data-cls="'+cls+'" onclick="selNPS(this)">'+i+'</button>';
+  }
+  wrap.innerHTML=html;
+}
+function selNPS(el){
+  var cur=el.getAttribute("data-nps");
+  if(MODAL_NPS===cur){ // clicar de novo desmarca
+    MODAL_NPS=""; el.classList.remove("sel","det","neu","pro");
+    return;
+  }
+  document.querySelectorAll(".nps-btn").forEach(function(b){b.classList.remove("sel","det","neu","pro");});
+  el.classList.add("sel", el.getAttribute("data-cls"));
+  MODAL_NPS=cur;
+}
+
+function salvarAtendimento(){
+  if(!MODAL_CNPJ) return;
+  var stEl=document.querySelector(".status-opt.sel");
+  if(!stEl){ toast("Escolha o resultado do contato","err"); return; }
+  var status=stEl.getAttribute("data-st");
+
+  var motivo=document.getElementById("m-motivo").value;
+  var motivoOutro=document.getElementById("m-motivo-outro").value.trim();
+  var dataRetorno=document.getElementById("m-retorno").value;
+  var anotacao=document.getElementById("m-anotacao").value.trim();
+
+  if(status==="AGENDADO" && !dataRetorno){ toast("Informe a data do retorno","err"); return; }
+
+  var btn=document.getElementById("btn-save");
+  btn.disabled=true; btn.textContent="Salvando...";
+
+  var payload={
+    cnpj:MODAL_CNPJ,
+    status:status,
+    npsNota:MODAL_NPS,
+    motivo:motivo,
+    motivoOutro:motivoOutro,
+    dataRetorno:dataRetorno,
+    anotacao:anotacao,
+    email:CURRENT_USER.email
+  };
+
+  // POST como form-urlencoded (evita preflight CORS — padrão do projeto)
+  var body="modulo=crm&action=save_inativo&email="+encodeURIComponent(CURRENT_USER.email)+
+           "&payload="+encodeURIComponent(JSON.stringify(payload));
+
+  fetch(API_URL,{
+    method:"POST",
+    headers:{"Content-Type":"application/x-www-form-urlencoded;charset=UTF-8"},
+    body:body
+  })
+  .then(function(r){return r.json();})
+  .then(function(j){
+    btn.disabled=false; btn.textContent="💾 Salvar atendimento";
+    if(j && j.ok){
+      // atualiza mapa local
+      CONTATOS_MAP[MODAL_CNPJ]={
+        observacao:(j.registro&&j.registro.observacao)||"",
+        status:status,
+        whatsapp:(j.registro&&j.registro.whatsappManual)||"",
+        nome:(j.registro&&j.registro.nomeContato)||""
+      };
+      toast("Atendimento salvo ✓");
+      fecharModal();
+      aplicarFiltros();
+      atualizarKPIs();
+    } else {
+      toast("Erro: "+((j&&j.error)||"desconhecido"),"err");
+    }
+  })
+  .catch(function(e){
+    btn.disabled=false; btn.textContent="💾 Salvar atendimento";
+    toast("Erro de conexão: "+e.message,"err");
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════════════════════
+function esc(s){ return String(s||"").replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function formatCnpj(c){
+  c=onlyDigits(c);
+  if(c.length===14) return c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5");
+  if(c.length===11) return c.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,"$1.$2.$3-$4");
+  return c;
+}
+function toast(msg,tipo){
+  var t=document.getElementById("toast");
+  t.textContent=msg;
+  t.className="toast show"+(tipo==="err"?" err":"");
+  setTimeout(function(){t.className="toast";},3200);
+}
+
+// fecha modal clicando fora
+document.getElementById("modal-ov").addEventListener("click",function(e){
+  if(e.target===this) fecharModal();
+});
+
+// ════════════════════════════════════════════════════════════
+// BOOT
+// ════════════════════════════════════════════════════════════
+// Substitui carregarContatosSalvos por carregarStatusSalvos (que é o real)
+carregarContatosSalvos = carregarStatusSalvos;
+checkSession();
+</script>
+</body>
+</html>
