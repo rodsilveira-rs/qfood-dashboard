@@ -1599,6 +1599,19 @@ function chkSubTabGen(gestorId, tab){
   if(tab==='semanal') chkMontarSemanas(gestorId);
   if(tab==='historico') chkCarregarHistoricoGen(gestorId);
   if(tab==='meta') chkMetaCarregar(gestorId);
+  if(tab==='diario'){
+    // ☁️ Ao abrir o diário, busca o dia selecionado na nuvem
+    var inpD = document.getElementById('chk-'+gestorId+'-d-data');
+    var isoD = inpD && inpD.value ? inpD.value : (typeof chkToday==='function'?chkToday():'');
+    if(isoD) chkSincronizarDiaDaNuvem(gestorId, isoD, function(gid, dia){
+      chkRecarregarDiarioCampos(gid, dia);
+      var ch = "qfood_chk_"+gid+"_diario_"+dia;
+      var dd = loadJSON(ch);
+      var bdg = document.getElementById('chk-'+gid+'-d-badge');
+      if(bdg && dd){ bdg.style.display='inline'; bdg.style.background='#36cfa0'; bdg.style.color='#fff'; bdg.textContent='✓ Salvo '+(dd.hora||''); }
+      chkAtualizarSemaforoGen(gid, dd || {});
+    });
+  }
 }
 
 // ─────────── Coletar valores de uma lista de seções ───────────
@@ -1723,6 +1736,15 @@ function chkMudarDataDiario(gestorId){
   }
   // Recarrega valores nos campos
   chkRecarregarDiarioCampos(gestorId, iso);
+  // ☁️ Busca na nuvem e mescla (mais recente vence)
+  chkSincronizarDiaDaNuvem(gestorId, iso, function(gid, dia){
+    chkRecarregarDiarioCampos(gid, dia);
+    var ch = "qfood_chk_"+gid+"_diario_"+dia;
+    var dd = loadJSON(ch);
+    var bdg = document.getElementById('chk-'+gid+'-d-badge');
+    if(bdg && dd){ bdg.style.display='inline'; bdg.style.background='#36cfa0'; bdg.style.color='#fff'; bdg.textContent='✓ Salvo '+(dd.hora||''); }
+    chkAtualizarSemaforoGen(gid, dd || {});
+  });
   // Atualiza badge de salvo (se tem registro)
   var chave = "qfood_chk_"+gestorId+"_diario_"+iso;
   var dado = loadJSON(chave);
@@ -2364,6 +2386,84 @@ var QTIPS_GEN = {
   'feedback_pos':      '<strong>Feedback positivo.</strong> Termômetro de qualidade.',
   'feedback_neg':      '<strong>Feedback negativo.</strong> Sinaliza problemas a corrigir.'
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// ☁️ LEITURA DA NUVEM — busca dados do Google Sheets e mescla com o local
+// Regra de conflito: "mais recente vence" (compara salvo_em)
+// Mostra indicador visual: ☁️ nuvem · 💾 local · 🔄 mesclado
+// ════════════════════════════════════════════════════════════════════════════
+
+function chkSyncIndicador(gestorId, origem){
+  // origem: 'nuvem' | 'local' | 'offline' | 'buscando'
+  var alvoId = 'chk-'+gestorId+'-d-data-info';
+  // Para Gustavo/Célio/Cristina o info tem id próprio
+  if(gestorId==='gustavo') alvoId = 'chk-d-status-badge';
+  var badgeId = 'chk-sync-cloud-'+gestorId;
+  var badge = document.getElementById(badgeId);
+  if(!badge){
+    // cria o badge perto do seletor de data
+    var ref = document.getElementById('chk-'+gestorId+'-d-data') ||
+              document.getElementById('chk-d-data');
+    if(!ref) return;
+    badge = document.createElement('span');
+    badge.id = badgeId;
+    badge.style.cssText = 'display:inline-block;margin-left:8px;font-size:.68rem;padding:2px 8px;border-radius:10px;font-weight:600;vertical-align:middle';
+    if(ref.parentElement) ref.parentElement.appendChild(badge);
+  }
+  var mapa = {
+    nuvem:    { t:'☁️ Carregado da nuvem',  bg:'rgba(77,142,245,.15)',  c:'#4d8ef5' },
+    local:    { t:'💾 Salvo neste aparelho', bg:'rgba(54,207,160,.12)', c:'#36cfa0' },
+    mesclado: { t:'🔄 Sincronizado',          bg:'rgba(160,124,246,.15)', c:'#a07cf6' },
+    offline:  { t:'📴 Offline (dados locais)', bg:'rgba(255,170,43,.12)', c:'#ffaa2b' },
+    buscando: { t:'🔍 Buscando na nuvem…',    bg:'rgba(143,160,192,.12)', c:'#8fa0c0' },
+    vazio:    { t:'',                          bg:'transparent',           c:'transparent' }
+  };
+  var m = mapa[origem] || mapa.vazio;
+  badge.textContent = m.t;
+  badge.style.background = m.bg;
+  badge.style.color = m.c;
+  badge.style.display = m.t ? 'inline-block' : 'none';
+}
+
+// Busca na nuvem e, se for mais recente que o local, atualiza localStorage + recarrega campos
+function chkSincronizarDiaDaNuvem(gestorId, iso, recarregarFn){
+  if(!window.QFoodSync || !window.QFoodSync.fetchDia) return;
+  if(!navigator.onLine){ chkSyncIndicador(gestorId,'offline'); return; }
+
+  var chave = 'qfood_chk_'+gestorId+'_diario_'+iso;
+  var local = null;
+  try{ local = JSON.parse(localStorage.getItem(chave)||'null'); }catch(e){}
+
+  chkSyncIndicador(gestorId,'buscando');
+
+  window.QFoodSync.fetchDia(gestorId, iso).then(function(nuvem){
+    if(!nuvem){
+      // Não há nada na nuvem — mantém local
+      chkSyncIndicador(gestorId, local ? 'local' : 'vazio');
+      return;
+    }
+    var tsNuvem = new Date(nuvem.salvo_em||0).getTime();
+    var tsLocal = local ? new Date(local.salvo_em||0).getTime() : 0;
+
+    if(tsNuvem > tsLocal){
+      // Nuvem é mais recente → adota a nuvem
+      // Reconstrói o objeto no formato local (campos desprefixados já vêm de fetchDia)
+      // Mantém 'data' em formato BR se vier ISO
+      if(nuvem.data && nuvem.data.indexOf('-')>=0 && nuvem.data.length>=10){
+        var p = nuvem.data.substring(0,10).split('-');
+        if(p.length===3) nuvem.data = p[2]+'/'+p[1]+'/'+p[0];
+      }
+      try{ localStorage.setItem(chave, JSON.stringify(nuvem)); }catch(e){}
+      if(typeof recarregarFn === 'function') recarregarFn(gestorId, iso);
+      chkSyncIndicador(gestorId,'nuvem');
+      console.log('[QFood Sync] '+gestorId+' '+iso+' atualizado da nuvem (mais recente)');
+    } else {
+      // Local é igual ou mais recente → mantém local
+      chkSyncIndicador(gestorId, 'mesclado');
+    }
+  });
+}
+
 
 // Aplica tooltips em todos os campos cujo ID está mapeado.
 // Roda no DOMContentLoaded e também a cada renderização dinâmica (gestores gen).
@@ -5183,6 +5283,46 @@ function chkMetasQFoodSalvar(){
         };
         enviar('METAS', payload);
       } catch(e){ console.error('[QFood Sync] metaQFood falhou:', e); }
+    },
+    // ─────────────────────────────────────────────────────────────
+    // LEITURA DA NUVEM — busca um dia específico do gestor na planilha
+    // Retorna uma Promise com o objeto "desprefixado" (formato local)
+    // ou null se não houver registro na nuvem.
+    // ─────────────────────────────────────────────────────────────
+    fetchDia: function(gestorId, iso){
+      return new Promise(function(resolve){
+        if(!QFOOD_SYNC_URL || QFOOD_SYNC_URL.indexOf('COLE_AQUI') >= 0){ resolve(null); return; }
+        if(!navigator.onLine){ resolve(null); return; }
+        var url = QFOOD_SYNC_URL + '?aba=DIARIO&gestor=' + encodeURIComponent(gestorId) +
+                  '&de=' + iso + '&ate=' + iso;
+        fetch(url, { method:'GET' })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          if(!resp || !resp.ok || !resp.registros || resp.registros.length === 0){ resolve(null); return; }
+          // Pega o registro do dia (pode haver mais de um; fica com o mais recente por salvo_em)
+          var reg = resp.registros.reduce(function(maisNovo, r){
+            if(!maisNovo) return r;
+            var a = new Date(r.salvo_em||0).getTime();
+            var b = new Date(maisNovo.salvo_em||0).getTime();
+            return a >= b ? r : maisNovo;
+          }, null);
+          if(!reg){ resolve(null); return; }
+          // Desprefixar: mr_faturamento -> faturamento, g_fat -> fat, etc.
+          var pre = PREFIXO_POR_GESTOR[gestorId];
+          var saida = {};
+          Object.keys(reg).forEach(function(k){
+            var val = reg[k];
+            if(val === '' || val === null || val === undefined) return;
+            if(pre && k.indexOf(pre) === 0){
+              saida[k.substring(pre.length)] = val;
+            } else {
+              saida[k] = val; // meta (data, hora, salvo_em, etc.)
+            }
+          });
+          resolve(saida);
+        })
+        .catch(function(){ resolve(null); });
+      });
     }
   };
 
@@ -5349,6 +5489,32 @@ function chkMetasQFoodSalvar(){
         }catch(e){ console.error('[hook obs ceo]', e); }
       };
     }
+
+    // ─── LEITURA NUVEM — Gustavo/Célio/Cristina (após carregar do local) ───
+    var _syncEmCurso = {};
+    function hookCarregar(fnName, gestorId){
+      if(typeof window[fnName] === 'function'){
+        var _orig = window[fnName];
+        window[fnName] = function(){
+          _orig.apply(this, arguments);
+          // Trava anti-loop: se o recarregamento veio da própria sincronização, não busca de novo
+          if(_syncEmCurso[gestorId]) return;
+          try{
+            var inp = document.getElementById('chk-'+gestorId+'-d-data');
+            var iso = (inp && inp.value) || (typeof chkToday==='function'?chkToday():'');
+            if(iso && window.chkSincronizarDiaDaNuvem){
+              window.chkSincronizarDiaDaNuvem(gestorId, iso, function(){
+                _syncEmCurso[gestorId] = true;
+                try{ _orig.apply(window, []); } finally { _syncEmCurso[gestorId] = false; }
+              });
+            }
+          }catch(e){ console.error('[hook carregar '+gestorId+']', e); }
+        };
+      }
+    }
+    hookCarregar('chkCarregarDiario',   'gustavo');
+    hookCarregar('chkCCarregarDiario',  'celio');
+    hookCarregar('chkCrCarregarDiario', 'cris');
 
     console.log('[QFood Sync] hooks instalados ✓');
   }
