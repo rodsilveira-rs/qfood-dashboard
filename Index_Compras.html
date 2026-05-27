@@ -4793,33 +4793,47 @@ function v3HistTab(tab){
 }
 
 // ----- TAB 1: HISTÓRICO -----
-// 🆕 Formata a validade ofertada pelo fornecedor de forma legível
-// Lê validade_ofertada_meses (número) do item do Detalhes_JSON
-function v3HistFmtValidadeOfertada(it){
+// 🆕 Formata a validade ofertada pelo fornecedor + calcula a DATA de vencimento
+// Lê validade_ofertada_meses (número) e soma à data da cotação
+// dataCotacao = data em que a cotação foi feita (referência pro cálculo)
+function v3HistFmtValidadeOfertada(it, dataCotacao){
   if(!it) return '<span style="color:var(--mu2)">—</span>';
   // Campo principal gravado pelo cotacao.html
   var val = it.validade_ofertada_meses;
   if(val === undefined || val === null || val === '') {
-    // fallbacks pra outros nomes possíveis
     val = it.validade_ofertada || it.validade_meses || it.valOfertada;
   }
   var num = parseInt(val, 10);
   if(isNaN(num) || num <= 0) return '<span style="color:var(--mu2)">—</span>';
 
-  // A unidade da validade ofertada é sempre meses (padrão do formulário do fornecedor)
   var texto = num + (num === 1 ? ' mês' : ' meses');
+
+  // 🆕 Calcula a data limite de vencimento = data da cotação + X meses
+  var dataVenc = null;
+  var base = dataCotacao ? new Date(dataCotacao) : null;
+  if(base && !isNaN(base.getTime())){
+    dataVenc = new Date(base);
+    dataVenc.setMonth(dataVenc.getMonth() + num);
+  }
+  var dataStr = dataVenc
+    ? dataVenc.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'})
+    : null;
 
   // Compara com a validade mínima exigida, se disponível, pra colorir
   var minDias = parseInt(it.validade_min_exigida_dias, 10) || 0;
   var ofertadaDias = num * 30; // aproximação
+  var cor = 'var(--tx)', icone = '';
   if(minDias > 0){
-    if(ofertadaDias >= minDias){
-      return '<span style="color:var(--ok);font-weight:600">'+texto+' ✓</span>';
-    } else {
-      return '<span style="color:#ff7875;font-weight:600">'+texto+' ⚠</span>';
-    }
+    if(ofertadaDias >= minDias){ cor = 'var(--ok)'; icone = ' ✓'; }
+    else { cor = '#ff7875'; icone = ' ⚠'; }
   }
-  return '<span style="color:var(--tx)">'+texto+'</span>';
+
+  // Monta saída: meses (linha principal) + data de vencimento (linha secundária)
+  var html = '<span style="color:'+cor+';font-weight:600">'+texto+icone+'</span>';
+  if(dataStr){
+    html += '<div style="font-size:.64rem;color:var(--mu);margin-top:1px">vence ~'+dataStr+'</div>';
+  }
+  return html;
 }
 
 function v3HistRenderTabHistorico(grp){
@@ -4852,7 +4866,7 @@ function v3HistRenderTabHistorico(grp){
           var preco = v3Num(it.preco_unit !== undefined ? it.preco_unit : (it.valor_unitario || it.valor_unit || 0));
           var tot = v3Num(it.total !== undefined ? it.total : (it.valor_total || (qtd * preco)));
           // 🆕 Validade ofertada pelo fornecedor
-          var valOfertada = v3HistFmtValidadeOfertada(it);
+          var valOfertada = v3HistFmtValidadeOfertada(it, c.Data_Envio || c.Data || c.Timestamp);
           return '<tr>'+
             '<td>'+(cod?'<span class="codigo">'+v3Esc(cod)+'</span> ':'')+v3Esc(nome)+'</td>'+
             '<td style="text-align:center">'+qtd+'</td>'+
@@ -4977,13 +4991,28 @@ function v3HistRenderTabSKU(grp){
     }
 
     // 🆕 última validade ofertada (da entrada mais recente com validade > 0)
-    var ultValidade = 0;
+    var ultValidade = 0, ultDataCot = null;
     for(var vi = s.entradas.length - 1; vi >= 0; vi--){
-      if(s.entradas[vi].validadeOfertada > 0){ ultValidade = s.entradas[vi].validadeOfertada; break; }
+      if(s.entradas[vi].validadeOfertada > 0){
+        ultValidade = s.entradas[vi].validadeOfertada;
+        ultDataCot = s.entradas[vi].data;
+        break;
+      }
     }
-    var validadeCell = ultValidade > 0
-      ? '<span style="color:var(--tx)">'+ultValidade+(ultValidade===1?' mês':' meses')+'</span>'
-      : '<span style="color:var(--mu2)">—</span>';
+    var validadeCell;
+    if(ultValidade > 0){
+      var txtMeses = ultValidade + (ultValidade===1?' mês':' meses');
+      var dataVencStr = '';
+      if(ultDataCot && !isNaN(ultDataCot.getTime())){
+        var dv = new Date(ultDataCot);
+        dv.setMonth(dv.getMonth() + ultValidade);
+        dataVencStr = '<div style="font-size:.62rem;color:var(--mu);margin-top:1px">vence ~'+
+                      dv.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})+'</div>';
+      }
+      validadeCell = '<span style="color:var(--tx)">'+txtMeses+'</span>'+dataVencStr;
+    } else {
+      validadeCell = '<span style="color:var(--mu2)">—</span>';
+    }
 
     return '<tr>'+
       '<td class="desc-cell" title="'+v3Esc(s.nome)+'">'+
