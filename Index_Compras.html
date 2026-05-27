@@ -4793,6 +4793,35 @@ function v3HistTab(tab){
 }
 
 // ----- TAB 1: HISTÓRICO -----
+// 🆕 Formata a validade ofertada pelo fornecedor de forma legível
+// Lê validade_ofertada_meses (número) do item do Detalhes_JSON
+function v3HistFmtValidadeOfertada(it){
+  if(!it) return '<span style="color:var(--mu2)">—</span>';
+  // Campo principal gravado pelo cotacao.html
+  var val = it.validade_ofertada_meses;
+  if(val === undefined || val === null || val === '') {
+    // fallbacks pra outros nomes possíveis
+    val = it.validade_ofertada || it.validade_meses || it.valOfertada;
+  }
+  var num = parseInt(val, 10);
+  if(isNaN(num) || num <= 0) return '<span style="color:var(--mu2)">—</span>';
+
+  // A unidade da validade ofertada é sempre meses (padrão do formulário do fornecedor)
+  var texto = num + (num === 1 ? ' mês' : ' meses');
+
+  // Compara com a validade mínima exigida, se disponível, pra colorir
+  var minDias = parseInt(it.validade_min_exigida_dias, 10) || 0;
+  var ofertadaDias = num * 30; // aproximação
+  if(minDias > 0){
+    if(ofertadaDias >= minDias){
+      return '<span style="color:var(--ok);font-weight:600">'+texto+' ✓</span>';
+    } else {
+      return '<span style="color:#ff7875;font-weight:600">'+texto+' ⚠</span>';
+    }
+  }
+  return '<span style="color:var(--tx)">'+texto+'</span>';
+}
+
 function v3HistRenderTabHistorico(grp){
   var box = document.getElementById('hf-hist-cotacoes');
   var ordenadas = grp.cotacoes.slice().sort(function(a,b){
@@ -4815,16 +4844,19 @@ function v3HistRenderTabHistorico(grp){
     var detalhesHtml = '';
     var itensUsar = itensAprov || itensOrig;
     if(itensUsar.length > 0){
-      detalhesHtml = '<table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:right">Preço un.</th><th style="text-align:right">Total</th></tr></thead><tbody>'+
+      detalhesHtml = '<table><thead><tr><th>Produto</th><th style="text-align:center">Qtd</th><th style="text-align:center">Validade ofertada</th><th style="text-align:right">Preço un.</th><th style="text-align:right">Total</th></tr></thead><tbody>'+
         itensUsar.map(function(it){
           var nome = it.descricao || it.nome || it.produto || '—';
           var cod = it.codigo || it.cod || '';
           var qtd = it.qtd_aprovada !== undefined ? it.qtd_aprovada : (it.qtd_confirmada !== undefined ? it.qtd_confirmada : (it.qtd_solicitada || it.quantidade || it.qtd || 0));
           var preco = v3Num(it.preco_unit !== undefined ? it.preco_unit : (it.valor_unitario || it.valor_unit || 0));
           var tot = v3Num(it.total !== undefined ? it.total : (it.valor_total || (qtd * preco)));
+          // 🆕 Validade ofertada pelo fornecedor
+          var valOfertada = v3HistFmtValidadeOfertada(it);
           return '<tr>'+
             '<td>'+(cod?'<span class="codigo">'+v3Esc(cod)+'</span> ':'')+v3Esc(nome)+'</td>'+
             '<td style="text-align:center">'+qtd+'</td>'+
+            '<td style="text-align:center">'+valOfertada+'</td>'+
             '<td class="ti-valor">'+v3BRL(preco)+'</td>'+
             '<td class="ti-valor">'+v3BRL(tot)+'</td>'+
           '</tr>';
@@ -4874,10 +4906,13 @@ function v3HistRenderTabSKU(grp){
       var preco = v3Num(it.preco_unit !== undefined ? it.preco_unit : (it.valor_unitario || it.valor_unit || 0));
       if(preco <= 0) return; // ignora itens sem preço
       var qtd = it.qtd_aprovada !== undefined ? it.qtd_aprovada : (it.qtd_confirmada !== undefined ? it.qtd_confirmada : (it.qtd_solicitada || it.quantidade || it.qtd || 0));
+      // 🆕 captura validade ofertada (meses) pra mostrar a mais recente
+      var valOf = parseInt(it.validade_ofertada_meses, 10);
+      if(isNaN(valOf)) valOf = 0;
       if(!bySku[cod]){
         bySku[cod] = { codigo: cod, nome: nome, entradas: [] };
       }
-      bySku[cod].entradas.push({ data: dt, preco: preco, qtd: qtd });
+      bySku[cod].entradas.push({ data: dt, preco: preco, qtd: qtd, validadeOfertada: valOf });
     });
   });
 
@@ -4912,7 +4947,7 @@ function v3HistRenderTabSKU(grp){
 
   var th = '<thead><tr><th>Produto</th>';
   ultimosMeses.forEach(function(m){ th += '<th class="num">'+rotuloMes(m)+'</th>'; });
-  th += '<th class="num">Tendência</th></tr></thead>';
+  th += '<th class="num">Tendência</th><th class="num">Últ. validade</th></tr></thead>';
 
   var tb = '<tbody>' + skus.map(function(s){
     var precosPorMes = {};
@@ -4941,12 +4976,22 @@ function v3HistRenderTabSKU(grp){
       trend = '<span class="trend-flat">—</span>';
     }
 
+    // 🆕 última validade ofertada (da entrada mais recente com validade > 0)
+    var ultValidade = 0;
+    for(var vi = s.entradas.length - 1; vi >= 0; vi--){
+      if(s.entradas[vi].validadeOfertada > 0){ ultValidade = s.entradas[vi].validadeOfertada; break; }
+    }
+    var validadeCell = ultValidade > 0
+      ? '<span style="color:var(--tx)">'+ultValidade+(ultValidade===1?' mês':' meses')+'</span>'
+      : '<span style="color:var(--mu2)">—</span>';
+
     return '<tr>'+
       '<td class="desc-cell" title="'+v3Esc(s.nome)+'">'+
         '<span class="codigo">'+v3Esc(s.codigo)+'</span> '+v3Esc(s.nome)+
       '</td>'+
       celulas+
       '<td class="num">'+trend+'</td>'+
+      '<td class="num">'+validadeCell+'</td>'+
     '</tr>';
   }).join('') + '</tbody>';
 
