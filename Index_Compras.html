@@ -628,6 +628,18 @@ td:not(:first-child){text-align:right;}
 /* Esconder cards operacionais para usuários não-aprovadores */
 .aprovador-only{display:none;}
 body.is-aprovador .aprovador-only{display:block;}
+
+/* 🆕 v3.9: Barra de abas */
+.aprovador-only-inline{display:none;}
+body.is-aprovador .aprovador-only-inline{display:inline-flex;}
+.aba-bar{position:sticky;top:0;z-index:50;background:var(--bg);border-bottom:1px solid var(--br);padding:0 28px;}
+.aba-bar-inner{max-width:1000px;margin:0 auto;display:flex;gap:4px;}
+.aba-btn{background:transparent;border:none;border-bottom:2.5px solid transparent;color:var(--mu);font-family:var(--fh);font-size:.88rem;font-weight:600;padding:14px 18px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.aba-btn:hover{color:var(--tx);background:var(--s2);}
+.aba-btn.active{color:#a07cf6;border-bottom-color:#a07cf6;}
+.aba-painel{display:none;}
+.aba-painel.active{display:block;animation:abaFade .25s ease;}
+@keyframes abaFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
@@ -649,9 +661,23 @@ body.is-aprovador .aprovador-only{display:block;}
 </div>
 
 <!-- ============================================================
+     🆕 v3.9: BARRA DE ABAS — navegação por seção
+     ============================================================ -->
+<div class="aba-bar">
+  <div class="aba-bar-inner">
+    <button class="aba-btn active" id="aba-btn-consulta" onclick="v3TrocarAba('consulta')">📈 Consulta</button>
+    <button class="aba-btn aprovador-only-inline" id="aba-btn-operacional" onclick="v3TrocarAba('operacional')">⚡ Operacional</button>
+    <button class="aba-btn" id="aba-btn-cotacao" onclick="v3TrocarAba('cotacao')">➕ Nova Cotação</button>
+  </div>
+</div>
+
+<!-- ============================================================
      BLOCOS NOVOS v3 — Aprovações, Designação, Andamento, KPIs, Transportadoras
      ============================================================ -->
 <div style="max-width:1000px;margin:0 auto;padding:20px 28px 0">
+
+  <!-- ===== ABA: OPERACIONAL ===== -->
+  <div class="aba-painel" id="painel-operacional">
 
   <!-- ===== BLOCO OPERACIONAL ===== -->
   <div id="v3-op-section" class="aprovador-only">
@@ -690,9 +716,13 @@ body.is-aprovador .aprovador-only{display:block;}
     </div>
 
   </div>
+  </div><!-- /painel-operacional -->
+
+  <!-- ===== ABA: CONSULTA & ADMINISTRAÇÃO ===== -->
+  <div class="aba-painel active" id="painel-consulta">
 
   <!-- ===== BLOCO CONSULTA / ADMIN (recolhíveis) ===== -->
-  <div class="op-section-hdr" style="margin-top:24px">
+  <div class="op-section-hdr" style="margin-top:8px">
     <div class="opsh-title">📈 Consulta &amp; Administração</div>
   </div>
 
@@ -811,6 +841,8 @@ body.is-aprovador .aprovador-only{display:block;}
       <div id="v3-transp-list" class="transp-list"></div>
     </div>
   </div>
+
+  </div><!-- /painel-consulta -->
 
 </div>
 
@@ -1083,6 +1115,7 @@ body.is-aprovador .aprovador-only{display:block;}
 <div class="v3-toast" id="v3-toast"></div>
 
 <!-- CONTEÚDO DA ABA COMPRAS (extraído do sistema original) -->
+<div class="aba-painel" id="painel-cotacao">
 <div id="tab-compras" class="page active" style="display:block">
 
   <div id="cmp-step1">
@@ -1263,6 +1296,7 @@ body.is-aprovador .aprovador-only{display:block;}
   </div>
 
 </div>
+</div><!-- /painel-cotacao -->
 
 
 <script>
@@ -2965,6 +2999,41 @@ function v3FecharModal(id){
 }
 
 // ============================================================
+// 🆕 v3.9: NAVEGAÇÃO POR ABAS
+// ============================================================
+function v3TrocarAba(nome){
+  // Bloqueia acesso à aba operacional pra não-aprovadores
+  if(nome === 'operacional' && !v3EhAprovador()){
+    nome = 'consulta';
+  }
+
+  // Esconde todos os painéis e desativa botões
+  ['consulta','operacional','cotacao'].forEach(function(n){
+    var painel = document.getElementById('painel-'+n);
+    var btn = document.getElementById('aba-btn-'+n);
+    if(painel) painel.classList.remove('active');
+    if(btn) btn.classList.remove('active');
+  });
+
+  // Ativa o painel e botão escolhidos
+  var painelAtivo = document.getElementById('painel-'+nome);
+  var btnAtivo = document.getElementById('aba-btn-'+nome);
+  if(painelAtivo) painelAtivo.classList.add('active');
+  if(btnAtivo) btnAtivo.classList.add('active');
+
+  V3._state.abaAtual = nome;
+
+  // Lazy-load: carrega dados da aba só quando aberta pela 1ª vez
+  if(nome === 'operacional' && !V3._state.operacionalCarregado){
+    V3._state.operacionalCarregado = true;
+    v3CarregarOperacional();
+  }
+
+  // Rola pro topo suavemente ao trocar de aba
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ============================================================
 // INIT v3
 // ============================================================
 async function v3Init(){
@@ -2972,8 +3041,13 @@ async function v3Init(){
   if(aprovador){
     document.body.classList.add('is-aprovador');
   }
-  // Carrega operacional sempre (mesmo pra não-aprovador, pra mostrar Andamento)
-  // Mas só renderiza cards de Aprovação/Designação para aprovadores
+
+  // 🆕 v3.9: Define aba inicial = Consulta (sempre)
+  v3TrocarAba('consulta');
+
+  // Carrega operacional em background (pra ter os dados quando trocar de aba)
+  // Só renderiza cards de Aprovação/Designação para aprovadores
+  V3._state.operacionalCarregado = true;
   await v3CarregarOperacional();
 }
 
@@ -3919,13 +3993,12 @@ async function v3ConfirmarRenegociacao(){
     V3._state.renegociacaoPayload = resp.payload_reenvio || null;
 
     // Mostra toast com instrução clara
-    v3ToastShow('Cotação recusada como renegociação. Abra o gerador de cotação pra reenviar com ajustes.', 'success', 8000);
+    v3ToastShow('Cotação recusada como renegociação. Monte a nova cotação na aba que abrimos.', 'success', 8000);
     await v3CarregarOperacional(true);
 
-    // Scroll automático até o gerador
+    // 🆕 v3.9: troca pra aba Nova Cotação (em vez de só rolar a página)
     setTimeout(function(){
-      var ger = document.getElementById('cmp-step1');
-      if(ger) ger.scrollIntoView({behavior:'smooth', block:'start'});
+      v3TrocarAba('cotacao');
     }, 500);
   } catch(e){
     btn.disabled = false;
@@ -4828,10 +4901,10 @@ function v3HistFmtValidadeOfertada(it, dataCotacao){
     else { cor = '#ff7875'; icone = ' ⚠'; }
   }
 
-  // Monta saída: meses (linha principal) + data de vencimento (linha secundária)
-  var html = '<span style="color:'+cor+';font-weight:600">'+texto+icone+'</span>';
+  // Monta saída: meses (linha principal) + data de vencimento DESTACADA
+  var html = '<span style="color:'+cor+';font-weight:600;font-size:.72rem">'+texto+icone+'</span>';
   if(dataStr){
-    html += '<div style="font-size:.64rem;color:var(--mu);margin-top:1px">vence ~'+dataStr+'</div>';
+    html += '<div style="margin-top:3px"><span style="display:inline-block;background:rgba(255,170,43,.15);color:#ffaa2b;padding:2px 8px;border-radius:6px;font-weight:700;font-size:.78rem">📆 '+dataStr+'</span></div>';
   }
   return html;
 }
@@ -4854,6 +4927,15 @@ function v3HistRenderTabHistorico(grp){
     var totalUsar = (ja && ja.total_aprovado) ? ja.total_aprovado : v3Num(c.Total_Geral);
     var nItens = itensAprov ? itensAprov.length : itensOrig.length;
     var bonifVal = (ja && ja.bonificacao) ? v3Num(ja.bonificacao.valor_equivalente_rs) : v3Num(c.Bonif_Valor_Equivalente_RS);
+
+    // 🆕 Previsão de entrega — extrai a data do campo Prazo_Entrega
+    // Formato típico: "19/05/2026 (5 dias corridos · 4 dias úteis)"
+    var prazoEntregaRaw = c.Prazo_Entrega || c.prazo_entrega || '';
+    var dataEntregaStr = '';
+    if(prazoEntregaRaw){
+      var matchData = String(prazoEntregaRaw).match(/(\d{2}\/\d{2}\/\d{4})/);
+      dataEntregaStr = matchData ? matchData[1] : '';
+    }
 
     var detalhesHtml = '';
     var itensUsar = itensAprov || itensOrig;
@@ -4892,6 +4974,7 @@ function v3HistRenderTabHistorico(grp){
       '<div class="cr-l2">'+
         '<span>📅 '+v3Esc(dataFmt)+'</span><span class="sep">·</span>'+
         '<span>'+nItens+' item(s)</span>'+
+        (dataEntregaStr ? '<span class="sep">·</span><span style="background:rgba(54,207,160,.15);color:#36cfa0;padding:2px 8px;border-radius:6px;font-weight:700">🚚 Entrega prevista: '+v3Esc(dataEntregaStr)+'</span>' : '')+
         (bonifVal > 0 ? '<span class="sep">·</span><span>🎁 '+v3BRL(bonifVal)+'</span>' : '')+
       '</div>'+
       '<div class="cr-itens">'+detalhesHtml+'</div>'+
