@@ -262,6 +262,16 @@ tbody tr:hover td{background:var(--s2);}
 .page-hdr button.primary{background:#e63329;border-color:#e63329;color:#fff}
 .page-hdr button.primary:hover{background:#c42a22}
 
+/* ---- BADGE DE SINCRONIZAÇÃO COM SHEETS ---- */
+.sync-badge{display:none;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;font-size:0.72rem;font-weight:600;border:1px solid transparent;transition:all .25s;user-select:none;}
+.sync-badge.show{display:inline-flex;}
+.sync-badge.syncing{background:rgba(143,160,192,0.12);color:#8fa0c0;border-color:rgba(143,160,192,0.25);}
+.sync-badge.syncing .sb-dot{width:7px;height:7px;border-radius:50%;background:#8fa0c0;animation:sb-pulse 1.2s ease-in-out infinite;}
+.sync-badge.updated{background:rgba(54,207,160,0.12);color:#36cfa0;border-color:rgba(54,207,160,0.3);}
+.sync-badge.failed{background:rgba(255,170,43,0.12);color:#ffaa2b;border-color:rgba(255,170,43,0.3);}
+.sync-badge.fadeout{opacity:0;transform:translateY(-4px);}
+@keyframes sb-pulse{0%,100%{opacity:.35;}50%{opacity:1;}}
+
 .page-container{max-width:1400px;margin:0 auto;padding:0 24px 40px}
 
 /* Tabs internas */
@@ -295,6 +305,7 @@ tbody tr:hover td{background:var(--s2);}
     <div class="sub">Q Food Company · DRE, Faturamento e Análise Comparativa</div>
   </div>
   <div class="actions">
+    <span id="dre-sync-badge" class="sync-badge"></span>
     <span id="user-name" class="user-name">-</span>
     <button onclick="window.location.href='Index_Menu.html'">🏠 Menu</button>
     <button class="primary" onclick="logout()">Sair</button>
@@ -316,7 +327,7 @@ tbody tr:hover td{background:var(--s2);}
     <!-- Tabs internas -->
     <div class="fin-tabs">
       <div class="fin-tab active" data-tab="dre" onclick="finShowTab('dre')">📊 DRE</div>
-      <div class="fin-tab" data-tab="fat" onclick="finShowTab('fat')">💰 Faturamento</div>
+      <div class="fin-tab" data-tab="fat" onclick="finShowTab('fat')" style="display:none">💰 Faturamento</div>
       <div class="fin-tab" data-tab="lal" onclick="finShowTab('lal')">📈 Linha a Linha</div>
     </div>
 
@@ -990,6 +1001,239 @@ function dreAction(cat){
 }
 
 function initDRE(){initDRESelectors();buildDRE();}
+
+// ════════════════════════════════════════════════════════════════════
+// AUTO-SYNC COM GOOGLE SHEETS — detecta meses novos automaticamente
+// ════════════════════════════════════════════════════════════════════
+// Estratégia: faz fetch do CSV publicado, detecta qualquer coluna com
+// header tipo "MM/AAAA" que não esteja no DRE.months, e injeta esses
+// meses novos no objeto DRE em memória. Categorias/subcategorias são
+// CASADAS POR NOME EXATO com o que já existe no JSON embutido — nada
+// novo é adicionado, nada existente é alterado. Falha silenciosamente
+// pro JSON original se o CSV não carregar.
+// Cache: 5 minutos no localStorage para não bater no Sheets toda hora.
+
+var DRE_SYNC_CACHE_KEY = "qfood_dre_csv_cache";
+var DRE_SYNC_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+function dreSyncBadge(state, text){
+  var el = document.getElementById("dre-sync-badge");
+  if(!el) return;
+  el.className = "sync-badge"; // reset
+  if(state === "hide"){ return; }
+  el.classList.add("show");
+  el.classList.add(state);
+  if(state === "syncing"){
+    el.innerHTML = '<span class="sb-dot"></span><span>Sincronizando...</span>';
+  } else if(state === "updated"){
+    el.innerHTML = '<span>&#10003;</span><span>' + (text || "Atualizado") + '</span>';
+    setTimeout(function(){
+      el.classList.add("fadeout");
+      setTimeout(function(){ el.className = "sync-badge"; }, 300);
+    }, 3500);
+  } else if(state === "failed"){
+    el.innerHTML = '<span>&#9888;</span><span>' + (text || "Cache local") + '</span>';
+  }
+}
+
+function dreParseNumBR(v){
+  // Aceita: 152846.8, "R$ 152.846,80", "152.846,80", "152846.8", etc.
+  if(v === null || v === undefined || v === "") return 0;
+  if(typeof v === "number") return v;
+  var s = String(v).replace(/R\$\s*/g, '').trim();
+  if(!s) return 0;
+  // Se tem vírgula como decimal (BR): remove pontos de milhar
+  if(s.indexOf(',') >= 0 && s.lastIndexOf(',') > s.lastIndexOf('.')){
+    s = s.replace(/\./g, '').replace(',', '.');
+  }
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function dreDetectNewMonths(csvText){
+  // Lê só a primeira linha do CSV e identifica colunas tipo MM/AAAA
+  // que não estão em DRE.months. Retorna [{col: 83, month: "04/2026"}, ...]
+  var firstLine = csvText.split(/\r?\n/)[0];
+  var parts = firstLine.split(",");
+  var monthRe = /^"?(\d{1,2})\/(\d{4})"?$/;
+  var existing = {};
+  DRE.months.forEach(function(m){ existing[m] = true; });
+  var news = [];
+  for(var i = 0; i < parts.length; i++){
+    var h = parts[i].trim();
+    var m = h.match(monthRe);
+    if(m){
+      var mm = m[1].length === 1 ? "0" + m[1] : m[1];
+      var month = mm + "/" + m[2];
+      if(!existing[month]){
+        news.push({ col: i, month: month });
+      }
+    }
+  }
+  return news;
+}
+
+function dreInjectNewMonths(csvText, newMonths){
+  // Parseia CSV completo e injeta os meses novos em DRE
+  // SÓ injeta em categorias/subcategorias que JÁ EXISTEM no JSON.
+  // Categorias novas no Sheets são ignoradas (zero risco de quebra).
+  var rows = csv(csvText.split(/\r?\n/)[0] + "\n" + csvText.split(/\r?\n/).slice(1).join("\n"));
+  // csv() retorna array de objetos com header como chave — mas precisamos
+  // de acesso posicional. Vou re-parsear linha bruta:
+  var lines = csvText.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  
+  // Parser posicional simples (mesma lógica do csv() mas sem objetos)
+  function parseLineToArray(line){
+    var fields = [], cur = "", inQ = false;
+    for(var i = 0; i < line.length; i++){
+      var c = line[i];
+      if(inQ){
+        if(c === '"'){
+          if(line[i+1] === '"'){ cur += '"'; i++; }
+          else { inQ = false; }
+        } else { cur += c; }
+      } else {
+        if(c === '"'){ inQ = true; }
+        else if(c === ','){ fields.push(cur); cur = ""; }
+        else { cur += c; }
+      }
+    }
+    fields.push(cur);
+    return fields;
+  }
+  
+  // Indexar subcategorias existentes: { "NOME_DA_SUBCATEGORIA": "NOME_DA_CATEGORIA" }
+  var subIndex = {};
+  Object.keys(DRE.categories).forEach(function(cat){
+    Object.keys(DRE.categories[cat]).forEach(function(sub){
+      // Usa o nome da subcategoria como chave; se duplicar, mantém a primeira
+      // (não deve acontecer na prática)
+      if(!subIndex[sub]) subIndex[sub] = cat;
+    });
+  });
+  
+  // Inicializar acumuladores para os meses novos
+  newMonths.forEach(function(nm){
+    Object.keys(DRE.cat_totals).forEach(function(cat){
+      DRE.cat_totals[cat][nm.month] = 0;
+    });
+    DRE.grand_total[nm.month] = 0;
+  });
+  
+  var injected = 0;
+  for(var l = 1; l < lines.length; l++){
+    var line = lines[l];
+    if(!line.trim()) continue;
+    var fields = parseLineToArray(line);
+    var label = (fields[0] || "").trim();
+    if(!label) continue;
+    
+    var cat = subIndex[label];
+    if(!cat) continue; // subcategoria não existe no JSON → ignora
+    
+    newMonths.forEach(function(nm){
+      var raw = fields[nm.col];
+      var val = dreParseNumBR(raw);
+      DRE.categories[cat][label][nm.month] = val;
+      // Soma para cat_totals só se NÃO for a linha "TOTAL ..." (evita dobrar)
+      if(label.indexOf("TOTAL ") !== 0){
+        DRE.cat_totals[cat][nm.month] += val;
+        DRE.grand_total[nm.month] += val;
+      }
+    });
+    injected++;
+  }
+  
+  // Adicionar os meses novos ao array DRE.months (ordenado cronologicamente)
+  newMonths.forEach(function(nm){
+    if(DRE.months.indexOf(nm.month) < 0){
+      DRE.months.push(nm.month);
+    }
+  });
+  // Reordenar months: ano-mês ASC
+  DRE.months.sort(function(a, b){
+    var pa = a.split("/"), pb = b.split("/");
+    return (pa[1] - pb[1]) || (pa[0] - pb[0]);
+  });
+  
+  return { injected: injected, monthsAdded: newMonths.map(function(n){ return n.month; }) };
+}
+
+function dreAutoSync(){
+  // Tenta cache primeiro
+  var now = Date.now();
+  var cachedRaw = null;
+  try {
+    var raw = localStorage.getItem(DRE_SYNC_CACHE_KEY);
+    if(raw){
+      var cached = JSON.parse(raw);
+      if(cached.ts && (now - cached.ts) < DRE_SYNC_CACHE_TTL_MS){
+        cachedRaw = cached.csv;
+      }
+    }
+  } catch(e){ /* cache corrompido, ignora */ }
+  
+  function processCSV(csvText, fromCache){
+    try {
+      var newMonths = dreDetectNewMonths(csvText);
+      if(newMonths.length === 0){
+        // Nada novo no Sheets — silencioso (ou flash discreto)
+        if(!fromCache){
+          dreSyncBadge("updated", "Em dia");
+        }
+        return;
+      }
+      var result = dreInjectNewMonths(csvText, newMonths);
+      // Re-renderiza tudo com os meses novos
+      if(typeof initDRESelectors === "function") initDRESelectors();
+      if(typeof buildDRE === "function") buildDRE();
+      if(window._lalInited && typeof initLALSelectors === "function"){
+        initLALSelectors();
+        if(typeof buildLAL === "function") buildLAL();
+      }
+      dreSyncBadge("updated", "+" + result.monthsAdded.join(", "));
+    } catch(err){
+      console.warn("[dreAutoSync] Falha ao processar CSV:", err);
+      dreSyncBadge("failed", "Erro ao processar");
+    }
+  }
+  
+  if(cachedRaw){
+    // Usa cache imediatamente, depois revalida em background
+    processCSV(cachedRaw, true);
+    // Revalidação silenciosa em background, sem badge
+    setTimeout(function(){
+      fetch(UDRE, { cache: "no-store" })
+        .then(function(r){ return r.ok ? r.text() : null; })
+        .then(function(txt){
+          if(!txt) return;
+          try {
+            localStorage.setItem(DRE_SYNC_CACHE_KEY, JSON.stringify({ ts: Date.now(), csv: txt }));
+          } catch(e){}
+        })
+        .catch(function(){});
+    }, 1500);
+    return;
+  }
+  
+  // Sem cache válido → fetch ao vivo
+  dreSyncBadge("syncing");
+  fetch(UDRE, { cache: "no-store" })
+    .then(function(r){
+      if(!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    })
+    .then(function(txt){
+      try {
+        localStorage.setItem(DRE_SYNC_CACHE_KEY, JSON.stringify({ ts: Date.now(), csv: txt }));
+      } catch(e){ /* localStorage cheio, segue */ }
+      processCSV(txt, false);
+    })
+    .catch(function(err){
+      console.warn("[dreAutoSync] Falha ao buscar CSV:", err);
+      dreSyncBadge("failed", "Sem conexão");
+    });
+}
 
 // ════════════════════════════════════════════════════════════════════
 // LINHA A LINHA MODULE
@@ -2051,6 +2295,10 @@ document.addEventListener("DOMContentLoaded", function(){
   if(content && content.style.display !== "none"){
     if(typeof initDRE === "function"){
       initDRE();
+    }
+    // Sincronização automática com Google Sheets para detectar meses novos
+    if(typeof dreAutoSync === "function"){
+      setTimeout(dreAutoSync, 200); // pequeno delay pra UI renderizar primeiro
     }
   }
 });
