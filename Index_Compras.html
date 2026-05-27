@@ -538,6 +538,12 @@ td:not(:first-child){text-align:right;}
 .hf-stats .val{font-family:var(--fh);font-size:1.05rem;font-weight:700;color:var(--tx);}
 
 .hf-list{display:grid;gap:8px;}
+
+/* 🆕 Chips de filtro de status no Histórico */
+.hf-status-filtros{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--br);}
+.hf-chip{border:1.5px solid;border-radius:20px;padding:5px 13px;font-size:.76rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;font-family:var(--fb);}
+.hf-chip:hover{filter:brightness(1.15);transform:translateY(-1px);}
+.hf-chip-count{background:rgba(0,0,0,.18);border-radius:10px;padding:1px 7px;font-size:.7rem;font-weight:700;}
 .hf-forn-row{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;display:grid;grid-template-columns:1fr auto auto auto auto;gap:14px;align-items:center;cursor:pointer;transition:all .15s;}
 .hf-forn-row:hover{background:var(--s3);border-color:var(--b2);transform:translateX(2px);}
 .hf-forn-row .fr-nome{font-family:var(--fh);font-size:.88rem;font-weight:600;color:var(--tx);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -4844,6 +4850,7 @@ function v3HistVerFornecedor(nome){
   var grp = (V3._state.histGrupos || []).find(function(g){ return g.nome === nome; });
   if(!grp) return;
   V3._state.histFornecedorAtivo = grp;
+  V3._state.histFiltroStatus = 'TODOS';  // 🆕 reseta filtro ao abrir novo fornecedor
   document.getElementById('v3-hist-lista').style.display = 'none';
   document.getElementById('v3-hist-detalhe').style.display = 'block';
   document.getElementById('hf-det-nome').textContent = nome;
@@ -4909,14 +4916,82 @@ function v3HistFmtValidadeOfertada(it, dataCotacao){
   return html;
 }
 
+// 🆕 Gera um chip de filtro de status
+function v3HistChip(valor, info, count){
+  var ativo = (V3._state.histFiltroStatus || 'TODOS') === valor;
+  var estilo = ativo
+    ? 'background:'+info.cor+';color:#fff;border-color:'+info.cor
+    : 'background:transparent;color:'+info.cor+';border-color:'+info.cor;
+  return '<button class="hf-chip" style="'+estilo+'" onclick="v3HistFiltrarStatus(\''+valor+'\')">'+
+    v3Esc(info.label)+' <span class="hf-chip-count">'+count+'</span></button>';
+}
+
+// 🆕 Aplica filtro de status na aba Histórico
+function v3HistFiltrarStatus(status){
+  V3._state.histFiltroStatus = status;
+  if(V3._state.histGrpAtual){
+    v3HistRenderTabHistorico(V3._state.histGrpAtual);
+  }
+}
+
 function v3HistRenderTabHistorico(grp){
+  // 🆕 guarda o grupo atual pra re-filtragem
+  V3._state.histGrpAtual = grp;
+  if(!V3._state.histFiltroStatus) V3._state.histFiltroStatus = 'TODOS';
+
   var box = document.getElementById('hf-hist-cotacoes');
-  var ordenadas = grp.cotacoes.slice().sort(function(a,b){
+
+  // Mapa de status → rótulo amigável + cor
+  var mapaStatus = {
+    'TODOS':            { label: 'Todos',        cor: '#a07cf6' },
+    'APROVADO':         { label: '✓ Aprovados',  cor: '#36cfa0' },
+    'COTACAO_RECEBIDA': { label: '📥 Recebidas', cor: '#5b9cff' },
+    'COTACAO_ENVIADA':  { label: '⏳ Enviadas',  cor: '#a07cf6' },
+    'RECUSADA':         { label: '✕ Recusadas',  cor: '#ff7875' },
+    'CANCELADA':        { label: '⊘ Canceladas', cor: '#8fa0c0' },
+    'AGUARDANDO_FORNECEDOR': { label: '🚛 Designadas', cor: '#ffaa2b' },
+    'AGUARDANDO_COLETA':     { label: '📦 Em coleta',  cor: '#ffaa2b' },
+    'EM_TRANSITO':      { label: '🚚 Em trânsito', cor: '#ffaa2b' },
+    'RECEBIDO':         { label: '✅ Recebidos',  cor: '#36cfa0' },
+    'CONCLUIDO':        { label: '🏁 Concluídos', cor: '#36cfa0' }
+  };
+
+  // Conta cotações por status
+  var contagem = {};
+  grp.cotacoes.forEach(function(c){
+    var s = (c.Status || '').toUpperCase().trim() || 'COTACAO_RECEBIDA';
+    contagem[s] = (contagem[s] || 0) + 1;
+  });
+
+  // Monta chips só pros status que existem (+ Todos sempre)
+  var chipsHtml = '<div class="hf-status-filtros">';
+  chipsHtml += v3HistChip('TODOS', mapaStatus['TODOS'], grp.cotacoes.length);
+  Object.keys(contagem).sort(function(a,b){ return contagem[b]-contagem[a]; }).forEach(function(s){
+    var info = mapaStatus[s] || { label: s.replace(/_/g,' '), cor: '#8fa0c0' };
+    chipsHtml += v3HistChip(s, info, contagem[s]);
+  });
+  chipsHtml += '</div>';
+
+  // Filtra conforme status ativo
+  var filtroAtivo = V3._state.histFiltroStatus;
+  var cotacoesFiltradas = grp.cotacoes.filter(function(c){
+    if(filtroAtivo === 'TODOS') return true;
+    var s = (c.Status || '').toUpperCase().trim() || 'COTACAO_RECEBIDA';
+    return s === filtroAtivo;
+  });
+
+  var ordenadas = cotacoesFiltradas.slice().sort(function(a,b){
     var da = new Date(a.Data_Envio || a.Data || a.Timestamp || 0);
     var db = new Date(b.Data_Envio || b.Data || b.Timestamp || 0);
     return db - da;
   });
-  box.innerHTML = ordenadas.map(function(c, idx){
+
+  if(ordenadas.length === 0){
+    box.innerHTML = chipsHtml + '<div style="text-align:center;padding:30px;color:var(--mu);font-style:italic">Nenhuma cotação com este status.</div>';
+    return;
+  }
+
+  box.innerHTML = chipsHtml + ordenadas.map(function(c, idx){
     var id = c.ID_Cotacao || c.ID || '—';
     var dataFmt = v3FormatarData(c.Data_Envio || c.Data || c.Timestamp);
     var st = (c.Status || '').toUpperCase().trim() || 'COTACAO_RECEBIDA';
