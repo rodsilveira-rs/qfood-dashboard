@@ -1016,7 +1016,7 @@ function initDRE(){initDRESelectors();buildDRE();}
 // pro JSON original se o CSV não carregar.
 // Cache: 5 minutos no localStorage para não bater no Sheets toda hora.
 
-var DRE_SYNC_CACHE_KEY = "qfood_dre_csv_cache";
+var DRE_SYNC_CACHE_KEY = "qfood_dre_csv_cache_v2";
 var DRE_SYNC_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
 
 function dreSyncBadge(state, text){
@@ -1053,24 +1053,69 @@ function dreParseNumBR(v){
   return isNaN(n) ? 0 : n;
 }
 
+function dreParseMonthHeader(h){
+  // Aceita os formatos comuns que o Google Sheets exporta como CSV.
+  // Retorna sempre na forma canônica "MM/AAAA" ou null se não for mês.
+  h = String(h || "").trim().replace(/^"|"$/g, "");
+  if(!h) return null;
+  // "04/2026" ou "4/2026"
+  var m = h.match(/^(\d{1,2})\/(\d{4})$/);
+  if(m) return (m[1].length === 1 ? "0"+m[1] : m[1]) + "/" + m[2];
+  // "01/04/2026" → pega mês e ano
+  m = h.match(/^\d{1,2}\/(\d{1,2})\/(\d{4})$/);
+  if(m) return (m[1].length === 1 ? "0"+m[1] : m[1]) + "/" + m[2];
+  // "abr.-26", "abr-26", "abr/26", "abril/2026", "Abr 26", etc.
+  var MES_PT = {"jan":"01","fev":"02","mar":"03","abr":"04","mai":"05","jun":"06","jul":"07","ago":"08","set":"09","out":"10","nov":"11","dez":"12"};
+  m = h.toLowerCase().match(/^([a-zç]{3})[a-zç]*[\.\s\-\/]+(\d{2,4})$/);
+  if(m){
+    var mes = MES_PT[m[1]];
+    if(mes){
+      var ano = m[2];
+      if(ano.length === 2) ano = "20" + ano;
+      return mes + "/" + ano;
+    }
+  }
+  // "2026-04" ou "2026-04-01" (ISO)
+  m = h.match(/^(\d{4})-(\d{2})(?:-\d{2})?$/);
+  if(m) return m[2] + "/" + m[1];
+  return null;
+}
+
+function dreNormalize(s){
+  // Normaliza string para comparação: minúscula, sem acentos, espaços comprimidos.
+  // Resolve divergências entre "DEDUÇÕES" (JSON embutido) e "DEDUCOES" (CSV do Sheets).
+  if(!s) return "";
+  return String(s).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")  // remove acentos
+    .replace(/\s+/g, " ").trim();
+}
+
 function dreDetectNewMonths(csvText){
-  // Lê só a primeira linha do CSV e identifica colunas tipo MM/AAAA
-  // que não estão em DRE.months. Retorna [{col: 83, month: "04/2026"}, ...]
+  // Parseia primeira linha (com suporte a aspas) e identifica colunas-mês novas.
   var firstLine = csvText.split(/\r?\n/)[0];
-  var parts = firstLine.split(",");
-  var monthRe = /^"?(\d{1,2})\/(\d{4})"?$/;
+  var parts = [], cur = "", inQ = false;
+  for(var i = 0; i < firstLine.length; i++){
+    var c = firstLine[i];
+    if(inQ){
+      if(c === '"'){
+        if(firstLine[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = false;
+      } else cur += c;
+    } else {
+      if(c === '"') inQ = true;
+      else if(c === ','){ parts.push(cur); cur = ""; }
+      else cur += c;
+    }
+  }
+  parts.push(cur);
+  
   var existing = {};
   DRE.months.forEach(function(m){ existing[m] = true; });
   var news = [];
   for(var i = 0; i < parts.length; i++){
-    var h = parts[i].trim();
-    var m = h.match(monthRe);
-    if(m){
-      var mm = m[1].length === 1 ? "0" + m[1] : m[1];
-      var month = mm + "/" + m[2];
-      if(!existing[month]){
-        news.push({ col: i, month: month });
-      }
+    var month = dreParseMonthHeader(parts[i]);
+    if(month && !existing[month]){
+      news.push({ col: i, month: month });
     }
   }
   return news;
@@ -1105,13 +1150,14 @@ function dreInjectNewMonths(csvText, newMonths){
     return fields;
   }
   
-  // Indexar subcategorias existentes: { "NOME_DA_SUBCATEGORIA": "NOME_DA_CATEGORIA" }
+  // Indexar subcategorias do JSON usando chave NORMALIZADA (sem acento, lowercase)
+  // Isso resolve divergências do CSV: "DEDUCOES" no Sheets vs "DEDUÇÕES" no JSON.
+  // Valor armazenado: { cat: "nome real no JSON", sub: "nome real no JSON" }
   var subIndex = {};
   Object.keys(DRE.categories).forEach(function(cat){
     Object.keys(DRE.categories[cat]).forEach(function(sub){
-      // Usa o nome da subcategoria como chave; se duplicar, mantém a primeira
-      // (não deve acontecer na prática)
-      if(!subIndex[sub]) subIndex[sub] = cat;
+      var key = dreNormalize(sub);
+      if(!subIndex[key]) subIndex[key] = { cat: cat, sub: sub };
     });
   });
   
@@ -1123,7 +1169,7 @@ function dreInjectNewMonths(csvText, newMonths){
     DRE.grand_total[nm.month] = 0;
   });
   
-  var injected = 0;
+  var injected = 0, skipped = 0, skippedSamples = [];
   for(var l = 1; l < lines.length; l++){
     var line = lines[l];
     if(!line.trim()) continue;
@@ -1131,15 +1177,22 @@ function dreInjectNewMonths(csvText, newMonths){
     var label = (fields[0] || "").trim();
     if(!label) continue;
     
-    var cat = subIndex[label];
-    if(!cat) continue; // subcategoria não existe no JSON → ignora
+    var match = subIndex[dreNormalize(label)];
+    if(!match){
+      // Subcategoria do CSV não existe no JSON → ignora
+      skipped++;
+      if(skippedSamples.length < 5) skippedSamples.push(label);
+      continue;
+    }
+    var cat = match.cat;
+    var subKey = match.sub; // usa a chave ORIGINAL do JSON (com acentos)
     
     newMonths.forEach(function(nm){
       var raw = fields[nm.col];
       var val = dreParseNumBR(raw);
-      DRE.categories[cat][label][nm.month] = val;
+      DRE.categories[cat][subKey][nm.month] = val;
       // Soma para cat_totals só se NÃO for a linha "TOTAL ..." (evita dobrar)
-      if(label.indexOf("TOTAL ") !== 0){
+      if(subKey.indexOf("TOTAL ") !== 0){
         DRE.cat_totals[cat][nm.month] += val;
         DRE.grand_total[nm.month] += val;
       }
@@ -1159,7 +1212,7 @@ function dreInjectNewMonths(csvText, newMonths){
     return (pa[1] - pb[1]) || (pa[0] - pb[0]);
   });
   
-  return { injected: injected, monthsAdded: newMonths.map(function(n){ return n.month; }) };
+  return { injected: injected, skipped: skipped, skippedSamples: skippedSamples, monthsAdded: newMonths.map(function(n){ return n.month; }) };
 }
 
 function dreAutoSync(){
@@ -1187,6 +1240,15 @@ function dreAutoSync(){
         return;
       }
       var result = dreInjectNewMonths(csvText, newMonths);
+      
+      // Log para diagnóstico (visível no console do navegador)
+      console.log("[dreAutoSync] Sincronização concluída:", {
+        meses_novos: result.monthsAdded,
+        linhas_injetadas: result.injected,
+        linhas_ignoradas: result.skipped,
+        exemplos_ignorados: result.skippedSamples
+      });
+      
       // Re-renderiza tudo com os meses novos
       if(typeof initDRESelectors === "function") initDRESelectors();
       if(typeof buildDRE === "function") buildDRE();
@@ -1194,7 +1256,7 @@ function dreAutoSync(){
         initLALSelectors();
         if(typeof buildLAL === "function") buildLAL();
       }
-      dreSyncBadge("updated", "+" + result.monthsAdded.join(", "));
+      dreSyncBadge("updated", "+" + result.monthsAdded.join(", ") + " (" + result.injected + " linhas)");
     } catch(err){
       console.warn("[dreAutoSync] Falha ao processar CSV:", err);
       dreSyncBadge("failed", "Erro ao processar");
@@ -1237,7 +1299,6 @@ function dreAutoSync(){
       dreSyncBadge("failed", "Sem conexão");
     });
 }
-
 
 // ════════════════════════════════════════════════════════════════════
 // LINHA A LINHA MODULE
