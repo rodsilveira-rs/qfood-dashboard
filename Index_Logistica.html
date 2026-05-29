@@ -831,6 +831,9 @@ tbody tr:hover td{background:var(--s2);}
           <span id="sup-sync-status">Carregando NFs entregues da REGISTRO...</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="sup-btn-sync" onclick="supRecarregarCsv()" title="Re-baixa o CSV publicado (Google tem cache de ~5min)" style="background:rgba(160,124,246,.15);color:#a07cf6;border-color:rgba(160,124,246,.4)">
+            🔁 Recarregar
+          </button>
           <button class="sup-btn-sync" onclick="supEnriquecer()" title="Busca dados em REGISTROS_NFS pra preencher CLIENTE/CIDADE/VOLUME/TOTAL vazios" style="background:rgba(77,142,245,.15);color:var(--blue);border-color:rgba(77,142,245,.4)">
             📥 Atualizar dados das NFs
           </button>
@@ -1967,13 +1970,42 @@ function supAdicionarEntrega(){
     msg.innerHTML = '<span class="sup-msg-ok">'+txtOk+'</span>';
     nfInput.value = '';
     if (dataInput) dataInput.value = '';
-    SUP_STATE.loaded.entregas = false;
-    SUP_STATE.nfsEntreguesTs = 0;
-    return supCarregarEntregas();
+
+    // ATUALIZAÇÃO LOCAL — não recarrega CSV (Google tem cache de ~5min)
+    if (r.acao === 'criada' && r.dadosImportados){
+      SUP_STATE.data.entregas.push({
+        'NF': r.nf,
+        'EMISSÃO NF': r.dadosImportados.emissao || '',
+        'CLIENTE': r.dadosImportados.cliente || '',
+        'NOME FANTASIA': r.dadosImportados.nomeFantasia || '',
+        'CIDADE': r.dadosImportados.cidade || '',
+        'VOLUME': r.dadosImportados.volume || '',
+        'TOTAL GERAL': r.dadosImportados.totalGeral || '',
+        'STATUS': r.status,
+        'DATA AGENDADA': dataAg || ''
+      });
+    } else if (r.acao === 'atualizada'){
+      var idx = SUP_STATE.data.entregas.findIndex(function(x){ return String(x['NF']) === String(r.nf); });
+      if (idx >= 0){
+        SUP_STATE.data.entregas[idx]['STATUS'] = r.status;
+        if (dataAg) SUP_STATE.data.entregas[idx]['DATA AGENDADA'] = dataAg;
+      }
+    }
+    supPopularFiltrosEntregas();
+    supAplicarFiltrosEntregas();
   }).catch(function(err){
     msg.innerHTML = '<span class="sup-msg-err">'+err.message+'</span>';
   }).then(function(){
     btn.disabled = false; btn.textContent = '💾 Buscar NF e salvar';
+  });
+}
+
+function supRecarregarCsv(){
+  SUP_STATE.loaded.entregas = false;
+  SUP_STATE.nfsEntreguesTs = 0;
+  supAtualizarStatusSync('loading', 'Recarregando CSV...');
+  supCarregarEntregas().then(function(){
+    supAtualizarStatusSync('ok', '✓ CSV recarregado em ' + new Date().toLocaleTimeString('pt-BR'));
   });
 }
 
@@ -1987,10 +2019,18 @@ function supSincronizar(){
   supBackendPost('sincronizarRegistro', {}).then(function(r){
     var msg = '✓ Sincronização concluída: ' + r.atualizadas + ' linhas atualizadas de ' + r.total + ' totais (REGISTRO tem ' + r.nfsRegistroTotal + ' NFs)';
     supAtualizarStatusSync('ok', msg);
+
+    // Atualiza local com base nos detalhes retornados
+    if (r.detalhes && r.detalhes.length){
+      r.detalhes.forEach(function(det){
+        var idx = SUP_STATE.data.entregas.findIndex(function(x){ return String(x['NF']) === String(det.nf); });
+        if (idx >= 0) SUP_STATE.data.entregas[idx]['STATUS'] = det.statusNovo || 'ENTREGUE';
+      });
+      supPopularFiltrosEntregas();
+      supAplicarFiltrosEntregas();
+    }
+
     alert('🎉 ' + msg);
-    SUP_STATE.loaded.entregas = false;
-    SUP_STATE.nfsEntreguesTs = 0;
-    return supCarregarEntregas();
   }).catch(function(err){
     supAtualizarStatusSync('err', 'Erro: ' + err.message);
     alert('❌ Erro: ' + err.message);
@@ -2007,10 +2047,25 @@ function supEnriquecer(){
   supBackendPost('enriquecerEntregas', {}).then(function(r){
     var msg = '✓ Enriquecimento: ' + r.atualizadas + ' linhas atualizadas, ' + (r.naoEncontradas||0) + ' NFs não encontradas em REGISTROS_NFS de ' + r.total + ' totais';
     supAtualizarStatusSync('ok', msg);
+
+    // Atualiza local com os valores que o backend retornou em detalhes
+    if (r.detalhes && r.detalhes.length){
+      r.detalhes.forEach(function(det){
+        var idx = SUP_STATE.data.entregas.findIndex(function(x){ return String(x['NF']) === String(det.nf); });
+        if (idx >= 0){
+          if (det.emissao)      SUP_STATE.data.entregas[idx]['EMISSÃO NF']   = det.emissao;
+          if (det.cliente)      SUP_STATE.data.entregas[idx]['CLIENTE']      = det.cliente;
+          if (det.nomeFantasia) SUP_STATE.data.entregas[idx]['NOME FANTASIA']= det.nomeFantasia;
+          if (det.cidade)       SUP_STATE.data.entregas[idx]['CIDADE']       = det.cidade;
+          if (det.volume)       SUP_STATE.data.entregas[idx]['VOLUME']       = det.volume;
+          if (det.totalGeral)   SUP_STATE.data.entregas[idx]['TOTAL GERAL']  = det.totalGeral;
+        }
+      });
+      supPopularFiltrosEntregas();
+      supAplicarFiltrosEntregas();
+    }
+
     alert('🎉 ' + msg);
-    SUP_STATE.loaded.entregas = false;
-    SUP_STATE.nfsEntreguesTs = 0;
-    return supCarregarEntregas();
   }).catch(function(err){
     supAtualizarStatusSync('err', 'Erro: ' + err.message);
     alert('❌ Erro: ' + err.message);
