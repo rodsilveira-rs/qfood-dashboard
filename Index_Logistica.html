@@ -850,6 +850,7 @@ tbody tr:hover td{background:var(--s2);}
           <label>Status:
             <select id="sup-ent-status-input">
               <option value="AGUARDANDO AGENDAMENTO">AGUARDANDO AGENDAMENTO</option>
+              <option value="AGENDADO PARA">AGENDADO PARA</option>
               <option value="ENTREGUE">ENTREGUE</option>
               <option value="ENTREGUE PARCIALMENTE">ENTREGUE PARCIALMENTE</option>
               <option value="REENTREGA TEMPO INSUFICIENTE">REENTREGA TEMPO INSUFICIENTE</option>
@@ -868,6 +869,7 @@ tbody tr:hover td{background:var(--s2);}
         <label>Status: <select id="sup-ent-filt-status">
           <option value="">Todos</option>
           <option value="AGUARDANDO AGENDAMENTO">AGUARDANDO AGENDAMENTO</option>
+          <option value="AGENDADO PARA">AGENDADO PARA</option>
           <option value="ENTREGUE">ENTREGUE</option>
           <option value="ENTREGUE PARCIALMENTE">ENTREGUE PARCIALMENTE</option>
           <option value="REENTREGA TEMPO INSUFICIENTE">REENTREGA TEMPO INSUFICIENTE</option>
@@ -1107,7 +1109,7 @@ var SUP_URLS = {
 
 var SUP_STATUS_VALIDOS = [
   'ENTREGUE','ENTREGUE PARCIALMENTE','REENTREGA TEMPO INSUFICIENTE',
-  'REENTREGA PROBLEMA FISCAL','AGUARDANDO AGENDAMENTO','SEM VALOR SUFICIENTE ROTA'
+  'REENTREGA PROBLEMA FISCAL','AGUARDANDO AGENDAMENTO','AGENDADO PARA','SEM VALOR SUFICIENTE ROTA'
 ];
 
 var SUP_EDITORES_VAL = ['claudia.gomes@qfoodcompany.com.br','rodrigo@qfoodcompany.com.br'];
@@ -1806,8 +1808,8 @@ function supRenderKpisEntregas(ents){
 
   document.getElementById('sup-ent-kpis').innerHTML =
     '<div class="kpi sup-warn"><div class="lbl">Aguardando</div><div class="val">'+counts['AGUARDANDO AGENDAMENTO']+'</div></div>' +
+    '<div class="kpi"><div class="lbl">📅 Agendados</div><div class="val">'+counts['AGENDADO PARA']+'</div></div>' +
     '<div class="kpi sup-ok"><div class="lbl">Entregues</div><div class="val">'+counts['ENTREGUE']+'</div></div>' +
-    '<div class="kpi"><div class="lbl">Ent. parcial</div><div class="val">'+counts['ENTREGUE PARCIALMENTE']+'</div></div>' +
     '<div class="kpi sup-danger"><div class="lbl">Reentregas</div><div class="val">'+(counts['REENTREGA TEMPO INSUFICIENTE'] + counts['REENTREGA PROBLEMA FISCAL'])+'</div></div>' +
     '<div class="kpi sup-warn"><div class="lbl">Sem valor rota</div><div class="val">'+counts['SEM VALOR SUFICIENTE ROTA']+'</div></div>' +
     '<div class="kpi"><div class="lbl">Total</div><div class="val">'+ents.length+'</div></div>';
@@ -1918,12 +1920,17 @@ function supSalvarDataAgendada(input){
     autorPerfil: u.perfil
   }).then(function(r){
     input.style.background = 'rgba(54,207,160,.3)';
-    // Atualiza state local
     var idx = SUP_STATE.data.entregas.findIndex(function(x){ return String(x['NF']) === String(nf); });
-    if (idx >= 0) SUP_STATE.data.entregas[idx]['DATA AGENDADA'] = dataNova;
+    if (idx >= 0){
+      SUP_STATE.data.entregas[idx]['DATA AGENDADA'] = dataNova;
+      if (r.statusAlterado && r.statusAlterado.para){
+        SUP_STATE.data.entregas[idx]['STATUS'] = r.statusAlterado.para;
+      }
+    }
     setTimeout(function(){
       input.style.background = prev;
       input.disabled = false;
+      if (r.statusAlterado) supAplicarFiltrosEntregas();
     }, 1200);
   }).catch(function(err){
     alert('Erro ao salvar data: ' + err.message);
