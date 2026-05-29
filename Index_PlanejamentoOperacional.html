@@ -151,6 +151,19 @@
     font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:7px 14px;border-radius:999px}
   .cal-refresh:hover{border-color:var(--accent)}
 
+  /* logos por empresa */
+  .cal-logos{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
+  .cal-logos:empty{display:none}
+  .emp-logo{display:inline-flex;align-items:center;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:6px 12px}
+  .emp-logo img{height:30px;max-width:150px;object-fit:contain}
+  .emp-badge{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:800;
+    color:#fff;padding:9px 14px;border-radius:12px;line-height:1}
+  .emp-badge.qfood{background:#e63329}
+  .emp-badge.sushi{background:#ff7a45}
+  .emp-badge.merc{background:#d4a340}
+  .emp-badge.ecom{background:#14b8a6}
+
   .mes-bloco{margin-bottom:26px}
   .mes-titulo{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
     margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
@@ -239,6 +252,8 @@
       <button class="cal-refresh" id="calRefresh">↻ Atualizar</button>
     </div>
 
+    <div class="cal-logos" id="calLogos"></div>
+
     <div id="calConteudo">
       <div class="cal-estado"><div class="spin"></div><div>Carregando calendário…</div></div>
     </div>
@@ -309,19 +324,20 @@
 
 <script>
 /* ============================================================
-   1) GUARDA DE SESSÃO (placeholder)
-   Trocar pela sua lógica UUSR (sessionStorage) usada nos outros index.
-   Por ora só preenche o nome do usuário se já houver sessão salva.
+   1) GUARDA DE SESSÃO (real)
+   Lê a sessão criada pelo Index_Menu (localStorage 'qfood_session',
+   validade 8h). Sem sessão válida → volta pro menu.
    ============================================================ */
+var SESSAO = null;
 (function guardaSessao(){
+  function irParaMenu(){ window.location.href = 'Index_Menu.html'; }
   try{
-    var sess = JSON.parse(sessionStorage.getItem('qfood_user') || 'null');
-    document.getElementById('usuarioNome').textContent =
-      (sess && sess.nome) ? sess.nome : 'Visitante';
-    // No passo de permissão, aqui filtramos abas/itens por sess.perfil e sess.crm_sigla
-  }catch(e){
-    document.getElementById('usuarioNome').textContent = 'Visitante';
-  }
+    var sess = JSON.parse(localStorage.getItem('qfood_session') || 'null');
+    if(!sess || !sess.ts || (Date.now() - sess.ts > 8*60*60*1000)){ irParaMenu(); return; }
+    SESSAO = sess;
+    document.getElementById('usuarioNome').textContent = sess.nome || 'usuário';
+    // admin: SESSAO.crmSigla === "*" → vê tudo (usado no filtro por setor do Checklist)
+  }catch(e){ irParaMenu(); }
 })();
 
 /* ============================================================
@@ -350,6 +366,190 @@
       if(alvo) alvo.click();
     }
   }catch(_){}
+})();
+
+/* ============================================================
+   3) CONFIG — URLs de CSV das abas publicadas
+   ============================================================ */
+var CSV_URLS = {
+  calendario: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=275562838&single=true&output=csv',
+  plano:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1145722235&single=true&output=csv',
+  checklist:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1981300204&single=true&output=csv'
+};
+
+/* ===== Parser CSV robusto (RFC 4180) ===== */
+function parseCSV(texto){
+  var linhas=[], campo='', linha=[], aspas=false;
+  for(var i=0;i<texto.length;i++){
+    var c=texto[i];
+    if(aspas){
+      if(c==='"' && texto[i+1]==='"'){ campo+='"'; i++; }
+      else if(c==='"'){ aspas=false; }
+      else campo+=c;
+    } else {
+      if(c==='"') aspas=true;
+      else if(c===','){ linha.push(campo); campo=''; }
+      else if(c==='\n'){ linha.push(campo); linhas.push(linha); linha=[]; campo=''; }
+      else if(c==='\r'){ /* ignora */ }
+      else campo+=c;
+    }
+  }
+  if(campo!=='' || linha.length){ linha.push(campo); linhas.push(linha); }
+  return linhas;
+}
+function csvParaObjetos(texto){
+  var linhas=parseCSV(texto).filter(function(l){ return l.some(function(c){return c.trim()!=='';}); });
+  if(!linhas.length) return [];
+  var cab=linhas[0].map(function(h){return h.trim();});
+  return linhas.slice(1).map(function(l){
+    var o={}; cab.forEach(function(h,idx){ o[h]=(l[idx]||'').trim(); }); return o;
+  });
+}
+function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+/* ============================================================
+   4) ABA CALENDÁRIO — leitura + render + logos por empresa
+   ============================================================ */
+(function calendario(){
+  var MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  var MESES_LONGO=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  var CORES={'Nacional':'var(--green)','Estadual_ES':'var(--blue)','Gastronomica':'var(--gold)','Oriental':'var(--red)','Sazonal':'var(--muted)'};
+  var ROTULO={'Nacional':'Nacional','Estadual_ES':'ES','Gastronomica':'Gastronômica','Oriental':'Oriental','Sazonal':'Sazonal'};
+
+  // Empresas → logo (img) ou badge. Ecommerce usa ícone próprio (sem logo).
+  var EMP_LOGOS=[
+    {val:'Q Food',     nome:'Q Food',              file:'logo.png',           icon:'🏢', cls:'qfood'},
+    {val:'Sushi Trip', nome:'Sushi Trip',          file:'logo_sushi.png',     icon:'🍣', cls:'sushi'},
+    {val:'Mercearia',  nome:'Mercearia Liberdade', file:'logo_mercearia.png', icon:'🍜', cls:'merc'},
+    {val:'Ecommerce',  nome:'Ecommerce',           file:null,                 icon:'🛒', cls:'ecom'}
+  ];
+
+  var dados=[];
+  var filtroTipo='Todos';
+  var filtroEmpresa='Todas';
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+
+  var elConteudo=document.getElementById('calConteudo');
+  var elLogos=document.getElementById('calLogos');
+
+  function parseData(txt){
+    var m=(txt||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if(!m) return null;
+    return new Date(+m[3], +m[2]-1, +m[1]);
+  }
+
+  function renderLogos(sel){
+    var alvo = (sel==='Todas') ? EMP_LOGOS : EMP_LOGOS.filter(function(e){return e.val===sel;});
+    elLogos.innerHTML = alvo.map(function(e){
+      if(e.file){
+        return '<span class="emp-logo">'+
+          '<img src="'+e.file+'" alt="'+esc(e.nome)+'" '+
+            'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'inline-flex\'">'+
+          '<span class="emp-badge '+e.cls+'" style="display:none">'+e.icon+' '+esc(e.nome)+'</span>'+
+        '</span>';
+      }
+      return '<span class="emp-badge '+e.cls+'">'+e.icon+' '+esc(e.nome)+'</span>';
+    }).join('');
+  }
+
+  function carregar(){
+    elConteudo.innerHTML='<div class="cal-estado"><div class="spin"></div><div>Carregando calendário…</div></div>';
+    fetch(CSV_URLS.calendario + '&_=' + Date.now())
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+      .then(function(txt){
+        dados = csvParaObjetos(txt).map(function(o){
+          return {
+            evento:o.Evento||'', tipo:o.Tipo||'Sazonal',
+            recorrencia:o.Recorrencia||'', empresas:o.Empresas||'',
+            antecedencia:o.Antecedencia_dias||'', obs:o.Obs||'',
+            data:parseData(o.Data)
+          };
+        }).filter(function(e){ return e.evento; });
+        renderizar();
+      })
+      .catch(function(err){
+        elConteudo.innerHTML='<div class="cal-estado erro">⚠ Não consegui carregar o calendário.<br><small>'+esc(err.message)+'</small></div>';
+      });
+  }
+
+  function passaFiltro(e){
+    if(filtroTipo!=='Todos' && e.tipo!==filtroTipo) return false;
+    if(filtroEmpresa!=='Todas'){
+      var emp=(e.empresas||'').toLowerCase();
+      if(emp.indexOf('todas')===-1 && emp.indexOf(filtroEmpresa.toLowerCase())===-1) return false;
+    }
+    return true;
+  }
+
+  function renderizar(){
+    var lista=dados.filter(passaFiltro);
+    lista.sort(function(a,b){
+      if(!a.data) return 1; if(!b.data) return -1;
+      return a.data-b.data;
+    });
+    if(!lista.length){
+      elConteudo.innerHTML='<div class="cal-estado">Nenhuma data encontrada com esse filtro.</div>';
+      return;
+    }
+    var grupos={}, ordem=[];
+    lista.forEach(function(e){
+      var chave = e.data ? (e.data.getFullYear()+'-'+e.data.getMonth()) : 'sem';
+      if(!grupos[chave]){ grupos[chave]=[]; ordem.push(chave); }
+      grupos[chave].push(e);
+    });
+    var html='';
+    ordem.forEach(function(chave){
+      var titulo;
+      if(chave==='sem'){ titulo='Sem data definida'; }
+      else { var p=chave.split('-'); titulo=MESES_LONGO[+p[1]]+' / '+p[0]; }
+      html+='<div class="mes-bloco"><div class="mes-titulo">'+titulo+'</div>';
+      grupos[chave].forEach(function(e){ html+=cardEvento(e); });
+      html+='</div>';
+    });
+    elConteudo.innerHTML=html;
+  }
+
+  function cardEvento(e){
+    var cor=CORES[e.tipo]||'var(--muted)';
+    var rot=ROTULO[e.tipo]||esc(e.tipo);
+    var dia = e.data ? String(e.data.getDate()).padStart(2,'0') : '–';
+    var mesab = e.data ? MESES[e.data.getMonth()] : '';
+    var passado = e.data && e.data < hoje;
+    var prox=false;
+    if(e.data && !passado){ prox = (e.data-hoje)/(864e5) <= 30; }
+    var empresasHtml='';
+    (e.empresas||'').split(',').forEach(function(emp){
+      emp=emp.trim(); if(emp) empresasHtml+='<span class="ev-emp">'+esc(emp)+'</span>';
+    });
+    return '<div class="evento'+(passado?' passado':'')+'">'+
+      '<div class="ev-data"><div class="dia">'+dia+'</div><div class="mesabrev">'+mesab+'</div></div>'+
+      '<div class="ev-corpo">'+
+        '<div class="ev-topo">'+
+          '<span class="ev-nome">'+esc(e.evento)+'</span>'+
+          '<span class="ev-pill" style="background:'+cor+'">'+rot+'</span>'+
+          (prox?'<span class="ev-prox">● em breve</span>':'')+
+        '</div>'+
+        '<div class="ev-meta">'+empresasHtml+
+          (e.antecedencia?'<span class="ev-ant">⏱ preparar '+esc(e.antecedencia)+'d antes</span>':'')+
+        '</div>'+
+        (e.obs?'<div class="ev-obs">'+esc(e.obs)+'</div>':'')+
+      '</div>'+
+    '</div>';
+  }
+
+  document.getElementById('calFiltros').addEventListener('click',function(ev){
+    var b=ev.target.closest('button[data-tipo]'); if(!b) return;
+    this.querySelectorAll('button').forEach(function(x){x.classList.remove('on');});
+    b.classList.add('on'); filtroTipo=b.dataset.tipo; renderizar();
+  });
+  document.getElementById('calEmpresa').addEventListener('change',function(){
+    filtroEmpresa=this.value; renderLogos(filtroEmpresa); renderizar();
+  });
+  document.getElementById('calRefresh').addEventListener('click',carregar);
+
+  renderLogos('Todas');
+  carregar();
 })();
 </script>
 </body>
