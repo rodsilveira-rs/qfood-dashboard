@@ -830,9 +830,14 @@ tbody tr:hover td{background:var(--s2);}
           <span class="sup-sync-dot" id="sup-sync-dot"></span>
           <span id="sup-sync-status">Carregando NFs entregues da REGISTRO...</span>
         </div>
-        <button class="sup-btn-sync" id="sup-btn-sync" onclick="supSincronizar()" title="Força gravação: marca como ENTREGUE toda NF que existe na REGISTRO">
-          🔄 Sincronizar com REGISTRO
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="sup-btn-sync" onclick="supEnriquecer()" title="Busca dados em REGISTROS_NFS pra preencher CLIENTE/CIDADE/VOLUME/TOTAL vazios" style="background:rgba(77,142,245,.15);color:var(--blue);border-color:rgba(77,142,245,.4)">
+            📥 Atualizar dados das NFs
+          </button>
+          <button class="sup-btn-sync" id="sup-btn-sync" onclick="supSincronizar()" title="Força gravação: marca como ENTREGUE toda NF que existe na REGISTRO">
+            🔄 Sincronizar com REGISTRO
+          </button>
+        </div>
       </div>
 
       <div class="kpis" id="sup-ent-kpis" style="grid-template-columns:repeat(6,1fr)"></div>
@@ -877,8 +882,14 @@ tbody tr:hover td{background:var(--s2);}
       <div class="sup-table-wrap">
         <table class="sup-table" id="sup-ent-table">
           <thead><tr>
-            <th>NF</th><th>Emissão</th><th>Cliente</th><th>Nome Fantasia</th>
-            <th>Cidade</th><th style="text-align:right">Vol</th><th style="text-align:right">Total</th><th>Status</th>
+            <th onclick="supSort('NF')" style="cursor:pointer">NF <span id="sso-NF" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('EMISSÃO NF')" style="cursor:pointer">Emissão <span id="sso-EMISSÃO NF" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('CLIENTE')" style="cursor:pointer">Cliente <span id="sso-CLIENTE" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('NOME FANTASIA')" style="cursor:pointer">Nome Fantasia <span id="sso-NOME FANTASIA" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('CIDADE')" style="cursor:pointer">Cidade <span id="sso-CIDADE" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('VOLUME')" style="text-align:right;cursor:pointer">Vol <span id="sso-VOLUME" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('TOTAL GERAL')" style="text-align:right;cursor:pointer">Total <span id="sso-TOTAL GERAL" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('STATUS')" style="cursor:pointer">Status <span id="sso-STATUS" style="opacity:.4">⇅</span></th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -1144,15 +1155,23 @@ function supCsvToObjects(csvText){
 // ─── Helpers ───
 function supParseData(s){
   if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)){
-    var d = new Date(s);
+  s = String(s).trim();
+  if (!s) return null;
+  // ISO: 2026-05-28 OU 2026-05-28T11:32:12 OU 2026-05-28 11:32:12
+  var iso = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (iso){
+    var d = new Date(+iso[1], +iso[2]-1, +iso[3],
+                     +iso[4]||0, +iso[5]||0, +iso[6]||0);
     return isNaN(d) ? null : d;
   }
-  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if (m){
-    var d2 = new Date(+m[3], +m[2]-1, +m[1]);
+  // BR: 28/05/2026 OU 28/05/2026 11:32:12
+  var br = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (br){
+    var d2 = new Date(+br[3], +br[2]-1, +br[1],
+                      +br[4]||0, +br[5]||0, +br[6]||0);
     return isNaN(d2) ? null : d2;
   }
+  // US: 5/28/2026 (fallback heurístico — só se mês > 12 não cabe)
   var d3 = new Date(s);
   return isNaN(d3) ? null : d3;
 }
@@ -1184,11 +1203,29 @@ function supUniqSort(arr){
 // ─── Usuário (do window.CURRENT_USER do seu sistema) ───
 function supGetUsuario(){
   var u = window.CURRENT_USER || {};
-  return {
-    email: String(u.email || '').toLowerCase().trim(),
-    perfil: String(u.perfil || '').toLowerCase().trim(),
-    nome: String(u.nome || '')
-  };
+  // Tenta várias chaves possíveis (Email/email/EMAIL, Perfil/perfil)
+  var email = String(u.email || u.Email || u.EMAIL || u.e_mail || '').toLowerCase().trim();
+  var perfil = String(u.perfil || u.Perfil || u.PERFIL || '').toLowerCase().trim();
+  var nome = String(u.nome || u.Nome || u.NOME || '');
+
+  // Fallback heurístico — se não tem email, tenta inferir pelo nome
+  if (!email && nome){
+    var n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    var mapaEmail = {
+      'rodrigo': 'rodrigo@qfoodcompany.com.br',
+      'claudia gomes': 'claudia.gomes@qfoodcompany.com.br',
+      'claudia': 'claudia.gomes@qfoodcompany.com.br',
+      'jonathas': 'jonathas@qfoodcompany.com.br',
+      'maiko': 'maiko@qfoodcompany.com.br',
+      'adilson': 'adilson@qfoodcompany.com.br'
+    };
+    email = mapaEmail[n] || '';
+  }
+
+  if (!email){
+    console.warn('[SUP] ⚠️ Email não encontrado em CURRENT_USER. Conteúdo:', u);
+  }
+  return { email: email, perfil: perfil, nome: nome };
 }
 
 function supPodeEditarValidades(){
@@ -1695,6 +1732,33 @@ function supAplicarFiltrosEntregas(){
     });
   }
 
+  // Aplica sort se houver
+  if (SUP_ENT_SORT.col){
+    var col = SUP_ENT_SORT.col, dir = SUP_ENT_SORT.dir;
+    ents.sort(function(a, b){
+      var va = a[col], vb = b[col];
+      // Trata números
+      if (col === 'VOLUME' || col === 'TOTAL GERAL'){
+        va = Number(va) || 0; vb = Number(vb) || 0;
+        return dir * (va - vb);
+      }
+      // Trata datas
+      if (col === 'EMISSÃO NF'){
+        var da = supParseData(va), db = supParseData(vb);
+        var ta = da ? da.getTime() : 0, tb = db ? db.getTime() : 0;
+        return dir * (ta - tb);
+      }
+      // Trata STATUS pelo efetivo (após cruzamento REGISTRO)
+      if (col === 'STATUS'){
+        va = supStatusEfetivo(a).efetivo;
+        vb = supStatusEfetivo(b).efetivo;
+      }
+      // Texto
+      va = String(va || ''); vb = String(vb || '');
+      return dir * va.localeCompare(vb, 'pt-BR', {numeric:true});
+    });
+  }
+
   supRenderKpisEntregas(ents);
   supRenderTabelaEntregas(ents);
 
@@ -1846,6 +1910,24 @@ function supSincronizar(){
   });
 }
 
+function supEnriquecer(){
+  if (!confirm('Vai buscar dados em REGISTROS_NFS pra preencher CLIENTE / NOME FANTASIA / CIDADE / VOLUME / TOTAL GERAL nas linhas que estão vazias.\n\nIsso grava na planilha CONTROLE_ENTREGAS_SUPERMERCADOS.\n\nContinuar?')) return;
+
+  supAtualizarStatusSync('loading', 'Enriquecendo dados das NFs...');
+
+  supBackendPost('enriquecerEntregas', {}).then(function(r){
+    var msg = '✓ Enriquecimento: ' + r.atualizadas + ' linhas atualizadas, ' + (r.naoEncontradas||0) + ' NFs não encontradas em REGISTROS_NFS de ' + r.total + ' totais';
+    supAtualizarStatusSync('ok', msg);
+    alert('🎉 ' + msg);
+    SUP_STATE.loaded.entregas = false;
+    SUP_STATE.nfsEntreguesTs = 0;
+    return supCarregarEntregas();
+  }).catch(function(err){
+    supAtualizarStatusSync('err', 'Erro: ' + err.message);
+    alert('❌ Erro: ' + err.message);
+  });
+}
+
 function supLimparEnt(){
   ['sup-ent-filt-status','sup-ent-filt-cidade'].forEach(function(id){
     document.getElementById(id).value = '';
@@ -1857,6 +1939,28 @@ function supLimparEnt(){
 // ════════════════════════════════════════════════════════════
 // NAVEGAÇÃO ENTRE PAINÉIS + INIT
 // ════════════════════════════════════════════════════════════
+// ─── Sort de tabela de entregas ───
+var SUP_ENT_SORT = { col: null, dir: 1 };
+function supSort(col){
+  if (SUP_ENT_SORT.col === col){
+    SUP_ENT_SORT.dir *= -1;
+  } else {
+    SUP_ENT_SORT.col = col;
+    SUP_ENT_SORT.dir = 1;
+  }
+  // Atualiza visual do indicador
+  document.querySelectorAll('[id^="sso-"]').forEach(function(el){
+    el.textContent = '⇅';
+    el.style.opacity = '.4';
+  });
+  var ind = document.getElementById('sso-' + col);
+  if (ind){
+    ind.textContent = SUP_ENT_SORT.dir > 0 ? '↑' : '↓';
+    ind.style.opacity = '1';
+  }
+  supAplicarFiltrosEntregas();
+}
+
 function supTrocarPainel(nome, ev){
   document.querySelectorAll('.sup-pill').forEach(function(b){
     b.classList.toggle('active', b.getAttribute('data-sup-panel') === nome);
@@ -3336,11 +3440,25 @@ function entOpenModal(i){
   }).join("");
 
   var obs=(r["Observações sobre a entrega"]||"").trim();
+  var assinatura=(r["Assinatura Cliente"]||"").trim();
+  var temAssinatura = assinatura && assinatura.indexOf("http") >= 0;
+  var temObs = obs && obs.toLowerCase() !== "ok";
   var obsEl=document.getElementById("ent-modal-obs");
-  if(obs&&obs.toLowerCase()!=="ok"){
+  if(temObs || temAssinatura){
     obsEl.style.display="block";
-    obsEl.innerHTML="<b style='color:var(--warn)'>&#9888; Ocorrência:</b> "+obs;
-  }else{obsEl.style.display="none";}
+    var html = "";
+    if (temObs){
+      html += "<b style='color:var(--warn)'>&#9888; Ocorrência:</b> "+obs;
+    }
+    if (temAssinatura){
+      if (temObs) html += "<div style='margin-top:10px'></div>";
+      html += "<div style='font-size:.78rem;color:var(--mu);font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px'>✍️ Assinatura do cliente na ocorrência</div>";
+      html += "<a href='"+assinatura+"' target='_blank' style='display:inline-block'><img src='"+assinatura+"' alt='Assinatura' style='max-width:300px;max-height:160px;background:#fff;border-radius:6px;padding:6px;cursor:zoom-in;display:block' onerror=\"this.style.display='none';this.insertAdjacentHTML('afterend','<span style=color:var(--mu)>(Assinatura não carregou)</span>')\"></a>";
+    }
+    obsEl.innerHTML = html;
+  } else {
+    obsEl.style.display="none";
+  }
 
   var fotoKeys=["Foto Canhoto assinado","Foto Entrega 1","Foto Entrega 2","Foto Entrega 3","Foto Entrega 4"];
   var fotoLabels=["Canhoto Assinado","Entrega 1","Entrega 2","Entrega 3","Entrega 4"];
