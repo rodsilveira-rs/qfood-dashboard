@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planejamento Operacional · Grupo Q Food</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     PLANEJAMENTO OPERACIONAL — CASCA / ESTRUTURA DE ABAS (v1.0)
+     Passo 1: navegação entre abas funcionando + placeholders.
+     Próximos passos: plugar CSV (Calendário) e Apps Script (escrita).
+     ============================================================ */
+  :root{
+    --ink:#15211f;
+    --ink-2:#3a4d49;
+    --bg:#f4f1ec;
+    --surface:#ffffff;
+    --line:#e3ddd2;
+    --accent:#d97524;      /* âmbar/laranja — energia, gastronomia */
+    --accent-soft:#fbe9d8;
+    --green:#2f7d5b;        /* concluído / nacional */
+    --blue:#2b6cb0;         /* ES / em preparação */
+    --gold:#c79a1f;         /* gastronômico */
+    --red:#b3412c;          /* oriental / risco */
+    --muted:#8a8478;
+    --radius:16px;
+    --shadow:0 1px 2px rgba(21,33,31,.04), 0 8px 24px rgba(21,33,31,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Manrope',system-ui,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+
+  /* ---------- Topo ---------- */
+  header.topo{
+    background:var(--ink);
+    color:#fff;
+    padding:18px 22px;
+    display:flex;align-items:center;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;
+  }
+  .topo .marca{display:flex;align-items:center;gap:12px}
+  .topo .logo{
+    width:42px;height:42px;border-radius:12px;
+    background:linear-gradient(135deg,var(--accent),#b85d18);
+    display:grid;place-items:center;font-size:22px;flex-shrink:0;
+  }
+  .topo h1{font-size:18px;font-weight:800;letter-spacing:-.01em}
+  .topo .sub{font-size:12px;color:#a9b5b1;font-weight:500}
+  .topo .usuario{
+    display:flex;align-items:center;gap:10px;font-size:13px;
+    background:rgba(255,255,255,.07);padding:8px 14px;border-radius:999px;
+  }
+  .topo .usuario b{font-weight:700}
+  .topo .voltar{
+    color:#a9b5b1;text-decoration:none;font-size:13px;font-weight:600;
+    padding:8px 12px;border-radius:10px;transition:.2s;
+  }
+  .topo .voltar:hover{background:rgba(255,255,255,.08);color:#fff}
+
+  /* ---------- Navegação de abas ---------- */
+  nav.abas{
+    background:var(--surface);
+    border-bottom:1px solid var(--line);
+    padding:0 16px;
+    display:flex;gap:4px;overflow-x:auto;
+    position:sticky;top:0;z-index:20;
+  }
+  nav.abas button{
+    border:none;background:none;cursor:pointer;
+    font-family:inherit;font-size:14px;font-weight:700;color:var(--muted);
+    padding:16px 18px 14px;white-space:nowrap;
+    border-bottom:3px solid transparent;
+    display:flex;align-items:center;gap:8px;transition:.2s;
+  }
+  nav.abas button .ic{font-size:16px}
+  nav.abas button:hover{color:var(--ink-2)}
+  nav.abas button.ativa{color:var(--ink);border-bottom-color:var(--accent)}
+
+  /* ---------- Conteúdo ---------- */
+  main{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+  .painel{display:none;animation:sobe .35s ease}
+  .painel.ativo{display:block}
+  @keyframes sobe{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  .painel-cab{margin-bottom:22px}
+  .painel-cab h2{font-size:24px;font-weight:800;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+  .painel-cab p{color:var(--ink-2);font-size:14px;margin-top:4px;max-width:680px}
+
+  /* placeholder / "em construção" */
+  .placeholder{
+    background:var(--surface);border:1px dashed var(--line);
+    border-radius:var(--radius);padding:30px;box-shadow:var(--shadow);
+  }
+  .tag-prox{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--accent-soft);color:#9a4d12;
+    font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+    padding:5px 11px;border-radius:999px;margin-bottom:14px;
+  }
+  .placeholder h3{font-size:16px;font-weight:700;margin-bottom:6px}
+  .placeholder .desc{color:var(--ink-2);font-size:14px;margin-bottom:18px;max-width:640px}
+
+  /* legenda de tipos (Calendário) */
+  .legenda{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .chip-tipo{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;
+    background:#fff;border:1px solid var(--line);padding:7px 12px;border-radius:999px}
+  .ponto{width:9px;height:9px;border-radius:50%}
+
+  /* chips genéricos */
+  .grade-mini{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .chip{font-size:12px;font-weight:700;padding:7px 12px;border-radius:10px;
+    background:#fff;border:1px solid var(--line);color:var(--ink-2)}
+  .chip.status{color:#fff}
+  .s-plan{background:var(--muted)}
+  .s-prep{background:var(--blue)}
+  .s-exec{background:var(--accent)}
+  .s-ok{background:var(--green)}
+
+  .setores{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:6px}
+  .setor-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+  .setor-card .nome{font-weight:800;font-size:14px}
+  .setor-card .resp{font-size:12px;color:var(--muted);margin-top:2px}
+
+  .faixas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
+  .faixa{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
+  .faixa .n{font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .faixa .lbl{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+  .faixa.d7 .n{color:var(--red)} .faixa.d15 .n{color:var(--accent)} .faixa.d30 .n{color:var(--blue)}
+
+  /* ---------- Calendário (agenda) ---------- */
+  .cal-barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+  .cal-filtros{display:flex;gap:6px;flex-wrap:wrap}
+  .filtro-btn{border:1px solid var(--line);background:#fff;color:var(--ink-2);
+    font-family:inherit;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;cursor:pointer;
+    transition:.15s;display:inline-flex;align-items:center;gap:6px}
+  .filtro-btn:hover{border-color:var(--accent)}
+  .filtro-btn.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .filtro-btn .ponto{width:8px;height:8px;border-radius:50%}
+  .cal-sel{border:1px solid var(--line);background:#fff;font-family:inherit;font-size:12.5px;font-weight:700;
+    color:var(--ink-2);padding:7px 12px;border-radius:999px;cursor:pointer}
+  .cal-refresh{margin-left:auto;border:1px solid var(--line);background:#fff;cursor:pointer;
+    font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:7px 14px;border-radius:999px}
+  .cal-refresh:hover{border-color:var(--accent)}
+
+  .mes-bloco{margin-bottom:26px}
+  .mes-titulo{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .evento{display:flex;gap:14px;align-items:flex-start;background:#fff;border:1px solid var(--line);
+    border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:var(--shadow);transition:.15s}
+  .evento:hover{transform:translateY(-1px)}
+  .evento.passado{opacity:.5}
+  .ev-data{flex-shrink:0;width:54px;text-align:center;border-right:1px solid var(--line);padding-right:12px}
+  .ev-data .dia{font-size:22px;font-weight:800;line-height:1}
+  .ev-data .mesabrev{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-top:2px}
+  .ev-corpo{flex:1;min-width:0}
+  .ev-topo{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .ev-nome{font-size:15px;font-weight:800}
+  .ev-pill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;
+    color:#fff;padding:3px 9px;border-radius:999px}
+  .ev-prox{font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:.04em}
+  .ev-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px;align-items:center}
+  .ev-emp{font-size:11.5px;font-weight:700;color:var(--ink-2);background:var(--bg);
+    border:1px solid var(--line);padding:3px 9px;border-radius:8px}
+  .ev-ant{font-size:11.5px;font-weight:700;color:var(--accent)}
+  .ev-obs{font-size:12.5px;color:var(--muted);margin-top:6px}
+
+  .cal-estado{text-align:center;padding:46px 20px;color:var(--muted);font-size:14px}
+  .cal-estado.erro{color:var(--red)}
+  .spin{display:inline-block;width:24px;height:24px;border:3px solid var(--line);border-top-color:var(--accent);
+    border-radius:50%;animation:girar .8s linear infinite;margin-bottom:12px}
+  @keyframes girar{to{transform:rotate(360deg)}}
+
+  @media(max-width:640px){
+    .faixas{grid-template-columns:1fr}
+    .topo h1{font-size:16px}
+  }
+  .nota-rodape{margin-top:22px;font-size:12px;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ===================== TOPO ===================== -->
+<header class="topo">
+  <div class="marca">
+    <div class="logo">📅</div>
+    <div>
+      <h1>Planejamento Operacional</h1>
+      <div class="sub">Grupo Q Food · Q Food · Sushi Trip · Mercearia Liberdade · Ecommerce</div>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="usuario">👤 <b id="usuarioNome">Carregando…</b></div>
+    <a class="voltar" href="Index_Menu.html">← Menu</a>
+  </div>
+</header>
+
+<!-- ===================== ABAS ===================== -->
+<nav class="abas" id="navAbas">
+  <button class="ativa" data-aba="calendario"><span class="ic">📅</span> Calendário</button>
+  <button data-aba="plano"><span class="ic">🎯</span> Plano de Ações</button>
+  <button data-aba="checklist"><span class="ic">✅</span> Checklist por Setor</button>
+  <button data-aba="cronograma"><span class="ic">⏱️</span> Cronograma 30 dias</button>
+</nav>
+
+<main>
+
+  <!-- ---------- ABA 1: CALENDÁRIO ---------- -->
+  <section class="painel ativo" id="aba-calendario">
+    <div class="painel-cab">
+      <h2>📅 Calendário</h2>
+      <p>Datas que movimentam o grupo no ano: feriados nacionais, do ES, gastronômicas e orientais. Base de referência (leitura) da aba <b>CALENDARIO_DATAS</b>.</p>
+    </div>
+
+    <div class="cal-barra">
+      <div class="cal-filtros" id="calFiltros">
+        <button class="filtro-btn on" data-tipo="Todos">Todos</button>
+        <button class="filtro-btn" data-tipo="Nacional"><span class="ponto" style="background:var(--green)"></span> Nacional</button>
+        <button class="filtro-btn" data-tipo="Estadual_ES"><span class="ponto" style="background:var(--blue)"></span> ES</button>
+        <button class="filtro-btn" data-tipo="Gastronomica"><span class="ponto" style="background:var(--gold)"></span> Gastronômica</button>
+        <button class="filtro-btn" data-tipo="Oriental"><span class="ponto" style="background:var(--red)"></span> Oriental</button>
+        <button class="filtro-btn" data-tipo="Sazonal"><span class="ponto" style="background:var(--muted)"></span> Sazonal</button>
+      </div>
+      <select class="cal-sel" id="calEmpresa">
+        <option value="Todas">Todas as empresas</option>
+        <option value="Q Food">Q Food</option>
+        <option value="Sushi Trip">Sushi Trip</option>
+        <option value="Mercearia">Mercearia Liberdade</option>
+        <option value="Ecommerce">Ecommerce</option>
+      </select>
+      <button class="cal-refresh" id="calRefresh">↻ Atualizar</button>
+    </div>
+
+    <div id="calConteudo">
+      <div class="cal-estado"><div class="spin"></div><div>Carregando calendário…</div></div>
+    </div>
+  </section>
+
+  <!-- ---------- ABA 2: PLANO DE AÇÕES ---------- -->
+  <section class="painel" id="aba-plano">
+    <div class="painel-cab">
+      <h2>🎯 Plano de Ações</h2>
+      <p>O coração do sistema. Um card por evento ativo, com objetivo, empresas envolvidas, responsável e status. Leitura + escrita via Apps Script (tab <b>PLANO_ACOES</b>).</p>
+    </div>
+    <div class="placeholder">
+      <span class="tag-prox">⬩ Próximo passo · Passo 3</span>
+      <h3>Aqui entram os cards de evento</h3>
+      <div class="desc">Cada plano percorre estes status, com KPI meta x real ancorado no seu histórico real de faturamento:</div>
+      <div class="grade-mini">
+        <span class="chip status s-plan">Planejado</span>
+        <span class="chip status s-prep">Em preparação</span>
+        <span class="chip status s-exec">Executando</span>
+        <span class="chip status s-ok">Concluído</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- ABA 3: CHECKLIST POR SETOR ---------- -->
+  <section class="painel" id="aba-checklist">
+    <div class="painel-cab">
+      <h2>✅ Checklist por Setor</h2>
+      <p>Cada gestor vê e marca apenas os itens do seu setor para os eventos próximos. Você e o Adilson veem tudo. Permissão via UUSR (mesma lógica do Checkpoint). Semáforo composto por evento.</p>
+    </div>
+    <div class="placeholder">
+      <span class="tag-prox">⬩ Próximo passo · Passo 4</span>
+      <h3>Aqui entram as listas por setor</h3>
+      <div class="desc">Setores e responsáveis previstos:</div>
+      <div class="setores">
+        <div class="setor-card"><div class="nome">Operações / Comercial</div><div class="resp">Rodrigo</div></div>
+        <div class="setor-card"><div class="nome">Logística</div><div class="resp">Maiko</div></div>
+        <div class="setor-card"><div class="nome">Compras / Adm</div><div class="resp">Célio</div></div>
+        <div class="setor-card"><div class="nome">Financeiro / RH</div><div class="resp">Gustavo</div></div>
+        <div class="setor-card"><div class="nome">Marketing</div><div class="resp">Barbara</div></div>
+        <div class="setor-card"><div class="nome">Loja</div><div class="resp">Mariana</div></div>
+        <div class="setor-card"><div class="nome">Cozinha</div><div class="resp">Elizeu</div></div>
+        <div class="setor-card"><div class="nome">Sushi Trip</div><div class="resp">Samara <small>(incluir na UUSR)</small></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ---------- ABA 4: CRONOGRAMA 30 DIAS ---------- -->
+  <section class="painel" id="aba-cronograma">
+    <div class="painel-cab">
+      <h2>⏱️ Cronograma 30 dias</h2>
+      <p>Visão countdown derivada do Plano de Ações + antecedência do Calendário. Mostra o que precisa acontecer agora, traduzindo o ritmo 30-15-7 em tela. Não tem aba própria na planilha — é cálculo.</p>
+    </div>
+    <div class="placeholder">
+      <span class="tag-prox">⬩ Próximo passo · Passo 5</span>
+      <h3>Aqui entram as três faixas de prazo</h3>
+      <div class="desc">Tarefas pendentes agrupadas por janela de tempo:</div>
+      <div class="faixas">
+        <div class="faixa d7"><div class="n">–</div><div class="lbl">Próximos 7 dias</div></div>
+        <div class="faixa d15"><div class="n">–</div><div class="lbl">Próximos 15 dias</div></div>
+        <div class="faixa d30"><div class="n">–</div><div class="lbl">Próximos 30 dias</div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="nota-rodape">Casca v1.0 · navegação de abas ativa · dados entram nos próximos passos</div>
+</main>
+
+<script>
+/* ============================================================
+   1) GUARDA DE SESSÃO (placeholder)
+   Trocar pela sua lógica UUSR (sessionStorage) usada nos outros index.
+   Por ora só preenche o nome do usuário se já houver sessão salva.
+   ============================================================ */
+(function guardaSessao(){
+  try{
+    var sess = JSON.parse(sessionStorage.getItem('qfood_user') || 'null');
+    document.getElementById('usuarioNome').textContent =
+      (sess && sess.nome) ? sess.nome : 'Visitante';
+    // No passo de permissão, aqui filtramos abas/itens por sess.perfil e sess.crm_sigla
+  }catch(e){
+    document.getElementById('usuarioNome').textContent = 'Visitante';
+  }
+})();
+
+/* ============================================================
+   2) NAVEGAÇÃO ENTRE ABAS
+   ============================================================ */
+(function navegacao(){
+  var nav = document.getElementById('navAbas');
+  nav.addEventListener('click', function(e){
+    var btn = e.target.closest('button[data-aba]');
+    if(!btn) return;
+    // botões
+    nav.querySelectorAll('button').forEach(function(b){ b.classList.remove('ativa'); });
+    btn.classList.add('ativa');
+    // painéis
+    document.querySelectorAll('.painel').forEach(function(p){ p.classList.remove('ativo'); });
+    document.getElementById('aba-' + btn.dataset.aba).classList.add('ativo');
+    // guarda última aba aberta (UX)
+    try{ sessionStorage.setItem('planop_aba', btn.dataset.aba); }catch(_){}
+  });
+
+  // reabrir na última aba usada
+  try{
+    var ultima = sessionStorage.getItem('planop_aba');
+    if(ultima){
+      var alvo = nav.querySelector('button[data-aba="'+ultima+'"]');
+      if(alvo) alvo.click();
+    }
+  }catch(_){}
+})();
+</script>
+</body>
+</html>
