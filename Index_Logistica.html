@@ -857,9 +857,11 @@ tbody tr:hover td{background:var(--s2);}
               <option value="SEM VALOR SUFICIENTE ROTA">SEM VALOR SUFICIENTE ROTA</option>
             </select>
           </label>
+          <label>📅 Agendar p/: <input type="date" id="sup-ent-data-input" style="width:150px"></label>
           <button class="sup-btn-primary" onclick="supAdicionarEntrega()">💾 Buscar NF e salvar</button>
           <span id="sup-ent-add-msg" style="font-size:.8rem"></span>
         </div>
+        <div style="font-size:.7rem;color:var(--mu);margin-top:6px;font-style:italic">💡 Data é opcional — preencha quando souber o dia da entrega; Claudia consegue ver pelo painel sem precisar te perguntar</div>
       </div>
 
       <div class="sup-filters">
@@ -890,6 +892,7 @@ tbody tr:hover td{background:var(--s2);}
             <th onclick="supSort('VOLUME')" style="text-align:right;cursor:pointer">Vol <span id="sso-VOLUME" style="opacity:.4">⇅</span></th>
             <th onclick="supSort('TOTAL GERAL')" style="text-align:right;cursor:pointer">Total <span id="sso-TOTAL GERAL" style="opacity:.4">⇅</span></th>
             <th onclick="supSort('STATUS')" style="cursor:pointer">Status <span id="sso-STATUS" style="opacity:.4">⇅</span></th>
+            <th onclick="supSort('DATA AGENDADA')" style="cursor:pointer">📅 Agendado p/ <span id="sso-DATA AGENDADA" style="opacity:.4">⇅</span></th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -1203,28 +1206,50 @@ function supUniqSort(arr){
 // ─── Usuário (do window.CURRENT_USER do seu sistema) ───
 function supGetUsuario(){
   var u = window.CURRENT_USER || {};
-  // Tenta várias chaves possíveis (Email/email/EMAIL, Perfil/perfil)
-  var email = String(u.email || u.Email || u.EMAIL || u.e_mail || '').toLowerCase().trim();
-  var perfil = String(u.perfil || u.Perfil || u.PERFIL || '').toLowerCase().trim();
-  var nome = String(u.nome || u.Nome || u.NOME || '');
+  console.log('[SUP] CURRENT_USER:', JSON.stringify(u));
 
-  // Fallback heurístico — se não tem email, tenta inferir pelo nome
+  // Camada 1: tenta várias chaves diretas
+  var email = String(u.email || u.Email || u.EMAIL || u.e_mail || u.mail || '').toLowerCase().trim();
+  var perfil = String(u.perfil || u.Perfil || u.PERFIL || u.role || '').toLowerCase().trim();
+  var nome = String(u.nome || u.Nome || u.NOME || u.name || '');
+
+  // Camada 2/3: fallback por nome → mapa hardcoded (suporta nome completo OU primeiro nome)
   if (!email && nome){
     var n = nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+    var primeiro = n.split(/\s+/)[0];
     var mapaEmail = {
       'rodrigo': 'rodrigo@qfoodcompany.com.br',
-      'claudia gomes': 'claudia.gomes@qfoodcompany.com.br',
+      'rodrigo silveira': 'rodrigo@qfoodcompany.com.br',
       'claudia': 'claudia.gomes@qfoodcompany.com.br',
+      'claudia gomes': 'claudia.gomes@qfoodcompany.com.br',
       'jonathas': 'jonathas@qfoodcompany.com.br',
       'maiko': 'maiko@qfoodcompany.com.br',
       'adilson': 'adilson@qfoodcompany.com.br'
     };
-    email = mapaEmail[n] || '';
+    email = mapaEmail[n] || mapaEmail[primeiro] || '';
+    if (email) console.log('[SUP] Email inferido pelo nome "' + nome + '" → ' + email);
   }
 
+  // Camada 4: último recurso — pergunta pro usuário (só uma vez por sessão)
   if (!email){
-    console.warn('[SUP] ⚠️ Email não encontrado em CURRENT_USER. Conteúdo:', u);
+    console.error('[SUP] ⚠️ Não consegui inferir email. CURRENT_USER:', u);
+    if (!window._supEmailAsked){
+      window._supEmailAsked = true;
+      var digitado = prompt(
+        'Não consegui identificar seu email automaticamente.\n\n' +
+        'Por favor digite seu email corporativo (será usado pra registrar quem fez as edições):',
+        ''
+      );
+      if (digitado && digitado.indexOf('@') > 0){
+        email = digitado.toLowerCase().trim();
+        window._supEmailCache = email;
+        console.log('[SUP] Email digitado pelo usuário: ' + email);
+      }
+    } else if (window._supEmailCache){
+      email = window._supEmailCache;
+    }
   }
+
   return { email: email, perfil: perfil, nome: nome };
 }
 
@@ -1743,7 +1768,7 @@ function supAplicarFiltrosEntregas(){
         return dir * (va - vb);
       }
       // Trata datas
-      if (col === 'EMISSÃO NF'){
+      if (col === 'EMISSÃO NF' || col === 'DATA AGENDADA'){
         var da = supParseData(va), db = supParseData(vb);
         var ta = da ? da.getTime() : 0, tb = db ? db.getTime() : 0;
         return dir * (ta - tb);
@@ -1815,6 +1840,23 @@ function supRenderTabelaEntregas(ents){
       cellStatus = '<span class="badge status">'+(st.efetivo||'—')+'</span>';
     }
 
+    // Célula da data agendada (editável p/ editores de entregas)
+    var dataAgendada = e['DATA AGENDADA'] || '';
+    var dataIso = '';
+    if (dataAgendada){
+      var dd = supParseData(dataAgendada);
+      if (dd){
+        var y = dd.getFullYear(), m = String(dd.getMonth()+1).padStart(2,'0'), d = String(dd.getDate()).padStart(2,'0');
+        dataIso = y + '-' + m + '-' + d;
+      }
+    }
+    var cellData;
+    if (podeEditar){
+      cellData = '<input type="date" class="sup-data-edit" data-nf="'+e['NF']+'" value="'+dataIso+'" onchange="supSalvarDataAgendada(this)" style="background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:4px 6px;font-size:.78rem;font-family:var(--fb)">';
+    } else {
+      cellData = dataIso ? supFmtData(dataIso) : '<span style="color:var(--mu2)">—</span>';
+    }
+
     return '<tr class="'+rowClass+'">' +
       '<td><strong>'+(e['NF']||'—')+'</strong></td>' +
       '<td>'+supFmtData(e['EMISSÃO NF'])+'</td>' +
@@ -1824,6 +1866,7 @@ function supRenderTabelaEntregas(ents){
       '<td style="text-align:right">'+(e['VOLUME']||'—')+'</td>' +
       '<td style="text-align:right">'+(e['TOTAL GERAL'] ? supFmtBRL(e['TOTAL GERAL']) : '—')+'</td>' +
       '<td>'+cellStatus+'</td>' +
+      '<td>'+cellData+'</td>' +
       '</tr>';
   }).join('');
 }
@@ -1856,6 +1899,39 @@ function supSalvarStatus(sel){
   });
 }
 
+function supSalvarDataAgendada(input){
+  var nf = input.getAttribute('data-nf');
+  var dataNova = input.value;
+  var u = supGetUsuario();
+  if (!u.email){
+    alert('Não foi possível identificar seu email. Recarregue a página e tente de novo.');
+    return;
+  }
+  var prev = input.style.background;
+  input.disabled = true;
+  input.style.background = 'var(--s3)';
+
+  supBackendPost('salvarDataAgendada', {
+    nf: nf,
+    dataAgendada: dataNova,
+    autorEmail: u.email,
+    autorPerfil: u.perfil
+  }).then(function(r){
+    input.style.background = 'rgba(54,207,160,.3)';
+    // Atualiza state local
+    var idx = SUP_STATE.data.entregas.findIndex(function(x){ return String(x['NF']) === String(nf); });
+    if (idx >= 0) SUP_STATE.data.entregas[idx]['DATA AGENDADA'] = dataNova;
+    setTimeout(function(){
+      input.style.background = prev;
+      input.disabled = false;
+    }, 1200);
+  }).catch(function(err){
+    alert('Erro ao salvar data: ' + err.message);
+    input.style.background = prev;
+    input.disabled = false;
+  });
+}
+
 function supAdicionarEntrega(){
   var nfInput = document.getElementById('sup-ent-nf-input');
   var statusInput = document.getElementById('sup-ent-status-input');
@@ -1869,15 +1945,21 @@ function supAdicionarEntrega(){
   btn.disabled = true; btn.textContent = 'Buscando...';
   msg.textContent = '';
 
+  var dataInput = document.getElementById('sup-ent-data-input');
+  var dataAg = dataInput ? dataInput.value : '';
+
   supBackendPost('salvarEntrega', {
     nf: nf, status: statusInput.value,
+    dataAgendada: dataAg,
     autorEmail: u.email, autorPerfil: u.perfil
   }).then(function(r){
     var txtOk = '✓ NF ' + nf + ' ' + r.acao;
     if (r.dadosImportados) txtOk += ' (' + r.dadosImportados.cliente + ')';
     if (r.sobrescritoPorRegistro) txtOk += ' · ⚠️ virou ENTREGUE (NF na REGISTRO)';
+    if (dataAg) txtOk += ' · 📅 ' + supFmtData(dataAg);
     msg.innerHTML = '<span class="sup-msg-ok">'+txtOk+'</span>';
     nfInput.value = '';
+    if (dataInput) dataInput.value = '';
     SUP_STATE.loaded.entregas = false;
     SUP_STATE.nfsEntreguesTs = 0;
     return supCarregarEntregas();
