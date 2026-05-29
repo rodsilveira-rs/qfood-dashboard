@@ -225,6 +225,31 @@
     font-size:13.5px;color:#8a4a12}
   .aviso-setup b{color:#6e3a0e}
 
+  /* itens de compra (PRODUTO_GIRO) */
+  .compra-box{border:1px solid var(--line);border-radius:10px;padding:10px}
+  .compra-linha{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .compra-linha select{flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px}
+  .compra-det{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap;cursor:pointer}
+  .compra-det input{width:auto}
+  .compra-produtos{margin-top:10px;max-height:190px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+  .prod-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg)}
+  .prod-info{flex:1;min-width:0;display:flex;flex-direction:column}
+  .prod-desc{font-size:13px;font-weight:600;color:var(--ink)}
+  .prod-det{font-size:11px;color:var(--muted)}
+  .prod-qtd,.sel-qtd{width:64px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:13px;text-align:center}
+  .prod-add{border:none;background:var(--accent);color:#fff;font-weight:800;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0}
+  .prod-vazio{font-size:12.5px;color:var(--muted);padding:8px}
+  .compra-sel{margin-top:10px;display:flex;flex-direction:column;gap:5px}
+  .sel-titulo{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--green)}
+  .sel-row{display:flex;align-items:center;gap:8px;background:#eef6f1;border:1px solid #cfe6da;border-radius:8px;padding:6px 8px}
+  .sel-desc{flex:1;min-width:0;font-size:13px;font-weight:600;color:var(--ink)}
+  .sel-desc small{color:var(--muted);font-weight:500}
+  .sel-rm{border:none;background:none;color:var(--red);font-size:18px;cursor:pointer;line-height:1;flex-shrink:0}
+  /* itens no card */
+  .plano-itens{margin-top:10px}
+  .plano-itens .pit{display:inline-block;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:3px 9px;margin:2px 4px 2px 0;font-size:12px;font-weight:600}
+  .plano-obs{margin-top:8px;font-size:12.5px;color:var(--muted);font-style:italic}
+
   .mes-bloco{margin-bottom:26px}
   .mes-titulo{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
     margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
@@ -426,6 +451,21 @@
       <div class="campo">
         <label>Responsáveis (gestores e vendedores)</label>
         <div class="ms-box" id="pf-responsaveis"><div class="ms-grupo">Carregando usuários…</div></div>
+      </div>
+      <div class="campo">
+        <label>Itens de compra (opcional)</label>
+        <div class="compra-box">
+          <div class="compra-linha">
+            <select id="pf-forn"><option value="">— escolher fornecedor —</option></select>
+            <label class="compra-det"><input type="checkbox" id="pf-verdet"> ver giro 12m</label>
+          </div>
+          <div id="pf-produtos" class="compra-produtos"></div>
+        </div>
+        <div id="pf-itens-sel" class="compra-sel"></div>
+      </div>
+      <div class="campo">
+        <label>Observações</label>
+        <textarea id="pf-obs" placeholder="Notas, justificativa da compra, etc."></textarea>
       </div>
     </div>
     <div class="modal-rod">
@@ -788,7 +828,7 @@ function carregarPlanos(){
       PLANOS = csvParaObjetos(txt).map(function(o){
         return { id:o.ID||'', evento:o.Evento_ref||'', data:o.Data_evento||'', empresa:o.Empresa||'',
                  objetivo:o.Objetivo||'', responsaveis:o.Responsavel||'', status:o.Status||'Planejado',
-                 meta:o.KPI_meta||'', real:o.KPI_real||'' };
+                 meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'' };
       }).filter(function(p){ return p.evento || p.objetivo; });
       renderPlanos();
     })
@@ -806,6 +846,9 @@ function renderPlanos(){
 }
 function cardPlano(p){
   var cls=classeStatus(p.status);
+  var its=parseItens(p.itens);
+  var itensHtml = its.length ? '<div class="plano-itens">'+its.map(function(it){
+      return '<span class="pit">'+esc(it.d)+' ×'+esc(String(it.q))+'</span>'; }).join('')+'</div>' : '';
   var resp=(p.responsaveis||'').split(',').map(function(s){return s.trim();}).filter(Boolean)
     .map(function(n){ return '<span class="resp-chip">'+esc(n)+'</span>'; }).join('');
   return '<div class="plano-card st-'+cls+'">'+
@@ -819,6 +862,8 @@ function cardPlano(p){
         (p.meta?'<span>Meta: <b>'+esc(p.meta)+'</b></span>':'')+
         (p.real?'<span>Real: <b>'+esc(p.real)+'</b></span>':'')+'</div>':'')+
     (resp?'<div class="plano-resp">'+resp+'</div>':'')+
+    itensHtml+
+    (p.obs?'<div class="plano-obs">'+esc(p.obs)+'</div>':'')+
     '<div class="plano-acoes">'+
       '<button class="lnk" onclick="editarPlano(\''+esc(p.id)+'\')">✏ Editar</button>'+
       '<button class="lnk del" onclick="excluirPlano(\''+esc(p.id)+'\')">🗑 Excluir</button>'+
@@ -833,8 +878,13 @@ function abrirNovoPlano(){
   document.getElementById('pf-objetivo').value='';
   document.getElementById('pf-meta').value='';
   document.getElementById('pf-real').value='';
+  document.getElementById('pf-obs').value='';
+  document.getElementById('pf-forn').value='';
+  document.getElementById('pf-produtos').innerHTML='';
+  planoItens=[]; renderItensSel();
   preencherEventosDropdown('');
   renderResponsaveis([]);
+  carregarGiro();
   abrirModal('modalPlano');
 }
 function editarPlano(id){
@@ -846,8 +896,13 @@ function editarPlano(id){
   document.getElementById('pf-objetivo').value=p.objetivo||'';
   document.getElementById('pf-meta').value=p.meta||'';
   document.getElementById('pf-real').value=p.real||'';
+  document.getElementById('pf-obs').value=p.obs||'';
+  document.getElementById('pf-forn').value='';
+  document.getElementById('pf-produtos').innerHTML='';
+  planoItens = parseItens(p.itens); renderItensSel();
   preencherEventosDropdown(p.evento||'');
   renderResponsaveis((p.responsaveis||'').split(',').map(function(s){return s.trim();}).filter(Boolean));
+  carregarGiro();
   abrirModal('modalPlano');
 }
 function salvarPlano(){
@@ -863,6 +918,8 @@ function salvarPlano(){
     meta: document.getElementById('pf-meta').value,
     real: document.getElementById('pf-real').value,
     responsaveis: getResponsaveisSelecionados().join(', '),
+    itens: JSON.stringify(planoItens),
+    obs: document.getElementById('pf-obs').value,
     usuario: (SESSAO && SESSAO.nome) || ''
   }).then(function(j){
     btn.disabled=false; btn.textContent='✅ Salvar';
@@ -903,6 +960,92 @@ function salvarEvento(){
     else alert('Erro: '+((j&&j.erro)||'?'));
   }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar'; alert('Falha: '+e.message); });
 }
+
+/* ===== ITENS DE COMPRA (PRODUTO_GIRO) ===== */
+var GIRO_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv';
+var GIRO_ROWS = [], GIRO_LOADED = false, planoItens = [];
+
+function parseItens(s){ try{ var a=JSON.parse(s); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+
+function gcampo(row, hints){
+  for(var i=0;i<hints.length;i++){ if(row[hints[i]]!==undefined && String(row[hints[i]]).trim()!=='') return String(row[hints[i]]).trim(); }
+  var keys=Object.keys(row);
+  for(var j=0;j<keys.length;j++){
+    var kn=keys[j].toLowerCase().replace(/[^a-z0-9]/g,'');
+    for(var h=0;h<hints.length;h++){
+      var hn=hints[h].toLowerCase().replace(/[^a-z0-9]/g,'');
+      if(hn && (kn===hn || kn.indexOf(hn)===0)){ var v=String(row[keys[j]]||'').trim(); if(v) return v; }
+    }
+  }
+  return '';
+}
+function gForn(r){  return gcampo(r,['Fornecedor']); }
+function gCod(r){   return gcampo(r,['Código','Codigo']); }
+function gDesc(r){  return gcampo(r,['Descrição','Descricao']); }
+function gTotal(r){ return gcampo(r,['Total']); }
+function gMedia(r){ return gcampo(r,['Média','Media']); }
+
+function carregarGiro(){
+  if(GIRO_LOADED){ preencherFornecedores(); return; }
+  fetch(GIRO_URL + '&_=' + Date.now())
+    .then(function(r){ return r.text(); })
+    .then(function(txt){ GIRO_ROWS = csvParaObjetos(txt); GIRO_LOADED = true; preencherFornecedores(); })
+    .catch(function(){ GIRO_ROWS = []; });
+}
+function preencherFornecedores(){
+  var sel=document.getElementById('pf-forn'); if(!sel) return;
+  var fns=[], vistos={};
+  GIRO_ROWS.forEach(function(r){ var f=gForn(r); if(f && !vistos[f]){ vistos[f]=1; fns.push(f); } });
+  fns.sort();
+  sel.innerHTML = '<option value="">— escolher fornecedor —</option>' +
+    fns.map(function(f){ return '<option>'+esc(f)+'</option>'; }).join('');
+}
+function renderProdutosForn(){
+  var forn=document.getElementById('pf-forn').value;
+  var box=document.getElementById('pf-produtos');
+  if(!forn){ box.innerHTML=''; return; }
+  var verDet=document.getElementById('pf-verdet').checked;
+  var vistos={}, html='';
+  GIRO_ROWS.filter(function(r){ return gForn(r)===forn; }).forEach(function(r){
+    var cod=gCod(r), desc=gDesc(r); if(!cod && !desc) return;
+    var key=cod||desc; if(vistos[key]) return; vistos[key]=1;
+    var det = verDet ? '<span class="prod-det">cód '+esc(cod||'–')+' · 12m '+esc(gTotal(r)||'–')+' · méd/mês '+esc(gMedia(r)||'–')+'</span>' : '';
+    html += '<div class="prod-row">'+
+      '<div class="prod-info"><span class="prod-desc">'+esc(desc||cod)+'</span>'+det+'</div>'+
+      '<input type="number" min="0" step="any" class="prod-qtd" placeholder="qtd" '+
+        'data-c="'+esc(cod)+'" data-d="'+esc(desc)+'" data-f="'+esc(forn)+'">'+
+      '<button type="button" class="prod-add" onclick="addItem(this)">+</button>'+
+    '</div>';
+  });
+  box.innerHTML = html || '<div class="prod-vazio">Sem itens para esse fornecedor.</div>';
+}
+function addItem(btn){
+  var inp=btn.previousElementSibling;
+  var q=parseFloat(String(inp.value||'').replace(',','.'))||0;
+  if(q<=0){ inp.focus(); return; }
+  var it={ c:inp.getAttribute('data-c'), d:inp.getAttribute('data-d'), f:inp.getAttribute('data-f'), q:q };
+  var ex=planoItens.filter(function(x){ return x.c===it.c && x.d===it.d; })[0];
+  if(ex){ ex.q=q; } else { planoItens.push(it); }
+  inp.value='';
+  renderItensSel();
+}
+function renderItensSel(){
+  var box=document.getElementById('pf-itens-sel');
+  if(!planoItens.length){ box.innerHTML=''; return; }
+  box.innerHTML = '<div class="sel-titulo">Itens selecionados ('+planoItens.length+')</div>' +
+    planoItens.map(function(it,i){
+      return '<div class="sel-row">'+
+        '<span class="sel-desc">'+esc(it.d)+(it.f?' <small>· '+esc(it.f)+'</small>':'')+'</span>'+
+        '<input type="number" min="0" step="any" class="sel-qtd" value="'+esc(String(it.q))+'" onchange="setQtd('+i+',this.value)">'+
+        '<button type="button" class="sel-rm" onclick="rmItem('+i+')">×</button>'+
+      '</div>';
+    }).join('');
+}
+function setQtd(i,v){ var q=parseFloat(String(v||'').replace(',','.'))||0; if(q<=0){ rmItem(i); return; } planoItens[i].q=q; }
+function rmItem(i){ planoItens.splice(i,1); renderItensSel(); }
+
+document.getElementById('pf-forn').addEventListener('change', renderProdutosForn);
+document.getElementById('pf-verdet').addEventListener('change', renderProdutosForn);
 
 /* ===== INIT do módulo de escrita ===== */
 document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
