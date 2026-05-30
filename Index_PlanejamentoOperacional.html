@@ -240,12 +240,15 @@
   .prod-add{border:none;background:var(--accent);color:#fff;font-weight:800;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0}
   .prod-vazio{font-size:12.5px;color:var(--muted);padding:8px}
   .compra-lbl{font-size:12px;font-weight:800;color:var(--ink-2)}
-  .forn-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:104px;overflow:auto;margin-bottom:10px;padding:2px}
-  .forn-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-2);
-    border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;background:#fff}
-  .forn-chip:hover{border-color:var(--accent)}
-  .forn-chip input{width:auto}
-  .forn-chip:has(input:checked){background:var(--accent-soft);border-color:var(--accent);color:#9a4d12}
+  .forn-ativos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .forn-ativos:empty{display:none}
+  .forn-tag{display:inline-flex;align-items:center;gap:4px;font-size:12.5px;font-weight:700;background:var(--accent-soft);color:#9a4d12;border:1px solid var(--accent);border-radius:999px;padding:4px 6px 4px 12px}
+  .forn-tag button{border:none;background:none;color:#9a4d12;cursor:pointer;font-size:16px;line-height:1;padding:0 2px}
+  .forn-tag button:hover{color:#c2410c}
+  .forn-add-wrap{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .btn-forn-add{border:1px dashed var(--accent);background:#fff;color:#9a4d12;font-family:inherit;font-size:12.5px;font-weight:800;padding:8px 14px;border-radius:9px;cursor:pointer}
+  .btn-forn-add:hover{background:var(--accent-soft)}
+  #pf-forn-sel{border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13px;background:#fff;max-width:260px}
   .prod-forn-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--accent);margin:10px 0 4px}
   .compra-sel{margin-top:10px;display:flex;flex-direction:column;gap:5px}
   .sel-titulo{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--green)}
@@ -297,13 +300,13 @@
   .crono-vazio{font-size:12.5px;color:var(--muted)}
 
   /* mapa mental */
-  .map-centro{background:var(--ink);color:#fff;border-radius:12px;padding:8px 10px;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box}
-  .map-centro b{font-size:13px;font-weight:800;line-height:1.1}
-  .map-centro span{font-size:11px;color:#a9b5b1;margin-top:3px}
-  .map-no{background:#fff;border:2px solid var(--accent);border-radius:10px;padding:6px 8px;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);box-sizing:border-box}
-  .map-no b{font-size:12px;font-weight:800;color:var(--ink)}
-  .map-no span{font-size:10.5px;color:var(--ink);line-height:1.15;margin-top:2px}
-  .map-no em{font-size:10px;color:var(--accent);font-weight:700;font-style:normal;margin-top:2px}
+  .map-centro{background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center;box-sizing:border-box}
+  .map-centro b{font-size:16px;font-weight:800;line-height:1.15}
+  .map-centro span{font-size:13px;color:#bcc7c3;margin-top:4px}
+  .map-no{background:#fff;border:2px solid var(--accent);border-radius:10px;padding:7px 9px;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);box-sizing:border-box}
+  .map-no b{font-size:15px;font-weight:800;color:var(--ink);line-height:1.15}
+  .map-no span{font-size:13px;color:var(--ink);line-height:1.2;margin-top:3px}
+  .map-no em{font-size:12px;color:var(--accent);font-weight:700;font-style:normal;margin-top:3px}
 
   /* botão do mapa em destaque */
   .btn-mapa{background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:12px;font-weight:800;
@@ -522,10 +525,14 @@
         <label>Itens de compra (opcional)</label>
         <div class="compra-box">
           <div class="compra-linha">
-            <span class="compra-lbl">Fornecedores (marque um ou vários):</span>
+            <span class="compra-lbl">Itens de compra:</span>
             <label class="compra-det"><input type="checkbox" id="pf-verdet"> ver giro 12m</label>
           </div>
-          <div class="forn-chips" id="pf-forn"></div>
+          <div class="forn-ativos" id="pf-forn-ativos"></div>
+          <div class="forn-add-wrap">
+            <button type="button" class="btn-forn-add" onclick="toggleFornSelect()">+ Fornecedor</button>
+            <select id="pf-forn-sel" style="display:none" onchange="addFornecedor(this.value)"></select>
+          </div>
           <div id="pf-produtos" class="compra-produtos"></div>
         </div>
         <div id="pf-itens-sel" class="compra-sel"></div>
@@ -1015,7 +1022,7 @@ function abrirNovoPlano(){
   document.getElementById('pf-meta').value='';
   document.getElementById('pf-real').value='';
   document.getElementById('pf-obs').value='';
-  document.getElementById('pf-forn').value='';
+  fornAtivos=[];
   document.getElementById('pf-produtos').innerHTML='';
   planoItens=[]; renderItensSel();
   preencherEventosDropdown('');
@@ -1033,7 +1040,7 @@ function editarPlano(id){
   document.getElementById('pf-meta').value=p.meta||'';
   document.getElementById('pf-real').value=p.real||'';
   document.getElementById('pf-obs').value=p.obs||'';
-  document.getElementById('pf-forn').value='';
+  fornAtivos=[];
   document.getElementById('pf-produtos').innerHTML='';
   planoItens = parseItens(p.itens); renderItensSel();
   preencherEventosDropdown(p.evento||'');
@@ -1138,22 +1145,42 @@ function carregarGiro(){
     .then(function(txt){ GIRO_ROWS = csvParaObjetos(txt); GIRO_LOADED = true; preencherFornecedores(); })
     .catch(function(){ GIRO_ROWS = []; });
 }
-function preencherFornecedores(){
-  var box=document.getElementById('pf-forn'); if(!box) return;
+var fornAtivos=[];
+function preencherFornecedores(){ preencherFornSelect(); renderFornAtivos(); renderProdutosForn(); }
+function preencherFornSelect(){
+  var sel=document.getElementById('pf-forn-sel'); if(!sel) return;
   var fns=[], vistos={};
   GIRO_ROWS.forEach(function(r){ var f=gForn(r); if(f && !vistos[f]){ vistos[f]=1; fns.push(f); } });
   fns.sort();
-  box.innerHTML = fns.length ? fns.map(function(f){
-    return '<label class="forn-chip"><input type="checkbox" value="'+esc(f)+'"> '+esc(f)+'</label>';
-  }).join('') : '<div class="prod-vazio">Nenhum fornecedor encontrado na PRODUTO_GIRO.</div>';
+  var disp=fns.filter(function(f){ return fornAtivos.indexOf(f)<0; });
+  sel.innerHTML='<option value="">— escolha um fornecedor —</option>'+disp.map(function(f){return '<option>'+esc(f)+'</option>';}).join('');
+}
+function toggleFornSelect(){
+  var sel=document.getElementById('pf-forn-sel');
+  sel.style.display = (sel.style.display==='none'||!sel.style.display) ? 'inline-block' : 'none';
+  if(sel.style.display!=='none'){ sel.selectedIndex=0; sel.focus(); }
+}
+function addFornecedor(f){
+  if(!f) return;
+  if(fornAtivos.indexOf(f)<0) fornAtivos.push(f);
+  var sel=document.getElementById('pf-forn-sel'); sel.style.display='none';
+  preencherFornSelect(); renderFornAtivos(); renderProdutosForn();
+}
+function removeFornecedor(f){
+  var i=fornAtivos.indexOf(f); if(i>=0) fornAtivos.splice(i,1);
+  preencherFornSelect(); renderFornAtivos(); renderProdutosForn();
+}
+function renderFornAtivos(){
+  var box=document.getElementById('pf-forn-ativos'); if(!box) return;
+  box.innerHTML=fornAtivos.map(function(f){
+    return '<span class="forn-tag">'+esc(f)+'<button type="button" onclick="removeFornecedor(\''+esc(f).replace(/'/g,"\\'")+'\')">×</button></span>';
+  }).join('');
 }
 function renderProdutosForn(){
-  var checked=[].slice.call(document.querySelectorAll('#pf-forn input:checked')).map(function(i){return i.value;});
   var box=document.getElementById('pf-produtos');
-  if(!checked.length){ box.innerHTML='<div class="prod-vazio">Marque um ou mais fornecedores acima para ver os itens.</div>'; return; }
-  var verDet=document.getElementById('pf-verdet').checked;
-  var html='';
-  checked.forEach(function(forn){
+  if(!fornAtivos.length){ box.innerHTML='<div class="prod-vazio">Clique em <b>+ Fornecedor</b> para escolher e ver os itens.</div>'; return; }
+  var verDet=document.getElementById('pf-verdet').checked, html='';
+  fornAtivos.forEach(function(forn){
     var vistos={}, rows='';
     GIRO_ROWS.filter(function(r){ return gForn(r)===forn; }).forEach(function(r){
       var cod=gCod(r), desc=gDesc(r); if(!cod && !desc) return;
@@ -1168,7 +1195,7 @@ function renderProdutosForn(){
     });
     html += '<div class="prod-forn-h">'+esc(forn)+'</div>' + (rows || '<div class="prod-vazio">sem itens</div>');
   });
-  box.innerHTML = html;
+  box.innerHTML=html;
 }
 function addItem(btn){
   var inp=btn.previousElementSibling;
@@ -1205,7 +1232,6 @@ function renderItensSel(){
 function setQtd(i,v){ var q=parseFloat(String(v||'').replace(',','.'))||0; if(q<=0){ rmItem(i); return; } planoItens[i].q=q; }
 function rmItem(i){ planoItens.splice(i,1); renderItensSel(); }
 
-document.getElementById('pf-forn').addEventListener('change', renderProdutosForn);
 document.getElementById('pf-verdet').addEventListener('change', renderProdutosForn);
 
 /* ===== CHECKLIST POR SETOR + CRONOGRAMA + MAPA MENTAL ===== */
@@ -1219,16 +1245,27 @@ function cleanData(s){
   return s;
 }
 
-/* cores por nome (gênero) */
+/* cores por nome (fixas por pessoa) */
 var GENERO_F={barbara:1,mariana:1,samara:1,vera:1,camila:1,eliane:1,dayane:1,claudia:1,deane:1,cris:1,cristina:1};
-var PAL_M=[{s:'#2b6cb0',b:'#e3edf7'},{s:'#0f766e',b:'#d8f0ea'},{s:'#4338ca',b:'#e7e6fb'},{s:'#2f7d5b',b:'#dff0e7'},{s:'#0e7490',b:'#d9eef4'}];
-var PAL_F=[{s:'#db2777',b:'#fce0ee'},{s:'#7c3aed',b:'#eee2fc'},{s:'#c2255c',b:'#fbdfe9'},{s:'#9d4edd',b:'#f0e3fb'},{s:'#e64980',b:'#fde2ec'}];
+var COR_NOME={
+  rodrigo:'#2b6cb0', maiko:'#2f7d5b', celio:'#b8860b', gustavo:'#0f766e',
+  elizeu:'#c2410c', ederson:'#1e40af', lucas:'#15803d', kenyo:'#0e7490', adilson:'#475569',
+  barbara:'#db2777', mariana:'#7c3aed', samara:'#c2255c', vera:'#9d4edd',
+  camila:'#be185d', eliane:'#6d28d9', dayane:'#e64980', claudia:'#a21caf', deane:'#c026d3',
+  cris:'#7e22ce', cristina:'#7e22ce'
+};
+var PAL_M=[{s:'#2b6cb0'},{s:'#2f7d5b'},{s:'#b8860b'},{s:'#0f766e'},{s:'#1e40af'},{s:'#15803d'}];
+var PAL_F=[{s:'#db2777'},{s:'#7c3aed'},{s:'#c2255c'},{s:'#9d4edd'},{s:'#be185d'},{s:'#a21caf'}];
+function tint(hex,p){
+  var n=parseInt(hex.slice(1),16), r=n>>16, g=(n>>8)&255, b=n&255;
+  r=Math.round(r+(255-r)*p); g=Math.round(g+(255-g)*p); b=Math.round(b+(255-b)*p);
+  return 'rgb('+r+','+g+','+b+')';
+}
 function corDoNome(nome){
   var f=norm(nome).split(' ')[0];
-  if(f==='rodrigo') return {s:'#2b6cb0',b:'#e3edf7'};
-  var pal=GENERO_F[f]?PAL_F:PAL_M, h=0;
-  for(var i=0;i<f.length;i++) h+=f.charCodeAt(i);
-  return pal[h%pal.length];
+  var s=COR_NOME[f];
+  if(!s){ var pal=GENERO_F[f]?PAL_F:PAL_M, h=0; for(var i=0;i<f.length;i++) h+=f.charCodeAt(i); s=pal[h%pal.length].s; }
+  return { s:s, b:tint(s,0.86) };
 }
 /* logo da empresa */
 function logoEmpHtml(emp,h){
@@ -1284,7 +1321,7 @@ function blocoPlanoChk(p){
   return '<div class="chk-plano">'+
     '<div class="chk-plano-cab"><b>'+esc(p.evento||'—')+'</b><span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</span>'+
       '<button class="btn-mapa" style="margin-left:auto" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button></div>'+
-    nos.map(function(a){ return '<div class="chk-mini"><b>'+esc(a.n)+'</b> — '+esc(a.t||'—')+(a.p?' <em>'+esc(fmtData(a.p))+'</em>':'')+'</div>'; }).join('')+
+    nos.map(function(a){ return '<div class="chk-mini"><b style="color:'+corDoNome(a.n).s+'">'+esc(a.n)+'</b> — '+esc(a.t||'—')+(a.p?' <em>'+esc(fmtData(a.p))+'</em>':'')+'</div>'; }).join('')+
   '</div>';
 }
 
@@ -1305,7 +1342,7 @@ function renderCronograma(){
   function faixa(lbl,cls,arr){
     return '<div class="crono-faixa '+cls+'"><div class="crono-h">'+lbl+' <span>('+arr.length+')</span></div>'+
       (arr.length? arr.map(function(x){
-        return '<div class="crono-item"><span class="crono-d">'+x.prazo+'</span> <b>'+esc(x.n)+'</b> — '+esc(x.t||'')+' <small>· '+esc(x.ev||'')+'</small></div>';
+        return '<div class="crono-item"><span class="crono-d">'+x.prazo+'</span> <b style="color:'+corDoNome(x.n).s+'">'+esc(x.n)+'</b> — '+esc(x.t||'')+' <small>· '+esc(x.ev||'')+'</small></div>';
       }).join('') : '<div class="crono-vazio">nada por aqui</div>')+'</div>';
   }
   el.innerHTML = faixa('Próximos 7 dias','d7',itens.filter(function(x){return x.dias<=7;}))+
@@ -1320,17 +1357,17 @@ function foNode(x,y,w,h,html){
 function abrirMapa(id){
   var p=PLANOS.filter(function(x){ return x.id===id; })[0]; if(!p) return;
   var nos=parseAtrib(p.atrib);
-  var W=760, R=Math.min(260, 190+nos.length*14), H=2*(R+100), cx=W/2, cy=H/2;
+  var W=860, R=Math.min(300, 215+nos.length*15), H=2*(R+125), cx=W/2, cy=H/2;
   var pos=nos.map(function(_,i){
     var ang=(-90 + i*(360/Math.max(nos.length,1)))*Math.PI/180;
     return { x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang) };
   });
-  var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:700px">';
+  var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:760px">';
   nos.forEach(function(a,i){ var pt=pos[i], col=corDoNome(a.n).s;
     svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.x+'" y2="'+pt.y+'" stroke="'+col+'" stroke-width="2.5"/>'; });
-  svg+=foNode(cx-110,cy-40,220,80,'<div class="map-centro"><b>'+esc(p.evento||'Ação')+'</b><span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</span></div>');
+  svg+=foNode(cx-130,cy-50,260,100,'<div class="map-centro"><b>'+esc(p.evento||'Ação')+'</b><span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</span></div>');
   nos.forEach(function(a,i){ var pt=pos[i], col=corDoNome(a.n).s;
-    svg+=foNode(pt.x-80,pt.y-36,160,72,'<div class="map-no" style="border-color:'+col+'"><b style="color:'+col+'">'+esc(a.n)+'</b><span>'+esc(a.t||'—')+'</span>'+(a.p?'<em>'+esc(fmtData(a.p))+'</em>':'')+'</div>');
+    svg+=foNode(pt.x-96,pt.y-46,192,92,'<div class="map-no" style="border-color:'+col+'"><b style="color:'+col+'">'+esc(a.n)+'</b><span>'+esc(a.t||'—')+'</span>'+(a.p?'<em>'+esc(fmtData(a.p))+'</em>':'')+'</div>');
   });
   svg+='</svg>';
   if(!nos.length) svg='<div class="cal-estado">Esse plano ainda não tem responsáveis com tarefa. Edite o plano e atribua.</div>';
