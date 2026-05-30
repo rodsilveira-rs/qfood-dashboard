@@ -25,7 +25,7 @@
     --blue:#2b6cb0;         /* ES / em preparação */
     --gold:#c79a1f;         /* gastronômico */
     --red:#b3412c;          /* oriental / risco */
-    --muted:#8a8478;
+    --muted:#5b554c;
     --radius:16px;
     --shadow:0 1px 2px rgba(21,33,31,.04), 0 8px 24px rgba(21,33,31,.06);
   }
@@ -239,6 +239,14 @@
   .prod-qtd,.sel-qtd{width:64px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-family:inherit;font-size:13px;text-align:center}
   .prod-add{border:none;background:var(--accent);color:#fff;font-weight:800;width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;line-height:1;flex-shrink:0}
   .prod-vazio{font-size:12.5px;color:var(--muted);padding:8px}
+  .compra-lbl{font-size:12px;font-weight:800;color:var(--ink-2)}
+  .forn-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:104px;overflow:auto;margin-bottom:10px;padding:2px}
+  .forn-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--ink-2);
+    border:1px solid var(--line);border-radius:999px;padding:5px 11px;cursor:pointer;background:#fff}
+  .forn-chip:hover{border-color:var(--accent)}
+  .forn-chip input{width:auto}
+  .forn-chip:has(input:checked){background:var(--accent-soft);border-color:var(--accent);color:#9a4d12}
+  .prod-forn-h{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--accent);margin:10px 0 4px}
   .compra-sel{margin-top:10px;display:flex;flex-direction:column;gap:5px}
   .sel-titulo{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--green)}
   .sel-row{display:flex;align-items:center;gap:8px;background:#eef6f1;border:1px solid #cfe6da;border-radius:8px;padding:6px 8px}
@@ -514,9 +522,10 @@
         <label>Itens de compra (opcional)</label>
         <div class="compra-box">
           <div class="compra-linha">
-            <select id="pf-forn"><option value="">— escolher fornecedor —</option></select>
+            <span class="compra-lbl">Fornecedores (marque um ou vários):</span>
             <label class="compra-det"><input type="checkbox" id="pf-verdet"> ver giro 12m</label>
           </div>
+          <div class="forn-chips" id="pf-forn"></div>
           <div id="pf-produtos" class="compra-produtos"></div>
         </div>
         <div id="pf-itens-sel" class="compra-sel"></div>
@@ -686,6 +695,7 @@ function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){
     {val:'Ecommerce',  nome:'Ecommerce',           file:null,                 icon:'🛒', cls:'ecom'}
   ];
 
+  window.EMP_LOGOS = EMP_LOGOS;
   var dados=[];
   var filtroTipo='Todos';
   var filtroEmpresa='Todas';
@@ -976,11 +986,11 @@ function cardPlano(p){
   var itensHtml = its.length ? '<div class="plano-itens">'+its.map(function(it){
       return '<span class="pit">'+esc(it.d)+' ×'+esc(String(it.q))+'</span>'; }).join('')+'</div>' : '';
   var resp=(p.responsaveis||'').split(',').map(function(s){return s.trim();}).filter(Boolean)
-    .map(function(n){ return '<span class="resp-chip">'+esc(n)+'</span>'; }).join('');
+    .map(function(n){ var c=corDoNome(n); return '<span class="resp-chip" style="background:'+c.b+';color:'+c.s+';border-color:'+c.s+'">'+esc(n)+'</span>'; }).join('');
   return '<div class="plano-card st-'+cls+'">'+
     '<div class="plano-topo">'+
       '<div><div class="plano-evento">'+esc(p.evento||'(sem evento)')+'</div>'+
-        '<div class="plano-empresa">'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</div></div>'+
+        '<div class="plano-empresa">'+logoEmpHtml(p.empresa,18)+' '+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</div></div>'+
       '<span class="plano-stt stt-'+cls+'">'+esc(p.status||'')+'</span>'+
     '</div>'+
     (p.objetivo?'<div class="plano-obj">'+esc(p.objetivo)+'</div>':'')+
@@ -1129,31 +1139,36 @@ function carregarGiro(){
     .catch(function(){ GIRO_ROWS = []; });
 }
 function preencherFornecedores(){
-  var sel=document.getElementById('pf-forn'); if(!sel) return;
+  var box=document.getElementById('pf-forn'); if(!box) return;
   var fns=[], vistos={};
   GIRO_ROWS.forEach(function(r){ var f=gForn(r); if(f && !vistos[f]){ vistos[f]=1; fns.push(f); } });
   fns.sort();
-  sel.innerHTML = '<option value="">— escolher fornecedor —</option>' +
-    fns.map(function(f){ return '<option>'+esc(f)+'</option>'; }).join('');
+  box.innerHTML = fns.length ? fns.map(function(f){
+    return '<label class="forn-chip"><input type="checkbox" value="'+esc(f)+'"> '+esc(f)+'</label>';
+  }).join('') : '<div class="prod-vazio">Nenhum fornecedor encontrado na PRODUTO_GIRO.</div>';
 }
 function renderProdutosForn(){
-  var forn=document.getElementById('pf-forn').value;
+  var checked=[].slice.call(document.querySelectorAll('#pf-forn input:checked')).map(function(i){return i.value;});
   var box=document.getElementById('pf-produtos');
-  if(!forn){ box.innerHTML=''; return; }
+  if(!checked.length){ box.innerHTML='<div class="prod-vazio">Marque um ou mais fornecedores acima para ver os itens.</div>'; return; }
   var verDet=document.getElementById('pf-verdet').checked;
-  var vistos={}, html='';
-  GIRO_ROWS.filter(function(r){ return gForn(r)===forn; }).forEach(function(r){
-    var cod=gCod(r), desc=gDesc(r); if(!cod && !desc) return;
-    var key=cod||desc; if(vistos[key]) return; vistos[key]=1;
-    var det = verDet ? '<span class="prod-det">cód '+esc(cod||'–')+' · 12m '+esc(gTotal(r)||'–')+' · méd/mês '+esc(gMedia(r)||'–')+'</span>' : '';
-    html += '<div class="prod-row">'+
-      '<div class="prod-info"><span class="prod-desc">'+esc(desc||cod)+'</span>'+det+'</div>'+
-      '<input type="number" min="0" step="any" class="prod-qtd" placeholder="qtd" '+
-        'data-c="'+esc(cod)+'" data-d="'+esc(desc)+'" data-f="'+esc(forn)+'">'+
-      '<button type="button" class="prod-add" onclick="addItem(this)">+</button>'+
-    '</div>';
+  var html='';
+  checked.forEach(function(forn){
+    var vistos={}, rows='';
+    GIRO_ROWS.filter(function(r){ return gForn(r)===forn; }).forEach(function(r){
+      var cod=gCod(r), desc=gDesc(r); if(!cod && !desc) return;
+      var key=cod||desc; if(vistos[key]) return; vistos[key]=1;
+      var det = verDet ? '<span class="prod-det">cód '+esc(cod||'–')+' · 12m '+esc(gTotal(r)||'–')+' · méd/mês '+esc(gMedia(r)||'–')+'</span>' : '';
+      rows += '<div class="prod-row">'+
+        '<div class="prod-info"><span class="prod-desc">'+esc(desc||cod)+'</span>'+det+'</div>'+
+        '<input type="number" min="0" step="any" class="prod-qtd" placeholder="qtd" '+
+          'data-c="'+esc(cod)+'" data-d="'+esc(desc)+'" data-f="'+esc(forn)+'">'+
+        '<button type="button" class="prod-add" onclick="addItem(this)">+</button>'+
+      '</div>';
+    });
+    html += '<div class="prod-forn-h">'+esc(forn)+'</div>' + (rows || '<div class="prod-vazio">sem itens</div>');
   });
-  box.innerHTML = html || '<div class="prod-vazio">Sem itens para esse fornecedor.</div>';
+  box.innerHTML = html;
 }
 function addItem(btn){
   var inp=btn.previousElementSibling;
@@ -1202,6 +1217,35 @@ function cleanData(s){
   var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[3]+'/'+m[2]+'/'+m[1];
   var d=new Date(s); if(!isNaN(d)) return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
   return s;
+}
+
+/* cores por nome (gênero) */
+var GENERO_F={barbara:1,mariana:1,samara:1,vera:1,camila:1,eliane:1,dayane:1,claudia:1,deane:1,cris:1,cristina:1};
+var PAL_M=[{s:'#2b6cb0',b:'#e3edf7'},{s:'#0f766e',b:'#d8f0ea'},{s:'#4338ca',b:'#e7e6fb'},{s:'#2f7d5b',b:'#dff0e7'},{s:'#0e7490',b:'#d9eef4'}];
+var PAL_F=[{s:'#db2777',b:'#fce0ee'},{s:'#7c3aed',b:'#eee2fc'},{s:'#c2255c',b:'#fbdfe9'},{s:'#9d4edd',b:'#f0e3fb'},{s:'#e64980',b:'#fde2ec'}];
+function corDoNome(nome){
+  var f=norm(nome).split(' ')[0];
+  if(f==='rodrigo') return {s:'#2b6cb0',b:'#e3edf7'};
+  var pal=GENERO_F[f]?PAL_F:PAL_M, h=0;
+  for(var i=0;i<f.length;i++) h+=f.charCodeAt(i);
+  return pal[h%pal.length];
+}
+/* logo da empresa */
+function logoEmpHtml(emp,h){
+  h=h||24;
+  var e=(window.EMP_LOGOS||[]).filter(function(x){return x.val===emp;})[0];
+  var src = (e&&e.file) ? e.file : (emp==='Grupo'?'logo.png':'');
+  if(src) return '<img src="'+src+'" alt="'+esc(emp)+'" style="height:'+h+'px;object-fit:contain;vertical-align:middle" onerror="this.style.display=\'none\'">';
+  if(e) return '<span class="emp-badge '+e.cls+'" style="font-size:11px;padding:4px 9px">'+e.icon+' '+esc(e.nome)+'</span>';
+  return '';
+}
+function colorirSetores(){
+  document.querySelectorAll('#chkSetores .setor-card').forEach(function(card){
+    var c=corDoNome(card.getAttribute('data-nome'));
+    card.style.borderTop='3px solid '+c.s;
+    card.style.background=c.b;
+    var r=card.querySelector('.resp'); if(r){ r.style.color=c.s; r.style.fontWeight='800'; }
+  });
 }
 
 function renderChecklist(){ chkVerGlobal(); }
@@ -1282,15 +1326,16 @@ function abrirMapa(id){
     return { x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang) };
   });
   var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:700px">';
-  pos.forEach(function(pt){ svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.x+'" y2="'+pt.y+'" stroke="#d97524" stroke-width="2"/>'; });
+  nos.forEach(function(a,i){ var pt=pos[i], col=corDoNome(a.n).s;
+    svg+='<line x1="'+cx+'" y1="'+cy+'" x2="'+pt.x+'" y2="'+pt.y+'" stroke="'+col+'" stroke-width="2.5"/>'; });
   svg+=foNode(cx-110,cy-40,220,80,'<div class="map-centro"><b>'+esc(p.evento||'Ação')+'</b><span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</span></div>');
-  nos.forEach(function(a,i){
-    var pt=pos[i];
-    svg+=foNode(pt.x-80,pt.y-36,160,72,'<div class="map-no"><b>'+esc(a.n)+'</b><span>'+esc(a.t||'—')+'</span>'+(a.p?'<em>'+esc(fmtData(a.p))+'</em>':'')+'</div>');
+  nos.forEach(function(a,i){ var pt=pos[i], col=corDoNome(a.n).s;
+    svg+=foNode(pt.x-80,pt.y-36,160,72,'<div class="map-no" style="border-color:'+col+'"><b style="color:'+col+'">'+esc(a.n)+'</b><span>'+esc(a.t||'—')+'</span>'+(a.p?'<em>'+esc(fmtData(a.p))+'</em>':'')+'</div>');
   });
   svg+='</svg>';
   if(!nos.length) svg='<div class="cal-estado">Esse plano ainda não tem responsáveis com tarefa. Edite o plano e atribua.</div>';
-  document.getElementById('mapaCorpo').innerHTML=svg;
+  var logo=logoEmpHtml(p.empresa,40);
+  document.getElementById('mapaCorpo').innerHTML=(logo?'<div style="text-align:center;margin-bottom:10px">'+logo+'</div>':'')+svg;
   abrirModal('modalMapa');
 }
 
@@ -1298,6 +1343,7 @@ var _btnChk=document.querySelector('button[data-aba="checklist"]');
 var _btnCrono=document.querySelector('button[data-aba="cronograma"]');
 if(_btnChk)   _btnChk.addEventListener('click', renderChecklist);
 if(_btnCrono) _btnCrono.addEventListener('click', renderCronograma);
+colorirSetores();
 
 /* ===== INIT do módulo de escrita ===== */
 document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
