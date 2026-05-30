@@ -128,7 +128,7 @@
   .setores{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:6px}
   .setor-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
   .setor-card .nome{font-weight:800;font-size:14px}
-  .setor-card .resp{font-size:12px;color:var(--muted);margin-top:2px}
+  .setor-card .resp{font-size:12px;color:var(--ink-2);margin-top:2px}
 
   .faixas{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:6px}
   .faixa{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center}
@@ -268,13 +268,13 @@
     border-radius:12px;padding:12px 14px;margin-bottom:8px;box-shadow:var(--shadow)}
   .chk-info{flex:1;min-width:0;display:flex;flex-direction:column}
   .chk-info b{font-size:14px;font-weight:800}
-  .chk-info span{font-size:12px;color:var(--muted)}
+  .chk-info span{font-size:12px;color:var(--ink-2)}
   .chk-tarefa{font-size:13px;color:var(--ink-2);margin-top:3px}
   .chk-prazo{font-size:12px;font-weight:800;color:var(--accent);white-space:nowrap}
   .chk-plano{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:var(--shadow)}
   .chk-plano-cab{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
   .chk-plano-cab b{font-size:14px;font-weight:800}
-  .chk-plano-cab span{font-size:12px;color:var(--muted)}
+  .chk-plano-cab span{font-size:12px;color:var(--ink-2)}
   .chk-mini{font-size:12.5px;color:var(--ink-2);padding:4px 0;border-top:1px solid var(--line)}
   .chk-mini b{color:var(--ink)} .chk-mini em{color:var(--accent);font-style:normal;font-weight:700}
 
@@ -294,8 +294,27 @@
   .map-centro span{font-size:11px;color:#a9b5b1;margin-top:3px}
   .map-no{background:#fff;border:2px solid var(--accent);border-radius:10px;padding:6px 8px;text-align:center;height:100%;display:flex;flex-direction:column;justify-content:center;box-shadow:var(--shadow);box-sizing:border-box}
   .map-no b{font-size:12px;font-weight:800;color:var(--ink)}
-  .map-no span{font-size:10.5px;color:var(--ink-2);line-height:1.15;margin-top:2px}
+  .map-no span{font-size:10.5px;color:var(--ink);line-height:1.15;margin-top:2px}
   .map-no em{font-size:10px;color:var(--accent);font-weight:700;font-style:normal;margin-top:2px}
+
+  /* botão do mapa em destaque */
+  .btn-mapa{background:var(--ink);color:#fff;border:none;font-family:inherit;font-size:12px;font-weight:800;
+    padding:7px 13px;border-radius:9px;cursor:pointer;white-space:nowrap}
+  .btn-mapa:hover{background:#000}
+  /* evento clicável */
+  .evento.clicavel{cursor:pointer}
+  /* status + contador por responsável */
+  .ms-det{flex-wrap:wrap}
+  .ms-det .ms-status{flex-shrink:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px;background:#fff}
+  .ms-cont{font-size:12px;font-weight:800;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .ms-cont:empty{display:none}
+  .ms-cont.c-late{background:#fbded7;color:#b3412c}
+  .ms-cont.c-urg{background:#fbe3cf;color:#b85d18}
+  .ms-cont.c-warn{background:#fbf0cf;color:#8a6d10}
+  .ms-cont.c-ok2,.ms-cont.c-ok{background:#dff0e7;color:#236b4a}
+  .ms-cont.c-off{background:var(--bg);color:var(--muted)}
+  /* fornecedor no bloco de itens selecionados */
+  .sel-forn{font-size:11px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;margin-top:8px}
 
   .mes-bloco{margin-bottom:26px}
   .mes-titulo{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
@@ -765,7 +784,7 @@ function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){
     (e.empresas||'').split(',').forEach(function(emp){
       emp=emp.trim(); if(emp) empresasHtml+='<span class="ev-emp">'+esc(emp)+'</span>';
     });
-    return '<div class="evento'+(passado?' passado':'')+'">'+
+    return '<div class="evento clicavel'+(passado?' passado':'')+'" data-ev="'+esc(e.evento)+'" title="Clique para criar um Plano de Ação deste evento">'+
       '<div class="ev-data"><div class="dia">'+dia+'</div><div class="mesabrev">'+mesab+'</div></div>'+
       '<div class="ev-corpo">'+
         '<div class="ev-topo">'+
@@ -790,6 +809,13 @@ function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){
     filtroEmpresa=this.value; renderLogos(filtroEmpresa); renderizar();
   });
   document.getElementById('calRefresh').addEventListener('click',carregar);
+
+  elConteudo.addEventListener('click', function(ev){
+    var card=ev.target.closest('.evento[data-ev]'); if(!card) return;
+    var nome=card.getAttribute('data-ev');
+    var e=(window.CAL_EVENTOS||[]).filter(function(x){ return x.evento===nome; })[0];
+    if(typeof novoPlanoDeEvento==='function') novoPlanoDeEvento(e || {evento:nome});
+  });
 
   window.recarregarCalendario = carregar;
   renderLogos('Todas');
@@ -830,6 +856,28 @@ function carregarUsuarios(){
     })
     .catch(function(){ USUARIOS = []; });
 }
+function statusOpts(sel){
+  if(!sel) sel='Em andamento';
+  return ['Em andamento','Concluído','Recusado','Cancelado'].map(function(o){
+    return '<option'+(o===sel?' selected':'')+'>'+o+'</option>'; }).join('');
+}
+function diasInfo(prazo, status){
+  if(status==='Concluído') return {txt:'✓ ok', cls:'c-ok'};
+  if(status==='Cancelado'||status==='Recusado') return {txt:'—', cls:'c-off'};
+  var m=String(prazo||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); if(!m) return {txt:'', cls:''};
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var dias=Math.round((new Date(+m[1],+m[2]-1,+m[3])-hoje)/864e5);
+  if(dias<0)   return {txt:Math.abs(dias)+'d atraso', cls:'c-late'};
+  if(dias===0) return {txt:'hoje', cls:'c-late'};
+  if(dias<=3)  return {txt:dias+'d', cls:'c-urg'};
+  if(dias<=7)  return {txt:dias+'d', cls:'c-warn'};
+  return {txt:dias+'d', cls:'c-ok2'};
+}
+function updateDet(el){
+  var det=el.closest('.ms-det'); if(!det) return;
+  var info=diasInfo(det.querySelector('.ms-prazo').value, det.querySelector('.ms-status').value);
+  var c=det.querySelector('.ms-cont'); c.textContent=info.txt; c.className='ms-cont '+info.cls;
+}
 function renderResponsaveis(atrib){
   atrib = atrib || {};
   var box = document.getElementById('pf-responsaveis');
@@ -839,24 +887,25 @@ function renderResponsaveis(atrib){
   function bloco(titulo, lista){
     if(!lista.length) return '';
     return '<div class="ms-grupo">'+titulo+'</div>' + lista.map(function(u){
-      var a  = atrib[u.nome];
-      var ck = a ? 'checked' : '';
-      var disp = a ? 'flex' : 'none';
+      var a=atrib[u.nome], ck=a?'checked':'', disp=a?'flex':'none';
       return '<div class="ms-wrap">'+
         '<label class="ms-item"><input type="checkbox" data-nome="'+esc(u.nome)+'" '+ck+' onchange="toggleResp(this)"> '+esc(u.nome)+'</label>'+
         '<div class="ms-det" style="display:'+disp+'">'+
           '<input class="ms-tarefa" placeholder="parte dele(a) nesta ação" value="'+esc(a?a.tarefa:'')+'">'+
-          '<input type="date" class="ms-prazo" value="'+esc(a?a.prazo:'')+'">'+
+          '<input type="date" class="ms-prazo" value="'+esc(a?a.prazo:'')+'" onchange="updateDet(this)">'+
+          '<select class="ms-status" onchange="updateDet(this)">'+statusOpts(a?a.status:'')+'</select>'+
+          '<span class="ms-cont"></span>'+
         '</div>'+
       '</div>';
     }).join('');
   }
   box.innerHTML = bloco('Gestão', gestao) + bloco('Vendedores', vend);
+  box.querySelectorAll('.ms-det').forEach(function(det){ updateDet(det.querySelector('.ms-status')); });
 }
 function toggleResp(cb){
   var det = cb.closest('.ms-wrap').querySelector('.ms-det');
   det.style.display = cb.checked ? 'flex' : 'none';
-  if(cb.checked){ det.querySelector('.ms-tarefa').focus(); }
+  if(cb.checked){ det.querySelector('.ms-tarefa').focus(); updateDet(det.querySelector('.ms-status')); }
 }
 function getAtribuicoes(){
   var arr=[];
@@ -865,14 +914,15 @@ function getAtribuicoes(){
     if(cb && cb.checked){
       arr.push({ n: cb.getAttribute('data-nome'),
                  t: w.querySelector('.ms-tarefa').value.trim(),
-                 p: w.querySelector('.ms-prazo').value });
+                 p: w.querySelector('.ms-prazo').value,
+                 s: w.querySelector('.ms-status').value });
     }
   });
   return arr;
 }
 function parseAtrib(s){ try{ var a=JSON.parse(s); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
 function atribParaMapa(s){
-  var m={}; parseAtrib(s).forEach(function(x){ if(x&&x.n) m[x.n]={tarefa:x.t||'',prazo:x.p||''}; }); return m;
+  var m={}; parseAtrib(s).forEach(function(x){ if(x&&x.n) m[x.n]={tarefa:x.t||'',prazo:x.p||'',status:x.s||''}; }); return m;
 }
 function preencherEventosDropdown(sel){
   var dd = document.getElementById('pf-evento');
@@ -902,7 +952,7 @@ function carregarPlanos(){
     .then(function(r){ return r.text(); })
     .then(function(txt){
       PLANOS = csvParaObjetos(txt).map(function(o){
-        return { id:o.ID||'', evento:o.Evento_ref||'', data:o.Data_evento||'', empresa:o.Empresa||'',
+        return { id:o.ID||'', evento:o.Evento_ref||'', data:cleanData(o.Data_evento||''), empresa:o.Empresa||'',
                  objetivo:o.Objetivo||'', responsaveis:o.Responsavel||'', status:o.Status||'Planejado',
                  meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'', atrib:o.Atribuicoes||'' };
       }).filter(function(p){ return p.evento || p.objetivo; });
@@ -1014,6 +1064,14 @@ function excluirPlano(id){
 }
 
 /* ===== NOVO EVENTO NO CALENDÁRIO ===== */
+function novoPlanoDeEvento(e){
+  abrirNovoPlano();
+  preencherEventosDropdown(e.evento||'');
+  var lista=(e.empresas||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  var opts=['Q Food','Sushi Trip','Mercearia','Ecommerce'];
+  document.getElementById('pf-empresa').value=(lista.length===1 && opts.indexOf(lista[0])>=0)?lista[0]:'Grupo';
+  document.getElementById('planoModalTitulo').textContent='Novo plano · '+(e.evento||'');
+}
 function abrirNovoEvento(){
   ['ef-data','ef-evento','ef-ant','ef-empresas','ef-obs'].forEach(function(id){ document.getElementById(id).value=''; });
   document.getElementById('ef-tipo').value='Gastronomica';
@@ -1110,14 +1168,24 @@ function addItem(btn){
 function renderItensSel(){
   var box=document.getElementById('pf-itens-sel');
   if(!planoItens.length){ box.innerHTML=''; return; }
-  box.innerHTML = '<div class="sel-titulo">Itens selecionados ('+planoItens.length+')</div>' +
-    planoItens.map(function(it,i){
-      return '<div class="sel-row">'+
-        '<span class="sel-desc">'+esc(it.d)+(it.f?' <small>· '+esc(it.f)+'</small>':'')+'</span>'+
-        '<input type="number" min="0" step="any" class="sel-qtd" value="'+esc(String(it.q))+'" onchange="setQtd('+i+',this.value)">'+
-        '<button type="button" class="sel-rm" onclick="rmItem('+i+')">×</button>'+
+  var grupos={}, ordem=[];
+  planoItens.forEach(function(it,idx){
+    var f=it.f||'(sem fornecedor)';
+    if(!grupos[f]){ grupos[f]=[]; ordem.push(f); }
+    grupos[f].push({it:it, idx:idx});
+  });
+  var html='<div class="sel-titulo">Itens selecionados ('+planoItens.length+' · '+ordem.length+' fornecedor(es))</div>';
+  ordem.forEach(function(f){
+    html+='<div class="sel-forn">'+esc(f)+'</div>';
+    grupos[f].forEach(function(o){
+      html+='<div class="sel-row">'+
+        '<span class="sel-desc">'+esc(o.it.d)+'</span>'+
+        '<input type="number" min="0" step="any" class="sel-qtd" value="'+esc(String(o.it.q))+'" onchange="setQtd('+o.idx+',this.value)">'+
+        '<button type="button" class="sel-rm" onclick="rmItem('+o.idx+')">×</button>'+
       '</div>';
-    }).join('');
+    });
+  });
+  box.innerHTML=html;
 }
 function setQtd(i,v){ var q=parseFloat(String(v||'').replace(',','.'))||0; if(q<=0){ rmItem(i); return; } planoItens[i].q=q; }
 function rmItem(i){ planoItens.splice(i,1); renderItensSel(); }
@@ -1128,6 +1196,13 @@ document.getElementById('pf-verdet').addEventListener('change', renderProdutosFo
 /* ===== CHECKLIST POR SETOR + CRONOGRAMA + MAPA MENTAL ===== */
 function norm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(); }
 function fmtData(d){ var m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[3]+'/'+m[2]+'/'+m[1]):(d||''); }
+function cleanData(s){
+  s=String(s||'').trim(); if(!s) return '';
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) return s;
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[3]+'/'+m[2]+'/'+m[1];
+  var d=new Date(s); if(!isNaN(d)) return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+  return s;
+}
 
 function renderChecklist(){ chkVerGlobal(); }
 
@@ -1156,7 +1231,7 @@ function chkVerPessoa(nomeCard, setor){
           '<span>'+esc(o.p.empresa||'')+(o.p.data?' · '+esc(o.p.data):'')+'</span>'+
           '<div class="chk-tarefa">'+esc(o.a.t||'(sem descrição)')+'</div></div>'+
         (o.a.p?'<span class="chk-prazo">'+esc(fmtData(o.a.p))+'</span>':'')+
-        '<button class="lnk" onclick="abrirMapa(\''+esc(o.p.id)+'\')">🧠 mapa</button>'+
+        '<button class="btn-mapa" onclick="abrirMapa(\''+esc(o.p.id)+'\')">🧠 Ver mapa</button>'+
       '</div>';
     }).join('');
 }
@@ -1164,7 +1239,7 @@ function blocoPlanoChk(p){
   var nos=parseAtrib(p.atrib);
   return '<div class="chk-plano">'+
     '<div class="chk-plano-cab"><b>'+esc(p.evento||'—')+'</b><span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</span>'+
-      '<button class="lnk" style="margin-left:auto" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 mapa</button></div>'+
+      '<button class="btn-mapa" style="margin-left:auto" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button></div>'+
     nos.map(function(a){ return '<div class="chk-mini"><b>'+esc(a.n)+'</b> — '+esc(a.t||'—')+(a.p?' <em>'+esc(fmtData(a.p))+'</em>':'')+'</div>'; }).join('')+
   '</div>';
 }
@@ -1201,7 +1276,7 @@ function foNode(x,y,w,h,html){
 function abrirMapa(id){
   var p=PLANOS.filter(function(x){ return x.id===id; })[0]; if(!p) return;
   var nos=parseAtrib(p.atrib);
-  var W=700, H=Math.max(420, 200+nos.length*36), cx=W/2, cy=H/2, R=Math.min(cy-90,210);
+  var W=760, R=Math.min(260, 190+nos.length*14), H=2*(R+100), cx=W/2, cy=H/2;
   var pos=nos.map(function(_,i){
     var ang=(-90 + i*(360/Math.max(nos.length,1)))*Math.PI/180;
     return { x:cx+R*Math.cos(ang), y:cy+R*Math.sin(ang) };
