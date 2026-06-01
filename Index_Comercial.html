@@ -2644,44 +2644,20 @@ function chkBuildRanking(ritmoIdealPct, du, da){
     if(diff >= 0){ cor="g"; label="No ritmo"; }
     else if(diff >= -10){ cor="y"; label="Atenção"; }
     else{ cor="r"; label="Atrasado"; }
-    // pega DP (positivação, margem, markup, novos) + BASE_PDV (carteira real)
+    // FONTE UNICA: PERF_INDIVIDUAL (DP). Todas as metricas do ranking saem dali —
+    // carteira, atendidos, novos, margem, markup. Positivacao = atendidos/carteira.
     var atendidos = 0, posit = 0, margem = 0, markup = 0, novos = 0, carteira = 0;
     if(typeof DP !== "undefined" && DP){
       var dp = DP.find(function(x){return x.s===v.s;});
       if(dp){
+        carteira  = dp.ca || 0;
         atendidos = dp.at || 0;
-        margem = dp.mg || 0;
-        markup = dp.mk || 0;
-        novos  = dp.nv || 0;
+        margem    = dp.mg || 0;
+        markup    = dp.mk || 0;
+        novos     = dp.nv || 0;
       }
     }
-    // Carteira: primeiro tenta BASE_PDV (contagem por setor). Fallback: dp.ca do PERF_INDIVIDUAL.
-    // Match robusto: o nome no DM pode ser apelido curto ("Eder") e o setor na BASE_PDV
-    // pode ser nome formal ("EDERSON.BARCELOS"). Tentamos match exato, prefixo e substring.
-    var primeiroNomeVendedor = String(v.nome||"").toUpperCase().split(/[.\s]/)[0];
-    if(typeof BASE_PDV_COUNT !== "undefined" && primeiroNomeVendedor){
-      // 1) match exato
-      if(BASE_PDV_COUNT[primeiroNomeVendedor]){
-        carteira = BASE_PDV_COUNT[primeiroNomeVendedor];
-      } else {
-        // 2) prefixo: vendedor "EDER" deve casar com chave "EDERSON" (e vice-versa)
-        var keys = Object.keys(BASE_PDV_COUNT);
-        for(var ki=0; ki<keys.length; ki++){
-          var k=keys[ki];
-          if(k.indexOf(primeiroNomeVendedor)===0 || primeiroNomeVendedor.indexOf(k)===0){
-            // requisito: pelo menos 3 chars em comum pra evitar matches espurios
-            var menor=Math.min(k.length, primeiroNomeVendedor.length);
-            if(menor>=3){ carteira = BASE_PDV_COUNT[k]; break; }
-          }
-        }
-      }
-    }
-    // Fallback final: PERF_INDIVIDUAL
-    if(carteira===0 && typeof DP !== "undefined" && DP){
-      var dpx = DP.find(function(x){return x.s===v.s;});
-      if(dpx) carteira = dpx.ca || 0;
-    }
-    // Positivação recalculada com a carteira nova
+    // Positivacao calculada (mesma logica do PERF_INDIVIDUAL: atendidos/carteira)
     posit = carteira>0 ? (atendidos/carteira)*100 : 0;
     // projeção individual
     var projecao;
