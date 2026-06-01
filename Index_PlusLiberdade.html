@@ -245,6 +245,15 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 .cat[data-status="VALIDADO"] .cat-premio {
   background: rgba(6,167,125,0.12); color: var(--verde);
 }
+.cat-pct-detail {
+  display: block;
+  font-size: 11.5px; color: var(--text-muted); font-weight: 600;
+  margin-top: 6px; line-height: 1.4;
+}
+.cat-pct-detail strong { color: var(--verde); font-weight: 800; }
+.cat-pct-detail em { color: var(--st-foco); font-style: normal; font-weight: 700; }
+.cat[data-status="QUASE"] .cat-pct-detail em { color: var(--st-quase); }
+.cat[data-status="PROXIMO"] .cat-pct-detail em { color: var(--st-proximo); }
 
 /* EQUIPE (todos como destaque por padrão) */
 .rank-list { display: flex; flex-direction: column; gap: 8px; }
@@ -785,8 +794,8 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
         <div class="l">Metas batidas</div>
       </div>
       <div class="hero-stat">
-        <div class="k"><span id="hero-pct">0</span>%</div>
-        <div class="l">Equipe atingiu</div>
+        <div class="k">+<span id="hero-pct">0</span>%</div>
+        <div class="l">Gerando R$</div>
       </div>
     </div>
     <div class="hero-progress-wrap">
@@ -1293,17 +1302,27 @@ const ENGINE = (() => {
     const validadas = cats.filter(c => c.status === 'VALIDADO').length;
     const totalPremio = divisao.totalPremio || cats.reduce((s, c) => s + (c.premTotal || 0), 0);
 
-    // % equipe = % de categorias que ATINGIRAM 100% (só conta o que monetizou)
-    // Categoria a 93% conta como 0% pois ainda não gera prêmio
-    // Categoria a 105% conta como 100% (validou; o excedente vira prêmio em R$)
+    // % de metas batidas = quantas categorias atingiram 100%
+    // Categoria a 93% conta como 0 (ainda não monetizou nada)
+    // Categoria a 105% conta como 1 (validou e excedente já vira R$)
     const pctEquipe = total > 0 ? (validadas / total) : 0;
+
+    // % excedente médio = média de "quanto além de 100% a equipe gerou em cada categoria"
+    // É o "% que vale pro funcionário" — só conta o que está acima da meta
+    // Ex: Refri a 117% → excedente 17%; Água a 93% → excedente 0%
+    let pctExcedente = 0;
+    if (total > 0) {
+      const somaExced = cats.reduce((s, c) => s + Math.max(0, (c.pct || 0) - 1), 0);
+      pctExcedente = somaExced / total;
+    }
 
     return {
       totalCategorias: total,
       validadas,
       pctValidadas: total > 0 ? validadas / total : 0,
       totalPremio,
-      pctEquipe
+      pctEquipe,
+      pctExcedente
     };
   }
 
@@ -1399,8 +1418,10 @@ const UI = (() => {
   function renderHero(kpi, delta) {
     document.getElementById('hero-validadas').textContent = `${kpi.validadas}/${kpi.totalCategorias}`;
     animateNumber(document.getElementById('hero-valor'), 0, kpi.totalPremio, 1400, fmtBRL);
-    animateNumber(document.getElementById('hero-pct'), 0, kpi.pctEquipe * 100, 1400, n => Math.round(n));
+    // Card 2 mostra % excedente médio (só o que está gerando R$ acima da meta)
+    animateNumber(document.getElementById('hero-pct'), 0, kpi.pctExcedente * 100, 1400, n => Math.round(n));
     setTimeout(() => {
+      // Barra mostra progresso de metas batidas (% das categorias validadas)
       const pctTarget = Math.min(100, Math.round(kpi.pctEquipe * 100));
       document.getElementById('hero-bar').style.width = pctTarget + '%';
     }, 200);
@@ -1427,7 +1448,13 @@ const UI = (() => {
     document.getElementById('cat-count').textContent = `${cats.length} no mês`;
     list.innerHTML = '';
     cats.forEach((c, idx) => {
-      const pctClamp = Math.min(100, Math.round(c.pct * 100));
+      // Barra de progresso visual: cap em 100% (não passa do final)
+      const pctBarra = Math.min(100, Math.round(c.pct * 100));
+      // % atingido real (pode passar de 100, ex: 117%, 245%)
+      const pctReal = Math.round(c.pct * 100);
+      // % de excedente (só o que está acima de 100%, é o que VALE pro funcionário)
+      const pctExcedente = Math.max(0, pctReal - 100);
+
       const card = document.createElement('div');
       card.className = 'cat';
       card.setAttribute('data-status', c.status);
@@ -1437,6 +1464,13 @@ const UI = (() => {
       const premioTxt = c.premTotal > 0
         ? `🏆 R$ ${fmtBRLdec(c.premTotal)} gerados`
         : (c.premUnit > 0 ? `R$ ${fmtBRLdec(c.premUnit)} por un. excedente` : '');
+
+      // Linha de status com os DOIS números: % atingido + % gerando R$ (excedente)
+      // Só mostra o "+X% gerando R$" quando bateu 100%
+      const pctLine = c.status === 'VALIDADO'
+        ? `<span class="cat-pct-detail">${pctReal}% atingido${pctExcedente > 0 ? ` · <strong>+${pctExcedente}% gerando R$</strong>` : ''}</span>`
+        : `<span class="cat-pct-detail">${pctReal}% atingido · <em>falta bater meta</em></span>`;
+
       card.innerHTML = `
         <div class="cat-head">
           <div class="cat-emoji">${c.emoji}</div>
@@ -1444,13 +1478,14 @@ const UI = (() => {
             <div class="cat-name">${c.nome}</div>
             <div class="cat-grupo">${c.grupo}</div>
           </div>
-          <div class="cat-pct">${pctClamp}%</div>
+          <div class="cat-pct">${pctReal}%</div>
         </div>
-        <div class="cat-bar"><div class="cat-bar-fill" data-target="${pctClamp}"></div></div>
+        <div class="cat-bar"><div class="cat-bar-fill" data-target="${pctBarra}"></div></div>
         <div class="cat-foot">
           <span class="cat-status">${c.statusLabel}</span>
           <span class="cat-falta">${faltaTxt}</span>
         </div>
+        ${pctLine}
         ${premioTxt ? `<div class="cat-premio">${premioTxt}</div>` : ''}
       `;
       list.appendChild(card);
@@ -1732,13 +1767,17 @@ const UI = (() => {
     } else {
       const cols = Math.min(validadas.length, 3);
       grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-      grid.innerHTML = validadas.map(c => `
+      grid.innerHTML = validadas.map(c => {
+        const excedente = Math.max(0, c.pctDisplay - 100);
+        return `
         <div class="tv-cat-big">
           <div class="em">${c.emoji}</div>
           <div class="nm">${c.nome}</div>
-          <div class="pc">${c.pctDisplay}%</div>
+          <div class="pc">+${excedente}%</div>
+          <div style="font-size:1vw;opacity:.8;margin-top:0.5vh;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">gerando R$</div>
         </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     // SLIDE 3 — FOCO (top 5 abaixo da meta, ordenado por % desc)
