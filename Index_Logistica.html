@@ -898,6 +898,7 @@ tbody tr:hover td{background:var(--s2);}
             <th onclick="supSort('TOTAL GERAL')" style="text-align:right;cursor:pointer">Total <span id="sso-TOTAL GERAL" style="opacity:.4">⇅</span></th>
             <th onclick="supSort('STATUS')" style="cursor:pointer">Status <span id="sso-STATUS" style="opacity:.4">⇅</span></th>
             <th onclick="supSort('DATA AGENDADA')" style="cursor:pointer">📅 Agendado p/ <span id="sso-DATA AGENDADA" style="opacity:.4">⇅</span></th>
+            <th style="text-align:center">📜 Histórico</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -906,6 +907,55 @@ tbody tr:hover td{background:var(--s2);}
 
   </div>
   <!-- FIM log-super -->
+
+  <!-- ═══════════ MODAL HISTÓRICO DE ENTREGAS ═══════════ -->
+  <div id="sup-hist-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:flex-start;justify-content:center;overflow-y:auto;padding:40px 20px">
+    <div style="background:var(--sf);color:var(--tx);border:1px solid var(--br);border-radius:14px;max-width:720px;width:100%;font-family:var(--fb);box-shadow:0 20px 60px rgba(0,0,0,.5)">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--br)">
+        <div>
+          <div style="font-size:.72rem;color:var(--mu);letter-spacing:1px;text-transform:uppercase;font-weight:600">📜 Histórico de tentativas</div>
+          <div style="font-size:1.1rem;font-weight:700;margin-top:2px">NF <span id="sup-hist-nf">—</span></div>
+        </div>
+        <button onclick="supFecharHistorico()" style="background:transparent;border:none;color:var(--mu);font-size:1.5rem;cursor:pointer;padding:4px 12px;border-radius:6px" title="Fechar (ESC)">×</button>
+      </div>
+
+      <div style="padding:18px 22px;max-height:55vh;overflow-y:auto" id="sup-hist-timeline">
+        <div style="text-align:center;color:var(--mu);padding:30px">Carregando...</div>
+      </div>
+
+      <div id="sup-hist-action-bar" style="padding:14px 22px;border-top:1px solid var(--br);background:rgba(255,255,255,.02)">
+        <button onclick="supHistAddForm()" id="sup-hist-btn-add" style="background:var(--blue);color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-family:var(--fb)">➕ Adicionar evento (pode ser retroativo)</button>
+      </div>
+
+      <div id="sup-hist-form" style="display:none;padding:18px 22px;border-top:1px solid var(--br);background:rgba(160,124,246,.05)">
+        <div style="font-size:.85rem;font-weight:600;margin-bottom:10px;color:var(--tx)">Novo evento</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <label style="font-size:.78rem;color:var(--mu)">Data da tentativa:<br>
+            <input type="date" id="sup-hist-data" style="width:100%;background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:6px 8px;font-size:.85rem;font-family:var(--fb);margin-top:4px">
+          </label>
+          <label style="font-size:.78rem;color:var(--mu)">Status:<br>
+            <select id="sup-hist-status" style="width:100%;background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:6px 8px;font-size:.85rem;font-family:var(--fb);margin-top:4px">
+              <option value="AGUARDANDO AGENDAMENTO">AGUARDANDO AGENDAMENTO</option>
+              <option value="AGENDADO PARA">AGENDADO PARA</option>
+              <option value="ENTREGUE">ENTREGUE</option>
+              <option value="ENTREGUE PARCIALMENTE">ENTREGUE PARCIALMENTE</option>
+              <option value="REENTREGA TEMPO INSUFICIENTE" selected>REENTREGA TEMPO INSUFICIENTE</option>
+              <option value="REENTREGA PROBLEMA FISCAL">REENTREGA PROBLEMA FISCAL</option>
+              <option value="SEM VALOR SUFICIENTE ROTA">SEM VALOR SUFICIENTE ROTA</option>
+            </select>
+          </label>
+        </div>
+        <label style="font-size:.78rem;color:var(--mu);display:block;margin-bottom:10px">Observação (opcional):<br>
+          <textarea id="sup-hist-obs" placeholder="ex: chegou às 17h, mercado já fechou recebimento" style="width:100%;background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:6px 8px;font-size:.85rem;font-family:var(--fb);margin-top:4px;resize:vertical;min-height:50px"></textarea>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="supHistSalvar()" id="sup-hist-btn-save" style="background:var(--ok);color:white;border:none;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;font-family:var(--fb)">💾 Salvar evento</button>
+          <button onclick="supHistCancelar()" style="background:transparent;border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:8px 14px;cursor:pointer;font-family:var(--fb)">Cancelar</button>
+          <span id="sup-hist-msg" style="font-size:.78rem;margin-left:8px"></span>
+        </div>
+      </div>
+    </div>
+  </div>
 
 <!-- ═══════════ ESTILOS DA NOVA ABA ═══════════ -->
 <style>
@@ -1120,9 +1170,12 @@ var SUP_EDITORES_ENT = ['jonathas@qfoodcompany.com.br','maiko@qfoodcompany.com.b
 
 var SUP_CACHE_NFS_MS = 5 * 60 * 1000;
 
+// Prazo máximo até a entrega — após esse prazo, supermercados costumam cancelar pedido
+var SUP_ENTREGA_PRAZO_DIAS = 30;
+
 var SUP_STATE = {
   loaded: { visitas:false, validades:false, entregas:false },
-  data:   { visitas:[], validades:[], entregas:[] },
+  data:   { visitas:[], validades:[], entregas:[], historicos:{} },
   nfsEntregues: new Set(),
   nfsEntreguesTs: 0,
   initialized: false
@@ -1708,6 +1761,9 @@ function supCarregarEntregas(){
 
     supPopularFiltrosEntregas();
     supAplicarFiltrosEntregas();
+
+    // Carrega histórico de todas as NFs em background (não bloqueia render inicial)
+    supCarregarHistoricoTotal();
   }).catch(function(e){
     supAtualizarStatusSync('err', 'Erro: ' + e.message);
     document.getElementById('sup-ent-kpis').innerHTML = '<div class="sup-msg-err">Erro: '+e.message+'</div>';
@@ -1804,9 +1860,11 @@ function supAplicarFiltrosEntregas(){
 function supRenderKpisEntregas(ents){
   var counts = {};
   SUP_STATUS_VALIDOS.forEach(function(s){ counts[s] = 0; });
+  var countVencidas = 0;
   ents.forEach(function(e){
     var s = supStatusEfetivo(e).efetivo;
     if (counts[s] !== undefined) counts[s]++;
+    if (supNfVencida(e)) countVencidas++;
   });
 
   document.getElementById('sup-ent-kpis').innerHTML =
@@ -1814,8 +1872,42 @@ function supRenderKpisEntregas(ents){
     '<div class="kpi"><div class="lbl">📅 Agendados</div><div class="val">'+counts['AGENDADO PARA']+'</div></div>' +
     '<div class="kpi sup-ok"><div class="lbl">Entregues</div><div class="val">'+counts['ENTREGUE']+'</div></div>' +
     '<div class="kpi sup-danger"><div class="lbl">Reentregas</div><div class="val">'+(counts['REENTREGA TEMPO INSUFICIENTE'] + counts['REENTREGA PROBLEMA FISCAL'])+'</div></div>' +
+    '<div class="kpi sup-danger" title="NFs com mais de '+SUP_ENTREGA_PRAZO_DIAS+' dias — supermercados normalmente já cancelaram"><div class="lbl">⚠️ +'+SUP_ENTREGA_PRAZO_DIAS+' dias</div><div class="val">'+countVencidas+'</div></div>' +
     '<div class="kpi sup-warn"><div class="lbl">Sem valor rota</div><div class="val">'+counts['SEM VALOR SUFICIENTE ROTA']+'</div></div>' +
     '<div class="kpi"><div class="lbl">Total</div><div class="val">'+ents.length+'</div></div>';
+}
+
+function supDiasDesdeEmissao(entrega){
+  var emissao = entrega['EMISSÃO NF'];
+  if (!emissao) return null;
+  var d = supParseData(emissao);
+  if (!d) return null;
+  var hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  d.setHours(0,0,0,0);
+  var diff = Math.floor((hoje.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+function supNfVencida(entrega){
+  var status = String(entrega['STATUS']||'').toUpperCase();
+  if (status.indexOf('ENTREGUE') === 0) return false;
+  var dias = supDiasDesdeEmissao(entrega);
+  return dias !== null && dias > SUP_ENTREGA_PRAZO_DIAS;
+}
+
+function supConfirmarSeVencida(entrega, acao){
+  if (!supNfVencida(entrega)) return true;
+  var dias = supDiasDesdeEmissao(entrega);
+  var msg = '⚠️ ATENÇÃO — NF VENCIDA ⚠️\n\n' +
+            'NF ' + entrega['NF'] + ' tem ' + dias + ' dias desde a emissão ' +
+            '(emitida em ' + supFmtData(entrega['EMISSÃO NF']) + ').\n\n' +
+            'Supermercados normalmente cancelam pedidos com mais de ' + SUP_ENTREGA_PRAZO_DIAS + ' dias.\n\n' +
+            '🚨 ANTES DE ' + (acao || 'PROSSEGUIR') + ', confirme com o VENDEDOR ' +
+            'se a NF ainda é válida pra entrega.\n\n' +
+            'Cliente: ' + (entrega['NOME FANTASIA'] || entrega['CLIENTE'] || '—') + '\n\n' +
+            'Você confirma que JÁ FALOU COM O VENDEDOR e quer prosseguir?';
+  return confirm(msg);
 }
 
 function supRenderTabelaEntregas(ents){
@@ -1862,9 +1954,22 @@ function supRenderTabelaEntregas(ents){
       cellData = dataIso ? supFmtData(dataIso) : '<span style="color:var(--mu2)">—</span>';
     }
 
-    return '<tr class="'+rowClass+'">' +
+    // Célula histórico (contador clicável)
+    var nfStr = String(e['NF']||'').trim();
+    var histArr = (SUP_STATE.data.historicos && SUP_STATE.data.historicos[nfStr]) || [];
+    var histCount = histArr.length;
+    var histColor = histCount === 0 ? 'var(--mu2)' : (histCount >= 3 ? 'var(--red)' : (histCount >= 2 ? 'var(--warn)' : 'var(--blue)'));
+    var cellHist = '<button onclick="supAbrirHistorico(\''+nfStr+'\')" title="Ver histórico de tentativas" style="background:transparent;border:1px solid '+histColor+';color:'+histColor+';border-radius:6px;padding:4px 10px;font-size:.78rem;cursor:pointer;font-family:var(--fb);font-weight:600">📜 '+histCount+'</button>';
+
+    var nfVencida = supNfVencida(e);
+    var diasEmissao = supDiasDesdeEmissao(e);
+    var rowStyle = nfVencida ? ' style="border-left:3px solid var(--red);background:rgba(229,57,57,.05)"' : '';
+    var badgeEmissao = nfVencida ?
+      ' <span title="Pedido provavelmente cancelado — confirme com o vendedor" style="background:rgba(229,57,57,.2);color:var(--red);padding:2px 6px;border-radius:4px;font-size:.68rem;font-weight:700;margin-left:4px">⚠️ +'+diasEmissao+'d</span>' : '';
+
+    return '<tr class="'+rowClass+'"'+rowStyle+'>' +
       '<td><strong>'+(e['NF']||'—')+'</strong></td>' +
-      '<td>'+supFmtData(e['EMISSÃO NF'])+'</td>' +
+      '<td>'+supFmtData(e['EMISSÃO NF'])+badgeEmissao+'</td>' +
       '<td>'+(e['CLIENTE']||'—')+'</td>' +
       '<td>'+(e['NOME FANTASIA']||'—')+'</td>' +
       '<td>'+(e['CIDADE']||'—')+'</td>' +
@@ -1872,6 +1977,7 @@ function supRenderTabelaEntregas(ents){
       '<td style="text-align:right">'+(e['TOTAL GERAL'] ? supFmtBRL(e['TOTAL GERAL']) : '—')+'</td>' +
       '<td>'+cellStatus+'</td>' +
       '<td>'+cellData+'</td>' +
+      '<td style="text-align:center">'+cellHist+'</td>' +
       '</tr>';
   }).join('');
 }
@@ -1880,6 +1986,15 @@ function supSalvarStatus(sel){
   var nf  = sel.getAttribute('data-nf');
   var novo = sel.value;
   var u = supGetUsuario();
+
+  // Avisa se NF tá vencida (+30d) — só pra status que indicam continuação
+  if (novo === 'AGUARDANDO AGENDAMENTO' || novo === 'AGENDADO PARA'){
+    var entAtual = SUP_STATE.data.entregas.find(function(x){ return String(x['NF']) === String(nf); });
+    if (entAtual && !supConfirmarSeVencida(entAtual, 'mudar o status')){
+      sel.value = entAtual['STATUS'] || 'AGUARDANDO AGENDAMENTO';
+      return;
+    }
+  }
   var prev = sel.style.background;
   sel.disabled = true; sel.style.background = 'var(--s3)';
 
@@ -1890,6 +2005,7 @@ function supSalvarStatus(sel){
     sel.style.background = 'rgba(54,207,160,.3)';
     var idx = SUP_STATE.data.entregas.findIndex(function(x){ return String(x['NF']) === String(nf); });
     if (idx >= 0) SUP_STATE.data.entregas[idx]['STATUS'] = r.status;
+    if (r.eventoHistorico) supHistAddLocal(r.eventoHistorico);
 
     if (r.sobrescritoPorRegistro){
       alert('ℹ️ A NF ' + nf + ' já consta como entregue na REGISTRO. Status foi salvo como ENTREGUE, ignorando "' + novo + '".');
@@ -1908,6 +2024,22 @@ function supSalvarDataAgendada(input){
   var nf = input.getAttribute('data-nf');
   var dataNova = input.value;
   var u = supGetUsuario();
+
+  // Avisa se NF tá vencida (+30d) e ainda quer agendar
+  if (dataNova){
+    var entAtual = SUP_STATE.data.entregas.find(function(x){ return String(x['NF']) === String(nf); });
+    if (entAtual && !supConfirmarSeVencida(entAtual, 'agendar a entrega')){
+      var dataPrev = entAtual['DATA AGENDADA'] || '';
+      var dd = dataPrev ? supParseData(dataPrev) : null;
+      if (dd){
+        var y = dd.getFullYear(), m = String(dd.getMonth()+1).padStart(2,'0'), d = String(dd.getDate()).padStart(2,'0');
+        input.value = y + '-' + m + '-' + d;
+      } else {
+        input.value = '';
+      }
+      return;
+    }
+  }
   if (!u.email){
     alert('Não foi possível identificar seu email. Recarregue a página e tente de novo.');
     return;
@@ -1930,6 +2062,7 @@ function supSalvarDataAgendada(input){
         SUP_STATE.data.entregas[idx]['STATUS'] = r.statusAlterado.para;
       }
     }
+    if (r.eventoHistorico) supHistAddLocal(r.eventoHistorico);
     setTimeout(function(){
       input.style.background = prev;
       input.disabled = false;
@@ -1991,6 +2124,7 @@ function supAdicionarEntrega(){
         if (dataAg) SUP_STATE.data.entregas[idx]['DATA AGENDADA'] = dataAg;
       }
     }
+    if (r.eventoHistorico) supHistAddLocal(r.eventoHistorico);
     supPopularFiltrosEntregas();
     supAplicarFiltrosEntregas();
   }).catch(function(err){
@@ -1999,6 +2133,182 @@ function supAdicionarEntrega(){
     btn.disabled = false; btn.textContent = '💾 Buscar NF e salvar';
   });
 }
+
+// ─────────────────────────────────────────────────────────────
+// HISTÓRICO DE ENTREGAS — modal de timeline + form de adicionar
+// ─────────────────────────────────────────────────────────────
+
+var SUP_HIST_NF_ATIVA = null;
+
+function supCarregarHistoricoTotal(){
+  supBackendPost('listarHistorico', {}).then(function(r){
+    var hist = {};
+    if (r && r.eventos){
+      r.eventos.forEach(function(e){
+        var nf = String(e.nf).trim();
+        if (!hist[nf]) hist[nf] = [];
+        hist[nf].push(e);
+      });
+    }
+    SUP_STATE.data.historicos = hist;
+    // Re-renderiza pra atualizar contadores nas células
+    if (SUP_STATE.loaded.entregas){
+      supAplicarFiltrosEntregas();
+    }
+  }).catch(function(err){
+    console.warn('[SUP] Falha ao carregar histórico (continuando sem):', err.message);
+  });
+}
+
+function supAbrirHistorico(nf){
+  SUP_HIST_NF_ATIVA = String(nf).trim();
+  document.getElementById('sup-hist-nf').textContent = SUP_HIST_NF_ATIVA;
+  document.getElementById('sup-hist-form').style.display = 'none';
+  document.getElementById('sup-hist-action-bar').style.display = supPodeEditarEntregas() ? 'block' : 'none';
+  document.getElementById('sup-hist-msg').textContent = '';
+  supHistRenderTimeline();
+  document.getElementById('sup-hist-modal').style.display = 'flex';
+}
+
+function supFecharHistorico(){
+  document.getElementById('sup-hist-modal').style.display = 'none';
+  SUP_HIST_NF_ATIVA = null;
+}
+
+function supHistRenderTimeline(){
+  var nf = SUP_HIST_NF_ATIVA;
+  var eventos = (SUP_STATE.data.historicos && SUP_STATE.data.historicos[nf]) || [];
+  var box = document.getElementById('sup-hist-timeline');
+
+  if (eventos.length === 0){
+    box.innerHTML = '<div style="text-align:center;color:var(--mu);padding:40px 20px"><div style="font-size:2rem;margin-bottom:8px">📭</div>Nenhum evento registrado ainda.<div style="font-size:.78rem;margin-top:8px">Clique em "Adicionar evento" para registrar a primeira tentativa (pode ser retroativa).</div></div>';
+    return;
+  }
+
+  // Cores por status
+  var cor = {
+    'ENTREGUE': 'var(--ok)',
+    'ENTREGUE PARCIALMENTE': 'var(--warn)',
+    'AGUARDANDO AGENDAMENTO': 'var(--mu)',
+    'AGENDADO PARA': 'var(--blue)',
+    'REENTREGA TEMPO INSUFICIENTE': 'var(--red)',
+    'REENTREGA PROBLEMA FISCAL': 'var(--red)',
+    'SEM VALOR SUFICIENTE ROTA': 'var(--warn)'
+  };
+
+  var html = '<div style="position:relative;padding-left:24px">';
+  html += '<div style="position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--br)"></div>';
+  eventos.forEach(function(ev, i){
+    var c = cor[ev.status] || 'var(--mu)';
+    html += '<div style="position:relative;margin-bottom:18px">';
+    html += '<div style="position:absolute;left:-22px;top:6px;width:14px;height:14px;border-radius:50%;background:'+c+';border:2px solid var(--sf)"></div>';
+    html += '<div style="background:var(--s2);border:1px solid var(--br);border-left:3px solid '+c+';border-radius:8px;padding:10px 14px">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">';
+    html += '<div style="font-size:.85rem;font-weight:700;color:'+c+'">'+ev.status+'</div>';
+    html += '<div style="font-size:.78rem;color:var(--mu)">📅 '+supFmtData(ev.dataTentativa)+'</div>';
+    html += '</div>';
+    if (ev.observacao){
+      html += '<div style="margin-top:6px;font-size:.82rem;color:var(--tx);font-style:italic">"'+ev.observacao+'"</div>';
+    }
+    html += '<div style="margin-top:6px;font-size:.7rem;color:var(--mu2)">por '+(ev.autor||'—')+' · registrado em '+supFmtDataHora(ev.ts)+'</div>';
+    html += '</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function supFmtDataHora(iso){
+  if (!iso) return '—';
+  try{
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  }catch(_){ return iso; }
+}
+
+function supHistAddForm(){
+  document.getElementById('sup-hist-form').style.display = 'block';
+  document.getElementById('sup-hist-action-bar').style.display = 'none';
+  // Default: hoje
+  var hoje = new Date();
+  var y = hoje.getFullYear(), m = String(hoje.getMonth()+1).padStart(2,'0'), d = String(hoje.getDate()).padStart(2,'0');
+  document.getElementById('sup-hist-data').value = y+'-'+m+'-'+d;
+  document.getElementById('sup-hist-obs').value = '';
+  document.getElementById('sup-hist-msg').textContent = '';
+}
+
+function supHistCancelar(){
+  document.getElementById('sup-hist-form').style.display = 'none';
+  document.getElementById('sup-hist-action-bar').style.display = 'block';
+}
+
+function supHistSalvar(){
+  var nf = SUP_HIST_NF_ATIVA;
+  var data = document.getElementById('sup-hist-data').value;
+  var status = document.getElementById('sup-hist-status').value;
+  var obs = document.getElementById('sup-hist-obs').value.trim();
+  var msg = document.getElementById('sup-hist-msg');
+  var btn = document.getElementById('sup-hist-btn-save');
+
+  if (!nf){ msg.innerHTML = '<span class="sup-msg-err">NF inválida</span>'; return; }
+  if (!status){ msg.innerHTML = '<span class="sup-msg-err">Escolha um status</span>'; return; }
+
+  var u = supGetUsuario();
+  if (!u.email){ msg.innerHTML = '<span class="sup-msg-err">Sem email do usuário</span>'; return; }
+
+  btn.disabled = true; btn.textContent = 'Salvando...';
+
+  supBackendPost('adicionarEventoHistorico', {
+    nf: nf,
+    dataTentativa: data,
+    status: status,
+    observacao: obs,
+    autorEmail: u.email,
+    autorPerfil: u.perfil
+  }).then(function(r){
+    var ev = r.evento || r;
+    // Atualiza local
+    if (!SUP_STATE.data.historicos[nf]) SUP_STATE.data.historicos[nf] = [];
+    SUP_STATE.data.historicos[nf].push(ev);
+    // Re-ordena
+    SUP_STATE.data.historicos[nf].sort(function(a,b){
+      var ka = (a.dataTentativa||'') + '|' + (a.ts||'');
+      var kb = (b.dataTentativa||'') + '|' + (b.ts||'');
+      return ka.localeCompare(kb);
+    });
+    msg.innerHTML = '<span class="sup-msg-ok">✓ Evento registrado</span>';
+    supHistRenderTimeline();
+    supAplicarFiltrosEntregas(); // atualiza contador na tabela
+    setTimeout(function(){
+      supHistCancelar();
+    }, 800);
+  }).catch(function(err){
+    msg.innerHTML = '<span class="sup-msg-err">'+err.message+'</span>';
+  }).then(function(){
+    btn.disabled = false; btn.textContent = '💾 Salvar evento';
+  });
+}
+
+// Helper local pra adicionar evento ao state (usado por auto-registro)
+function supHistAddLocal(ev){
+  if (!ev || !ev.nf) return;
+  var nf = String(ev.nf).trim();
+  if (!SUP_STATE.data.historicos[nf]) SUP_STATE.data.historicos[nf] = [];
+  SUP_STATE.data.historicos[nf].push(ev);
+  SUP_STATE.data.historicos[nf].sort(function(a,b){
+    var ka = (a.dataTentativa||'') + '|' + (a.ts||'');
+    var kb = (b.dataTentativa||'') + '|' + (b.ts||'');
+    return ka.localeCompare(kb);
+  });
+}
+
+// Fecha modal com ESC
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape' && document.getElementById('sup-hist-modal') && document.getElementById('sup-hist-modal').style.display === 'flex'){
+    supFecharHistorico();
+  }
+});
 
 function supRecarregarCsv(){
   SUP_STATE.loaded.entregas = false;
