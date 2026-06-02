@@ -957,6 +957,49 @@ tbody tr:hover td{background:var(--s2);}
     </div>
   </div>
 
+  <!-- ═══════════ MODAL AVISO NF VENCIDA (+30d) ═══════════ -->
+  <div id="sup-venc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:10000;align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--sf);color:var(--tx);border:2px solid var(--red);border-radius:14px;max-width:540px;width:100%;font-family:var(--fb);box-shadow:0 20px 60px rgba(0,0,0,.6)">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--br);background:rgba(229,57,57,.1);border-radius:12px 12px 0 0">
+        <div style="font-size:1.05rem;font-weight:700;color:var(--red);display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.4rem">⚠️</span>
+          NF VENCIDA — Confirme com o Vendedor
+        </div>
+      </div>
+
+      <div style="padding:20px 22px">
+        <div style="background:rgba(229,57,57,.08);border-left:3px solid var(--red);padding:12px 14px;border-radius:6px;margin-bottom:16px">
+          <div style="font-size:.82rem;line-height:1.5">
+            <strong>NF <span id="sup-venc-nf">—</span></strong> tem
+            <strong style="color:var(--red)"><span id="sup-venc-dias">—</span> dias</strong>
+            desde a emissão (<span id="sup-venc-emissao">—</span>).
+          </div>
+          <div style="font-size:.82rem;line-height:1.5;margin-top:6px">
+            Cliente: <strong><span id="sup-venc-cliente">—</span></strong>
+          </div>
+        </div>
+
+        <div style="font-size:.88rem;line-height:1.55;color:var(--tx);margin-bottom:10px">
+          Supermercados geralmente <strong>cancelam pedidos</strong> com mais de 30 dias.
+        </div>
+
+        <div style="font-size:.88rem;line-height:1.55;color:var(--tx)">
+          🚨 Antes de <strong><span id="sup-venc-acao">prosseguir</span></strong>, fale com o vendedor responsável e confirme se o cliente ainda vai receber esta entrega.
+        </div>
+      </div>
+
+      <div style="padding:14px 22px;border-top:1px solid var(--br);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button onclick="supVencConfirmar()" style="background:var(--ok);color:white;border:none;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-family:var(--fb);font-size:.88rem">
+          ✓ Já confirmei com o vendedor
+        </button>
+        <button onclick="supVencFechar()" style="background:transparent;border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:9px 16px;cursor:pointer;font-family:var(--fb);font-size:.88rem">
+          Cancelar
+        </button>
+        <span style="font-size:.72rem;color:var(--mu2);margin-left:auto">Você não verá esse aviso de novo pra esta NF nessa sessão</span>
+      </div>
+    </div>
+  </div>
+
 <!-- ═══════════ ESTILOS DA NOVA ABA ═══════════ -->
 <style>
   /* Pills das sub-tabs */
@@ -1899,6 +1942,9 @@ function supNfVencida(entrega){
 
 function supConfirmarSeVencida(entrega, acao){
   if (!supNfVencida(entrega)) return true;
+  // Se já confirmou no modal proativo nessa sessão, não pergunta de novo
+  var nfStr = String(entrega['NF']).trim();
+  if (SUP_NFS_CONFIRMADAS.has(nfStr)) return true;
   var dias = supDiasDesdeEmissao(entrega);
   var msg = '⚠️ ATENÇÃO — NF VENCIDA ⚠️\n\n' +
             'NF ' + entrega['NF'] + ' tem ' + dias + ' dias desde a emissão ' +
@@ -1931,7 +1977,7 @@ function supRenderTabelaEntregas(ents){
         cellStatus += '<span class="sup-badge-sobrescrito" title="Manual estava como: '+st.manual+'">REGISTRO ↑</span>';
       }
     } else if (podeEditar){
-      cellStatus = '<select class="sup-status-edit" data-nf="'+e['NF']+'" onchange="supSalvarStatus(this)">' +
+      cellStatus = '<select class="sup-status-edit" data-nf="'+e['NF']+'" onmousedown="supChecarAvisoVencimento(this.dataset.nf, \'mudar o status\')" onchange="supSalvarStatus(this)">' +
         SUP_STATUS_VALIDOS.map(function(s){ return '<option value="'+s+'" '+(s===st.efetivo?'selected':'')+'>'+s+'</option>'; }).join('') +
         '</select>';
     } else {
@@ -1950,7 +1996,7 @@ function supRenderTabelaEntregas(ents){
     }
     var cellData;
     if (podeEditar){
-      cellData = '<input type="date" class="sup-data-edit" data-nf="'+e['NF']+'" value="'+dataIso+'" onchange="supSalvarDataAgendada(this)" style="background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:4px 6px;font-size:.78rem;font-family:var(--fb)">';
+      cellData = '<input type="date" class="sup-data-edit" data-nf="'+e['NF']+'" value="'+dataIso+'" onfocus="supChecarAvisoVencimento(this.dataset.nf, \'agendar a entrega\')" onchange="supSalvarDataAgendada(this)" style="background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:4px 6px;font-size:.78rem;font-family:var(--fb)">';
     } else {
       cellData = dataIso ? supFmtData(dataIso) : '<span style="color:var(--mu2)">—</span>';
     }
@@ -2141,6 +2187,43 @@ function supAdicionarEntrega(){
 
 var SUP_HIST_NF_ATIVA = null;
 
+// ═══════════ AVISO DE VENCIMENTO (+30d) — memória por sessão ═══════════
+var SUP_NFS_CONFIRMADAS = new Set();  // NFs vencidas que o user já confirmou nessa sessão
+var SUP_VENC_ACAO_PENDENTE = null;     // { nf, callback } — callback opcional ao confirmar
+
+function supChecarAvisoVencimento(nf, acao){
+  if (!nf) return;
+  var nfStr = String(nf).trim();
+  if (SUP_NFS_CONFIRMADAS.has(nfStr)) return;  // já avisou e confirmou nessa sessão
+  var ent = SUP_STATE.data.entregas.find(function(x){ return String(x['NF']) === nfStr; });
+  if (!ent || !supNfVencida(ent)) return;       // NF não vencida → não avisa
+  supMostrarAvisoVencimento(ent, acao);
+}
+
+function supMostrarAvisoVencimento(ent, acao){
+  var nfStr = String(ent['NF']).trim();
+  SUP_VENC_ACAO_PENDENTE = { nf: nfStr };
+  document.getElementById('sup-venc-nf').textContent = nfStr;
+  document.getElementById('sup-venc-dias').textContent = supDiasDesdeEmissao(ent);
+  document.getElementById('sup-venc-emissao').textContent = supFmtData(ent['EMISSÃO NF']);
+  document.getElementById('sup-venc-cliente').textContent = ent['NOME FANTASIA'] || ent['CLIENTE'] || '—';
+  document.getElementById('sup-venc-acao').textContent = acao || 'prosseguir';
+  document.getElementById('sup-venc-modal').style.display = 'flex';
+}
+
+function supVencConfirmar(){
+  if (SUP_VENC_ACAO_PENDENTE && SUP_VENC_ACAO_PENDENTE.nf){
+    SUP_NFS_CONFIRMADAS.add(SUP_VENC_ACAO_PENDENTE.nf);
+  }
+  SUP_VENC_ACAO_PENDENTE = null;
+  document.getElementById('sup-venc-modal').style.display = 'none';
+}
+
+function supVencFechar(){
+  SUP_VENC_ACAO_PENDENTE = null;
+  document.getElementById('sup-venc-modal').style.display = 'none';
+}
+
 function supCarregarHistoricoTotal(){
   supBackendPost('listarHistorico', {}).then(function(r){
     var hist = {};
@@ -2162,6 +2245,8 @@ function supCarregarHistoricoTotal(){
 }
 
 function supAbrirHistorico(nf){
+  // Aviso proativo se NF vencida (+30d) e ainda não confirmada nessa sessão
+  supChecarAvisoVencimento(nf, 'registrar histórico');
   SUP_HIST_NF_ATIVA = String(nf).trim();
   document.getElementById('sup-hist-nf').textContent = SUP_HIST_NF_ATIVA;
   document.getElementById('sup-hist-form').style.display = 'none';
