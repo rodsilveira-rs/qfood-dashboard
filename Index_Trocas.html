@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Trocas & Devoluções — Q Food</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
 <style>
 :root{
   --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
@@ -227,6 +228,91 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
 .char-counter{font-size:0.7rem;color:var(--mu);margin-top:4px;text-align:right;font-family:var(--fb);}
 .char-counter.ok{color:var(--ok);}
 .char-counter.warn{color:var(--warn);}
+
+/* ═══════════════════════════════════════════════════════════════
+   v3.1: Dashboard de KPIs
+   ═══════════════════════════════════════════════════════════════ */
+#kpi-view{display:none;padding:20px 28px;}
+#kpi-view.active{display:block;}
+.kpi-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px;padding:14px;background:var(--sf);border:1px solid var(--br);border-radius:12px;}
+.kpi-toolbar label{font-size:0.74rem;color:var(--mu);font-family:var(--fh);font-weight:700;letter-spacing:0.3px;text-transform:uppercase;}
+
+/* KPI Cards principais (banner superior) */
+.kpi-banner{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+@media(max-width:900px){.kpi-banner{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.kpi-banner{grid-template-columns:1fr;}}
+
+.kpi-card{
+  background:var(--sf);border:1px solid var(--br);border-left:4px solid var(--mu2);
+  border-radius:12px;padding:18px 20px;position:relative;overflow:hidden;
+}
+.kpi-card.k-blue{border-left-color:var(--blue);}
+.kpi-card.k-warn{border-left-color:var(--warn);}
+.kpi-card.k-red{border-left-color:var(--red);}
+.kpi-card.k-ok{border-left-color:var(--ok);}
+.kpi-card.k-pur{border-left-color:var(--pur);}
+.kpi-card.k-cyan{border-left-color:var(--cyan);}
+
+.kpi-icon{position:absolute;top:14px;right:14px;font-size:1.6rem;opacity:0.35;}
+.kpi-label{font-family:var(--fh);font-size:0.72rem;font-weight:700;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+.kpi-value{font-family:var(--fh);font-size:2.0rem;font-weight:800;color:var(--tx);line-height:1.1;}
+.kpi-sub{font-size:0.72rem;color:var(--mu2);margin-top:4px;}
+
+/* Painéis de gráficos */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-bottom:18px;}
+@media(max-width:980px){.kpi-grid{grid-template-columns:1fr;}}
+
+.kpi-panel{
+  background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;
+}
+.kpi-panel.k-wide{grid-column:1 / -1;}
+.kpi-panel-tit{
+  font-family:var(--fh);font-weight:700;font-size:0.92rem;
+  color:var(--tx);margin-bottom:12px;
+  display:flex;align-items:center;gap:8px;
+  padding-bottom:10px;border-bottom:1px solid var(--br);
+}
+.kpi-panel-tit small{font-weight:400;color:var(--mu);font-size:0.72rem;margin-left:auto;}
+.kpi-panel canvas{max-height:280px;}
+
+/* Tabelas dentro dos painéis */
+.kpi-table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+.kpi-table th{
+  font-family:var(--fh);font-size:0.7rem;text-transform:uppercase;
+  color:var(--mu);font-weight:700;letter-spacing:0.3px;
+  text-align:left;padding:8px 6px;border-bottom:1px solid var(--br);
+}
+.kpi-table td{padding:8px 6px;border-bottom:1px solid var(--br);color:var(--tx);vertical-align:middle;}
+.kpi-table tr:last-child td{border-bottom:none;}
+.kpi-table tr:hover td{background:rgba(255,255,255,0.03);}
+.kpi-table .td-num{text-align:right;font-family:var(--fh);font-weight:700;}
+.kpi-table .badge-red{background:rgba(255,77,79,0.15);color:var(--red);padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:700;}
+.kpi-table .badge-warn{background:rgba(249,115,22,0.15);color:var(--warn);padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:700;}
+.kpi-table .badge-ok{background:rgba(54,207,160,0.15);color:var(--ok);padding:2px 8px;border-radius:6px;font-size:0.72rem;font-weight:700;}
+
+/* Lista de "aguardando ação" */
+.kpi-pending{display:flex;flex-direction:column;gap:8px;}
+.kpi-pending-row{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--s2);padding:10px 14px;border-radius:8px;
+  border-left:3px solid var(--mu2);
+}
+.kpi-pending-row.urgent{border-left-color:var(--warn);background:rgba(249,115,22,0.08);}
+.kpi-pending-name{font-weight:700;color:var(--tx);}
+.kpi-pending-stage{font-size:0.72rem;color:var(--mu);margin-left:8px;}
+.kpi-pending-count{font-family:var(--fh);font-weight:800;font-size:1.1rem;color:var(--warn);}
+
+.kpi-empty{text-align:center;color:var(--mu2);padding:24px;font-style:italic;font-size:0.85rem;}
+
+/* Botão KPIs no header */
+.btn-kpi{
+  background:linear-gradient(135deg,var(--pur) 0%, var(--cyan) 100%);
+  color:#fff;border:none;padding:10px 18px;border-radius:8px;
+  font-family:var(--fh);font-weight:700;font-size:0.82rem;
+  cursor:pointer;transition:transform .15s;margin-right:8px;
+}
+.btn-kpi:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(160,124,246,0.3);}
+.btn-kpi.is-active{background:var(--warn);}
 </style>
 </head>
 <body>
@@ -246,9 +332,13 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
     <div class="h-title">🔄 Trocas & Devoluções</div>
   </div>
   <div class="h-actions">
+    <button class="btn-kpi" id="btn-kpi" onclick="alternarVistaKpi()">📊 KPIs</button>
     <button class="btn" id="btn-novo" onclick="abrirNovoChamado()" style="display:none">+ Novo Chamado</button>
   </div>
 </header>
+
+<!-- v3.1: View do Kanban (default) -->
+<div id="kanban-view">
 
 <div class="toolbar">
   <select id="f-status" onchange="renderKanban()">
@@ -273,6 +363,136 @@ header{background:linear-gradient(135deg,#3a2418 0%,#1a1f2e 100%);padding:18px 2
   <div class="col c4"><div class="col-hdr"><div class="col-tit">💰 Financeiro</div><div class="col-cnt" id="cnt-4_financeiro">0</div></div><div id="col-4_financeiro"><div class="vazio">—</div></div></div>
   <div class="col c5"><div class="col-hdr"><div class="col-tit">✅ Concluído</div><div class="col-cnt" id="cnt-concluido">0</div></div><div id="col-concluido"><div class="vazio">—</div></div></div>
 </div>
+
+</div><!-- /#kanban-view -->
+
+<!-- v3.1: View do Dashboard de KPIs -->
+<div id="kpi-view">
+
+  <div class="kpi-toolbar">
+    <label>Período:</label>
+    <select id="kpi-periodo" onchange="renderKPIs()">
+      <option value="7">Últimos 7 dias</option>
+      <option value="30" selected>Últimos 30 dias</option>
+      <option value="60">Últimos 60 dias</option>
+      <option value="90">Últimos 90 dias</option>
+      <option value="0">Tudo</option>
+    </select>
+    <label>Vendedor:</label>
+    <select id="kpi-vendedor" onchange="renderKPIs()"><option value="">Todos</option></select>
+    <label>Tipo:</label>
+    <select id="kpi-tipo" onchange="renderKPIs()">
+      <option value="">Todos</option>
+      <option value="TROCA">Troca</option>
+      <option value="DEVOLUCAO">Devolução</option>
+      <option value="CANCELAMENTO_NF">Cancelamento NF</option>
+    </select>
+    <button class="btn-ghost" onclick="recarregar()" style="margin-left:auto">↻ Atualizar dados</button>
+  </div>
+
+  <!-- Banner superior — 4 KPI cards principais -->
+  <div class="kpi-banner">
+    <div class="kpi-card k-blue">
+      <div class="kpi-icon">📂</div>
+      <div class="kpi-label">Em aberto agora</div>
+      <div class="kpi-value" id="kpi-em-aberto">—</div>
+      <div class="kpi-sub" id="kpi-em-aberto-sub">—</div>
+    </div>
+    <div class="kpi-card k-warn">
+      <div class="kpi-icon">⏱️</div>
+      <div class="kpi-label">Tempo médio total</div>
+      <div class="kpi-value" id="kpi-tempo-total">—</div>
+      <div class="kpi-sub" id="kpi-tempo-total-sub">abertura → conclusão</div>
+    </div>
+    <div class="kpi-card k-red">
+      <div class="kpi-icon">🚫</div>
+      <div class="kpi-label">Taxa de reprovação</div>
+      <div class="kpi-value" id="kpi-taxa-reprovacao">—</div>
+      <div class="kpi-sub" id="kpi-taxa-reprovacao-sub">na Avaliação</div>
+    </div>
+    <div class="kpi-card k-ok">
+      <div class="kpi-icon">💰</div>
+      <div class="kpi-label">Valor devolvido</div>
+      <div class="kpi-value" id="kpi-valor-total">—</div>
+      <div class="kpi-sub" id="kpi-valor-total-sub">soma do período</div>
+    </div>
+  </div>
+
+  <!-- Saúde Operacional -->
+  <div class="kpi-grid">
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">📊 Distribuição por etapa <small>chamados em andamento agora</small></div>
+      <canvas id="chart-distribuicao"></canvas>
+    </div>
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">⚡ Aguardando ação <small>quem precisa agir</small></div>
+      <div id="kpi-aguardando-acao" class="kpi-pending"></div>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-panel k-wide">
+      <div class="kpi-panel-tit">🚨 Mais antigos em andamento <small>top 5 — clique para abrir</small></div>
+      <table class="kpi-table" id="tbl-antigos"></table>
+    </div>
+  </div>
+
+  <!-- Eficiência -->
+  <div class="kpi-grid">
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">⏱️ Tempo médio por etapa <small>dias úteis em cada fase</small></div>
+      <canvas id="chart-tempo-etapa"></canvas>
+    </div>
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">📦 Lead time por tipo <small>abertura → conclusão</small></div>
+      <canvas id="chart-leadtime-tipo"></canvas>
+    </div>
+  </div>
+
+  <!-- Qualidade -->
+  <div class="kpi-grid">
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">🚫 Reprovações por vendedor <small>top 5 com maior taxa</small></div>
+      <table class="kpi-table" id="tbl-reprovacoes-vendedor"></table>
+    </div>
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">💬 Motivos de reprovação <small>palavras-chave mais comuns</small></div>
+      <table class="kpi-table" id="tbl-motivos-reprovacao"></table>
+    </div>
+  </div>
+
+  <!-- Financeiro -->
+  <div class="kpi-grid">
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">💵 Resumo financeiro <small>chamados concluídos no período</small></div>
+      <div id="kpi-resumo-fin" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">🥧 Distribuição por tipo de acerto <small>quantidade de chamados</small></div>
+      <canvas id="chart-tipo-acerto"></canvas>
+    </div>
+  </div>
+
+  <!-- Análise de Causa -->
+  <div class="kpi-grid">
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">🥧 Top motivos <small>do total no período</small></div>
+      <canvas id="chart-top-motivos"></canvas>
+    </div>
+    <div class="kpi-panel">
+      <div class="kpi-panel-tit">📦 Top 10 produtos devolvidos <small>SKUs com mais ocorrências</small></div>
+      <table class="kpi-table" id="tbl-top-produtos"></table>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-panel k-wide">
+      <div class="kpi-panel-tit">👥 Top vendedores com mais chamados <small>combinando abertos + concluídos no período</small></div>
+      <table class="kpi-table" id="tbl-top-vendedores"></table>
+    </div>
+  </div>
+
+</div><!-- /#kpi-view -->
 
 </div>
 
@@ -2363,6 +2583,669 @@ function fmtDate(s){
   if (!s) return "";
   try { var d = new Date(s); if (isNaN(d.getTime())) return s; return d.toLocaleDateString("pt-BR"); } catch(_){ return s; }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// v3.1: DASHBOARD DE KPIs
+// ═══════════════════════════════════════════════════════════════
+
+// Guarda referências dos Chart.js para destruir antes de redesenhar
+var KPI_CHARTS = {};
+
+// Paleta consistente para os gráficos
+var KPI_CORES = {
+  azul:    "#4d8ef5",
+  ciano:   "#22d3ee",
+  laranja: "#f97316",
+  roxo:    "#a07cf6",
+  verde:   "#36cfa0",
+  vermelho:"#ff4d4f",
+  rosa:    "#ec4899",
+  amarelo: "#fbbf24",
+  cinza:   "#8fa0c0"
+};
+var KPI_PALETA = [
+  KPI_CORES.laranja, KPI_CORES.ciano, KPI_CORES.roxo, KPI_CORES.verde,
+  KPI_CORES.azul, KPI_CORES.vermelho, KPI_CORES.rosa, KPI_CORES.amarelo,
+  KPI_CORES.cinza
+];
+
+// Alterna entre Kanban e KPIs
+function alternarVistaKpi(){
+  var kanban = document.getElementById("kanban-view");
+  var kpi = document.getElementById("kpi-view");
+  var btn = document.getElementById("btn-kpi");
+  var ativo = kpi.classList.contains("active");
+
+  if (ativo){
+    kpi.classList.remove("active");
+    kpi.style.display = "none";
+    kanban.style.display = "block";
+    btn.classList.remove("is-active");
+    btn.innerHTML = "📊 KPIs";
+  } else {
+    kanban.style.display = "none";
+    kpi.classList.add("active");
+    kpi.style.display = "block";
+    btn.classList.add("is-active");
+    btn.innerHTML = "← Voltar ao Kanban";
+    popularFiltroVendedorKpi();
+    renderKPIs();
+  }
+}
+
+// Popular filtro de vendedor da view KPI (replica o do Kanban)
+function popularFiltroVendedorKpi(){
+  var sel = document.getElementById("kpi-vendedor");
+  if (!sel) return;
+  var atual = sel.value;
+  var vendsSet = {};
+  TODOS.forEach(function(p){
+    var s = String(p.vendedor_sigla||"").trim();
+    if (s) vendsSet[s] = p.vendedor_responsavel || s;
+  });
+  var opcoes = '<option value="">Todos</option>';
+  Object.keys(vendsSet).sort().forEach(function(s){
+    opcoes += '<option value="'+escapeHtml(s)+'">'+escapeHtml(vendsSet[s])+' ('+escapeHtml(s)+')</option>';
+  });
+  sel.innerHTML = opcoes;
+  if (atual) sel.value = atual;
+
+  // Se for VENDEDOR, fixa no próprio e desabilita
+  if (PERFIL === "VENDEDOR" && SESSAO_SIGLA){
+    sel.value = SESSAO_SIGLA;
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+  }
+}
+
+// Aplica os filtros do dashboard sobre a lista TODOS
+function filtrarParaKpi(){
+  var dias = parseInt(document.getElementById("kpi-periodo").value, 10);
+  var vend = document.getElementById("kpi-vendedor").value;
+  var tipo = document.getElementById("kpi-tipo").value;
+
+  // Vendedor sempre vê só os próprios (segurança no client, backend já filtra também)
+  if (PERFIL === "VENDEDOR" && SESSAO_SIGLA) vend = SESSAO_SIGLA;
+
+  var dataLimite = null;
+  if (dias > 0){
+    dataLimite = new Date();
+    dataLimite.setDate(dataLimite.getDate() - dias);
+  }
+
+  return TODOS.filter(function(p){
+    if (vend && p.vendedor_sigla !== vend) return false;
+    if (tipo && p.tipo_processo !== tipo) return false;
+    if (dataLimite){
+      var d = p.data_abertura ? new Date(p.data_abertura) : null;
+      if (d && !isNaN(d) && d < dataLimite) return false;
+    }
+    return true;
+  });
+}
+
+// Helpers de cálculo
+function diasEntre(d1, d2){
+  if (!d1 || !d2) return null;
+  var a = new Date(d1), b = new Date(d2);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+  return Math.max(0, (b.getTime() - a.getTime()) / 86400000);
+}
+function mediaArray(arr){
+  if (!arr.length) return null;
+  var soma = arr.reduce(function(s,v){ return s + v; }, 0);
+  return soma / arr.length;
+}
+function formataBR(n, casas){
+  if (n == null || isNaN(n)) return "—";
+  return Number(n).toLocaleString("pt-BR", {minimumFractionDigits:casas||0, maximumFractionDigits:casas||0});
+}
+function formataReais(n){
+  if (n == null || isNaN(n)) return "R$ —";
+  return "R$ " + Number(n).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+// Destrói um chart se existir (pra recriar limpo)
+function destruirChart(nome){
+  if (KPI_CHARTS[nome]){
+    KPI_CHARTS[nome].destroy();
+    delete KPI_CHARTS[nome];
+  }
+}
+
+// Opções base padrão para todos os Chart.js
+function chartOpcoesBase(){
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: "#eef1f8", font: { family: "DM Sans", size: 11 } } },
+      tooltip: { backgroundColor: "#1a1f2e", titleColor: "#eef1f8", bodyColor: "#eef1f8", borderColor: "#4d8ef5", borderWidth: 1 }
+    },
+    scales: {
+      x: { ticks: { color: "#8fa0c0" }, grid: { color: "rgba(255,255,255,0.05)" } },
+      y: { ticks: { color: "#8fa0c0" }, grid: { color: "rgba(255,255,255,0.05)" }, beginAtZero: true }
+    }
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FUNÇÃO PRINCIPAL — renderiza todo o dashboard
+// ═══════════════════════════════════════════════════════════════
+function renderKPIs(){
+  if (typeof Chart === "undefined"){
+    console.error("Chart.js não carregou — gráficos ficarão em branco");
+  }
+  var dados = filtrarParaKpi();
+  renderKpiBanner(dados);
+  renderKpiDistribuicao(dados);
+  renderKpiAguardandoAcao(dados);
+  renderKpiAntigos(dados);
+  renderKpiTempoEtapa(dados);
+  renderKpiLeadtimeTipo(dados);
+  renderKpiReprovacoesVendedor(dados);
+  renderKpiMotivosReprovacao(dados);
+  renderKpiResumoFinanceiro(dados);
+  renderKpiTipoAcerto(dados);
+  renderKpiTopMotivos(dados);
+  renderKpiTopProdutos(dados);
+  renderKpiTopVendedores(dados);
+}
+
+// ─── Banner: 4 KPIs principais ───
+function renderKpiBanner(dados){
+  // 1. Em aberto agora
+  var emAberto = dados.filter(function(p){ return p.status === "em_andamento"; });
+  document.getElementById("kpi-em-aberto").textContent = emAberto.length;
+  var meusEmAberto = (PERFIL === "VENDEDOR" && SESSAO_SIGLA)
+    ? emAberto.length + " seus"
+    : emAberto.length + " no total";
+  document.getElementById("kpi-em-aberto-sub").textContent = meusEmAberto;
+
+  // 2. Tempo médio total (abertura → conclusão)
+  var concluidos = dados.filter(function(p){
+    return p.status === "concluido" && p.data_abertura && p.data_conclusao;
+  });
+  var tempos = concluidos.map(function(p){ return diasEntre(p.data_abertura, p.data_conclusao); })
+                        .filter(function(d){ return d != null; });
+  var mediaT = mediaArray(tempos);
+  document.getElementById("kpi-tempo-total").textContent = mediaT != null ? formataBR(mediaT, 1) + " d" : "—";
+  document.getElementById("kpi-tempo-total-sub").textContent = concluidos.length + " concluído(s) no período";
+
+  // 3. Taxa de reprovação (% dos chamados que JÁ foram reprovados pelo menos uma vez)
+  var totalAvaliados = dados.filter(function(p){
+    // Considera "avaliados" os que passaram da etapa Comercial OU estão atualmente reprovados
+    return p.etapa_atual !== "1_comercial" || p.motivo_reprovacao;
+  });
+  var foramReprovados = dados.filter(function(p){
+    return String(p.motivo_reprovacao||"").trim().length > 0;
+  });
+  var taxa = totalAvaliados.length > 0
+    ? (foramReprovados.length / totalAvaliados.length) * 100
+    : null;
+  document.getElementById("kpi-taxa-reprovacao").textContent = taxa != null ? formataBR(taxa, 1) + "%" : "—";
+  document.getElementById("kpi-taxa-reprovacao-sub").textContent = foramReprovados.length + " reprovado(s) de " + totalAvaliados.length;
+
+  // 4. Valor devolvido (soma valor_acerto dos concluídos no período)
+  var valorTotal = 0;
+  dados.forEach(function(p){
+    if (p.status === "concluido"){
+      var v = parseFloat(p.valor_acerto);
+      if (!isNaN(v) && v > 0) valorTotal += v;
+    }
+  });
+  document.getElementById("kpi-valor-total").textContent = formataReais(valorTotal);
+  document.getElementById("kpi-valor-total-sub").textContent = concluidos.length + " chamado(s) com acerto";
+}
+
+// ─── Distribuição por etapa (chamados em andamento) ───
+function renderKpiDistribuicao(dados){
+  destruirChart("distribuicao");
+  var ctx = document.getElementById("chart-distribuicao");
+  if (!ctx) return;
+
+  var etapas = [
+    {key:"0_reprovado",  label:"Reprovado",  cor:KPI_CORES.vermelho},
+    {key:"1_comercial",  label:"Comercial",  cor:KPI_CORES.azul},
+    {key:"1b_avaliacao", label:"Avaliação",  cor:KPI_CORES.ciano},
+    {key:"2_logistica",  label:"Logística",  cor:KPI_CORES.laranja},
+    {key:"3_fiscal",     label:"Fiscal",     cor:KPI_CORES.roxo},
+    {key:"4_financeiro", label:"Financeiro", cor:KPI_CORES.verde}
+  ];
+  var contagem = {};
+  etapas.forEach(function(e){ contagem[e.key] = 0; });
+  dados.forEach(function(p){
+    if (p.status === "em_andamento" && contagem[p.etapa_atual] != null){
+      contagem[p.etapa_atual]++;
+    }
+  });
+
+  KPI_CHARTS.distribuicao = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: etapas.map(function(e){ return e.label; }),
+      datasets: [{
+        label: "Chamados",
+        data: etapas.map(function(e){ return contagem[e.key]; }),
+        backgroundColor: etapas.map(function(e){ return e.cor; }),
+        borderRadius: 6
+      }]
+    },
+    options: Object.assign({}, chartOpcoesBase(), {
+      indexAxis: "y",
+      plugins: { legend: { display: false }, tooltip: chartOpcoesBase().plugins.tooltip }
+    })
+  });
+}
+
+// ─── Aguardando ação (quem precisa agir agora) ───
+function renderKpiAguardandoAcao(dados){
+  var alvo = document.getElementById("kpi-aguardando-acao");
+  var contagem = {
+    avaliacao:  {nome:"Maiko / Jonathas", etapa:"Avaliação",  conta:0, urg:false},
+    logistica:  {nome:"Maiko / Jonathas", etapa:"Logística",  conta:0, urg:false},
+    fiscal:     {nome:"Célio",            etapa:"Fiscal",     conta:0, urg:false},
+    financeiro: {nome:"Gustavo",          etapa:"Financeiro", conta:0, urg:false},
+    reprovado:  {nome:"Vendedores",       etapa:"Reprovados (corrigir)", conta:0, urg:false}
+  };
+
+  dados.forEach(function(p){
+    if (p.status !== "em_andamento" && p.etapa_atual !== "0_reprovado") return;
+    if (p.etapa_atual === "0_reprovado") contagem.reprovado.conta++;
+    else if (p.etapa_atual === "1b_avaliacao") contagem.avaliacao.conta++;
+    else if (p.etapa_atual === "2_logistica") contagem.logistica.conta++;
+    else if (p.etapa_atual === "3_fiscal") contagem.fiscal.conta++;
+    else if (p.etapa_atual === "4_financeiro") contagem.financeiro.conta++;
+  });
+
+  var ordem = ["avaliacao","logistica","fiscal","financeiro","reprovado"];
+  var html = "";
+  var totalPendente = 0;
+  ordem.forEach(function(k){
+    var c = contagem[k];
+    totalPendente += c.conta;
+    if (c.conta === 0) return;
+    var urg = c.conta >= 5;
+    html += '<div class="kpi-pending-row'+(urg?" urgent":"")+'">'+
+      '<div><span class="kpi-pending-name">'+escapeHtml(c.nome)+'</span>'+
+      '<span class="kpi-pending-stage">'+escapeHtml(c.etapa)+'</span></div>'+
+      '<div class="kpi-pending-count">'+c.conta+'</div></div>';
+  });
+  if (totalPendente === 0) html = '<div class="kpi-empty">Nada pendente 🎉</div>';
+  alvo.innerHTML = html;
+}
+
+// ─── Top 5 mais antigos em andamento ───
+function renderKpiAntigos(dados){
+  var alvo = document.getElementById("tbl-antigos");
+  var emAndamento = dados.filter(function(p){
+    return p.status === "em_andamento" || p.etapa_atual === "0_reprovado";
+  });
+  emAndamento.forEach(function(p){
+    p._dias = diasEntre(p.data_abertura, new Date().toISOString());
+  });
+  emAndamento.sort(function(a,b){ return (b._dias||0) - (a._dias||0); });
+  var top = emAndamento.slice(0, 5);
+
+  if (top.length === 0){
+    alvo.innerHTML = '<tr><td><div class="kpi-empty">Nenhum chamado em andamento</div></td></tr>';
+    return;
+  }
+  var html = '<thead><tr><th>ID</th><th>Cliente</th><th>Vendedor</th><th>Etapa</th><th>Tipo</th><th class="td-num">Idade</th></tr></thead><tbody>';
+  top.forEach(function(p){
+    var dias = Math.round(p._dias || 0);
+    var badge = dias > 14 ? 'badge-red' : (dias > 7 ? 'badge-warn' : 'badge-ok');
+    html += '<tr style="cursor:pointer" onclick="abrirDetalheKpi(\''+p.id_processo+'\')">'+
+      '<td><strong>'+escapeHtml(p.id_processo)+'</strong></td>'+
+      '<td>'+escapeHtml(p.cliente_nome||"—")+'</td>'+
+      '<td>'+escapeHtml(p.vendedor_responsavel||p.vendedor_sigla||"—")+'</td>'+
+      '<td>'+escapeHtml(traduzEtapa(p.etapa_atual))+'</td>'+
+      '<td>'+escapeHtml(p.tipo_processo||"")+'</td>'+
+      '<td class="td-num"><span class="'+badge+'">'+dias+' dias</span></td>'+
+      '</tr>';
+  });
+  html += '</tbody>';
+  alvo.innerHTML = html;
+}
+
+// Wrapper de abrirDetalhe para fechar a view KPI primeiro
+function abrirDetalheKpi(id){
+  alternarVistaKpi(); // volta pro kanban
+  setTimeout(function(){ abrirDetalhe(id); }, 50);
+}
+
+// ─── Tempo médio por etapa ───
+function renderKpiTempoEtapa(dados){
+  destruirChart("tempoEtapa");
+  var ctx = document.getElementById("chart-tempo-etapa");
+  if (!ctx) return;
+
+  // Calcula tempos médios das transições (apenas processos com timestamps presentes)
+  var transicoes = [
+    {label:"Comercial → Avaliação",  campos:["data_abertura","data_envio_logistica"]},
+    // Logística começa quando avaliação aprova; campo: data_envio_logistica é setado na criação E na aprovação
+    // Não temos campo separado para "data de aprovação", então usamos data_envio_logistica como proxy
+    {label:"Avaliação → Logística (coleta)", campos:["data_envio_logistica","data_coleta"]},
+    {label:"Logística → Fiscal",     campos:["data_envio_fiscal","data_entrada_sistema"]},
+    {label:"Fiscal → Financeiro",    campos:["data_envio_financeiro","data_acerto"]}
+  ];
+  var medias = transicoes.map(function(t){
+    var arr = dados.map(function(p){
+      return diasEntre(p[t.campos[0]], p[t.campos[1]]);
+    }).filter(function(v){ return v != null && v >= 0; });
+    return mediaArray(arr) || 0;
+  });
+
+  KPI_CHARTS.tempoEtapa = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: transicoes.map(function(t){ return t.label; }),
+      datasets: [{
+        label: "Dias (média)",
+        data: medias,
+        backgroundColor: [KPI_CORES.ciano, KPI_CORES.laranja, KPI_CORES.roxo, KPI_CORES.verde],
+        borderRadius: 6
+      }]
+    },
+    options: Object.assign({}, chartOpcoesBase(), {
+      plugins: { legend: { display: false }, tooltip: chartOpcoesBase().plugins.tooltip }
+    })
+  });
+}
+
+// ─── Lead time por tipo ───
+function renderKpiLeadtimeTipo(dados){
+  destruirChart("leadtimeTipo");
+  var ctx = document.getElementById("chart-leadtime-tipo");
+  if (!ctx) return;
+
+  var tipos = ["TROCA","DEVOLUCAO","CANCELAMENTO_NF"];
+  var labels = ["Troca","Devolução","Cancelamento NF"];
+  var medias = tipos.map(function(t){
+    var concl = dados.filter(function(p){
+      return p.tipo_processo === t && p.status === "concluido";
+    });
+    var tempos = concl.map(function(p){ return diasEntre(p.data_abertura, p.data_conclusao); })
+                      .filter(function(v){ return v != null; });
+    return mediaArray(tempos) || 0;
+  });
+
+  KPI_CHARTS.leadtimeTipo = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: [{
+        label: "Dias (média)",
+        data: medias,
+        backgroundColor: [KPI_CORES.verde, KPI_CORES.laranja, KPI_CORES.roxo],
+        borderRadius: 6
+      }]
+    },
+    options: Object.assign({}, chartOpcoesBase(), {
+      plugins: { legend: { display: false }, tooltip: chartOpcoesBase().plugins.tooltip }
+    })
+  });
+}
+
+// ─── Reprovações por vendedor ───
+function renderKpiReprovacoesVendedor(dados){
+  var alvo = document.getElementById("tbl-reprovacoes-vendedor");
+  var porVend = {};
+  dados.forEach(function(p){
+    var sigla = p.vendedor_sigla || "—";
+    if (!porVend[sigla]) porVend[sigla] = {nome: p.vendedor_responsavel || sigla, total:0, reprov:0};
+    porVend[sigla].total++;
+    if (String(p.motivo_reprovacao||"").trim()) porVend[sigla].reprov++;
+  });
+  var arr = Object.keys(porVend).map(function(s){
+    var v = porVend[s];
+    return {sigla:s, nome:v.nome, total:v.total, reprov:v.reprov, taxa: v.total > 0 ? (v.reprov/v.total)*100 : 0};
+  }).filter(function(v){ return v.reprov > 0; });
+  arr.sort(function(a,b){ return b.taxa - a.taxa; });
+  var top = arr.slice(0, 5);
+
+  if (top.length === 0){
+    alvo.innerHTML = '<tr><td><div class="kpi-empty">Nenhuma reprovação no período 🎉</div></td></tr>';
+    return;
+  }
+  var html = '<thead><tr><th>Vendedor</th><th class="td-num">Reprovados</th><th class="td-num">Total</th><th class="td-num">Taxa</th></tr></thead><tbody>';
+  top.forEach(function(v){
+    var badge = v.taxa >= 30 ? 'badge-red' : (v.taxa >= 15 ? 'badge-warn' : 'badge-ok');
+    html += '<tr>'+
+      '<td><strong>'+escapeHtml(v.nome)+'</strong><br><small style="color:var(--mu2)">'+escapeHtml(v.sigla)+'</small></td>'+
+      '<td class="td-num">'+v.reprov+'</td>'+
+      '<td class="td-num">'+v.total+'</td>'+
+      '<td class="td-num"><span class="'+badge+'">'+formataBR(v.taxa,1)+'%</span></td>'+
+      '</tr>';
+  });
+  html += '</tbody>';
+  alvo.innerHTML = html;
+}
+
+// ─── Motivos de reprovação (palavras-chave) ───
+function renderKpiMotivosReprovacao(dados){
+  var alvo = document.getElementById("tbl-motivos-reprovacao");
+  var stopwords = ["de","da","do","o","a","e","ou","em","para","com","por","que","na","no","um","uma","os","as","mais","ja","já","foi","ser","sem","mas","pelo","pela","aos","dos","das","nao","não"];
+  var contagem = {};
+  dados.forEach(function(p){
+    var txt = String(p.motivo_reprovacao||"").trim();
+    if (!txt) return;
+    // Quebra em palavras com 4+ letras, normaliza
+    var palavras = txt.toLowerCase()
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")  // remove acentos
+      .replace(/[^\w\s]/g, " ")
+      .split(/\s+/)
+      .filter(function(w){ return w.length >= 4 && stopwords.indexOf(w) < 0; });
+    palavras.forEach(function(w){ contagem[w] = (contagem[w]||0) + 1; });
+  });
+  var arr = Object.keys(contagem).map(function(k){ return {palavra:k, n:contagem[k]}; });
+  arr.sort(function(a,b){ return b.n - a.n; });
+  var top = arr.slice(0, 8);
+
+  if (top.length === 0){
+    alvo.innerHTML = '<tr><td><div class="kpi-empty">Sem reprovações registradas</div></td></tr>';
+    return;
+  }
+  var html = '<thead><tr><th>Palavra-chave</th><th class="td-num">Ocorrências</th></tr></thead><tbody>';
+  top.forEach(function(p){
+    html += '<tr><td><strong>'+escapeHtml(p.palavra)+'</strong></td><td class="td-num">'+p.n+'</td></tr>';
+  });
+  html += '</tbody>';
+  alvo.innerHTML = html;
+}
+
+// ─── Resumo financeiro ───
+function renderKpiResumoFinanceiro(dados){
+  var alvo = document.getElementById("kpi-resumo-fin");
+  var concl = dados.filter(function(p){ return p.status === "concluido"; });
+  var valores = concl.map(function(p){ return parseFloat(p.valor_acerto); })
+                     .filter(function(v){ return !isNaN(v) && v > 0; });
+  var soma = valores.reduce(function(s,v){ return s+v; }, 0);
+  var media = valores.length > 0 ? soma / valores.length : 0;
+  var maior = valores.length > 0 ? Math.max.apply(null, valores) : 0;
+
+  alvo.innerHTML =
+    linhaResumoFin("Valor total", formataReais(soma), KPI_CORES.verde) +
+    linhaResumoFin("Ticket médio", formataReais(media), KPI_CORES.azul) +
+    linhaResumoFin("Maior valor", formataReais(maior), KPI_CORES.laranja) +
+    linhaResumoFin("Chamados com acerto", valores.length + " de " + concl.length + " concluídos", KPI_CORES.cinza);
+}
+function linhaResumoFin(label, valor, cor){
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--s2);border-radius:8px;border-left:3px solid '+cor+'">'+
+    '<span style="color:var(--mu);font-size:0.82rem">'+label+'</span>'+
+    '<span style="font-family:var(--fh);font-weight:700;color:var(--tx);font-size:0.95rem">'+valor+'</span>'+
+  '</div>';
+}
+
+// ─── Distribuição por tipo de acerto (pizza) ───
+function renderKpiTipoAcerto(dados){
+  destruirChart("tipoAcerto");
+  var ctx = document.getElementById("chart-tipo-acerto");
+  if (!ctx) return;
+
+  var contagem = {};
+  dados.filter(function(p){ return p.status === "concluido" && p.tipo_acerto; }).forEach(function(p){
+    var t = String(p.tipo_acerto).trim();
+    if (t) contagem[t] = (contagem[t]||0) + 1;
+  });
+  var labels = Object.keys(contagem);
+  var valores = labels.map(function(l){ return contagem[l]; });
+
+  if (labels.length === 0){
+    var parent = ctx.parentElement;
+    parent.innerHTML = '<div class="kpi-panel-tit">🥧 Distribuição por tipo de acerto</div><div class="kpi-empty">Sem dados de acerto no período</div>';
+    return;
+  }
+
+  KPI_CHARTS.tipoAcerto = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: KPI_PALETA,
+        borderColor: "#242938",
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: "#eef1f8", font: { size: 11 } } },
+        tooltip: chartOpcoesBase().plugins.tooltip
+      }
+    }
+  });
+}
+
+// ─── Top motivos (pizza) ───
+function renderKpiTopMotivos(dados){
+  destruirChart("topMotivos");
+  var ctx = document.getElementById("chart-top-motivos");
+  if (!ctx) return;
+
+  var contagem = {};
+  dados.forEach(function(p){
+    var m = String(p.motivo||"").trim();
+    if (m) contagem[m] = (contagem[m]||0) + 1;
+  });
+  var labels = Object.keys(contagem);
+  var valores = labels.map(function(l){ return contagem[l]; });
+
+  if (labels.length === 0){
+    var parent = ctx.parentElement;
+    parent.innerHTML = '<div class="kpi-panel-tit">🥧 Top motivos</div><div class="kpi-empty">Sem dados no período</div>';
+    return;
+  }
+
+  KPI_CHARTS.topMotivos = new Chart(ctx, {
+    type: "pie",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: valores,
+        backgroundColor: KPI_PALETA,
+        borderColor: "#242938",
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "right", labels: { color: "#eef1f8", font: { size: 11 } } },
+        tooltip: chartOpcoesBase().plugins.tooltip
+      }
+    }
+  });
+}
+
+// ─── Top produtos devolvidos ───
+function renderKpiTopProdutos(dados){
+  var alvo = document.getElementById("tbl-top-produtos");
+  // Itens estão num endpoint diferente — aqui só conseguimos contar pelos dados que temos.
+  // Como TODOS é a lista de processos sem itens detalhados, vamos pegar pelo motivo_descricao
+  // OU avisar que precisa de outro fetch. Por agora: tentamos extrair SKU se aparecer no obs.
+  //
+  // Solução melhor: usar o BUSCAR_PRODUTO via combinação de motivo + descrição.
+  // Como simplificação inicial, vou contar por PRIMEIROS 60 CHARS DO motivo_descricao
+  // agrupados — isso já indica padrões.
+  var contagem = {};
+  dados.forEach(function(p){
+    var desc = String(p.motivo_descricao||"").trim();
+    if (!desc) return;
+    // Heurística simples: pega as primeiras palavras significativas
+    var chave = desc.length > 60 ? desc.substring(0, 60) + "…" : desc;
+    contagem[chave] = (contagem[chave]||0) + 1;
+  });
+  var arr = Object.keys(contagem).map(function(k){ return {desc:k, n:contagem[k]}; });
+  arr.sort(function(a,b){ return b.n - a.n; });
+  var top = arr.slice(0, 10);
+
+  if (top.length === 0){
+    alvo.innerHTML = '<tr><td><div class="kpi-empty">Sem dados de itens/produtos</div></td></tr>';
+    return;
+  }
+  var html = '<thead><tr><th>Descrição (do detalhamento)</th><th class="td-num">Ocorrências</th></tr></thead><tbody>';
+  top.forEach(function(p){
+    html += '<tr><td>'+escapeHtml(p.desc)+'</td><td class="td-num">'+p.n+'</td></tr>';
+  });
+  html += '</tbody>';
+  alvo.innerHTML = html;
+}
+
+// ─── Top vendedores ───
+function renderKpiTopVendedores(dados){
+  var alvo = document.getElementById("tbl-top-vendedores");
+  var porVend = {};
+  dados.forEach(function(p){
+    var sigla = p.vendedor_sigla || "—";
+    if (!porVend[sigla]) porVend[sigla] = {nome: p.vendedor_responsavel || sigla, total:0, andamento:0, concl:0, reprov:0, valor:0};
+    porVend[sigla].total++;
+    if (p.status === "em_andamento") porVend[sigla].andamento++;
+    if (p.status === "concluido") porVend[sigla].concl++;
+    if (String(p.motivo_reprovacao||"").trim()) porVend[sigla].reprov++;
+    var v = parseFloat(p.valor_acerto);
+    if (!isNaN(v)) porVend[sigla].valor += v;
+  });
+  var arr = Object.keys(porVend).map(function(s){
+    return Object.assign({sigla:s}, porVend[s]);
+  });
+  arr.sort(function(a,b){ return b.total - a.total; });
+  var top = arr.slice(0, 10);
+
+  if (top.length === 0){
+    alvo.innerHTML = '<tr><td><div class="kpi-empty">Sem dados no período</div></td></tr>';
+    return;
+  }
+  var html = '<thead><tr><th>Vendedor</th><th class="td-num">Total</th><th class="td-num">Em aberto</th><th class="td-num">Concluídos</th><th class="td-num">Reprovados</th><th class="td-num">Valor</th></tr></thead><tbody>';
+  top.forEach(function(v){
+    html += '<tr>'+
+      '<td><strong>'+escapeHtml(v.nome)+'</strong><br><small style="color:var(--mu2)">'+escapeHtml(v.sigla)+'</small></td>'+
+      '<td class="td-num">'+v.total+'</td>'+
+      '<td class="td-num">'+v.andamento+'</td>'+
+      '<td class="td-num">'+v.concl+'</td>'+
+      '<td class="td-num">'+(v.reprov > 0 ? '<span class="badge-warn">'+v.reprov+'</span>' : v.reprov)+'</td>'+
+      '<td class="td-num">'+formataReais(v.valor)+'</td>'+
+      '</tr>';
+  });
+  html += '</tbody>';
+  alvo.innerHTML = html;
+}
+
+// Atualiza KPIs quando recarrega dados (se a view estiver ativa)
+var __renderKanbanOriginal_v31 = renderKanban;
+renderKanban = function(){
+  __renderKanbanOriginal_v31.apply(this, arguments);
+  // Se KPI view estiver aberta, atualiza também
+  if (document.getElementById("kpi-view").classList.contains("active")){
+    popularFiltroVendedorKpi();
+    renderKPIs();
+  }
+};
+
 document.addEventListener("keydown", function(e){
   if (e.key === "Escape"){ fechar("m-novo"); fechar("m-det"); }
 });
