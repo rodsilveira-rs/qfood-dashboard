@@ -2730,6 +2730,92 @@ function chartOpcoesBase(){
   };
 }
 
+// v3.1: Opções padrão para pizzas/donuts (com tooltip melhorado mostrando n + %)
+function opcoesPizzaComLabels(valores){
+  var total = valores.reduce(function(s,v){ return s + v; }, 0);
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: { padding: 16 },  // dá espaço para os datalabels fora da pizza
+    plugins: {
+      legend: {
+        position: "right",
+        labels: {
+          color: "#eef1f8",
+          font: { family: "DM Sans", size: 11 },
+          // Customiza a legenda pra mostrar contagem também: "Avariado (12)"
+          generateLabels: function(chart){
+            var data = chart.data;
+            if (!data.labels.length) return [];
+            return data.labels.map(function(label, i){
+              var v = data.datasets[0].data[i];
+              var pct = total > 0 ? ((v/total)*100).toFixed(1) : 0;
+              return {
+                text: label + " — " + v + " (" + pct + "%)",
+                fillStyle: data.datasets[0].backgroundColor[i],
+                strokeStyle: data.datasets[0].backgroundColor[i],
+                lineWidth: 0,
+                index: i
+              };
+            });
+          }
+        }
+      },
+      tooltip: {
+        backgroundColor: "#1a1f2e",
+        titleColor: "#eef1f8",
+        bodyColor: "#eef1f8",
+        borderColor: "#4d8ef5",
+        borderWidth: 1,
+        callbacks: {
+          label: function(ctx){
+            var v = ctx.parsed;
+            var pct = total > 0 ? ((v/total)*100).toFixed(1) : 0;
+            return " " + ctx.label + ": " + v + " (" + pct + "%)";
+          }
+        }
+      }
+    }
+  };
+}
+
+// v3.1: Plugin que desenha o número + % DENTRO de cada fatia da pizza
+// Implementação inline (sem dependência externa do chartjs-plugin-datalabels)
+function pluginDatalabelsPizza(){
+  return {
+    id: "datalabelsPizza",
+    afterDatasetDraw: function(chart){
+      var ds = chart.data.datasets[0];
+      var meta = chart.getDatasetMeta(0);
+      var total = ds.data.reduce(function(s,v){ return s+v; }, 0);
+      if (total === 0) return;
+
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "bold 12px 'DM Sans', sans-serif";
+      ctx.shadowColor = "rgba(0,0,0,0.7)";
+      ctx.shadowBlur = 4;
+
+      meta.data.forEach(function(arc, i){
+        var valor = ds.data[i];
+        if (!valor) return;  // pula fatias zeradas
+        var pct = (valor/total) * 100;
+        // Só mostra label se a fatia for >= 3% (evita poluição)
+        if (pct < 3) return;
+
+        var pos = arc.tooltipPosition();
+        var texto = valor + " (" + pct.toFixed(0) + "%)";
+        ctx.fillText(texto, pos.x, pos.y);
+      });
+
+      ctx.restore();
+    }
+  };
+}
+
 // ═══════════════════════════════════════════════════════════════
 // FUNÇÃO PRINCIPAL — renderiza todo o dashboard
 // ═══════════════════════════════════════════════════════════════
@@ -3093,10 +3179,21 @@ function renderKpiTipoAcerto(dados){
   var valores = labels.map(function(l){ return contagem[l]; });
 
   if (labels.length === 0){
-    var parent = ctx.parentElement;
-    parent.innerHTML = '<div class="kpi-panel-tit">🥧 Distribuição por tipo de acerto</div><div class="kpi-empty">Sem dados de acerto no período</div>';
+    // v3.1 fix: NÃO destruir o canvas
+    ctx.style.display = "none";
+    var placeholder = ctx.parentElement.querySelector(".kpi-empty-placeholder");
+    if (!placeholder){
+      placeholder = document.createElement("div");
+      placeholder.className = "kpi-empty kpi-empty-placeholder";
+      placeholder.textContent = "Sem dados de acerto no período";
+      ctx.parentElement.appendChild(placeholder);
+    }
+    placeholder.style.display = "block";
     return;
   }
+  ctx.style.display = "";
+  var oldPlaceholder = ctx.parentElement.querySelector(".kpi-empty-placeholder");
+  if (oldPlaceholder) oldPlaceholder.style.display = "none";
 
   KPI_CHARTS.tipoAcerto = new Chart(ctx, {
     type: "doughnut",
@@ -3109,14 +3206,8 @@ function renderKpiTipoAcerto(dados){
         borderWidth: 2
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: "right", labels: { color: "#eef1f8", font: { size: 11 } } },
-        tooltip: chartOpcoesBase().plugins.tooltip
-      }
-    }
+    options: opcoesPizzaComLabels(valores),
+    plugins: [pluginDatalabelsPizza()]
   });
 }
 
@@ -3135,10 +3226,23 @@ function renderKpiTopMotivos(dados){
   var valores = labels.map(function(l){ return contagem[l]; });
 
   if (labels.length === 0){
-    var parent = ctx.parentElement;
-    parent.innerHTML = '<div class="kpi-panel-tit">🥧 Top motivos</div><div class="kpi-empty">Sem dados no período</div>';
+    // v3.1 fix: NÃO destruir o canvas (precisamos dele se o filtro mudar e vier dados)
+    // Em vez disso, escondemos o canvas e mostramos um placeholder ao lado
+    ctx.style.display = "none";
+    var placeholder = ctx.parentElement.querySelector(".kpi-empty-placeholder");
+    if (!placeholder){
+      placeholder = document.createElement("div");
+      placeholder.className = "kpi-empty kpi-empty-placeholder";
+      placeholder.textContent = "Sem dados no período";
+      ctx.parentElement.appendChild(placeholder);
+    }
+    placeholder.style.display = "block";
     return;
   }
+  // Volta o canvas se estava escondido e remove placeholder
+  ctx.style.display = "";
+  var oldPlaceholder = ctx.parentElement.querySelector(".kpi-empty-placeholder");
+  if (oldPlaceholder) oldPlaceholder.style.display = "none";
 
   KPI_CHARTS.topMotivos = new Chart(ctx, {
     type: "pie",
@@ -3151,14 +3255,8 @@ function renderKpiTopMotivos(dados){
         borderWidth: 2
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: "right", labels: { color: "#eef1f8", font: { size: 11 } } },
-        tooltip: chartOpcoesBase().plugins.tooltip
-      }
-    }
+    options: opcoesPizzaComLabels(valores),
+    plugins: [pluginDatalabelsPizza()]
   });
 }
 
