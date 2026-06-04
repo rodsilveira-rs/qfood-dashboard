@@ -133,7 +133,26 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .chip-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:middle;}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:12px;font-size:.85rem;z-index:200;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;}
 .toast.show{opacity:1;}
-</style>
+/* ===== Organograma ===== */
+.orgtree{ text-align:center; min-width:max-content; padding:6px 4px 14px }
+.orgtree ul{ position:relative; padding:22px 0 0; margin:0; white-space:nowrap; list-style:none }
+.orgtree li{ display:inline-block; vertical-align:top; text-align:center; list-style:none; position:relative; padding:22px 6px 0 }
+.orgtree li::before,.orgtree li::after{ content:''; position:absolute; top:0; right:50%; border-top:2px solid #cfc8bd; width:50%; height:22px }
+.orgtree li::after{ right:auto; left:50%; border-left:2px solid #cfc8bd }
+.orgtree li:only-child::before,.orgtree li:only-child::after{ display:none }
+.orgtree li:only-child{ padding-top:0 }
+.orgtree li:first-child::before,.orgtree li:last-child::after{ border:0 none }
+.orgtree li:last-child::before{ border-right:2px solid #cfc8bd; border-radius:0 6px 0 0 }
+.orgtree li:first-child::after{ border-radius:6px 0 0 0 }
+.orgtree ul ul::before{ content:''; position:absolute; top:0; left:50%; border-left:2px solid #cfc8bd; width:0; height:22px }
+.org-node{ display:inline-block; min-width:140px; max-width:190px; background:#fff; border:1.5px solid var(--line); border-top-width:4px; border-radius:10px; padding:9px 11px; box-shadow:0 1px 3px rgba(0,0,0,.06); text-align:center }
+.org-node .on-nome{ font-weight:800; font-size:.9rem; color:var(--ink); line-height:1.15 }
+.org-node .on-func{ font-size:.74rem; color:var(--muted); margin-top:2px; white-space:normal }
+.org-node .on-set{ display:inline-block; margin-top:5px; font-size:.62rem; font-weight:700; color:#5b554c; background:var(--surface2); border-radius:999px; padding:1px 7px }
+.org-node .on-acts{ margin-top:7px; display:flex; gap:4px; justify-content:center }
+.org-node .on-acts button{ cursor:pointer; border:1px solid var(--line); background:#fff; border-radius:6px; width:24px; height:22px; font-size:.72rem; line-height:1; color:var(--muted) }
+.org-node .on-acts button:hover{ background:var(--surface2) }
+
 </head>
 <body>
 
@@ -151,6 +170,7 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
   <button class="tab on" data-t="exec" onclick="setTab('exec')">▶️ Executar</button>
   <button class="tab" data-t="mod" onclick="setTab('mod')" id="tabMod">🛠️ Modelos</button>
   <button class="tab" data-t="pan" onclick="setTab('pan')">📊 Painel</button>
+  <button class="tab hidden" data-t="org" onclick="setTab('org')" id="tabOrg">🏛️ Organograma</button>
 </div>
 
 <div class="wrap">
@@ -231,6 +251,17 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
     </div>
   </div>
 
+  <!-- ============ ORGANOGRAMA ============ -->
+  <div class="panel" id="p-org">
+    <div class="between" style="margin-bottom:14px">
+      <div><h2 class="sec">Organograma de Relação</h2><div class="sub">Cultura → Empresas → liderança → equipes. Só você e o Adilson editam.</div></div>
+      <div class="row">
+        <button class="btn sm" onclick="abrirOrgNode(null,'')">+ Nova caixa</button>
+      </div>
+    </div>
+    <div class="card pad" style="overflow:auto"><div id="orgChart"></div></div>
+  </div>
+
 </div>
 
 <!-- MODAIS -->
@@ -244,7 +275,7 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 var WEBAPP = "https://script.google.com/macros/s/AKfycbxvY8KdONVROaNAtOCJVNI5pHTPpaZiaE-3ynFOnZvDRMYTzvH_j4UfpBkrRUC6qrCqaQ/exec";
 var MODULO = "checklist";
 
-var ST = { user:null, empresaAtiva:null, empresas:[], colaboradores:[], modelos:[], itens:[], listas:[], respostas:[] };
+var ST = { user:null, empresaAtiva:null, empresas:[], colaboradores:[], modelos:[], itens:[], listas:[], respostas:[], org:[] };
 var EXEC = null; // execução em andamento
 
 // ────── Sessão (mesmo padrão dos outros index) ──────
@@ -310,7 +341,7 @@ function carregarTudo(force){
   document.getElementById("execList").innerHTML = '<div class="loading">Carregando…</div>';
   return Promise.all([
     api("listEmpresas"), api("listColaboradores"), api("listModelos"),
-    api("listItens"), api("listListas"), api("listRespostas",{ate:isoHoje(), de:isoDelta(-60)})
+    api("listItens"), api("listListas"), api("listRespostas",{ate:isoHoje(), de:isoDelta(-60)}), api("listOrg")
   ]).then(function(res){
     ST.empresas = (res[0].empresas||[]);
     ST.colaboradores = (res[1].colaboradores||[]).filter(function(c){return String(c.ativo).toLowerCase()!=="nao";});
@@ -318,6 +349,7 @@ function carregarTudo(force){
     ST.itens = (res[3].itens||[]);
     ST.listas = (res[4].listas||[]);
     ST.respostas = (res[5].respostas||[]);
+    ST.org = (res[6] && res[6].org || []).filter(function(n){return String(n.ativo).toLowerCase()!=="nao";});
     if(!ST.empresaAtiva && ST.empresas.length) ST.empresaAtiva = ST.empresas[0].id;
     renderTudo();
   }).catch(function(e){
@@ -328,8 +360,11 @@ function carregarTudo(force){
 function renderTudo(){
   document.getElementById("who").textContent = ST.user.nome+" · "+ST.user.perfil;
   if(!ehEditor()) document.getElementById("tabMod").classList.add("hidden");
+  if(ehAdminOrg()) document.getElementById("tabOrg").classList.remove("hidden");
   renderEmpresas(); renderSetorFiltro(); renderExec(); renderPainel();
 }
+var ORG_ADMINS=["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
+function ehAdminOrg(){ return ORG_ADMINS.indexOf((ST.user&&ST.user.email||"").toLowerCase())>=0; }
 
 // ════════════════════════════════════════════════════════════
 // DATAS
@@ -344,12 +379,13 @@ function diaSemanaExt(){ return ["domingo","segunda","terça","quarta","quinta",
 // TABS
 // ════════════════════════════════════════════════════════════
 function setTab(t){
-  ["exec","mod","pan"].forEach(function(x){
+  ["exec","mod","pan","org"].forEach(function(x){
     document.getElementById("p-"+x).classList.toggle("on", x===t);
   });
   document.querySelectorAll(".tab").forEach(function(b){ b.classList.toggle("on", b.dataset.t===t); });
   if(t==="mod"){ renderModelos(); renderColab(); renderListas(); }
   if(t==="pan") renderPainel();
+  if(t==="org") renderOrg();
 }
 function setSub(s){
   ["modelos","colab","listas"].forEach(function(x){ document.getElementById("s-"+x).classList.toggle("hidden", x!==s); });
@@ -746,7 +782,7 @@ function renderItensEdit(){
           ['check','numerico','avaliativo','texto'].map(function(t){return '<option value="'+t+'" '+(norm(it.tipo)===t?'selected':'')+'>'+t+'</option>';}).join("")+'</select></div>'+
         '<div style="grid-column:1/-1"><label class="fld">Título</label><input class="inp it" data-i="'+idx+'" data-k="titulo" placeholder="Ex.: Conferir temperatura da câmara fria" value="'+esc(it.titulo)+'"></div>'+
         '<div style="grid-column:1/-1"><label class="fld">Descrição</label><textarea class="inp it" data-i="'+idx+'" data-k="descricao" placeholder="Ex.: Anotar a temperatura no painel. Se passar de 5°C, avisar o gestor imediatamente.">'+esc(it.descricao)+'</textarea></div>'+
-        (norm(it.tipo)==="numerico"?'<div><label class="fld">Meta mín</label><input class="inp it" data-i="'+idx+'" data-k="meta_min" value="'+esc(it.meta_min)+'"></div><div><label class="fld">Meta máx</label><input class="inp it" data-i="'+idx+'" data-k="meta_max" value="'+esc(it.meta_max)+'"></div>':'')+
+        (norm(it.tipo)==="numerico"?'<div><label class="fld">Meta mín</label><input class="inp it" data-i="'+idx+'" data-k="meta_min" placeholder="Ex.: 0" value="'+esc(it.meta_min)+'"></div><div><label class="fld">Meta máx</label><input class="inp it" data-i="'+idx+'" data-k="meta_max" placeholder="Ex.: 5" value="'+esc(it.meta_max)+'"></div><div style="grid-column:1/-1" class="small muted">Na execução, o número informado deve ficar entre o mínimo e o máximo (ex.: temperatura da câmara entre 0 e 5 °C).</div>':'')+
         '<div><label class="fld">Evidência</label><select class="inp it" data-i="'+idx+'" data-k="evidencia">'+
           [['nenhuma','Nenhuma'],['foto','Foto (opcional)'],['foto_obrigatoria','Foto obrigatória']].map(function(o){return '<option value="'+o[0]+'" '+(norm(it.evidencia)===o[0]?'selected':'')+'>'+o[1]+'</option>';}).join("")+'</select></div>'+
         '<div><label class="fld">Peso <span onclick="ajudaPeso()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label>'+
@@ -932,6 +968,89 @@ function exportarCSV(){
 // UTILS
 // ════════════════════════════════════════════════════════════
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+// ════════════════════════════════════════════════════════════
+// ORGANOGRAMA
+// ════════════════════════════════════════════════════════════
+var ORGEDIT=null;
+function orgPorId(id){ return ST.org.filter(function(n){return String(n.id)===String(id);})[0]; }
+function orgFilhos(pid){
+  return ST.org.filter(function(n){return String(n.parent_id||"")===String(pid||"");})
+    .sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
+}
+function orgDescendentes(id){ var out={}; (function go(p){ orgFilhos(p).forEach(function(c){ if(!out[c.id]){ out[c.id]=1; go(c.id); } }); })(id); return out; }
+function renderOrg(){
+  var box=document.getElementById("orgChart");
+  var roots=orgFilhos("");
+  if(!roots.length){
+    box.innerHTML='<div class="empty">Nenhuma caixa cadastrada.'+(ehAdminOrg()?' <button class="btn sm" style="margin-left:8px" onclick="criarEstruturaInicial()">Criar estrutura inicial</button>':'')+'</div>';
+    return;
+  }
+  box.innerHTML='<div class="orgtree"><ul>'+roots.map(function(n){return renderOrgNode(n,{});}).join("")+'</ul></div>';
+}
+function renderOrgNode(n, visited){
+  visited=visited||{};
+  if(visited[n.id]) return '';
+  visited[n.id]=1;
+  var emp=ST.empresas.filter(function(e){return e.id===n.empresa;})[0];
+  var cor=emp?(emp.cor||'#94a3b8'):'#94a3b8';
+  var acts=ehAdminOrg()?'<div class="on-acts"><button title="Adicionar abaixo" onclick="abrirOrgNode(null,\''+n.id+'\')">＋</button><button title="Editar" onclick="abrirOrgNode(\''+n.id+'\',\'\')">✎</button><button title="Remover" onclick="excluirOrgNode(\''+n.id+'\')">✕</button></div>':'';
+  var h='<li><div class="org-node" style="border-top-color:'+cor+'">'+
+    '<div class="on-nome">'+esc(n.nome)+'</div>'+
+    (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+
+    (n.setor?'<div class="on-set">'+esc(setorRot(n.setor))+'</div>':'')+
+    acts+
+    '</div>';
+  var kids=orgFilhos(n.id);
+  if(kids.length){ h+='<ul>'+kids.map(function(k){return renderOrgNode(k,visited);}).join("")+'</ul>'; }
+  h+='</li>';
+  return h;
+}
+function abrirOrgNode(id, parentId){
+  if(!ehAdminOrg()){ toast("Sem permissão."); return; }
+  var n = id? orgPorId(id) : null;
+  ORGEDIT = id || null;
+  var opEmp='<option value="grupo" '+((n?n.empresa:'grupo')==='grupo'?'selected':'')+'>Grupo (todas as empresas)</option>'+
+    ST.empresas.map(function(e){return '<option value="'+e.id+'" '+(n&&n.empresa===e.id?'selected':'')+'>'+esc(e.nome)+'</option>';}).join("");
+  var opSet='<option value="">— (sem setor)</option>'+lista("setor").map(function(l){return '<option value="'+esc(l.valor)+'" '+(n&&n.setor===l.valor?'selected':'')+'>'+esc(l.rotulo)+'</option>';}).join("");
+  var bloq = id? orgDescendentes(id) : {}; if(id) bloq[id]=1;
+  var curPar = n? n.parent_id : (parentId||"");
+  var opPar='<option value="">— (topo / sem superior)</option>'+
+    ST.org.filter(function(x){return !bloq[x.id];})
+      .sort(function(a,b){return (a.nome>b.nome)?1:-1;})
+      .map(function(x){return '<option value="'+x.id+'" '+(String(curPar)===String(x.id)?'selected':'')+'>'+esc(x.nome)+(x.funcao?' ('+esc(x.funcao)+')':'')+'</option>';}).join("");
+  var h='<div class="grid g2">'+
+    '<div style="grid-column:1/-1"><label class="fld">Nome</label><input class="inp" id="o_nome" placeholder="Ex.: Rodrigo, Vendedores, Equipe Cozinha" value="'+esc(n?n.nome:"")+'"></div>'+
+    '<div><label class="fld">Função / cargo</label><input class="inp" id="o_func" placeholder="Ex.: Operações, Gestor Adm" value="'+esc(n?n.funcao:"")+'"></div>'+
+    '<div><label class="fld">Empresa</label><select class="inp" id="o_emp">'+opEmp+'</select></div>'+
+    '<div><label class="fld">Setor (opcional)</label><select class="inp" id="o_set">'+opSet+'</select></div>'+
+    '<div><label class="fld">Fica abaixo de</label><select class="inp" id="o_par">'+opPar+'</select></div>'+
+    '</div>'+
+    '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarOrgNode()">Salvar</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
+  document.getElementById("ovTitle").textContent = id? "Editar caixa" : "Nova caixa";
+  document.getElementById("ovBody").innerHTML=h;
+  document.getElementById("ov").classList.add("open");
+}
+function salvarOrgNode(){
+  var payload={ id:ORGEDIT||undefined, nome:val("o_nome"), funcao:val("o_func"), empresa:val("o_emp"), setor:val("o_set"), parent_id:val("o_par") };
+  if(!payload.nome){ toast("Dê um nome à caixa."); return; }
+  apiPost("salvarOrg",payload).then(function(r){ if(r.ok){ toast("Caixa salva."); fecharOv(); carregarTudo().then(function(){ setTab('org'); }); } else toast("Erro: "+(r.error||"")); });
+}
+function excluirOrgNode(id){
+  if(!ehAdminOrg()){ toast("Sem permissão."); return; }
+  if(orgFilhos(id).length){ toast("Mova ou remova os subordinados primeiro."); return; }
+  if(!confirm("Remover esta caixa?")) return;
+  apiPost("excluirOrg",{id:id}).then(function(r){ if(r.ok){ toast("Removida."); carregarTudo().then(function(){ setTab('org'); }); } else toast("Erro: "+(r.error||"")); });
+}
+function criarEstruturaInicial(){
+  if(!ehAdminOrg()) return;
+  var base=[
+    {id:"org_cultura", empresa:"grupo", nome:"Cultura", funcao:"Valores e princípios", parent_id:""},
+    {id:"org_adilson", empresa:"grupo", nome:"Adilson", funcao:"CEO", parent_id:"org_cultura"},
+    {id:"org_rodrigo", empresa:"grupo", nome:"Rodrigo", funcao:"Operações", parent_id:"org_adilson"}
+  ];
+  Promise.all(base.map(function(b){ return apiPost("salvarOrg",b); })).then(function(){ toast("Estrutura inicial criada."); carregarTudo().then(function(){ setTab('org'); }); });
+}
+
 function fecharOv(){ document.getElementById("ov").classList.remove("open"); }
 document.getElementById("ov").addEventListener("click",function(e){ if(e.target===this) fecharOv(); });
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") fecharOv(); });
