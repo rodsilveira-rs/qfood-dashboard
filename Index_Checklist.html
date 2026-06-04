@@ -351,6 +351,9 @@ function setTab(t){
 function setSub(s){
   ["modelos","colab","listas"].forEach(function(x){ document.getElementById("s-"+x).classList.toggle("hidden", x!==s); });
   document.querySelectorAll(".subnav button").forEach(function(b){ b.classList.toggle("on", b.dataset.s===s); });
+  if(s==="modelos") renderModelos();
+  if(s==="colab")   renderColab();
+  if(s==="listas")  renderListas();
 }
 
 // ════════════════════════════════════════════════════════════
@@ -364,7 +367,7 @@ function renderEmpresas(){
       var b=document.createElement("button"); b.className="emp-chip"+(e.id===ST.empresaAtiva?" on":"");
       if(e.id===ST.empresaAtiva) b.style.background=e.cor||"#2563eb";
       b.innerHTML=(e.emoji||"")+" "+e.nome;
-      b.onclick=function(){ ST.empresaAtiva=e.id; renderEmpresas(); renderSetorFiltro(); renderExec(); renderModelos(); renderPainel(); };
+      b.onclick=function(){ ST.empresaAtiva=e.id; renderEmpresas(); renderSetorFiltro(); renderExec(); renderModelos(); renderColab(); renderListas(); renderPainel(); };
       el.appendChild(b);
     });
 }
@@ -650,13 +653,13 @@ function renderModelos(){
 function abrirModelo(id){
   var m = id? ST.modelos.filter(function(x){return x.id===id;})[0] : null;
   var itens = id? ST.itens.filter(function(it){return String(it.modelo_id)===String(id);}).sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);}) : [];
-  EDIT={ id:id||null, itens: itens.map(function(it){return JSON.parse(JSON.stringify(it));}) };
+  EDIT={ id:id||null, estrutura:(m&&m.tipo_estrutura==="horario")?"horario":"blocos", itens: itens.map(function(it){return JSON.parse(JSON.stringify(it));}) };
   if(!EDIT.itens.length) EDIT.itens=[novoItem()];
   var opEmp=ST.empresas.map(function(e){return '<option value="'+e.id+'" '+((m?m.empresa:ST.empresaAtiva)===e.id?'selected':'')+'>'+esc(e.nome)+'</option>';}).join("");
   var opSet=lista("setor").map(function(l){return '<option value="'+esc(l.valor)+'" '+(m&&m.setor===l.valor?'selected':'')+'>'+esc(l.rotulo)+'</option>';}).join("");
   var opMom=lista("momento").map(function(l){return '<option value="'+esc(l.valor)+'" '+(m&&norm(m.momento)===norm(l.valor)?'selected':'')+'>'+esc(l.rotulo)+'</option>';}).join("");
   var opRec=lista("recorrencia").map(function(l){return '<option value="'+esc(l.valor)+'" '+(m&&norm(m.recorrencia)===norm(l.valor)?'selected':'')+'>'+esc(l.rotulo)+'</option>';}).join("");
-  var opResp='<option value="">— (qualquer do setor / quiosque)</option>'+ST.colaboradores.filter(function(c){return c.empresa===(m?m.empresa:ST.empresaAtiva);}).map(function(c){return '<option value="'+c.id+'" '+(m&&m.responsavel_colab===c.id?'selected':'')+'>'+esc(c.nome)+'</option>';}).join("");
+  var opResp='<option value="">Qualquer do setor</option>'+ST.colaboradores.filter(function(c){return c.empresa===(m?m.empresa:ST.empresaAtiva);}).map(function(c){return '<option value="'+c.id+'" '+(m&&m.responsavel_colab===c.id?'selected':'')+'>'+esc(c.nome)+'</option>';}).join("");
   var dias=String(m?m.dias_semana:"").split(",").map(function(s){return s.trim();});
   var diasHtml=["D","S","T","Q","Q","S","S"].map(function(lbl,i){ return '<label style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-size:.8rem"><input type="checkbox" class="diaSem" value="'+i+'" '+(dias.indexOf(String(i))>=0?'checked':'')+'> '+lbl+'</label>'; }).join("");
 
@@ -665,24 +668,39 @@ function abrirModelo(id){
     '<div><label class="fld">Empresa</label><select class="inp" id="m_emp">'+opEmp+'</select></div>'+
     '<div><label class="fld">Setor</label><select class="inp" id="m_set">'+opSet+'</select></div>'+
     '<div><label class="fld">Momento</label><select class="inp" id="m_mom">'+opMom+'</select></div>'+
-    '<div><label class="fld">Estrutura</label><select class="inp" id="m_estr"><option value="blocos" '+(m&&m.tipo_estrutura==="horario"?'':'selected')+'>Por blocos</option><option value="horario" '+(m&&m.tipo_estrutura==="horario"?'selected':'')+'>Por faixa horária</option></select></div>'+
+    '<div><label class="fld">Estrutura</label><select class="inp" id="m_estr" onchange="EDIT.estrutura=this.value;renderItensEdit();"><option value="blocos" '+(m&&m.tipo_estrutura==="horario"?'':'selected')+'>Por blocos</option><option value="horario" '+(m&&m.tipo_estrutura==="horario"?'selected':'')+'>Por faixa horária</option></select></div>'+
     '<div><label class="fld">Responsável padrão</label><select class="inp" id="m_resp">'+opResp+'</select></div>'+
-    '<div><label class="fld">Recorrência</label><select class="inp" id="m_rec">'+opRec+'</select></div>'+
+    '<div><label class="fld">Recorrência</label><select class="inp" id="m_rec" onchange="aplicarRecorrenciaDias()">'+opRec+'</select></div>'+
     '<div><label class="fld">Horário limite</label><input type="time" class="inp" id="m_hl" value="'+esc(m?m.horario_limite:"")+'"></div>'+
-    '<div><label class="fld">Primeiro vencimento <span class="small muted">(quinzenal/mensal+)</span></label><input type="date" class="inp" id="m_dref" value="'+esc(m?String(m.data_ref||"").substring(0,10):"")+'"></div>'+
+    '<div><label class="fld">Primeiro vencimento <span onclick="ajudaVenc()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label><input type="date" class="inp" id="m_dref" value="'+esc(m?String(m.data_ref||"").substring(0,10):"")+'"></div>'+
     '</div>'+
-    '<div style="margin-top:10px"><label class="fld">Dias da semana (se semanal)</label>'+diasHtml+'</div>'+
-    '<div style="margin-top:18px" class="between"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens</div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
+    '<div id="ajudaVencBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;font-size:.82rem;color:var(--muted)">Use o <b>Primeiro vencimento</b> apenas nas recorrências <b>quinzenal, mensal, bimestral, trimestral, semestral e anual</b>: escolha a data em que ele vence pela primeira vez e o sistema repete a partir dela (ex.: mensal todo dia 10; anual no mesmo dia e mês). Para diária, dias úteis, fim de semana e semanal, pode deixar em branco.</div>'+
+    '<div style="margin-top:12px"><label class="fld">Dias da semana</label><div id="diasBox">'+diasHtml+'</div><div class="small muted" id="diasHint" style="margin-top:4px"></div></div>'+
+    '<div style="margin-top:18px" class="between"><div><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens do checklist</div><div class="small muted" style="font-weight:400;margin-top:2px;max-width:560px">Todos os itens abaixo pertencem a <b>este</b> checklist e seguem o mesmo cabeçalho acima — mesma empresa, setor, momento, recorrência, horário-limite e dias. Você está adicionando as <b>tarefas</b> que serão verificadas.</div></div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
+    '<datalist id="blocosList"></datalist>'+
     '<div id="itensEdit" style="margin-top:10px"></div>'+
     '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarModelo()">Salvar modelo</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
   document.getElementById("ovTitle").textContent = id? "Editar modelo" : "Novo modelo";
   document.getElementById("ovBody").innerHTML=h;
   document.getElementById("ov").classList.add("open");
   renderItensEdit();
+  aplicarRecorrenciaDias();
 }
+function aplicarRecorrenciaDias(){
+  var rec=norm(val("m_rec"));
+  var boxes=document.querySelectorAll(".diaSem");
+  var hint=document.getElementById("diasHint");
+  function set(arr,msg){ boxes.forEach(function(c){ var i=+c.value; c.checked=arr.indexOf(i)>=0; c.disabled=true; }); if(hint) hint.textContent=msg||""; }
+  if(rec==="diaria") set([0,1,2,3,4,5,6],"Todos os dias — definido pela recorrência Diária.");
+  else if(rec.indexOf("dias")>=0 && rec.indexOf("uteis")>=0) set([1,2,3,4,5],"Segunda a sexta — definido pela recorrência.");
+  else if(rec.indexOf("fim")>=0 && rec.indexOf("semana")>=0) set([0,6],"Sábado e domingo — definido pela recorrência.");
+  else if(rec==="semanal"){ boxes.forEach(function(c){ c.disabled=false; }); if(hint) hint.textContent="Marque os dias em que o checklist deve aparecer."; }
+  else { set([],"Não se aplica a esta recorrência — defina o Primeiro vencimento."); }
+}
+function ajudaVenc(){ var b=document.getElementById("ajudaVencBox"); if(b) b.classList.toggle("hidden"); }
 var EDIT=null;
 function novoItem(){ return {id:"",bloco:"",titulo:"",descricao:"",tipo:"check",obrigatorio:"nao",item_critico:"nao",evidencia:"nenhuma",meta_min:"",meta_max:"",peso:1,rotulo_pos:"Feito",rotulo_neg:"Não Feito"}; }
-function addItem(){ EDIT.itens.push(novoItem()); renderItensEdit(); }
+function addItem(){ var ni=novoItem(); var last=EDIT.itens[EDIT.itens.length-1]; if(last&&last.bloco) ni.bloco=last.bloco; EDIT.itens.push(ni); renderItensEdit(); }
 function renderItensEdit(){
   var box=document.getElementById("itensEdit"); box.innerHTML="";
   EDIT.itens.forEach(function(it,idx){
@@ -690,7 +708,7 @@ function renderItensEdit(){
     d.innerHTML=
       '<div class="between"><span class="small muted">Item '+(idx+1)+'</span><button class="link" onclick="rmItem('+idx+')">remover</button></div>'+
       '<div class="grid g2" style="margin-top:8px">'+
-        '<div><label class="fld">Bloco / faixa</label><input class="inp it" data-i="'+idx+'" data-k="bloco" value="'+esc(it.bloco)+'"></div>'+
+        '<div><label class="fld">'+(EDIT.estrutura==="horario"?"Faixa horária":"Grupo / Bloco")+'</label><input class="inp it" list="blocosList" data-i="'+idx+'" data-k="bloco" value="'+esc(it.bloco)+'" placeholder="'+(EDIT.estrutura==="horario"?"Ex.: 08:00, Manhã":"Ex.: Abertura, Higienização")+'"></div>'+
         '<div><label class="fld">Tipo</label><select class="inp it" data-i="'+idx+'" data-k="tipo" onchange="renderItensEdit2('+idx+',this.value)">'+
           ['check','numerico','avaliativo','texto'].map(function(t){return '<option value="'+t+'" '+(norm(it.tipo)===t?'selected':'')+'>'+t+'</option>';}).join("")+'</select></div>'+
         '<div style="grid-column:1/-1"><label class="fld">Título</label><input class="inp it" data-i="'+idx+'" data-k="titulo" value="'+esc(it.titulo)+'"></div>'+
@@ -698,13 +716,27 @@ function renderItensEdit(){
         (norm(it.tipo)==="numerico"?'<div><label class="fld">Meta mín</label><input class="inp it" data-i="'+idx+'" data-k="meta_min" value="'+esc(it.meta_min)+'"></div><div><label class="fld">Meta máx</label><input class="inp it" data-i="'+idx+'" data-k="meta_max" value="'+esc(it.meta_max)+'"></div>':'')+
         '<div><label class="fld">Evidência</label><select class="inp it" data-i="'+idx+'" data-k="evidencia">'+
           [['nenhuma','Nenhuma'],['foto','Foto (opcional)'],['foto_obrigatoria','Foto obrigatória']].map(function(o){return '<option value="'+o[0]+'" '+(norm(it.evidencia)===o[0]?'selected':'')+'>'+o[1]+'</option>';}).join("")+'</select></div>'+
-        '<div><label class="fld">Peso</label><input type="number" class="inp it" data-i="'+idx+'" data-k="peso" value="'+esc(it.peso)+'"></div>'+
+        '<div><label class="fld">Peso (1–5)</label><input type="number" min="1" max="5" step="1" class="inp it" data-i="'+idx+'" data-k="peso" value="'+esc(it.peso)+'"></div>'+
         '<div><label class="fld">Obrigatório</label><select class="inp it" data-i="'+idx+'" data-k="obrigatorio"><option value="nao" '+(norm(it.obrigatorio)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.obrigatorio)==="sim"?'selected':'')+'>Sim</option></select></div>'+
         '<div><label class="fld">Item crítico</label><select class="inp it" data-i="'+idx+'" data-k="item_critico"><option value="nao" '+(norm(it.item_critico)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.item_critico)==="sim"?'selected':'')+'>Sim</option></select></div>'+
       '</div>';
     box.appendChild(d);
   });
-  box.querySelectorAll(".it").forEach(function(el){ el.addEventListener("input",function(){ EDIT.itens[+el.dataset.i][el.dataset.k]=el.value; }); el.addEventListener("change",function(){ EDIT.itens[+el.dataset.i][el.dataset.k]=el.value; }); });
+  box.querySelectorAll(".it").forEach(function(el){
+    function apply(){
+      var k=el.dataset.k, v=el.value;
+      if(k==="peso"){ var n=parseInt(v,10); if(isNaN(n)) n=1; n=Math.max(1,Math.min(5,n)); v=String(n); if(el.value!==v) el.value=v; }
+      EDIT.itens[+el.dataset.i][k]=v;
+      if(k==="bloco") encherBlocos();
+    }
+    el.addEventListener("input",apply); el.addEventListener("change",apply);
+  });
+  encherBlocos();
+}
+function encherBlocos(){
+  var dl=document.getElementById("blocosList"); if(!dl) return;
+  var us={}; EDIT.itens.forEach(function(x){ if(x.bloco) us[x.bloco]=1; });
+  dl.innerHTML=Object.keys(us).map(function(b){return '<option value="'+esc(b)+'">';}).join("");
 }
 function renderItensEdit2(idx,tipo){ EDIT.itens[idx].tipo=tipo; renderItensEdit(); }
 function rmItem(idx){ EDIT.itens.splice(idx,1); if(!EDIT.itens.length) EDIT.itens=[novoItem()]; renderItensEdit(); }
