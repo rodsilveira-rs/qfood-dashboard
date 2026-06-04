@@ -262,8 +262,8 @@
   /* atribuição por responsável (sub-tarefa + prazo) */
   .ms-wrap{border-bottom:1px solid var(--line)}
   .ms-wrap:last-child{border-bottom:none}
-  .ms-det{display:flex;gap:8px;padding:2px 8px 10px 30px;align-items:center}
-  .ms-det .ms-tarefa{flex:1;width:auto;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:13px}
+  .ms-det{display:flex;gap:8px;padding:2px 8px 10px 30px;align-items:flex-start}
+  .ms-det .ms-tarefa{flex:1;width:auto;min-width:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:13px;resize:vertical;min-height:38px;line-height:1.4}
   .ms-det .ms-prazo{width:150px;flex-shrink:0;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:13px}
   /* itens no card */
   .plano-itens{margin-top:10px}
@@ -1007,7 +1007,7 @@ function renderResponsaveis(atrib){
       return '<div class="ms-wrap" data-cat="'+esc(a&&a.cat?a.cat:'')+'">'+
         '<label class="ms-item"><input type="checkbox" data-nome="'+esc(u.nome)+'" '+ck+' onchange="toggleResp(this)"> '+esc(u.nome)+'</label>'+
         '<div class="ms-det" style="display:'+disp+'">'+
-          '<input class="ms-tarefa" placeholder="parte dele(a) nesta ação" value="'+esc(a?a.tarefa:'')+'">'+
+          '<textarea class="ms-tarefa" rows="2" placeholder="parte dele(a) nesta ação">'+esc(a?a.tarefa:'')+'</textarea>'+
           '<input type="date" class="ms-prazo" value="'+esc(a?a.prazo:'')+'" onchange="updateDet(this)">'+
           '<select class="ms-status" onchange="updateDet(this)">'+statusOpts(a?a.status:'')+'</select>'+
           '<span class="ms-dr"></span>'+
@@ -1129,12 +1129,24 @@ function aplicarPlaybook(){
   var evData=dEventoDate(evNome);
   if(!evData){ alert('Selecione um evento que tenha data no calendário — é a partir dela que calculo os prazos (D-X).'); return; }
   if(getAtribuicoes().length && !confirm('Aplicar o playbook vai redefinir os responsáveis e tarefas já marcados. Continuar?')) return;
-  var mapa={};
+  // agrupa por responsável (vários itens obrigatórios viram uma lista)
+  var porNome={};
   pb.tarefas.forEach(function(t){
     if(!t.resp) return;
+    var nome=resolveNome(t.resp);
+    if(!porNome[nome]) porNome[nome]={itens:[], cat:t.cat||'', dias:null};
+    if(t.tarefa) porNome[nome].itens.push(t.tarefa);
+    if(!porNome[nome].cat && t.cat) porNome[nome].cat=t.cat;
+    // prazo consolidado = o mais próximo do evento (maior Dias) entre os itens da pessoa
+    if(!isNaN(t.dias) && (porNome[nome].dias===null || t.dias>porNome[nome].dias)) porNome[nome].dias=t.dias;
+  });
+  var mapa={};
+  Object.keys(porNome).forEach(function(nome){
+    var info=porNome[nome];
+    var tarefa=info.itens.map(function(x){ return '• '+x; }).join('\n');
     var prazo='';
-    if(!isNaN(t.dias)){ var d=new Date(evData.getTime()); d.setDate(d.getDate()+t.dias); prazo=dToISO(d); }
-    mapa[resolveNome(t.resp)]={ tarefa:t.tarefa, prazo:prazo, status:'Em andamento', cat:t.cat };
+    if(info.dias!==null){ var d=new Date(evData.getTime()); d.setDate(d.getDate()+info.dias); prazo=dToISO(d); }
+    mapa[nome]={ tarefa:tarefa, prazo:prazo, status:'Em andamento', cat:info.cat };
   });
   renderResponsaveis(mapa);
 }
