@@ -191,7 +191,7 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 
     <div id="s-colab" class="hidden">
       <div class="between" style="margin-bottom:14px">
-        <div><h2 class="sec">Colaboradores</h2><div class="sub">Quem é responsável e executa (não precisa estar na UUSR)</div></div>
+        <div><h2 class="sec">Colaboradores</h2><div class="sub"></div></div>
         <button class="btn" onclick="abrirColab()">+ Novo colaborador</button>
       </div>
       <div class="card pad"><div id="colabList"></div></div>
@@ -664,7 +664,7 @@ function abrirModelo(id){
   var diasHtml=["D","S","T","Q","Q","S","S"].map(function(lbl,i){ return '<label style="display:inline-flex;align-items:center;gap:3px;margin-right:8px;font-size:.8rem"><input type="checkbox" class="diaSem" value="'+i+'" '+(dias.indexOf(String(i))>=0?'checked':'')+'> '+lbl+'</label>'; }).join("");
 
   var h='<div class="grid g2">'+
-    '<div><label class="fld">Nome do checklist</label><input class="inp" id="m_nome" value="'+esc(m?m.nome:"")+'"></div>'+
+    '<div><label class="fld">Nome do checklist</label><input class="inp" id="m_nome" placeholder="Ex.: Abertura da Cozinha, Fechamento do Caixa, Limpeza do Salão" value="'+esc(m?m.nome:"")+'"></div>'+
     '<div><label class="fld">Empresa</label><select class="inp" id="m_emp" onchange="atualizarResp()">'+opEmp+'</select></div>'+
     '<div><label class="fld">Setor</label><select class="inp" id="m_set">'+opSet+'</select></div>'+
     '<div><label class="fld">Momento</label><select class="inp" id="m_mom">'+opMom+'</select></div>'+
@@ -678,6 +678,7 @@ function abrirModelo(id){
     '<div id="ajudaVencBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#b3412c">Use o <b>Primeiro vencimento</b> apenas nas recorrências <b>quinzenal, mensal, bimestral, trimestral, semestral e anual</b>: escolha a data em que ele vence pela primeira vez e o sistema repete a partir dela (ex.: mensal todo dia 10; anual no mesmo dia e mês). Para diária, dias úteis, fim de semana e semanal, pode deixar em branco.</div>'+
     '<div style="margin-top:12px"><label class="fld">Dias da semana</label><div id="diasBox">'+diasHtml+'</div><div class="small muted" id="diasHint" style="margin-top:4px"></div></div>'+
     '<div style="margin-top:18px" class="between"><div><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens do checklist</div><div class="small" style="font-weight:600;margin-top:2px;max-width:560px;color:#c0392b">Todos os itens abaixo pertencem a <b>este</b> checklist e seguem o mesmo cabeçalho acima — mesma empresa, setor, momento, recorrência, horário-limite e dias. Você está adicionando as <b>tarefas</b> que serão verificadas.</div></div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
+    '<div id="ajudaPesoBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#3a3a3a"><b>Peso</b> indica o quanto cada item influencia na <b>nota final</b> do checklist — quanto maior, mais aquele item pesa no resultado. <b>1</b> = pouco relevante · <b>2</b> = baixa · <b>3</b> = média · <b>4</b> = alta · <b>5</b> = item decisivo/crítico. Use 4 ou 5 só para o que realmente não pode falhar.</div>'+
     '<datalist id="blocosList"></datalist>'+
     '<div id="itensEdit" style="margin-top:10px"></div>'+
     '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarModelo()">Salvar modelo</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
@@ -700,6 +701,8 @@ function aplicarRecorrenciaDias(){
 }
 function ajudaVenc(){ var b=document.getElementById("ajudaVencBox"); if(b) b.classList.toggle("hidden"); }
 function ajudaEstr(){ var b=document.getElementById("ajudaEstrBox"); if(b) b.classList.toggle("hidden"); }
+function setPeso(idx,n){ EDIT.itens[idx].peso=n; renderItensEdit(); }
+function ajudaPeso(){ var b=document.getElementById("ajudaPesoBox"); if(b) b.classList.toggle("hidden"); }
 function atualizarResp(){
   var emp=val("m_emp"), atual=val("m_resp");
   var sel=document.getElementById("m_resp"); if(!sel) return;
@@ -720,12 +723,12 @@ function renderItensEdit(){
         '<div><label class="fld">'+(EDIT.estrutura==="horario"?"Faixa horária":"Grupo / Bloco")+'</label><input class="inp it" list="blocosList" data-i="'+idx+'" data-k="bloco" value="'+esc(it.bloco)+'" placeholder="'+(EDIT.estrutura==="horario"?"Ex.: 08:00, Manhã":"Ex.: Abertura, Higienização")+'"></div>'+
         '<div><label class="fld">Tipo</label><select class="inp it" data-i="'+idx+'" data-k="tipo" onchange="renderItensEdit2('+idx+',this.value)">'+
           ['check','numerico','avaliativo','texto'].map(function(t){return '<option value="'+t+'" '+(norm(it.tipo)===t?'selected':'')+'>'+t+'</option>';}).join("")+'</select></div>'+
-        '<div style="grid-column:1/-1"><label class="fld">Título</label><input class="inp it" data-i="'+idx+'" data-k="titulo" value="'+esc(it.titulo)+'"></div>'+
-        '<div style="grid-column:1/-1"><label class="fld">Descrição</label><textarea class="inp it" data-i="'+idx+'" data-k="descricao">'+esc(it.descricao)+'</textarea></div>'+
+        '<div style="grid-column:1/-1"><label class="fld">Título</label><input class="inp it" data-i="'+idx+'" data-k="titulo" placeholder="Ex.: Conferir temperatura da câmara fria" value="'+esc(it.titulo)+'"></div>'+
+        '<div style="grid-column:1/-1"><label class="fld">Descrição</label><textarea class="inp it" data-i="'+idx+'" data-k="descricao" placeholder="Ex.: Anotar a temperatura no painel. Se passar de 5°C, avisar o gestor imediatamente.">'+esc(it.descricao)+'</textarea></div>'+
         (norm(it.tipo)==="numerico"?'<div><label class="fld">Meta mín</label><input class="inp it" data-i="'+idx+'" data-k="meta_min" value="'+esc(it.meta_min)+'"></div><div><label class="fld">Meta máx</label><input class="inp it" data-i="'+idx+'" data-k="meta_max" value="'+esc(it.meta_max)+'"></div>':'')+
         '<div><label class="fld">Evidência</label><select class="inp it" data-i="'+idx+'" data-k="evidencia">'+
           [['nenhuma','Nenhuma'],['foto','Foto (opcional)'],['foto_obrigatoria','Foto obrigatória']].map(function(o){return '<option value="'+o[0]+'" '+(norm(it.evidencia)===o[0]?'selected':'')+'>'+o[1]+'</option>';}).join("")+'</select></div>'+
-        '<div><label class="fld">Peso (1–5)</label><input type="number" min="1" max="5" step="1" class="inp it" data-i="'+idx+'" data-k="peso" value="'+esc(it.peso)+'"><div style="display:flex;gap:3px;margin-top:5px;font-size:.6rem;font-weight:700;text-align:center;color:#fff"><span style="flex:1;background:#b3412c;border-radius:4px;padding:2px 0">1 mín</span><span style="flex:1;background:#d97524;border-radius:4px;padding:2px 0">2</span><span style="flex:1;background:#c79a1f;border-radius:4px;padding:2px 0">3</span><span style="flex:1;background:#5b9b4e;border-radius:4px;padding:2px 0">4</span><span style="flex:1;background:#2f7d5b;border-radius:4px;padding:2px 0">5 máx</span></div></div>'+
+        '<div><label class="fld">Peso <span onclick="ajudaPeso()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label><div style="display:flex;gap:4px">'+[[1,'#b3412c'],[2,'#d97524'],[3,'#c79a1f'],[4,'#5b9b4e'],[5,'#2f7d5b']].map(function(p){var on=String(it.peso)===String(p[0]);return '<button type="button" onclick="setPeso('+idx+','+p[0]+')" style="flex:1;cursor:pointer;border-radius:6px;padding:7px 0;font-weight:800;font-size:.9rem;color:#fff;background:'+p[1]+';border:'+(on?'2px solid #15211f':'2px solid transparent')+';opacity:'+(on?'1':'.4')+'">'+p[0]+'</button>';}).join("")+'</div></div>'+
         '<div><label class="fld">Obrigatório</label><select class="inp it" data-i="'+idx+'" data-k="obrigatorio"><option value="nao" '+(norm(it.obrigatorio)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.obrigatorio)==="sim"?'selected':'')+'>Sim</option></select></div>'+
         '<div><label class="fld">Item crítico</label><select class="inp it" data-i="'+idx+'" data-k="item_critico"><option value="nao" '+(norm(it.item_critico)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.item_critico)==="sim"?'selected':'')+'>Sim</option></select></div>'+
       '</div>';
