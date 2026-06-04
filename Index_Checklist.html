@@ -161,6 +161,8 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
       <div><h2 class="sec">Checklists de hoje</h2><div class="sub" id="execData">—</div></div>
       <div class="row">
         <select class="inp" id="execSetor" style="width:auto" onchange="renderExec()"></select>
+        <select class="inp" id="execMomento" style="width:auto" onchange="renderExec()"></select>
+        <select class="inp" id="execRec" style="width:auto" onchange="renderExec()"></select>
       </div>
     </div>
     <div class="card pad" style="margin-bottom:16px">
@@ -378,6 +380,14 @@ function renderSetorFiltro(){
   sel.innerHTML='<option value="">Todos os setores</option>';
   lista("setor").forEach(function(l){ var o=document.createElement("option"); o.value=l.valor; o.textContent=l.rotulo; sel.appendChild(o); });
   sel.value=atual;
+  var mo=document.getElementById("execMomento"); var amo=mo.value;
+  mo.innerHTML='<option value="">Todos os momentos</option>';
+  lista("momento").forEach(function(l){ var o=document.createElement("option"); o.value=l.valor; o.textContent=l.rotulo; mo.appendChild(o); });
+  mo.value=amo;
+  var rc=document.getElementById("execRec"); var arc=rc.value;
+  rc.innerHTML='<option value="">Todas as recorrências</option>';
+  lista("recorrencia").forEach(function(l){ var o=document.createElement("option"); o.value=l.valor; o.textContent=l.rotulo; rc.appendChild(o); });
+  rc.value=arc;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -425,9 +435,13 @@ function statusDoDia(m,r){
 }
 function checklistsDeHoje(){
   var setor=document.getElementById("execSetor").value;
+  var mom=document.getElementById("execMomento").value;
+  var rec=document.getElementById("execRec").value;
   return ST.modelos.filter(function(m){
     if(m.empresa!==ST.empresaAtiva) return false;
     if(setor && m.setor!==setor) return false;
+    if(mom && norm(m.momento)!==norm(mom)) return false;
+    if(rec && norm(m.recorrencia)!==norm(rec)) return false;
     return modeloEhHoje(m);
   });
 }
@@ -436,7 +450,7 @@ function renderExec(){
   document.getElementById("execData").textContent = brData(isoHoje())+" · "+diaSemanaExt()+" · "+empNome(ST.empresaAtiva);
   var lst=checklistsDeHoje();
   var box=document.getElementById("execList"); box.innerHTML="";
-  if(!lst.length){ box.innerHTML='<div class="empty">Nenhum checklist agendado para hoje neste setor/empresa.</div>'; renderMindmap([]); return; }
+  if(!lst.length){ box.innerHTML='<div class="empty">Nenhum checklist para hoje com os filtros selecionados.</div>'; renderMindmap([]); return; }
   var dados=lst.map(function(m){ var r=respDeHoje(m); return {m:m,r:r,st:statusDoDia(m,r)}; });
   dados.forEach(function(d){
     var resp=d.colaborador = nomeResp(d.m,d.r);
@@ -678,7 +692,7 @@ function abrirModelo(id){
     '<div id="ajudaVencBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#b3412c">Use o <b>Primeiro vencimento</b> apenas nas recorrências <b>quinzenal, mensal, bimestral, trimestral, semestral e anual</b>: escolha a data em que ele vence pela primeira vez e o sistema repete a partir dela (ex.: mensal todo dia 10; anual no mesmo dia e mês). Para diária, dias úteis, fim de semana e semanal, pode deixar em branco.</div>'+
     '<div style="margin-top:12px"><label class="fld">Dias da semana</label><div id="diasBox">'+diasHtml+'</div><div class="small muted" id="diasHint" style="margin-top:4px"></div></div>'+
     '<div style="margin-top:18px" class="between"><div><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens do checklist</div><div class="small" style="font-weight:600;margin-top:2px;max-width:560px;color:#c0392b">Todos os itens abaixo pertencem a <b>este</b> checklist e seguem o mesmo cabeçalho acima — mesma empresa, setor, momento, recorrência, horário-limite e dias. Você está adicionando as <b>tarefas</b> que serão verificadas.</div></div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
-    '<div id="ajudaPesoBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#3a3a3a"><b>Peso</b> indica o quanto cada item influencia na <b>nota final</b> do checklist — quanto maior, mais aquele item pesa no resultado. <b>1</b> = pouco relevante · <b>2</b> = baixa · <b>3</b> = média · <b>4</b> = alta · <b>5</b> = item decisivo/crítico. Use 4 ou 5 só para o que realmente não pode falhar.</div>'+
+    '<div id="ajudaPesoBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#3a3a3a"><b>Peso</b> indica o quanto cada item influencia na <b>nota final</b> do checklist — quanto maior, mais decisivo. <b>1</b> = Baixa (verde) · <b>2</b> = Média-baixa · <b>3</b> = Média · <b>4</b> = Alta · <b>5</b> = Crítica (vermelho). O vermelho destaca o que <b>não pode falhar</b>.</div>'+
     '<datalist id="blocosList"></datalist>'+
     '<div id="itensEdit" style="margin-top:10px"></div>'+
     '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarModelo()">Salvar modelo</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
@@ -728,7 +742,9 @@ function renderItensEdit(){
         (norm(it.tipo)==="numerico"?'<div><label class="fld">Meta mín</label><input class="inp it" data-i="'+idx+'" data-k="meta_min" value="'+esc(it.meta_min)+'"></div><div><label class="fld">Meta máx</label><input class="inp it" data-i="'+idx+'" data-k="meta_max" value="'+esc(it.meta_max)+'"></div>':'')+
         '<div><label class="fld">Evidência</label><select class="inp it" data-i="'+idx+'" data-k="evidencia">'+
           [['nenhuma','Nenhuma'],['foto','Foto (opcional)'],['foto_obrigatoria','Foto obrigatória']].map(function(o){return '<option value="'+o[0]+'" '+(norm(it.evidencia)===o[0]?'selected':'')+'>'+o[1]+'</option>';}).join("")+'</select></div>'+
-        '<div><label class="fld">Peso <span onclick="ajudaPeso()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label><div style="display:flex;gap:4px">'+[[1,'#b3412c'],[2,'#d97524'],[3,'#c79a1f'],[4,'#5b9b4e'],[5,'#2f7d5b']].map(function(p){var on=String(it.peso)===String(p[0]);return '<button type="button" onclick="setPeso('+idx+','+p[0]+')" style="flex:1;cursor:pointer;border-radius:6px;padding:7px 0;font-weight:800;font-size:.9rem;color:#fff;background:'+p[1]+';border:'+(on?'2px solid #15211f':'2px solid transparent')+';opacity:'+(on?'1':'.4')+'">'+p[0]+'</button>';}).join("")+'</div></div>'+
+        '<div><label class="fld">Peso <span onclick="ajudaPeso()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label>'+
+        '<div style="display:flex;gap:4px;margin-bottom:3px;font-size:.62rem;font-weight:800;text-align:center;min-height:13px">'+[[1,'#2f7d5b','Baixa'],[2,'#5b9b4e','Média-baixa'],[3,'#c79a1f','Média'],[4,'#d97524','Alta'],[5,'#b3412c','Crítica']].map(function(p){return '<span style="flex:1;color:'+p[1]+'">'+(String(it.peso)===String(p[0])?p[2]:'')+'</span>';}).join("")+'</div>'+
+        '<div style="display:flex;gap:4px">'+[[1,'#2f7d5b'],[2,'#5b9b4e'],[3,'#c79a1f'],[4,'#d97524'],[5,'#b3412c']].map(function(p){var on=String(it.peso)===String(p[0]);return '<button type="button" onclick="setPeso('+idx+','+p[0]+')" style="flex:1;cursor:pointer;border-radius:6px;padding:7px 0;font-weight:800;font-size:.9rem;color:#fff;background:'+p[1]+';border:'+(on?'2px solid #15211f':'2px solid transparent')+';opacity:'+(on?'1':'.4')+'">'+p[0]+'</button>';}).join("")+'</div></div>'+
         '<div><label class="fld">Obrigatório</label><select class="inp it" data-i="'+idx+'" data-k="obrigatorio"><option value="nao" '+(norm(it.obrigatorio)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.obrigatorio)==="sim"?'selected':'')+'>Sim</option></select></div>'+
         '<div><label class="fld">Item crítico</label><select class="inp it" data-i="'+idx+'" data-k="item_critico"><option value="nao" '+(norm(it.item_critico)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.item_critico)==="sim"?'selected':'')+'>Sim</option></select></div>'+
       '</div>';
