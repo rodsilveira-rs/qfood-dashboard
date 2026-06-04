@@ -513,7 +513,6 @@
         <button class="cal-refresh" onclick="renderPosEvento()">↻ Atualizar</button>
       </div>
     </div>
-    <p class="pos-intro">Pós-mortem das ações: registre o resultado, os indicadores por área (ruptura, sobra, CTR, margem…), as lições aprendidas e reaproveite o que deu certo virando um <b>playbook</b> pro próximo ano.</p>
     <div id="posConteudo"></div>
   </section>
 
@@ -1091,12 +1090,13 @@ function carregarPlaybooks(){
       PLAYBOOKS={};
       if(!txt || txt.indexOf('COLE_O_GID_PLAYBOOK')>=0) return;
       csvParaObjetos(txt).forEach(function(o){
-        var nome=(o.Playbook||'').trim(); if(!nome) return;
-        if(!PLAYBOOKS[nome]) PLAYBOOKS[nome]={nome:nome, tipo:(o.Tipo||'').trim(), tarefas:[]};
+        var g={}; Object.keys(o).forEach(function(k){ g[k.trim().toLowerCase()]=o[k]; });
+        var nome=(g['playbook']||'').trim(); if(!nome) return;
+        if(!PLAYBOOKS[nome]) PLAYBOOKS[nome]={nome:nome, tipo:(g['tipo']||'').trim(), tarefas:[]};
         PLAYBOOKS[nome].tarefas.push({
-          ordem: parseInt(o.Ordem,10) || (PLAYBOOKS[nome].tarefas.length+1),
-          resp:(o.Responsavel||'').trim(), cat:(o.Categoria||'').trim(),
-          tarefa:(o.Tarefa||'').trim(), dias: parseInt(o.Dias,10), dep:(o.Depende_de||'').trim()
+          ordem: parseInt(g['ordem'],10) || (PLAYBOOKS[nome].tarefas.length+1),
+          resp:(g['responsavel']||'').trim(), cat:(g['categoria']||'').trim(),
+          tarefa:(g['tarefa']||'').trim(), dias: parseInt(g['dias'],10), dep:(g['depende_de']||'').trim()
         });
       });
       Object.keys(PLAYBOOKS).forEach(function(k){ PLAYBOOKS[k].tarefas.sort(function(a,b){ return a.ordem-b.ordem; }); });
@@ -1106,9 +1106,9 @@ function carregarPlaybooks(){
 function preencherPlaybookSelect(tipoEvento){
   var sel=document.getElementById('pf-playbook'), wrap=document.getElementById('pf-playbook-wrap');
   if(!sel) return;
-  var nomes=Object.keys(PLAYBOOKS);
-  if(!nomes.length){ if(wrap) wrap.style.display='none'; return; }
   if(wrap) wrap.style.display='';
+  var nomes=Object.keys(PLAYBOOKS);
+  if(!nomes.length){ sel.innerHTML='<option value="">— nenhum playbook carregado —</option>'; return; }
   nomes.sort(function(a,b){
     var ta=PLAYBOOKS[a].tipo===tipoEvento?0:1, tb=PLAYBOOKS[b].tipo===tipoEvento?0:1;
     return ta-tb || a.localeCompare(b);
