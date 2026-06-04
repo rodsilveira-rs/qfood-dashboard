@@ -183,7 +183,6 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
       <div class="between" style="margin-bottom:14px">
         <div><h2 class="sec">Modelos de checklist</h2><div class="sub">Monte os checklists que serão executados</div></div>
         <div class="row">
-          <button class="btn ghost sm" onclick="importarElizeu()">📥 Importar modelo do Elizeu</button>
           <button class="btn" onclick="abrirModelo()">+ Novo modelo</button>
         </div>
       </div>
@@ -381,15 +380,36 @@ function renderSetorFiltro(){
 // ════════════════════════════════════════════════════════════
 // EXECUTAR — checklists de hoje
 // ════════════════════════════════════════════════════════════
+function _refData(s){
+  s=String(s||"").trim(); if(!s) return null;
+  var iso=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(iso) return new Date(+iso[1],+iso[2]-1,+iso[3]);
+  var br=s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(br) return new Date(+br[3],+br[2]-1,+br[1]);
+  var d=new Date(s); return isNaN(d.getTime())?null:d;
+}
 function modeloEhHoje(m){
   var rec=norm(m.recorrencia)||"diaria";
+  var dow=new Date().getDay();                                  // 0=domingo ... 6=sábado
   if(rec==="diaria") return true;
+  if(rec.indexOf("dias")>=0 && rec.indexOf("uteis")>=0) return dow>=1 && dow<=5;   // dias úteis (seg–sex)
+  if(rec.indexOf("fim")>=0  && rec.indexOf("semana")>=0) return dow===0 || dow===6; // fim de semana (sáb/dom)
   if(rec==="semanal"){
     var dias=String(m.dias_semana||"").split(",").map(function(s){return s.trim();}).filter(Boolean);
     if(!dias.length) return true;
-    return dias.indexOf(String(new Date().getDay()))>=0;
+    return dias.indexOf(String(dow))>=0;
   }
-  return true; // quinzenal/mensal: v1 mostra sempre (refinar depois)
+  if(rec.indexOf("demanda")>=0 || rec.indexOf("avulso")>=0) return true; // sob demanda: fica sempre disponível pra rodar quando o evento ocorrer
+  // periódicos (quinzenal/mensal/bimestral/trimestral/semestral/anual): a data de criação do modelo é a referência
+  var ref=_refData(m.data_ref) || _refData(m.criado_em); if(!ref) return true;
+  var hoje=new Date(); hoje.setHours(0,0,0,0); ref.setHours(0,0,0,0);
+  var mesmoDia = hoje.getDate()===ref.getDate();
+  var meses = (hoje.getFullYear()-ref.getFullYear())*12 + (hoje.getMonth()-ref.getMonth());
+  if(rec==="quinzenal"){ var dd=Math.round((hoje-ref)/86400000); return dd>=0 && dd%14===0; }
+  if(rec==="mensal")     return mesmoDia;
+  if(rec==="bimestral")  return mesmoDia && meses%2===0;
+  if(rec==="trimestral") return mesmoDia && meses%3===0;
+  if(rec==="semestral")  return mesmoDia && meses%6===0;
+  if(rec==="anual")      return mesmoDia && hoje.getMonth()===ref.getMonth();
+  return true;
 }
 function respDeHoje(m){
   return ST.respostas.filter(function(r){ return String(r.modelo_id)===String(m.id) && String(r.data_agendada).substring(0,10)===isoHoje(); })[0];
@@ -616,13 +636,13 @@ function finalizarExec(){
 function renderModelos(){
   var box=document.getElementById("modList"); if(!box) return; box.innerHTML="";
   var mods=ST.modelos.filter(function(m){return m.empresa===ST.empresaAtiva;});
-  if(!mods.length){ box.innerHTML='<div class="empty">Nenhum modelo nesta empresa. Crie um ou importe o do Elizeu.</div>'; return; }
+  if(!mods.length){ box.innerHTML='<div class="empty">Nenhum checklist cadastrado para esta empresa. Clique em “+ Novo modelo” para criar o primeiro.</div>'; return; }
   mods.forEach(function(m){
     var qtd=ST.itens.filter(function(it){return String(it.modelo_id)===String(m.id);}).length;
     var div=document.createElement("div"); div.className="card pad";
     div.innerHTML='<div class="between"><div class="t" style="font-weight:700">'+esc(m.nome)+'</div><span class="tag">'+qtd+' itens</span></div>'+
       '<div class="small muted" style="margin-top:6px">'+setorRot(m.setor)+' · '+momRot(m.momento)+' · '+rotuloRec(m.recorrencia)+(m.horario_limite?' · até '+m.horario_limite:'')+'</div>'+
-      '<div class="row" style="margin-top:12px"><button class="btn ghost sm" onclick="abrirModelo(\''+m.id+'\')">Editar</button><button class="btn ghost sm" onclick="excluirModelo(\''+m.id+'\')">Desativar</button></div>';
+      '<div class="row" style="margin-top:12px"><button class="btn ghost sm" onclick="abrirModelo(\''+m.id+'\')">Editar</button><button class="btn ghost sm" onclick="duplicarModelo(\''+m.id+'\')">Duplicar</button><button class="btn ghost sm" onclick="excluirModelo(\''+m.id+'\')">Desativar</button></div>';
     box.appendChild(div);
   });
 }
@@ -649,6 +669,7 @@ function abrirModelo(id){
     '<div><label class="fld">Responsável padrão</label><select class="inp" id="m_resp">'+opResp+'</select></div>'+
     '<div><label class="fld">Recorrência</label><select class="inp" id="m_rec">'+opRec+'</select></div>'+
     '<div><label class="fld">Horário limite</label><input type="time" class="inp" id="m_hl" value="'+esc(m?m.horario_limite:"")+'"></div>'+
+    '<div><label class="fld">Primeiro vencimento <span class="small muted">(quinzenal/mensal+)</span></label><input type="date" class="inp" id="m_dref" value="'+esc(m?String(m.data_ref||"").substring(0,10):"")+'"></div>'+
     '</div>'+
     '<div style="margin-top:10px"><label class="fld">Dias da semana (se semanal)</label>'+diasHtml+'</div>'+
     '<div style="margin-top:18px" class="between"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens</div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
@@ -692,7 +713,7 @@ function salvarModelo(){
   var payload={
     id:EDIT.id||undefined, nome:val("m_nome"), empresa:val("m_emp"), setor:val("m_set"),
     momento:val("m_mom"), tipo_estrutura:val("m_estr"), responsavel_colab:val("m_resp"),
-    recorrencia:val("m_rec"), dias_semana:dias.join(","), horario_limite:val("m_hl"),
+    recorrencia:val("m_rec"), dias_semana:dias.join(","), horario_limite:val("m_hl"), data_ref:val("m_dref"),
     itens: EDIT.itens.map(function(it,i){ it.ordem=i+1; it.obrigatorio=norm(it.obrigatorio)==="sim"; it.item_critico=norm(it.item_critico)==="sim"; return it; })
   };
   if(!payload.nome){ toast("Dê um nome ao checklist."); return; }
@@ -702,51 +723,20 @@ function salvarModelo(){
 function excluirModelo(id){ if(!confirm("Desativar este modelo?")) return; apiPost("excluirModelo",{id:id}).then(function(r){ if(r.ok){toast("Desativado.");carregarTudo();} }); }
 function val(id){ var e=document.getElementById(id); return e?e.value:""; }
 
-// ── Importar checklist do Elizeu (primeiro modelo, formato blocos) ──
-function importarElizeu(){
-  if(!confirm("Importar o checklist do Elizeu (Sushi Trip · Cozinha) como novo modelo?")) return;
-  var I=function(bloco,titulo,tipo,opt){ opt=opt||{}; return {bloco:bloco,titulo:titulo,descricao:opt.d||"",tipo:tipo||"check",obrigatorio:!!opt.req,item_critico:!!opt.crit,evidencia:opt.ev||"nenhuma",meta_min:opt.min!=null?opt.min:"",meta_max:opt.max!=null?opt.max:"",peso:opt.peso||1,rotulo_pos:"Feito",rotulo_neg:"Não Feito"}; };
-  var itens=[
-    I("Chegada do Chef","Uniforme limpo e completo"),I("Chegada do Chef","Touca corretamente posicionada"),
-    I("Chegada do Chef","Avental limpo"),I("Chegada do Chef","Higienização correta das mãos"),
-    I("Chegada do Chef","Objetos pessoais guardados"),I("Chegada do Chef","Celular fora da praça de trabalho"),
-    I("Chegada do Chef","Verificação da escala do dia"),I("Chegada do Chef","Conferência da praça responsável"),
-    I("Verificação inicial","Luzes e Coifa ligadas"),I("Verificação inicial","Equipamentos funcionando"),
-    I("Verificação inicial","Bancadas limpas"),I("Verificação inicial","Piso limpo e seco"),
-    I("Verificação inicial","Pias higienizadas"),I("Verificação inicial","Lixeiras limpas e com saco"),
-    I("Verificação inicial","Sabonete, papel toalha e Álcool 70 disponíveis"),
-    I("Controle de temperatura","Câmaras e geladeiras funcionando no padrão",null,{crit:true}),
-    I("Controle de temperatura","Proteínas em descongelamento correto"),
-    I("Controle de temperatura","Temperatura Câmara Resfriada","numerico",{crit:true,min:0,max:5,ev:"foto"}),
-    I("Controle de temperatura","Temperatura Câmara Congelada","numerico",{crit:true,min:-25,max:-12,ev:"foto"}),
-    I("Conferência de produção","Verificar produção pendente do dia anterior"),
-    I("Conferência de produção","Conferir etiquetas, validade e mise en place"),
-    I("Conferência de produção","Conferir produtos em ruptura e lista do dia"),
-    I("Conferência de produção","Verificar reservas, eventos e previsão de movimento"),
-    I("Praça de fritura","Fritadeiras ligadas e cestos limpos"),
-    I("Praça de fritura","Empanamento organizado e farinhas abastecidas"),
-    I("Praça de fritura","Qualidade/odor do óleo","avaliativo",{crit:true}),
-    I("Praça quente / Sushiman","Fogão operacional e forno aquecido"),
-    I("Praça quente / Sushiman","Panelas, cubas e utensílios organizados"),
-    I("Praça quente / Sushiman","Insumos prontos (Arroz/Shari no padrão)"),
-    I("Praça quente / Sushiman","Caldos, molhos e peixes pré-preparados"),
-    I("Proteínas e hortifruti","Proteínas porcionadas e etiquetas verificadas"),
-    I("Proteínas e hortifruti","Folhas higienizadas e legumes cortados"),
-    I("Proteínas e hortifruti","Temperos e alho processados e etiquetados"),
-    I("Organização e segurança","Câmara organizada e FIFO executado"),
-    I("Organização e segurança","Cubas limpas e utensílios organizados"),
-    I("Organização e segurança","Facas afiadas e tábuas separadas por cor"),
-    I("Organização e segurança","Gás verificado e extintores acessíveis"),
-    I("Alinhamento e liberação","Comunicação alinhada com salão"),
-    I("Alinhamento e liberação","Produtos em falta informados"),
-    I("Alinhamento e liberação","Cozinha pronta para o primeiro pedido"),
-    I("Alinhamento e liberação","Observações gerais / Desperdícios","texto")
-  ];
-  itens.forEach(function(it,i){it.ordem=i+1;});
-  var payload={ nome:"Abertura Cozinha — Chef (Elizeu)", empresa:(ST.empresas.filter(function(e){return norm(e.nome).indexOf("sushi")>=0;})[0]||{}).id||ST.empresaAtiva,
-    setor:"Cozinha", momento:"abertura", tipo_estrutura:"blocos", responsavel_colab:"", recorrencia:"diaria", dias_semana:"", horario_limite:"10:00", itens:itens };
-  toast("Importando…");
-  apiPost("salvarModelo",payload).then(function(r){ if(r.ok){toast("Modelo do Elizeu importado!");carregarTudo();} else toast("Erro: "+(r.error||"")); });
+// ── Duplicar um modelo existente (abre o editor como NOVO, já preenchido) ──
+function duplicarModelo(id){
+  var m=ST.modelos.filter(function(x){return x.id===id;})[0]; if(!m) return;
+  var itens=ST.itens.filter(function(it){return String(it.modelo_id)===String(id);}).sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
+  abrirModelo();
+  document.getElementById("m_nome").value = m.nome+" (cópia)";
+  var setSel=function(el,v){ var e=document.getElementById(el); if(e) e.value=(v==null?"":v); };
+  setSel("m_emp",m.empresa); setSel("m_set",m.setor); setSel("m_mom",m.momento);
+  setSel("m_estr",m.tipo_estrutura); setSel("m_resp",m.responsavel_colab);
+  setSel("m_rec",m.recorrencia); setSel("m_hl",m.horario_limite); setSel("m_dref","");
+  String(m.dias_semana||"").split(",").forEach(function(d){ var c=document.querySelector('.diaSem[value="'+d.trim()+'"]'); if(c) c.checked=true; });
+  EDIT.itens = itens.map(function(it){ var c=JSON.parse(JSON.stringify(it)); c.id=""; return c; });
+  if(!EDIT.itens.length) EDIT.itens=[novoItem()];
+  renderItensEdit();
 }
 
 // ════════════════════════════════════════════════════════════
