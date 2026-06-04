@@ -665,7 +665,7 @@ function abrirModelo(id){
 
   var h='<div class="grid g2">'+
     '<div><label class="fld">Nome do checklist</label><input class="inp" id="m_nome" value="'+esc(m?m.nome:"")+'"></div>'+
-    '<div><label class="fld">Empresa</label><select class="inp" id="m_emp">'+opEmp+'</select></div>'+
+    '<div><label class="fld">Empresa</label><select class="inp" id="m_emp" onchange="atualizarResp()">'+opEmp+'</select></div>'+
     '<div><label class="fld">Setor</label><select class="inp" id="m_set">'+opSet+'</select></div>'+
     '<div><label class="fld">Momento</label><select class="inp" id="m_mom">'+opMom+'</select></div>'+
     '<div><label class="fld">Estrutura</label><select class="inp" id="m_estr" onchange="EDIT.estrutura=this.value;renderItensEdit();"><option value="blocos" '+(m&&m.tipo_estrutura==="horario"?'':'selected')+'>Por blocos</option><option value="horario" '+(m&&m.tipo_estrutura==="horario"?'selected':'')+'>Por faixa horária</option></select></div>'+
@@ -674,9 +674,9 @@ function abrirModelo(id){
     '<div><label class="fld">Horário limite</label><input type="time" class="inp" id="m_hl" value="'+esc(m?m.horario_limite:"")+'"></div>'+
     '<div><label class="fld">Primeiro vencimento <span onclick="ajudaVenc()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label><input type="date" class="inp" id="m_dref" value="'+esc(m?String(m.data_ref||"").substring(0,10):"")+'"></div>'+
     '</div>'+
-    '<div id="ajudaVencBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:var(--surface2);border:1px solid var(--line);border-radius:10px;font-size:.82rem;color:var(--muted)">Use o <b>Primeiro vencimento</b> apenas nas recorrências <b>quinzenal, mensal, bimestral, trimestral, semestral e anual</b>: escolha a data em que ele vence pela primeira vez e o sistema repete a partir dela (ex.: mensal todo dia 10; anual no mesmo dia e mês). Para diária, dias úteis, fim de semana e semanal, pode deixar em branco.</div>'+
+    '<div id="ajudaVencBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#b3412c">Use o <b>Primeiro vencimento</b> apenas nas recorrências <b>quinzenal, mensal, bimestral, trimestral, semestral e anual</b>: escolha a data em que ele vence pela primeira vez e o sistema repete a partir dela (ex.: mensal todo dia 10; anual no mesmo dia e mês). Para diária, dias úteis, fim de semana e semanal, pode deixar em branco.</div>'+
     '<div style="margin-top:12px"><label class="fld">Dias da semana</label><div id="diasBox">'+diasHtml+'</div><div class="small muted" id="diasHint" style="margin-top:4px"></div></div>'+
-    '<div style="margin-top:18px" class="between"><div><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens do checklist</div><div class="small muted" style="font-weight:400;margin-top:2px;max-width:560px">Todos os itens abaixo pertencem a <b>este</b> checklist e seguem o mesmo cabeçalho acima — mesma empresa, setor, momento, recorrência, horário-limite e dias. Você está adicionando as <b>tarefas</b> que serão verificadas.</div></div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
+    '<div style="margin-top:18px" class="between"><div><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">Itens do checklist</div><div class="small" style="font-weight:600;margin-top:2px;max-width:560px;color:#c0392b">Todos os itens abaixo pertencem a <b>este</b> checklist e seguem o mesmo cabeçalho acima — mesma empresa, setor, momento, recorrência, horário-limite e dias. Você está adicionando as <b>tarefas</b> que serão verificadas.</div></div><button class="btn ghost sm" onclick="addItem()">+ Item</button></div>'+
     '<datalist id="blocosList"></datalist>'+
     '<div id="itensEdit" style="margin-top:10px"></div>'+
     '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarModelo()">Salvar modelo</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
@@ -698,6 +698,13 @@ function aplicarRecorrenciaDias(){
   else { set([],"Não se aplica a esta recorrência — defina o Primeiro vencimento."); }
 }
 function ajudaVenc(){ var b=document.getElementById("ajudaVencBox"); if(b) b.classList.toggle("hidden"); }
+function atualizarResp(){
+  var emp=val("m_emp"), atual=val("m_resp");
+  var sel=document.getElementById("m_resp"); if(!sel) return;
+  var op='<option value="">Qualquer do setor</option>';
+  ST.colaboradores.filter(function(c){return c.empresa===emp;}).forEach(function(c){ op+='<option value="'+c.id+'">'+esc(c.nome)+'</option>'; });
+  sel.innerHTML=op; sel.value=atual;
+}
 var EDIT=null;
 function novoItem(){ return {id:"",bloco:"",titulo:"",descricao:"",tipo:"check",obrigatorio:"nao",item_critico:"nao",evidencia:"nenhuma",meta_min:"",meta_max:"",peso:1,rotulo_pos:"Feito",rotulo_neg:"Não Feito"}; }
 function addItem(){ var ni=novoItem(); var last=EDIT.itens[EDIT.itens.length-1]; if(last&&last.bloco) ni.bloco=last.bloco; EDIT.itens.push(ni); renderItensEdit(); }
@@ -716,7 +723,7 @@ function renderItensEdit(){
         (norm(it.tipo)==="numerico"?'<div><label class="fld">Meta mín</label><input class="inp it" data-i="'+idx+'" data-k="meta_min" value="'+esc(it.meta_min)+'"></div><div><label class="fld">Meta máx</label><input class="inp it" data-i="'+idx+'" data-k="meta_max" value="'+esc(it.meta_max)+'"></div>':'')+
         '<div><label class="fld">Evidência</label><select class="inp it" data-i="'+idx+'" data-k="evidencia">'+
           [['nenhuma','Nenhuma'],['foto','Foto (opcional)'],['foto_obrigatoria','Foto obrigatória']].map(function(o){return '<option value="'+o[0]+'" '+(norm(it.evidencia)===o[0]?'selected':'')+'>'+o[1]+'</option>';}).join("")+'</select></div>'+
-        '<div><label class="fld">Peso (1–5)</label><input type="number" min="1" max="5" step="1" class="inp it" data-i="'+idx+'" data-k="peso" value="'+esc(it.peso)+'"></div>'+
+        '<div><label class="fld">Peso (1–5)</label><input type="number" min="1" max="5" step="1" class="inp it" data-i="'+idx+'" data-k="peso" value="'+esc(it.peso)+'"><div style="display:flex;gap:3px;margin-top:5px;font-size:.6rem;font-weight:700;text-align:center;color:#fff"><span style="flex:1;background:#b3412c;border-radius:4px;padding:2px 0">1 mín</span><span style="flex:1;background:#d97524;border-radius:4px;padding:2px 0">2</span><span style="flex:1;background:#c79a1f;border-radius:4px;padding:2px 0">3</span><span style="flex:1;background:#5b9b4e;border-radius:4px;padding:2px 0">4</span><span style="flex:1;background:#2f7d5b;border-radius:4px;padding:2px 0">5 máx</span></div></div>'+
         '<div><label class="fld">Obrigatório</label><select class="inp it" data-i="'+idx+'" data-k="obrigatorio"><option value="nao" '+(norm(it.obrigatorio)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.obrigatorio)==="sim"?'selected':'')+'>Sim</option></select></div>'+
         '<div><label class="fld">Item crítico</label><select class="inp it" data-i="'+idx+'" data-k="item_critico"><option value="nao" '+(norm(it.item_critico)==="sim"?'':'selected')+'>Não</option><option value="sim" '+(norm(it.item_critico)==="sim"?'selected':'')+'>Sim</option></select></div>'+
       '</div>';
