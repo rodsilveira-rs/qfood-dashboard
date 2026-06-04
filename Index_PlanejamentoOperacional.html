@@ -360,6 +360,34 @@
     .topo h1{font-size:16px}
   }
   .nota-rodape{margin-top:22px;font-size:12px;color:var(--muted);text-align:center}
+
+  /* alerta de antecedência no card do plano */
+  .badge-alerta{display:inline-block;margin:2px 0 8px;font-size:12px;font-weight:800;color:#9a3412;
+    background:#fff3e6;border:1px solid #f4b27a;border-radius:8px;padding:6px 10px}
+  /* botão Ver mapa no rodapé do card */
+  .mapa-lnk{color:#0f766e;font-weight:800}
+  /* playbook no modal */
+  .pb-campo{background:#f3f6f5;border:1px solid var(--line);border-radius:10px;padding:10px}
+  .pb-linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .pb-linha select{flex:1;min-width:180px;border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:13px;background:#fff}
+  .btn-pb{border:1px solid var(--accent);background:var(--accent);color:#fff;font-family:inherit;font-weight:800;font-size:12.5px;padding:9px 14px;border-radius:9px;cursor:pointer}
+  .btn-pb:hover{filter:brightness(.95)}
+  .pb-dica{display:block;margin-top:6px;font-size:11.5px;color:var(--muted)}
+  .ms-dr{font-size:11px;font-weight:800;color:#0f766e;background:#dcefe9;border-radius:6px;padding:2px 6px}
+  /* pós-evento */
+  .pos-intro{font-size:13px;color:var(--ink-2);margin:0 0 14px;max-width:780px}
+  .pos-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .pos-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .pos-kpis{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .pos-kpi{font-size:12px;font-weight:700;color:var(--ink-2);background:#eef2f1;border:1px solid var(--line);border-radius:999px;padding:4px 11px}
+  .pos-bloco{font-size:13px;color:var(--ink-2);margin-top:8px;line-height:1.45}
+  .pos-reaprov{font-size:12.5px;font-weight:800;color:#9a6a00;background:#fff7e0;border:1px solid #f0d486;border-radius:8px;padding:6px 10px;margin-top:10px;display:inline-block}
+  .pe-cab{font-size:14px;color:var(--ink-2);margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pe-cab span{color:var(--muted);font-size:12.5px}
+  .pe-sec{display:block;font-size:12px;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.03em;margin:6px 0 2px}
+  .pe-reaprov{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink-2);margin-top:6px;cursor:pointer}
+  .pe-reaprov input{width:auto}
+  .pe-rod{display:flex;align-items:center;gap:8px}
 </style>
 </head>
 <body>
@@ -385,6 +413,7 @@
   <button data-aba="plano"><span class="ic">🎯</span> Plano de Ações</button>
   <button data-aba="checklist"><span class="ic">✅</span> Checklist por Setor</button>
   <button data-aba="cronograma"><span class="ic">⏱️</span> Cronograma 30 dias</button>
+  <button data-aba="posevento"><span class="ic">📈</span> Pós-Evento</button>
 </nav>
 
 <main>
@@ -472,6 +501,22 @@
     <div id="cronoConteudo"></div>
   </section>
 
+  <!-- ---------- ABA 5: PÓS-EVENTO ---------- -->
+  <section class="painel" id="aba-posevento">
+    <div class="painel-cab linha">
+      <h2>📈 Pós-Evento</h2>
+      <div class="cab-acoes">
+        <select class="cal-sel" id="posFiltro">
+          <option value="Concluído">Concluídos</option>
+          <option value="Todos">Todos os planos</option>
+        </select>
+        <button class="cal-refresh" onclick="renderPosEvento()">↻ Atualizar</button>
+      </div>
+    </div>
+    <p class="pos-intro">Pós-mortem das ações: registre o resultado, os indicadores por área (ruptura, sobra, CTR, margem…), as lições aprendidas e reaproveite o que deu certo virando um <b>playbook</b> pro próximo ano.</p>
+    <div id="posConteudo"></div>
+  </section>
+
   <div class="nota-rodape">Grupo Q Food · Planejamento Operacional</div>
 </main>
 
@@ -486,7 +531,15 @@
       <input type="hidden" id="pf-id">
       <div class="campo">
         <label>Evento</label>
-        <select id="pf-evento"></select>
+        <select id="pf-evento" onchange="atualizarPlaybooksDoEvento()"></select>
+      </div>
+      <div class="campo pb-campo" id="pf-playbook-wrap">
+        <label>📋 Playbook (modelo de tarefas)</label>
+        <div class="pb-linha">
+          <select id="pf-playbook"></select>
+          <button type="button" class="btn-pb" onclick="aplicarPlaybook()">Aplicar modelo</button>
+        </div>
+        <small class="pb-dica">Preenche responsáveis, tarefas e prazos automaticamente (D-X a partir da data do evento).</small>
       </div>
       <div class="campo-2">
         <div class="campo">
@@ -545,6 +598,48 @@
     <div class="modal-rod">
       <button class="btn-cancel" onclick="fecharModal('modalPlano')">Cancelar</button>
       <button class="btn-save" id="pf-salvar" onclick="salvarPlano()">✅ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: PÓS-EVENTO ===================== -->
+<div class="modal-ov" id="modalPos" onclick="if(event.target===this)fecharModal('modalPos')">
+  <div class="modal-cx">
+    <div class="modal-cab">
+      <h3 id="posModalTitulo">Fechamento do evento</h3>
+      <button class="modal-x" onclick="fecharModal('modalPos')">×</button>
+    </div>
+    <div class="modal-corpo">
+      <input type="hidden" id="pe-id">
+      <div class="pe-cab" id="pe-cab"></div>
+      <div class="campo-2">
+        <div class="campo"><label>KPI meta (faturamento)</label><input id="pe-meta" disabled></div>
+        <div class="campo"><label>Faturamento real</label><input id="pe-real" placeholder="Ex.: R$ 21.500"></div>
+      </div>
+      <label class="pe-sec">Indicadores por área</label>
+      <div class="campo-2">
+        <div class="campo"><label>📦 Ruptura (%)</label><input id="pe-ruptura" placeholder="Ex.: 3"></div>
+        <div class="campo"><label>📦 Sobra (%)</label><input id="pe-sobra" placeholder="Ex.: 5"></div>
+      </div>
+      <div class="campo-2">
+        <div class="campo"><label>📢 CTR / alcance</label><input id="pe-ctr" placeholder="Ex.: 4,2% CTR"></div>
+        <div class="campo"><label>💰 Margem real (%)</label><input id="pe-margem" placeholder="Ex.: 28"></div>
+      </div>
+      <div class="campo">
+        <label>Resultado crítico (resumo)</label>
+        <textarea id="pe-resultado" placeholder="O que aconteceu de mais importante neste evento?"></textarea>
+      </div>
+      <div class="campo">
+        <label>Lições aprendidas</label>
+        <textarea id="pe-aprendizados" placeholder="O que repetir e o que evitar no próximo ano?"></textarea>
+      </div>
+      <label class="pe-reaprov"><input type="checkbox" id="pe-reaproveitar"> Marcar como bom para reaproveitar</label>
+    </div>
+    <div class="modal-rod pe-rod">
+      <button class="btn-pb" onclick="salvarComoPlaybook()">📋 Salvar como playbook</button>
+      <span style="flex:1"></span>
+      <button class="btn-cancel" onclick="fecharModal('modalPos')">Cancelar</button>
+      <button class="btn-save" id="pe-salvar" onclick="salvarEncerramento()">✅ Salvar fechamento</button>
     </div>
   </div>
 </div>
@@ -651,7 +746,9 @@ var SESSAO = null;
 var CSV_URLS = {
   calendario: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=275562838&single=true&output=csv',
   plano:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1145722235&single=true&output=csv',
-  checklist:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1981300204&single=true&output=csv'
+  checklist:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1981300204&single=true&output=csv',
+  // ↓↓↓ aba PLAYBOOK publicada (gid 1605831073) ↓↓↓
+  playbook:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1605831073&single=true&output=csv'
 };
 
 /* ===== Parser CSV robusto (RFC 4180) ===== */
@@ -892,8 +989,11 @@ function diasInfo(prazo, status){
 }
 function updateDet(el){
   var det=el.closest('.ms-det'); if(!det) return;
-  var info=diasInfo(det.querySelector('.ms-prazo').value, det.querySelector('.ms-status').value);
+  var prazo=det.querySelector('.ms-prazo').value;
+  var info=diasInfo(prazo, det.querySelector('.ms-status').value);
   var c=det.querySelector('.ms-cont'); c.textContent=info.txt; c.className='ms-cont '+info.cls;
+  var dr=det.querySelector('.ms-dr');
+  if(dr){ var lbl=drLabel(prazo, (document.getElementById('pf-evento')||{}).value); dr.textContent=lbl; dr.style.display=lbl?'':'none'; }
 }
 function renderResponsaveis(atrib){
   atrib = atrib || {};
@@ -905,12 +1005,13 @@ function renderResponsaveis(atrib){
     if(!lista.length) return '';
     return '<div class="ms-grupo">'+titulo+'</div>' + lista.map(function(u){
       var a=atrib[u.nome], ck=a?'checked':'', disp=a?'flex':'none';
-      return '<div class="ms-wrap">'+
+      return '<div class="ms-wrap" data-cat="'+esc(a&&a.cat?a.cat:'')+'">'+
         '<label class="ms-item"><input type="checkbox" data-nome="'+esc(u.nome)+'" '+ck+' onchange="toggleResp(this)"> '+esc(u.nome)+'</label>'+
         '<div class="ms-det" style="display:'+disp+'">'+
           '<input class="ms-tarefa" placeholder="parte dele(a) nesta ação" value="'+esc(a?a.tarefa:'')+'">'+
           '<input type="date" class="ms-prazo" value="'+esc(a?a.prazo:'')+'" onchange="updateDet(this)">'+
           '<select class="ms-status" onchange="updateDet(this)">'+statusOpts(a?a.status:'')+'</select>'+
+          '<span class="ms-dr"></span>'+
           '<span class="ms-cont"></span>'+
         '</div>'+
       '</div>';
@@ -932,14 +1033,15 @@ function getAtribuicoes(){
       arr.push({ n: cb.getAttribute('data-nome'),
                  t: w.querySelector('.ms-tarefa').value.trim(),
                  p: w.querySelector('.ms-prazo').value,
-                 s: w.querySelector('.ms-status').value });
+                 s: w.querySelector('.ms-status').value,
+                 c: w.getAttribute('data-cat')||'' });
     }
   });
   return arr;
 }
 function parseAtrib(s){ try{ var a=JSON.parse(s); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
 function atribParaMapa(s){
-  var m={}; parseAtrib(s).forEach(function(x){ if(x&&x.n) m[x.n]={tarefa:x.t||'',prazo:x.p||'',status:x.s||''}; }); return m;
+  var m={}; parseAtrib(s).forEach(function(x){ if(x&&x.n) m[x.n]={tarefa:x.t||'',prazo:x.p||'',status:x.s||'',cat:x.c||''}; }); return m;
 }
 function preencherEventosDropdown(sel){
   var dd = document.getElementById('pf-evento');
@@ -951,6 +1053,184 @@ function preencherEventosDropdown(sel){
   dd.innerHTML = opts.join('');
   dd.value = sel || '';
 }
+
+/* ===== Datas / antecedência / D-X ===== */
+function dEventoObj(nome){ return (window.CAL_EVENTOS||[]).filter(function(x){ return x.evento===nome; })[0] || null; }
+function dEventoDate(nome){ var e=dEventoObj(nome); return (e && e.data instanceof Date) ? e.data : null; }
+function dEventoTipo(nome){ var e=dEventoObj(nome); return e ? e.tipo : ''; }
+function dEventoAntecedencia(nome){ var e=dEventoObj(nome); var n=e?parseInt(e.antecedencia,10):NaN; return isNaN(n)?15:n; }
+function brToDate(s){ var m=String(s||'').match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m?new Date(+m[3],+m[2]-1,+m[1]):null; }
+function isoToDate(s){ var m=String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?new Date(+m[1],+m[2]-1,+m[3]):null; }
+function dToISO(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function drLabel(prazoISO, eventoNome){
+  var p=isoToDate(prazoISO), ev=dEventoDate(eventoNome); if(!p||!ev) return '';
+  var d=Math.round((p-ev)/864e5);
+  return 'D'+(d>0?'+':'')+d;
+}
+function alertaAntecedencia(p){
+  if(classeStatus(p.status)!=='planejado') return '';
+  var ev=dEventoDate(p.evento) || brToDate(p.data); if(!ev) return '';
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var dias=Math.round((ev-hoje)/864e5);
+  if(dias<0) return '';
+  if(dias<=dEventoAntecedencia(p.evento)) return '<div class="badge-alerta">⚠ Hora de iniciar · faltam '+dias+' dia(s) para o evento</div>';
+  return '';
+}
+function resolveNome(resp){
+  var f=norm(resp).split(' ')[0];
+  var u=USUARIOS.filter(function(x){ return norm(x.nome).split(' ')[0]===f; })[0];
+  return u?u.nome:resp;
+}
+
+/* ===== PLAYBOOKS (modelos de tarefas — aba PLAYBOOK no Sheets) ===== */
+var PLAYBOOKS = {};
+function carregarPlaybooks(){
+  return fetch(CSV_URLS.playbook + '&_=' + Date.now())
+    .then(function(r){ return r.ok ? r.text() : ''; })
+    .then(function(txt){
+      PLAYBOOKS={};
+      if(!txt || txt.indexOf('COLE_O_GID_PLAYBOOK')>=0) return;
+      csvParaObjetos(txt).forEach(function(o){
+        var nome=(o.Playbook||'').trim(); if(!nome) return;
+        if(!PLAYBOOKS[nome]) PLAYBOOKS[nome]={nome:nome, tipo:(o.Tipo||'').trim(), tarefas:[]};
+        PLAYBOOKS[nome].tarefas.push({
+          ordem: parseInt(o.Ordem,10) || (PLAYBOOKS[nome].tarefas.length+1),
+          resp:(o.Responsavel||'').trim(), cat:(o.Categoria||'').trim(),
+          tarefa:(o.Tarefa||'').trim(), dias: parseInt(o.Dias,10), dep:(o.Depende_de||'').trim()
+        });
+      });
+      Object.keys(PLAYBOOKS).forEach(function(k){ PLAYBOOKS[k].tarefas.sort(function(a,b){ return a.ordem-b.ordem; }); });
+    })
+    .catch(function(){ PLAYBOOKS={}; });
+}
+function preencherPlaybookSelect(tipoEvento){
+  var sel=document.getElementById('pf-playbook'), wrap=document.getElementById('pf-playbook-wrap');
+  if(!sel) return;
+  var nomes=Object.keys(PLAYBOOKS);
+  if(!nomes.length){ if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='';
+  nomes.sort(function(a,b){
+    var ta=PLAYBOOKS[a].tipo===tipoEvento?0:1, tb=PLAYBOOKS[b].tipo===tipoEvento?0:1;
+    return ta-tb || a.localeCompare(b);
+  });
+  sel.innerHTML='<option value="">— escolher modelo —</option>'+nomes.map(function(n){
+    var t=PLAYBOOKS[n].tipo?(' · '+PLAYBOOKS[n].tipo):'';
+    return '<option value="'+esc(n)+'">'+esc(n)+t+'</option>';
+  }).join('');
+}
+function atualizarPlaybooksDoEvento(){
+  preencherPlaybookSelect(dEventoTipo(document.getElementById('pf-evento').value));
+}
+function aplicarPlaybook(){
+  var pbNome=document.getElementById('pf-playbook').value;
+  if(!pbNome){ alert('Escolha um playbook primeiro.'); return; }
+  var pb=PLAYBOOKS[pbNome]; if(!pb) return;
+  var evNome=document.getElementById('pf-evento').value;
+  var evData=dEventoDate(evNome);
+  if(!evData){ alert('Selecione um evento que tenha data no calendário — é a partir dela que calculo os prazos (D-X).'); return; }
+  if(getAtribuicoes().length && !confirm('Aplicar o playbook vai redefinir os responsáveis e tarefas já marcados. Continuar?')) return;
+  var mapa={};
+  pb.tarefas.forEach(function(t){
+    if(!t.resp) return;
+    var prazo='';
+    if(!isNaN(t.dias)){ var d=new Date(evData.getTime()); d.setDate(d.getDate()+t.dias); prazo=dToISO(d); }
+    mapa[resolveNome(t.resp)]={ tarefa:t.tarefa, prazo:prazo, status:'Em andamento', cat:t.cat };
+  });
+  renderResponsaveis(mapa);
+}
+
+/* ===== PÓS-EVENTO ===== */
+var filtroPos='Concluído';
+function parseEnc(s){ try{ var o=JSON.parse(s); return (o&&typeof o==='object')?o:{}; }catch(_){ return {}; } }
+function renderPosEvento(){
+  var el=document.getElementById('posConteudo'); if(!el) return;
+  var lista=PLANOS.filter(function(p){ return filtroPos==='Todos' || p.status===filtroPos; });
+  if(!lista.length){ el.innerHTML='<div class="cal-estado">Nenhum plano '+(filtroPos==='Concluído'?'concluído':'')+' por aqui ainda. Conclua um plano para registrar o pós-evento.</div>'; return; }
+  el.innerHTML=lista.map(function(p){
+    var enc=parseEnc(p.enc), k=enc.kpis||{};
+    var kp=[];
+    if(k.ruptura) kp.push('📦 Ruptura '+esc(k.ruptura)+'%');
+    if(k.sobra)   kp.push('📦 Sobra '+esc(k.sobra)+'%');
+    if(k.ctr)     kp.push('📢 '+esc(k.ctr));
+    if(k.margem)  kp.push('💰 Margem '+esc(k.margem)+'%');
+    return '<div class="pos-card">'+
+      '<div class="pos-topo"><div><div class="plano-evento">'+esc(p.evento||'—')+'</div>'+
+        '<div class="plano-empresa">'+logoEmpHtml(p.empresa,16)+' '+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</div></div>'+
+        '<span class="plano-stt stt-'+classeStatus(p.status)+'">'+esc(p.status||'')+'</span></div>'+
+      ((p.meta||p.real)?'<div class="plano-meta"><span>Meta: <b>'+esc(p.meta||'—')+'</b></span><span>Real: <b>'+esc(p.real||'—')+'</b></span></div>':'')+
+      (kp.length?'<div class="pos-kpis">'+kp.map(function(x){return '<span class="pos-kpi">'+x+'</span>';}).join('')+'</div>':'')+
+      (enc.resultado?'<div class="pos-bloco"><b>Resultado:</b> '+esc(enc.resultado)+'</div>':'')+
+      (enc.aprendizados?'<div class="pos-bloco"><b>Lições:</b> '+esc(enc.aprendizados)+'</div>':'')+
+      (enc.reaproveitar?'<div class="pos-reaprov">⭐ Bom para reaproveitar como playbook</div>':'')+
+      '<div class="plano-acoes">'+
+        '<button class="btn-pb" onclick="abrirPosEvento(\''+esc(p.id)+'\')">📈 Fechar / editar pós-evento</button>'+
+        '<button class="lnk mapa-lnk" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+function abrirPosEvento(id){
+  var p=PLANOS.filter(function(x){ return x.id===id; })[0]; if(!p) return;
+  var enc=parseEnc(p.enc), k=enc.kpis||{};
+  document.getElementById('pe-id').value=p.id;
+  document.getElementById('posModalTitulo').textContent='Fechamento do evento';
+  document.getElementById('pe-cab').innerHTML=logoEmpHtml(p.empresa,22)+' <b>'+esc(p.evento||'')+'</b> <span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</span>';
+  document.getElementById('pe-meta').value=p.meta||'';
+  document.getElementById('pe-real').value=p.real||'';
+  document.getElementById('pe-ruptura').value=k.ruptura||'';
+  document.getElementById('pe-sobra').value=k.sobra||'';
+  document.getElementById('pe-ctr').value=k.ctr||'';
+  document.getElementById('pe-margem').value=k.margem||'';
+  document.getElementById('pe-resultado').value=enc.resultado||'';
+  document.getElementById('pe-aprendizados').value=enc.aprendizados||'';
+  document.getElementById('pe-reaproveitar').checked=!!enc.reaproveitar;
+  abrirModal('modalPos');
+}
+function salvarEncerramento(){
+  if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  var btn=document.getElementById('pe-salvar'); btn.disabled=true; btn.textContent='Salvando…';
+  var enc={
+    resultado:document.getElementById('pe-resultado').value.trim(),
+    aprendizados:document.getElementById('pe-aprendizados').value.trim(),
+    reaproveitar:document.getElementById('pe-reaproveitar').checked,
+    kpis:{
+      ruptura:document.getElementById('pe-ruptura').value.trim(),
+      sobra:document.getElementById('pe-sobra').value.trim(),
+      ctr:document.getElementById('pe-ctr').value.trim(),
+      margem:document.getElementById('pe-margem').value.trim()
+    }
+  };
+  apiPlanejamento({
+    action:'saveEncerramento', id:document.getElementById('pe-id').value,
+    real:document.getElementById('pe-real').value, encerramento:JSON.stringify(enc),
+    concluir:'1', usuario:(SESSAO&&SESSAO.nome)||''
+  }).then(function(j){
+    btn.disabled=false; btn.textContent='✅ Salvar fechamento';
+    if(j&&j.ok){ fecharModal('modalPos'); carregarPlanos().then(renderPosEvento); }
+    else alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
+  }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar fechamento'; alert('Falha: '+e.message); });
+}
+function salvarComoPlaybook(){
+  if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  var id=document.getElementById('pe-id').value;
+  var p=PLANOS.filter(function(x){ return x.id===id; })[0]; if(!p) return;
+  var nome=prompt('Nome do playbook (modelo) a criar a partir deste plano:', 'Modelo · '+(p.evento||''));
+  if(!nome) return;
+  var evData=dEventoDate(p.evento)||brToDate(p.data);
+  var tarefas=parseAtrib(p.atrib).map(function(a){
+    var dias='';
+    if(evData){ var pz=isoToDate(a.p); if(pz) dias=Math.round((pz-evData)/864e5); }
+    return { resp:a.n, cat:a.c||'', tarefa:a.t||'', dias:dias, dep:'' };
+  });
+  if(!tarefas.length){ alert('Este plano não tem tarefas atribuídas para virar playbook.'); return; }
+  apiPlanejamento({ action:'addPlaybook', nome:nome, tipo:dEventoTipo(p.evento)||'',
+    tarefas:JSON.stringify(tarefas), usuario:(SESSAO&&SESSAO.nome)||'' })
+   .then(function(j){
+     if(j&&j.ok){ alert('Playbook "'+nome+'" salvo com '+j.qtd+' tarefa(s)!\nAtualize a página para usá-lo em novos planos.'); carregarPlaybooks(); }
+     else alert('Erro: '+((j&&j.erro)||'desconhecido'));
+   }).catch(function(e){ alert('Falha: '+e.message); });
+}
+
 
 /* ===== PLANO DE AÇÕES ===== */
 var PLANOS = [];
@@ -965,13 +1245,14 @@ function classeStatus(s){
 function carregarPlanos(){
   var el=document.getElementById('planoConteudo');
   el.innerHTML='<div class="cal-estado"><div class="spin"></div><div>Carregando planos…</div></div>';
-  fetch(CSV_URLS.plano + '&_=' + Date.now())
+  return fetch(CSV_URLS.plano + '&_=' + Date.now())
     .then(function(r){ return r.text(); })
     .then(function(txt){
       PLANOS = csvParaObjetos(txt).map(function(o){
         return { id:o.ID||'', evento:o.Evento_ref||'', data:cleanData(o.Data_evento||''), empresa:o.Empresa||'',
                  objetivo:o.Objetivo||'', responsaveis:o.Responsavel||'', status:o.Status||'Planejado',
-                 meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'', atrib:o.Atribuicoes||'' };
+                 meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'',
+                 atrib:o.Atribuicoes||'', enc:o.Encerramento||'' };
       }).filter(function(p){ return p.evento || p.objetivo; });
       renderPlanos();
     })
@@ -1000,6 +1281,7 @@ function cardPlano(p){
         '<div class="plano-empresa">'+logoEmpHtml(p.empresa,18)+' '+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</div></div>'+
       '<span class="plano-stt stt-'+cls+'">'+esc(p.status||'')+'</span>'+
     '</div>'+
+    alertaAntecedencia(p)+
     (p.objetivo?'<div class="plano-obj">'+esc(p.objetivo)+'</div>':'')+
     ((p.meta||p.real)?'<div class="plano-meta">'+
         (p.meta?'<span>Meta: <b>'+esc(p.meta)+'</b></span>':'')+
@@ -1008,6 +1290,7 @@ function cardPlano(p){
     itensHtml+
     (p.obs?'<div class="plano-obs">'+esc(p.obs)+'</div>':'')+
     '<div class="plano-acoes">'+
+      '<button class="lnk mapa-lnk" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button>'+
       '<button class="lnk" onclick="editarPlano(\''+esc(p.id)+'\')">✏ Editar</button>'+
       '<button class="lnk del" onclick="excluirPlano(\''+esc(p.id)+'\')">🗑 Excluir</button>'+
     '</div>'+
@@ -1026,6 +1309,7 @@ function abrirNovoPlano(){
   document.getElementById('pf-produtos').innerHTML='';
   planoItens=[]; renderItensSel();
   preencherEventosDropdown('');
+  atualizarPlaybooksDoEvento();
   renderResponsaveis({});
   carregarGiro();
   abrirModal('modalPlano');
@@ -1044,6 +1328,7 @@ function editarPlano(id){
   document.getElementById('pf-produtos').innerHTML='';
   planoItens = parseItens(p.itens); renderItensSel();
   preencherEventosDropdown(p.evento||'');
+  atualizarPlaybooksDoEvento();
   renderResponsaveis(atribParaMapa(p.atrib));
   carregarGiro();
   abrirModal('modalPlano');
@@ -1378,13 +1663,18 @@ function abrirMapa(id){
 
 var _btnChk=document.querySelector('button[data-aba="checklist"]');
 var _btnCrono=document.querySelector('button[data-aba="cronograma"]');
+var _btnPos=document.querySelector('button[data-aba="posevento"]');
 if(_btnChk)   _btnChk.addEventListener('click', renderChecklist);
 if(_btnCrono) _btnCrono.addEventListener('click', renderCronograma);
+if(_btnPos)   _btnPos.addEventListener('click', renderPosEvento);
+var _posF=document.getElementById('posFiltro');
+if(_posF) _posF.addEventListener('change', function(){ filtroPos=this.value; renderPosEvento(); });
 colorirSetores();
 
 /* ===== INIT do módulo de escrita ===== */
 document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
 document.getElementById('planoRefresh').addEventListener('click',carregarPlanos);
+carregarPlaybooks();
 carregarUsuarios().then(carregarPlanos);
 </script>
 </body>
