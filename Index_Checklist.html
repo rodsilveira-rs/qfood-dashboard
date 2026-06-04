@@ -350,6 +350,13 @@ function carregarTudo(force){
     ST.listas = (res[4].listas||[]);
     ST.respostas = (res[5].respostas||[]);
     ST.org = (res[6] && res[6].org || []).filter(function(n){return String(n.ativo).toLowerCase()!=="nao";});
+    var _perm = empresasPermitidas();
+    ST.empresas      = ST.empresas.filter(function(e){return _perm.indexOf(e.id)>=0;});
+    ST.modelos       = ST.modelos.filter(function(m){return _perm.indexOf(m.empresa)>=0;});
+    ST.colaboradores = ST.colaboradores.filter(function(c){return _perm.indexOf(c.empresa)>=0;});
+    ST.respostas     = ST.respostas.filter(function(r){return _perm.indexOf(r.empresa)>=0;});
+    if(ST.empresaAtiva && _perm.indexOf(ST.empresaAtiva)<0) ST.empresaAtiva=null;
+    if(!ST.empresaAtiva && ST.empresas.length) ST.empresaAtiva = ST.empresas[0].id;
     if(!ST.empresaAtiva && ST.empresas.length) ST.empresaAtiva = ST.empresas[0].id;
     renderTudo();
   }).catch(function(e){
@@ -365,6 +372,27 @@ function renderTudo(){
 }
 var ORG_ADMINS=["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
 function ehAdminOrg(){ return ORG_ADMINS.indexOf((ST.user&&ST.user.email||"").toLowerCase())>=0; }
+
+// ── Nível de acesso por empresa (edite aqui para liberar/bloquear) ──
+// Use os IDs das empresas: "qfood", "mercearia", "sushi"
+var ACESSO={
+  "rodrigo@qfoodcompany.com.br":   ["qfood","mercearia","sushi"],
+  "adilson@qfoodcompany.com.br":   ["qfood","mercearia","sushi"],
+  "gustavo@qfoodcompany.com.br":   ["qfood","mercearia","sushi"],
+  "barbara@qfoodcompany.com.br":   ["qfood","mercearia"],
+  "celio@qfoodcompany.com.br":     ["qfood"],
+  "maiko@qfoodcompany.com.br":     ["qfood"],
+  "dayane@qfoodcompany.com.br":    ["qfood"],
+  "roberta@qfoodcompany.com.br":   ["qfood"],
+  "jonathas@qfoodcompany.com.br":  ["qfood"],
+  "eduardo@qfoodcompany.com.br":   ["qfood"],
+  "compras@qfoodcompany.com.br":   ["qfood"],
+  "mariana@mercearialiberdade.com.br": ["mercearia"],
+  "elizeu@mercearialiberdade.com.br":  ["mercearia"],
+  "matheus@mercearialiberdade.com.br": ["mercearia"],
+  "samara@sushitrip.com.br":       ["sushi"]
+};
+function empresasPermitidas(){ return ACESSO[(ST.user&&ST.user.email||"").toLowerCase()] || []; }
 
 // ════════════════════════════════════════════════════════════
 // DATAS
