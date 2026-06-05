@@ -378,6 +378,19 @@ function renderTudo(){
 var ORG_ADMINS=["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
 function ehAdminOrg(){ return ORG_ADMINS.indexOf((ST.user&&ST.user.email||"").toLowerCase())>=0; }
 
+// Edição com escopo: cada gestor pode editar APENAS os nós destas pessoas
+var ORG_EDIT_SCOPE={
+  "mariana@mercearialiberdade.com.br": ["Matheus","Elizeu"],
+  "maiko@qfoodcompany.com.br":         ["Jonathas","Eduardo"],
+  "celio@qfoodcompany.com.br":         ["Cris","Cristina","Dayane","Roberta"]
+};
+function podeEditarOrg(n){
+  if(ehAdminOrg()) return true;
+  if(!n) return false;
+  var lst=ORG_EDIT_SCOPE[(ST.user&&ST.user.email||"").toLowerCase()]||[];
+  return lst.some(function(nome){ return norm(nome)===norm(n.nome); });
+}
+
 // ── Nível de acesso por empresa (edite aqui para liberar/bloquear) ──
 // Use os IDs das empresas: "qfood", "mercearia", "sushi"
 var ACESSO={
@@ -1029,7 +1042,12 @@ function renderOrgNode(n, visited){
   visited[n.id]=1;
   var emp=ST.empresas.filter(function(e){return e.id===n.empresa;})[0];
   var cor=emp?(emp.cor||'#94a3b8'):'#94a3b8';
-  var acts=ehAdminOrg()?'<div class="on-acts"><button title="Adicionar abaixo" onclick="abrirOrgNode(null,\''+n.id+'\')">＋</button><button title="Editar" onclick="abrirOrgNode(\''+n.id+'\',\'\')">✎</button><button title="Remover" onclick="excluirOrgNode(\''+n.id+'\')">✕</button></div>':'';
+  var _ped=podeEditarOrg(n);
+  var acts=_ped?('<div class="on-acts">'+
+    '<button title="Adicionar abaixo" onclick="abrirOrgNode(null,\''+n.id+'\')">＋</button>'+
+    '<button title="Editar" onclick="abrirOrgNode(\''+n.id+'\',\'\')">✎</button>'+
+    (ehAdminOrg()?'<button title="Remover" onclick="excluirOrgNode(\''+n.id+'\')">✕</button>':'')+
+    '</div>'):'';
   var h='<li><div class="org-node" style="border-top-color:'+cor+'">'+
     '<div class="on-nome">'+esc(n.nome)+'</div>'+
     (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+
@@ -1042,7 +1060,8 @@ function renderOrgNode(n, visited){
   return h;
 }
 function abrirOrgNode(id, parentId){
-  if(!ehAdminOrg()){ toast("Sem permissão."); return; }
+  var _alvo = id? orgPorId(id) : (parentId? orgPorId(parentId) : null);
+  if(!(ehAdminOrg() || (_alvo && podeEditarOrg(_alvo)))){ toast("Sem permissão."); return; }
   var n = id? orgPorId(id) : null;
   ORGEDIT = id || null;
   var opEmp='<option value="grupo" '+((n?n.empresa:'grupo')==='grupo'?'selected':'')+'>Grupo (todas as empresas)</option>'+
