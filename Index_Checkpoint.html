@@ -5454,14 +5454,25 @@ function chkMetasQFoodSalvar(){
         .then(function(r){ return r.json(); })
         .then(function(resp){
           if(!resp || !resp.ok || !resp.registros || resp.registros.length === 0){ resolve(null); return; }
-          // Pega o registro do dia (pode haver mais de um; fica com o mais recente por salvo_em)
-          var reg = resp.registros.reduce(function(maisNovo, r){
+          // ⚠️ Backend pode ignorar o filtro de data e retornar TODOS os registros do gestor.
+          // ⚠️ data_iso pode vir como timestamp ('2026-06-04T03:00:00.000Z') em vez de string curta.
+          // Solução: filtrar do lado do cliente comparando só o prefixo YYYY-MM-DD.
+          var alvoPrefix = iso; // "2026-06-04"
+          var doDia = resp.registros.filter(function(r){
+            var di = (r.data_iso || r.data || '').toString();
+            return di.substring(0, 10) === alvoPrefix;
+          });
+          if(doDia.length === 0){ resolve(null); return; }
+          // Entre os registros do dia, pega o mais recente por salvo_em
+          var reg = doDia.reduce(function(maisNovo, r){
             if(!maisNovo) return r;
             var a = new Date(r.salvo_em||0).getTime();
             var b = new Date(maisNovo.salvo_em||0).getTime();
             return a >= b ? r : maisNovo;
           }, null);
           if(!reg){ resolve(null); return; }
+          // Normaliza data_iso para o formato curto (evita reescrever lixo no localStorage)
+          reg.data_iso = alvoPrefix;
           // Desprefixar: mr_faturamento -> faturamento, g_fat -> fat, etc.
           var pre = PREFIXO_POR_GESTOR[gestorId];
           var saida = {};
