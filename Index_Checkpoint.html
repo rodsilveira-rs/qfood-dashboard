@@ -1736,15 +1736,18 @@ function chkMudarDataDiario(gestorId){
     info.textContent = prefixo+diasSem[dt.getDay()];
     info.style.color = 'var(--mu)';
   }
-  // Recarrega valores nos campos
+  // Recarrega valores nos campos IMEDIATAMENTE com o que há no localStorage
   chkRecarregarDiarioCampos(gestorId, iso);
-  // ☁️ Busca na nuvem e mescla (mais recente vence)
+  // ☁️ Busca na nuvem em paralelo — quando voltar, SEMPRE recarrega a tela
   chkSincronizarDiaDaNuvem(gestorId, iso, function(gid, dia){
     chkRecarregarDiarioCampos(gid, dia);
     var ch = "qfood_chk_"+gid+"_diario_"+dia;
     var dd = loadJSON(ch);
     var bdg = document.getElementById('chk-'+gid+'-d-badge');
-    if(bdg && dd){ bdg.style.display='inline'; bdg.style.background='#36cfa0'; bdg.style.color='#fff'; bdg.textContent='✓ Salvo '+(dd.hora||''); }
+    if(bdg){
+      if(dd){ bdg.style.display='inline'; bdg.style.background='#36cfa0'; bdg.style.color='#fff'; bdg.textContent='✓ Salvo '+(dd.hora||''); }
+      else { bdg.style.display='none'; }
+    }
     chkAtualizarSemaforoGen(gid, dd || {});
   });
   // Atualiza badge de salvo (se tem registro)
@@ -2451,8 +2454,6 @@ function chkSincronizarDiaDaNuvem(gestorId, iso, recarregarFn){
 
     if(tsNuvem > tsLocal){
       // Nuvem é mais recente → adota a nuvem
-      // Reconstrói o objeto no formato local (campos desprefixados já vêm de fetchDia)
-      // Mantém 'data' em formato BR se vier ISO
       if(nuvem.data && nuvem.data.indexOf('-')>=0 && nuvem.data.length>=10){
         var p = nuvem.data.substring(0,10).split('-');
         if(p.length===3) nuvem.data = p[2]+'/'+p[1]+'/'+p[0];
@@ -2460,10 +2461,11 @@ function chkSincronizarDiaDaNuvem(gestorId, iso, recarregarFn){
       try{ localStorage.setItem(chave, JSON.stringify(nuvem)); }catch(e){}
       if(typeof recarregarFn === 'function') recarregarFn(gestorId, iso);
       chkSyncIndicador(gestorId,'nuvem');
-      console.log('[QFood Sync] '+gestorId+' '+iso+' atualizado da nuvem (mais recente)');
+      console.log('[QFood Sync] '+gestorId+' '+iso+' atualizado da nuvem');
     } else {
-      // Local é igual ou mais recente → mantém local
-      chkSyncIndicador(gestorId, 'mesclado');
+      // Local é igual ou mais recente → SEMPRE recarrega a tela (corrige bug de troca de data)
+      if(typeof recarregarFn === 'function') recarregarFn(gestorId, iso);
+      chkSyncIndicador(gestorId, tsLocal > 0 ? 'local' : 'mesclado');
     }
   });
 }
