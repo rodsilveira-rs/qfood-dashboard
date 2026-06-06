@@ -867,7 +867,7 @@ tbody tr:hover td{background:var(--s2);}
           <button class="sup-btn-primary" onclick="supAdicionarEntrega()">💾 Buscar NF e salvar</button>
           <span id="sup-ent-add-msg" style="font-size:.8rem"></span>
         </div>
-        <div style="font-size:.7rem;color:var(--mu);margin-top:6px;font-style:italic">💡 Data é opcional — preencha quando souber o dia da entrega; Claudia consegue ver pelo painel sem precisar te perguntar</div>
+        <div style="font-size:.7rem;color:var(--mu);margin-top:6px;font-style:italic">💡 Data é opcional — preencha quando souber o dia da entrega.</div>
       </div>
 
       <div class="sup-filters">
@@ -885,6 +885,14 @@ tbody tr:hover td{background:var(--s2);}
         </select></label>
         <label>Cidade: <select id="sup-ent-filt-cidade"><option value="">Todas</option></select></label>
         <label>Busca: <input type="search" id="sup-ent-busca" placeholder="cliente, NF, fantasia..."></label>
+        <label>Exibir: <select id="sup-ent-limite" onchange="supAplicarFiltrosEntregas()">
+          <option value="10">Últimas 10</option>
+          <option value="20">Últimas 20</option>
+          <option value="30" selected>Últimas 30</option>
+          <option value="50">Últimas 50</option>
+          <option value="100">Últimas 100</option>
+          <option value="0">Todas</option>
+        </select></label>
         <button class="sup-btn-clear" onclick="supLimparEnt()">✕ Limpar</button>
       </div>
 
@@ -1896,15 +1904,27 @@ function supAplicarFiltrosEntregas(){
     });
   }
 
-  supRenderKpisEntregas(ents);
-  supRenderTabelaEntregas(ents);
+  supRenderKpisEntregas(ents);  // KPIs ANTES do limite (mostram total real)
+
+  // Aplica limite de visualização (Ponto 2)
+  var limiteEl = document.getElementById('sup-ent-limite');
+  var limite = limiteEl ? parseInt(limiteEl.value, 10) : 30;
+  var totalFiltrado = ents.length;
+  var entsExibir = ents;
+  if (limite > 0 && ents.length > limite){
+    entsExibir = ents.slice(0, limite);
+  }
+  supRenderTabelaEntregas(entsExibir);
 
   var divergencias = 0;
   SUP_STATE.data.entregas.forEach(function(e){
     if (supStatusEfetivo(e).sobrescrito) divergencias++;
   });
+  var limiteTxt = (limite > 0 && totalFiltrado > limite)
+    ? 'Exibindo ' + entsExibir.length + ' de ' + totalFiltrado + ' filtradas (' + SUP_STATE.data.entregas.length + ' totais)'
+    : 'Exibindo ' + totalFiltrado + ' de ' + SUP_STATE.data.entregas.length + ' entregas';
   document.getElementById('sup-ent-meta').textContent =
-    'Exibindo ' + ents.length + ' de ' + SUP_STATE.data.entregas.length + ' entregas' +
+    limiteTxt +
     (divergencias > 0 ? ' · ⚠️ ' + divergencias + ' com status divergente (REGISTRO sobrescreveu) — clique em "Sincronizar"' : '');
 }
 
@@ -2182,6 +2202,7 @@ function supAdicionarEntrega(){
     if (r.eventoHistorico) supHistAddLocal(r.eventoHistorico);
     supPopularFiltrosEntregas();
     supAplicarFiltrosEntregas();
+    if (r.acao === 'criada') setTimeout(function(){ supEnriquecer(true); }, 1500);
   }).catch(function(err){
     msg.innerHTML = '<span class="sup-msg-err">'+err.message+'</span>';
   }).then(function(){
@@ -2445,8 +2466,8 @@ function supSincronizar(){
   });
 }
 
-function supEnriquecer(){
-  if (!confirm('Vai buscar dados em REGISTROS_NFS pra preencher CLIENTE / NOME FANTASIA / CIDADE / VOLUME / TOTAL GERAL nas linhas que estão vazias.\n\nIsso grava na planilha CONTROLE_ENTREGAS_SUPERMERCADOS.\n\nContinuar?')) return;
+function supEnriquecer(silencioso){
+  if (!silencioso && !confirm('Vai buscar dados em REGISTROS_NFS pra preencher CLIENTE / NOME FANTASIA / CIDADE / VOLUME / TOTAL GERAL nas linhas que estão vazias.\n\nIsso grava na planilha CONTROLE_ENTREGAS_SUPERMERCADOS.\n\nContinuar?')) return;
 
   supAtualizarStatusSync('loading', 'Enriquecendo dados das NFs...');
 
@@ -2471,7 +2492,7 @@ function supEnriquecer(){
       supAplicarFiltrosEntregas();
     }
 
-    alert('🎉 ' + msg);
+    if (!silencioso) alert('🎉 ' + msg);
   }).catch(function(err){
     supAtualizarStatusSync('err', 'Erro: ' + err.message);
     alert('❌ Erro: ' + err.message);
