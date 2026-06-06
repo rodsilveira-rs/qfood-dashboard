@@ -155,6 +155,12 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .org-node .on-acts{ margin-top:7px; display:flex; gap:4px; justify-content:center }
 .org-node .on-acts button{ cursor:pointer; border:1px solid var(--line); background:#fff; border-radius:6px; width:24px; height:22px; font-size:.72rem; line-height:1; color:var(--muted) }
 .org-node .on-acts button:hover{ background:var(--surface2) }
+.org-node .on-desc{ font-size:.66rem; color:#6b6258; margin-top:4px; line-height:1.25; font-style:italic; white-space:normal; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden }
+.org-node .on-emps{ margin-top:6px; display:flex; flex-wrap:wrap; gap:3px; justify-content:center }
+.org-node .on-emp{ font-size:.56rem; font-weight:700; color:#fff; background:var(--c,#94a3b8); border-radius:999px; padding:1px 7px; line-height:1.5; letter-spacing:.2px }
+.ckgroup{ display:flex; flex-wrap:wrap; gap:8px; margin-top:2px }
+.ckgroup .ckb{ display:flex; align-items:center; gap:6px; font-size:.84rem; background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer; user-select:none }
+.ckgroup .ckb input{ margin:0; cursor:pointer }
 </style>
 </head>
 <body>
@@ -1049,21 +1055,51 @@ function renderOrg(){
   }
   box.innerHTML='<div class="orgtree"><ul>'+roots.map(function(n){return renderOrgNode(n,{});}).join("")+'</ul></div>';
 }
+function corFuncao(f){
+  var s=(f||'').toLowerCase();
+  if(/ceo|diret|s[oó]cio|presid|fundador/.test(s))               return {bg:'#fdf3d7',bd:'#d4a72c'};
+  if(/gestor|gerente/.test(s))                                    return {bg:'#e8f0fe',bd:'#3b82f6'};
+  if(/coorden|supervis|l[ií]der|encarreg/.test(s))                return {bg:'#efe7fb',bd:'#8b5cf6'};
+  if(/motorist|entregad/.test(s))                                 return {bg:'#fdecd6',bd:'#f59e0b'};
+  if(/faturist|fatura|fiscal|financ|administrat|\badm\b/.test(s)) return {bg:'#e6f7ef',bd:'#10b981'};
+  if(/vended|comerci|represent/.test(s))                          return {bg:'#fde6ee',bd:'#ec4899'};
+  if(/compr|cota[çc]/.test(s))                                    return {bg:'#e4f4fb',bd:'#0ea5e9'};
+  if(/cozinh|chef|confeit|a[çc]ougu|produ[çc]/.test(s))           return {bg:'#fbe9e3',bd:'#ef6b4f'};
+  if(/estoqu|almox|separa[çc]|conferent/.test(s))                 return {bg:'#eef0e0',bd:'#84a127'};
+  if(/marketing|m[ií]dia|tr[áa]fego|social|design/.test(s))       return {bg:'#f3e9fb',bd:'#a855f7'};
+  if(/cultura|valor|princ[íi]pio/.test(s))                        return {bg:'#f3f1ec',bd:'#94a3b8'};
+  return {bg:'',bd:'',_def:true};
+}
+function orgEmpGrupo(cb){
+  if(cb.checked){ [].slice.call(document.querySelectorAll('.o_empc')).forEach(function(x){ if(x.value!=='grupo') x.checked=false; }); }
+}
+function orgEmpUnico(cb){
+  if(cb.checked){ var g=document.querySelector('.o_empc[value="grupo"]'); if(g) g.checked=false; }
+}
 function renderOrgNode(n, visited){
   visited=visited||{};
   if(visited[n.id]) return '';
   visited[n.id]=1;
-  var emp=ST.empresas.filter(function(e){return e.id===n.empresa;})[0];
-  var cor=emp?(emp.cor||'#94a3b8'):'#94a3b8';
+  var cf=corFuncao(n.funcao);
+  var bd=cf._def?'#cbd5e1':cf.bd;
+  var bgS=cf._def?'':(';background:'+cf.bg);
+  var emps=(n.empresa||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  var chips=emps.map(function(eid){
+    if(eid==='grupo') return '<span class="on-emp" style="--c:#64748b">Grupo</span>';
+    var e=ST.empresas.filter(function(x){return x.id===eid;})[0];
+    return e?'<span class="on-emp" style="--c:'+(e.cor||'#94a3b8')+'">'+esc(e.nome)+'</span>':'';
+  }).join('');
   var _ped=podeEditarOrg(n);
   var acts=_ped?('<div class="on-acts">'+
     '<button title="Adicionar abaixo" onclick="abrirOrgNode(null,\''+n.id+'\')">＋</button>'+
     '<button title="Editar" onclick="abrirOrgNode(\''+n.id+'\',\'\')">✎</button>'+
     (ehAdminOrg()?'<button title="Remover" onclick="excluirOrgNode(\''+n.id+'\')">✕</button>':'')+
     '</div>'):'';
-  var h='<li><div class="org-node" style="border-top-color:'+cor+'">'+
+  var h='<li><div class="org-node" style="border-top-color:'+bd+bgS+'">'+
     '<div class="on-nome">'+esc(n.nome)+'</div>'+
     (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+
+    (n.descricao?'<div class="on-desc" title="'+esc(n.descricao)+'">'+esc(n.descricao)+'</div>':'')+
+    (chips?'<div class="on-emps">'+chips+'</div>':'')+
     (n.setor?'<div class="on-set">'+esc(setorRot(n.setor))+'</div>':'')+
     acts+
     '</div>';
@@ -1077,8 +1113,10 @@ function abrirOrgNode(id, parentId){
   if(!(ehAdminOrg() || (_alvo && podeEditarOrg(_alvo)))){ toast("Sem permissão."); return; }
   var n = id? orgPorId(id) : null;
   ORGEDIT = id || null;
-  var opEmp='<option value="grupo" '+((n?n.empresa:'grupo')==='grupo'?'selected':'')+'>Grupo (todas as empresas)</option>'+
-    ST.empresas.map(function(e){return '<option value="'+e.id+'" '+(n&&n.empresa===e.id?'selected':'')+'>'+esc(e.nome)+'</option>';}).join("");
+  var curEmps=(n?(n.empresa||'grupo'):'grupo').split(',').map(function(s){return s.trim();}).filter(Boolean);
+  function _ckE(v){ return curEmps.indexOf(v)>=0?'checked':''; }
+  var opEmp='<label class="ckb"><input type="checkbox" class="o_empc" value="grupo" '+_ckE('grupo')+' onchange="orgEmpGrupo(this)"> Grupo (todas)</label>'+
+    ST.empresas.map(function(e){return '<label class="ckb"><input type="checkbox" class="o_empc" value="'+e.id+'" '+_ckE(e.id)+' onchange="orgEmpUnico(this)"> '+esc(e.nome)+'</label>';}).join("");
   var opSet='<option value="">— (sem setor)</option>'+lista("setor").map(function(l){return '<option value="'+esc(l.valor)+'" '+(n&&n.setor===l.valor?'selected':'')+'>'+esc(l.rotulo)+'</option>';}).join("");
   var bloq = id? orgDescendentes(id) : {}; if(id) bloq[id]=1;
   var curPar = n? n.parent_id : (parentId||"");
@@ -1089,9 +1127,10 @@ function abrirOrgNode(id, parentId){
   var h='<div class="grid g2">'+
     '<div style="grid-column:1/-1"><label class="fld">Nome</label><input class="inp" id="o_nome" placeholder="Ex.: Rodrigo, Vendedores, Equipe Cozinha" value="'+esc(n?n.nome:"")+'"></div>'+
     '<div><label class="fld">Função / cargo</label><input class="inp" id="o_func" placeholder="Ex.: Operações, Gestor Adm" value="'+esc(n?n.funcao:"")+'"></div>'+
-    '<div><label class="fld">Empresa</label><select class="inp" id="o_emp">'+opEmp+'</select></div>'+
+    '<div style="grid-column:1/-1"><label class="fld">Empresa(s) onde atua <span style="font-weight:600;color:var(--muted);font-size:.78rem">(pode marcar mais de uma)</span></label><div class="ckgroup">'+opEmp+'</div></div>'+
     '<div><label class="fld">Setor (opcional)</label><select class="inp" id="o_set">'+opSet+'</select></div>'+
     '<div><label class="fld">Fica abaixo de</label><select class="inp" id="o_par">'+opPar+'</select></div>'+
+    '<div style="grid-column:1/-1"><label class="fld">Descrição da função (opcional)</label><textarea class="inp" id="o_desc" rows="2" placeholder="Resumo do que essa função faz no dia a dia, responsabilidades principais...">'+esc(n?(n.descricao||""):"")+'</textarea></div>'+
     '</div>'+
     '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarOrgNode()">Salvar</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
   document.getElementById("ovTitle").textContent = id? "Editar caixa" : "Nova caixa";
@@ -1099,7 +1138,9 @@ function abrirOrgNode(id, parentId){
   document.getElementById("ov").classList.add("open");
 }
 function salvarOrgNode(){
-  var payload={ id:ORGEDIT||undefined, nome:val("o_nome"), funcao:val("o_func"), empresa:val("o_emp"), setor:val("o_set"), parent_id:val("o_par") };
+  var emps=[].slice.call(document.querySelectorAll('.o_empc:checked')).map(function(c){return c.value;});
+  var empStr=emps.length?emps.join(','):'grupo';
+  var payload={ id:ORGEDIT||undefined, nome:val("o_nome"), funcao:val("o_func"), empresa:empStr, setor:val("o_set"), parent_id:val("o_par"), descricao:val("o_desc") };
   if(!payload.nome){ toast("Dê um nome à caixa."); return; }
   apiPost("salvarOrg",payload).then(function(r){ if(r.ok){ toast("Caixa salva."); fecharOv(); carregarTudo().then(function(){ setTab('org'); }); } else toast("Erro: "+(r.error||"")); });
 }
