@@ -2023,7 +2023,7 @@ function supRenderTabelaEntregas(ents){
       }
     }
     var cellData;
-    if (podeEditar){
+    if (podeEditar && st.efetivo !== 'ENTREGUE'){
       cellData = '<input type="date" class="sup-data-edit" data-nf="'+e['NF']+'" value="'+dataIso+'" onfocus="supChecarAvisoVencimento(this.dataset.nf, \'agendar a entrega\')" onchange="supSalvarDataAgendada(this)" style="background:var(--s2);color:var(--tx);border:1px solid var(--br);border-radius:6px;padding:4px 6px;font-size:.78rem;font-family:var(--fb)">';
     } else {
       cellData = dataIso ? supFmtData(dataIso) : '<span style="color:var(--mu2)">—</span>';
@@ -2034,7 +2034,13 @@ function supRenderTabelaEntregas(ents){
     var histArr = (SUP_STATE.data.historicos && SUP_STATE.data.historicos[nfStr]) || [];
     var histCount = histArr.length;
     var histColor = histCount === 0 ? 'var(--mu2)' : (histCount >= 3 ? 'var(--red)' : (histCount >= 2 ? 'var(--warn)' : 'var(--blue)'));
-    var cellHist = '<button onclick="supAbrirHistorico(\''+nfStr+'\')" title="Ver histórico de tentativas" style="background:transparent;border:1px solid '+histColor+';color:'+histColor+';border-radius:6px;padding:4px 10px;font-size:.78rem;cursor:pointer;font-family:var(--fb);font-weight:600">📜 '+histCount+'</button>';
+    var histDisabled = (st.efetivo === 'ENTREGUE');
+    var histStyle = histDisabled
+      ? 'background:transparent;border:1px solid var(--mu2);color:var(--mu2);border-radius:6px;padding:4px 10px;font-size:.78rem;cursor:not-allowed;font-family:var(--fb);font-weight:600;opacity:.5'
+      : 'background:transparent;border:1px solid '+histColor+';color:'+histColor+';border-radius:6px;padding:4px 10px;font-size:.78rem;cursor:pointer;font-family:var(--fb);font-weight:600';
+    var cellHist = histDisabled
+      ? '<button disabled title="NF já entregue — sem novas tentativas" style="'+histStyle+'">📜 '+histCount+'</button>'
+      : '<button onclick="supAbrirHistorico(\''+nfStr+'\')" title="Ver histórico de tentativas" style="'+histStyle+'">📜 '+histCount+'</button>';
 
     var nfVencida = supNfVencida(e);
     var diasEmissao = supDiasDesdeEmissao(e);
