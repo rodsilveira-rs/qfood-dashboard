@@ -161,10 +161,16 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .org-cultura .on-nome{ color:#fff; font-size:1rem; letter-spacing:.3px }
 .org-cultura .on-sub{ color:#cbd5e1 }
 .org-ceo{ background:#fff8e6; border-color:#d4a72c }
-.org-emp{ background:#fff; border-color:#e2e2e2; min-width:172px }
-.org-emp .org-logo{ height:48px; max-width:150px; object-fit:contain; margin:2px auto 7px; display:block }
+.org-emp{ background:#fff; border-color:#e2e2e2; width:184px; box-sizing:border-box; min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center }
+.org-emp .org-logo{ height:46px; width:auto; max-width:140px; object-fit:contain; margin:0 auto 8px; display:block }
 .org-emp .on-nome{ font-size:.82rem }
 .org-emp .on-sub{ font-size:.68rem; font-weight:800; color:#fff; background:#1f2430; border-radius:999px; padding:2px 10px; display:inline-block; margin-top:6px }
+.hint{ font-weight:600; color:var(--muted); font-size:.78rem }
+.ckgroup{ display:flex; flex-wrap:wrap; gap:8px; margin-top:2px }
+.ckgroup .ckb{ display:flex; align-items:center; gap:6px; font-size:.84rem; background:var(--surface2); border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer; user-select:none }
+.ckgroup .ckb input{ margin:0; cursor:pointer }
+#orgTip{ position:fixed; z-index:9999; max-width:300px; background:#1f2430; color:#fff; font-size:.8rem; line-height:1.4; padding:10px 13px; border-radius:10px; box-shadow:0 10px 28px rgba(0,0,0,.3); pointer-events:none; opacity:0; transition:opacity .12s; display:none }
+#orgTip::after{ content:''; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%); border:7px solid transparent; border-top-color:#1f2430; border-bottom:0 }
 </style>
 </head>
 <body>
@@ -1071,12 +1077,56 @@ function corNivel(nv){
     default:             return {bg:'#f1f5f9', bd:'#cbd5e1'};
   }
 }
-function orgFilhosTodos(pid){
-  var fx=ORG_FIXO.filter(function(f){return String(f.parent||"")===String(pid||"");});
-  var ed=ST.org.filter(function(n){return String(n.parent_id||"")===String(pid||"");})
-            .sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
-  return fx.concat(ed);
+function orgEmpresasDe(n){ return String(n.empresa||'').split(',').map(function(s){return s.trim();}).filter(Boolean); }
+function orgFilhosTodos(node){
+  var out=[];
+  ORG_FIXO.forEach(function(f){ if(f.parent===node.id) out.push(f); });
+  if(node.tipo==='empresa'){
+    ST.org.forEach(function(x){
+      var p=String(x.parent_id||'').trim();
+      if(p===node.id) out.push(x);
+      else if(!p && orgEmpresasDe(x).indexOf(node.id)>=0) out.push(x);
+    });
+  } else if(!node.tipo){
+    ST.org.forEach(function(x){ if(String(x.parent_id||'')===String(node.id)) out.push(x); });
+  }
+  return out.sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
 }
+function orgReachableIds(){
+  var comp=ORG_FIXO.filter(function(f){return f.tipo==='empresa';}).map(function(f){return f.id;});
+  var ok={};
+  ST.org.forEach(function(x){
+    var p=String(x.parent_id||'').trim();
+    if(comp.indexOf(p)>=0) ok[x.id]=1;
+    else if(!p && orgEmpresasDe(x).some(function(e){return comp.indexOf(e)>=0;})) ok[x.id]=1;
+  });
+  var changed=true, guard=0;
+  while(changed && guard++<60){ changed=false;
+    ST.org.forEach(function(x){ if(ok[x.id])return; var p=String(x.parent_id||'').trim(); if(p && ok[p]){ok[x.id]=1;changed=true;} });
+  }
+  return ok;
+}
+(function(){
+  if(window.__orgTipInit) return; window.__orgTipInit=1;
+  var tip=document.createElement('div'); tip.id='orgTip'; (document.body||document.documentElement).appendChild(tip);
+  function pos(node){
+    var r=node.getBoundingClientRect();
+    tip.style.display='block';
+    var top=r.top - tip.offsetHeight - 12;
+    if(top<6){ top=r.bottom+12; tip.style.transform=''; }
+    tip.style.left=Math.min(window.innerWidth-tip.offsetWidth-8, Math.max(8, r.left + r.width/2 - tip.offsetWidth/2))+'px';
+    tip.style.top=top+'px';
+    tip.style.opacity='1';
+  }
+  document.addEventListener('mouseover',function(e){
+    var node=e.target.closest? e.target.closest('.org-node[data-desc]'):null;
+    if(node){ tip.textContent=node.getAttribute('data-desc'); pos(node); }
+  });
+  document.addEventListener('mouseout',function(e){
+    var node=e.target.closest? e.target.closest('.org-node[data-desc]'):null;
+    if(node){ tip.style.opacity='0'; tip.style.display='none'; }
+  });
+})();
 
 function renderOrg(){
   var box=document.getElementById("orgChart");
@@ -1086,22 +1136,20 @@ function renderOrg(){
 function renderOrgNode(n, visited){
   visited=visited||{};
   if(visited[n.id]) return '';
-  visited[n.id]=1;
+  var v2={}; for(var _k in visited) v2[_k]=1; v2[n.id]=1;
   var h='<li>';
   if(n.tipo==='cultura'){
     h+='<div class="org-node org-fix org-cultura">'+
        '<div class="on-nome">'+esc(n.nome)+'</div>'+
        (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+'</div>';
   } else if(n.tipo==='ceo'){
-    var actCeo=ehAdminOrg()?'<div class="on-acts"><button title="Adicionar abaixo (nível grupo)" onclick="abrirOrgNode(null,\''+n.id+'\')">＋</button></div>':'';
     h+='<div class="org-node org-fix org-ceo">'+
        '<div class="on-nome">'+esc(n.nome)+'</div>'+
-       (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+actCeo+'</div>';
+       (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+'</div>';
   } else if(n.tipo==='empresa'){
     var actEmp=ehAdminOrg()?'<div class="on-acts"><button title="Adicionar abaixo" onclick="abrirOrgNode(null,\''+n.id+'\')">＋</button></div>':'';
     h+='<div class="org-node org-fix org-emp">'+
-       (n.logo?'<img class="org-logo" src="'+n.logo+'" alt="'+esc(n.nome)+'">':'')+
-       '<div class="on-nome">'+esc(n.nome)+'</div>'+
+       (n.logo?'<img class="org-logo" src="'+n.logo+'" alt="'+esc(n.nome)+'">':'<div class="on-nome">'+esc(n.nome)+'</div>')+
        (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+actEmp+'</div>';
   } else {
     var cn=corNivel(n.nivel);
@@ -1111,13 +1159,13 @@ function renderOrgNode(n, visited){
       '<button title="Editar" onclick="abrirOrgNode(\''+n.id+'\',\'\')">✎</button>'+
       (ehAdminOrg()?'<button title="Remover" onclick="excluirOrgNode(\''+n.id+'\')">✕</button>':'')+
       '</div>'):'';
-    h+='<div class="org-node" style="background:'+cn.bg+';border-color:'+cn.bd+'"'+(n.descricao?' title="'+esc(n.descricao)+'"':'')+'>'+
-      (n.descricao?'<span class="on-info" title="'+esc(n.descricao)+'">ⓘ</span>':'')+
+    h+='<div class="org-node" style="background:'+cn.bg+';border-color:'+cn.bd+'"'+(n.descricao?' data-desc="'+esc(n.descricao)+'"':'')+'>'+
+      (n.descricao?'<span class="on-info">ⓘ</span>':'')+
       '<div class="on-nome">'+esc(n.nome)+'</div>'+
       (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+acts+'</div>';
   }
-  var kids=orgFilhosTodos(n.id);
-  if(kids.length){ h+='<ul>'+kids.map(function(k){return renderOrgNode(k,visited);}).join("")+'</ul>'; }
+  var kids=orgFilhosTodos(n);
+  if(kids.length){ h+='<ul>'+kids.map(function(k){return renderOrgNode(k,v2);}).join("")+'</ul>'; }
   h+='</li>';
   return h;
 }
@@ -1133,23 +1181,30 @@ function abrirOrgNode(id, parentId){
   }
   var n = id? alvo : null;
   ORGEDIT = id || null;
+  var compFix=ORG_FIXO.filter(function(f){return f.tipo==='empresa';});
+  var curEmps={};
+  if(n){ orgEmpresasDe(n).forEach(function(e){curEmps[e]=1;}); var pp=String(n.parent_id||'').trim(); if(compFix.some(function(c){return c.id===pp;})) curEmps[pp]=1; }
+  if(!id && pai && pai.tipo==='empresa'){ curEmps[pai.id]=1; }
+  var opEmp=compFix.map(function(c){return '<label class="ckb"><input type="checkbox" class="o_empc" value="'+c.id+'" '+(curEmps[c.id]?'checked':'')+'> '+esc(c.nome)+(c.sub?' — '+esc(c.sub):'')+'</label>';}).join("");
   var niveis=["Gestor Geral","Gestor","Coordenador","Supervisor","Colaborador"];
   var opNiv='<option value="">— (definir cor)</option>'+niveis.map(function(v){return '<option value="'+v+'" '+(n&&n.nivel===v?'selected':'')+'>'+v+'</option>';}).join("");
-  var opSet='<option value="">— (sem setor)</option>'+lista("setor").map(function(l){return '<option value="'+esc(l.valor)+'" '+(n&&n.setor===l.valor?'selected':'')+'>'+esc(l.rotulo)+'</option>';}).join("");
+  var curSet={}; if(n){ String(n.setor||'').split(',').map(function(s){return s.trim();}).filter(Boolean).forEach(function(s){curSet[s]=1;}); }
+  var opSet=lista("setor").map(function(l){return '<label class="ckb"><input type="checkbox" class="o_setc" value="'+esc(l.valor)+'" '+(curSet[l.valor]?'checked':'')+'> '+esc(l.rotulo)+'</label>';}).join("");
+  if(!opSet) opSet='<span style="color:var(--muted);font-size:.85rem">Nenhum setor cadastrado ainda.</span>';
   var bloq = id? orgDescendentes(id) : {}; if(id) bloq[id]=1;
-  var curPar = n? n.parent_id : (parentId||"");
-  var fixosPai=ORG_FIXO.filter(function(f){return f.tipo==='ceo'||f.tipo==='empresa';});
-  var opPar='<optgroup label="Estrutura fixa">'+
-    fixosPai.map(function(x){return '<option value="'+x.id+'" '+(String(curPar)===String(x.id)?'selected':'')+'>'+esc(x.nome)+(x.sub?' ('+esc(x.sub)+')':'')+'</option>';}).join("")+'</optgroup>';
-  var edit=ST.org.filter(function(x){return !bloq[x.id];}).sort(function(a,b){return (a.nome>b.nome)?1:-1;});
-  if(edit.length){ opPar+='<optgroup label="Pessoas / áreas">'+edit.map(function(x){return '<option value="'+x.id+'" '+(String(curPar)===String(x.id)?'selected':'')+'>'+esc(x.nome)+(x.funcao?' ('+esc(x.funcao)+')':'')+'</option>';}).join("")+'</optgroup>'; }
+  var reach=orgReachableIds();
+  var curParPessoa = (n && !compFix.some(function(c){return c.id===String(n.parent_id||'').trim();})) ? String(n.parent_id||'') : "";
+  if(!id && pai && !pai.tipo){ curParPessoa = pai.id; }
+  var pessoas=ST.org.filter(function(x){return reach[x.id] && !bloq[x.id];}).sort(function(a,b){return (a.nome>b.nome)?1:-1;});
+  var opPar='<option value="">— (não; fica direto na(s) empresa(s))</option>'+pessoas.map(function(x){return '<option value="'+x.id+'" '+(String(curParPessoa)===String(x.id)?'selected':'')+'>'+esc(x.nome)+(x.funcao?' ('+esc(x.funcao)+')':'')+'</option>';}).join("");
   var h='<div class="grid g2">'+
     '<div style="grid-column:1/-1"><label class="fld">Nome</label><input class="inp" id="o_nome" placeholder="Ex.: Rodrigo, RH, Equipe Cozinha" value="'+esc(n?n.nome:"")+'"></div>'+
-    '<div><label class="fld">Função / cargo</label><input class="inp" id="o_func" placeholder="Ex.: Gestor de Operações, Analista de RH" value="'+esc(n?n.funcao:"")+'"></div>'+
-    '<div><label class="fld">Nível <span style="font-weight:600;color:var(--muted);font-size:.78rem">(define a cor)</span></label><select class="inp" id="o_niv">'+opNiv+'</select></div>'+
-    '<div><label class="fld">Setor (opcional)</label><select class="inp" id="o_set">'+opSet+'</select></div>'+
-    '<div style="grid-column:1/-1"><label class="fld">Fica abaixo de</label><select class="inp" id="o_par">'+opPar+'</select></div>'+
-    '<div style="grid-column:1/-1"><label class="fld">Descrição da função <span style="font-weight:600;color:var(--muted);font-size:.78rem">(aparece ao passar o mouse)</span></label><textarea class="inp" id="o_desc" rows="2" placeholder="Resumo do que essa função faz no dia a dia, responsabilidades...">'+esc(n?(n.descricao||""):"")+'</textarea></div>'+
+    '<div><label class="fld">Função / cargo</label><input class="inp" id="o_func" placeholder="Ex.: Gestor de Operações" value="'+esc(n?n.funcao:"")+'"></div>'+
+    '<div><label class="fld">Nível <span class="hint">(define a cor)</span></label><select class="inp" id="o_niv">'+opNiv+'</select></div>'+
+    '<div style="grid-column:1/-1"><label class="fld">Empresa(s) onde atua <span class="hint">(marque uma ou várias — conecta a cada uma)</span></label><div class="ckgroup">'+opEmp+'</div></div>'+
+    '<div style="grid-column:1/-1"><label class="fld">Ou abaixo de (pessoa) <span class="hint">(opcional — para subordinados)</span></label><select class="inp" id="o_par">'+opPar+'</select></div>'+
+    '<div style="grid-column:1/-1"><label class="fld">Setor(es) <span class="hint">(opcional — pode marcar vários)</span></label><div class="ckgroup">'+opSet+'</div></div>'+
+    '<div style="grid-column:1/-1"><label class="fld">Descrição da função <span class="hint">(aparece ao passar o mouse)</span></label><textarea class="inp" id="o_desc" rows="2" placeholder="Resumo do que essa função faz no dia a dia...">'+esc(n?(n.descricao||""):"")+'</textarea></div>'+
     '</div>'+
     '<div style="margin-top:16px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="salvarOrgNode()">Salvar</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
   document.getElementById("ovTitle").textContent = id? "Editar caixa" : "Nova caixa";
@@ -1157,9 +1212,15 @@ function abrirOrgNode(id, parentId){
   document.getElementById("ov").classList.add("open");
 }
 function salvarOrgNode(){
-  var payload={ id:ORGEDIT||undefined, nome:val("o_nome"), funcao:val("o_func"), nivel:val("o_niv"), setor:val("o_set"), parent_id:val("o_par"), empresa:"grupo", descricao:val("o_desc") };
+  var emps=[].slice.call(document.querySelectorAll('.o_empc:checked')).map(function(c){return c.value;});
+  var sets=[].slice.call(document.querySelectorAll('.o_setc:checked')).map(function(c){return c.value;});
+  var pessoa=val("o_par");
+  var parent_id, empresa;
+  if(pessoa){ parent_id=pessoa; empresa=""; }
+  else { parent_id=""; empresa=emps.join(","); }
+  var payload={ id:ORGEDIT||undefined, nome:val("o_nome"), funcao:val("o_func"), nivel:val("o_niv"), setor:sets.join(","), parent_id:parent_id, empresa:empresa, descricao:val("o_desc") };
   if(!payload.nome){ toast("Dê um nome à caixa."); return; }
-  if(!payload.parent_id){ toast("Escolha onde a caixa fica (Fica abaixo de)."); return; }
+  if(!pessoa && !emps.length){ toast("Marque ao menos uma empresa (ou escolha abaixo de quem fica)."); return; }
   apiPost("salvarOrg",payload).then(function(r){ if(r.ok){ toast("Caixa salva."); fecharOv(); carregarTudo().then(function(){ setTab('org'); }); } else toast("Erro: "+(r.error||"")); });
 }
 function excluirOrgNode(id){
