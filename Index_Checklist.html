@@ -1093,13 +1093,7 @@ function orgFilhosTodos(node){
   var out=[];
   ORG_FIXO.forEach(function(f){ if(f.parent===node.id) out.push(f); });
   if(node.tipo==='empresa'){
-    ST.org.forEach(function(x){
-      var p=String(x.parent_id||'').trim();
-      var es=orgEmpresasDe(x).filter(ehEmpresaId);
-      if(p===node.id) out.push(x);                                  // legado: parent_id = empresa
-      else if(!p && es.length===1 && es[0]===node.id) out.push(x);   // atua em 1 empresa só
-      // quem atua em 2+ empresas NAO entra aqui (vai pra area de grupo)
-    });
+    /* pessoas de topo (1 ou + empresas) vao todas pra faixa Gestor Geral */
   } else if(!node.tipo){
     ST.org.forEach(function(x){ if(String(x.parent_id||'')===String(node.id)) out.push(x); });
   }
@@ -1107,34 +1101,44 @@ function orgFilhosTodos(node){
 }
 function ehEmpresaId(id){ return ORG_FIXO.some(function(f){return f.tipo==='empresa' && f.id===id;}); }
 var ORG_MULTI_CACHE=[];
-function desenharLinhasMulti(multi){
+function desenharLinhasMulti(people){
   var stage=document.querySelector('.org-stage'); if(!stage) return;
   var svg=stage.querySelector('.org-links'); if(!svg) return;
   var W=stage.scrollWidth||stage.offsetWidth, H=stage.scrollHeight||stage.offsetHeight;
   svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox','0 0 '+W+' '+H);
   var sr=stage.getBoundingClientRect();
   var COR='#cfc8bd', SW='2';
-  var persons=[], comps={};
-  (multi||[]).forEach(function(p){
+  function ctr(el){ var r=el.getBoundingClientRect(); return {x:Math.round(r.left-sr.left+r.width/2), top:Math.round(r.top-sr.top), bottom:Math.round(r.bottom-sr.top)}; }
+  var multi=[], singles=[], comps={};
+  (people||[]).forEach(function(p){
     var pe=stage.querySelector('.org-node[data-id="'+p.id+'"]'); if(!pe) return;
-    var pr=pe.getBoundingClientRect();
-    persons.push({x:Math.round(pr.left-sr.left+pr.width/2), top:Math.round(pr.top-sr.top)});
-    orgEmpresasDe(p).filter(ehEmpresaId).forEach(function(cid){
+    var pp=ctr(pe);
+    var es=orgEmpresasDe(p).filter(ehEmpresaId);
+    es.forEach(function(cid){
+      if(comps[cid]) return;
       var ce=stage.querySelector('.org-node[data-id="'+cid+'"]'); if(!ce) return;
-      var cr=ce.getBoundingClientRect();
-      comps[cid]={x:Math.round(cr.left-sr.left+cr.width/2), bottom:Math.round(cr.bottom-sr.top)};
+      comps[cid]=ctr(ce);
     });
+    if(es.length>=2) multi.push({x:pp.x, top:pp.top, emp:es});
+    else if(es.length===1) singles.push({x:pp.x, top:pp.top, emp:es[0]});
   });
-  var compArr=Object.keys(comps).map(function(k){return comps[k];});
-  if(!persons.length || !compArr.length){ svg.innerHTML=''; return; }
-  var maxCB=Math.max.apply(null, compArr.map(function(c){return c.bottom;}));
-  var busY=maxCB+22;
-  var xs=compArr.map(function(c){return c.x;}).concat(persons.map(function(p){return p.x;}));
-  var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs);
+  var served=Object.keys(comps);
+  if(!served.length){ svg.innerHTML=''; return; }
+  var busY=Math.max.apply(null, served.map(function(k){return comps[k].bottom;}))+22;
   var parts=[];
-  parts.push('<path d="M'+minX+' '+busY+' L'+maxX+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
-  compArr.forEach(function(c){ parts.push('<path d="M'+c.x+' '+c.bottom+' L'+c.x+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
-  persons.forEach(function(p){ parts.push('<path d="M'+p.x+' '+busY+' L'+p.x+' '+p.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
+  if(multi.length){
+    var setC={}; multi.forEach(function(m){ m.emp.forEach(function(c){ if(comps[c]) setC[c]=1; }); });
+    var cks=Object.keys(setC);
+    var xs=cks.map(function(c){return comps[c].x;}).concat(multi.map(function(m){return m.x;}));
+    var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs);
+    parts.push('<path d="M'+minX+' '+busY+' L'+maxX+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
+    cks.forEach(function(c){ parts.push('<path d="M'+comps[c].x+' '+comps[c].bottom+' L'+comps[c].x+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
+    multi.forEach(function(m){ parts.push('<path d="M'+m.x+' '+busY+' L'+m.x+' '+m.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
+  }
+  singles.forEach(function(s){
+    var c=comps[s.emp]; if(!c) return;
+    parts.push('<path d="M'+c.x+' '+c.bottom+' L'+c.x+' '+busY+' L'+s.x+' '+busY+' L'+s.x+' '+s.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
+  });
   svg.innerHTML=parts.join('');
 }
 (function(){
@@ -1182,7 +1186,16 @@ function renderOrg(){
   var bnc=document.getElementById("btnNovaCaixa"); if(bnc) bnc.classList.toggle("hidden", !ehAdminOrg());
   var raiz=ORG_FIXO.filter(function(f){return !f.parent;});
   var topo='<div class="org-top"><div class="orgtree"><ul>'+raiz.map(function(n){return renderOrgNode(n,{});}).join("")+'</ul></div></div>';
-  var multi=ST.org.filter(function(x){ return !String(x.parent_id||'').trim() && orgEmpresasDe(x).filter(ehEmpresaId).length>=2; });
+  var multi=ST.org.filter(function(x){
+    var p=String(x.parent_id||'').trim();
+    var semPaiPessoa=(!p)||ehEmpresaId(p);
+    return semPaiPessoa && orgEmpresasDe(x).filter(ehEmpresaId).length>=1;
+  }).sort(function(a,b){
+    var na=orgEmpresasDe(a).filter(ehEmpresaId).length>=2?0:1;
+    var nb=orgEmpresasDe(b).filter(ehEmpresaId).length>=2?0:1;
+    if(na!==nb) return na-nb;
+    return (+a.ordem||0)-(+b.ordem||0);
+  });
   var grupo='';
   if(multi.length){
     grupo='<div class="org-grupo"><div class="org-grupo-tit"></div><div class="orgtree"><ul>'+
