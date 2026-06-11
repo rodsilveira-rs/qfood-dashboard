@@ -148,7 +148,7 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .orgtree li:last-child::before{ border-right:2px solid #cfc8bd; border-radius:0 6px 0 0 }
 .orgtree li:first-child::after{ border-radius:6px 0 0 0 }
 .orgtree ul ul::before{ content:''; position:absolute; top:0; left:50%; border-left:2px solid #cfc8bd; width:0; height:22px }
-.org-node{ display:inline-block; min-width:150px; max-width:210px; background:#fff; border:2px solid var(--line); border-radius:12px; padding:10px 12px; box-shadow:0 2px 6px rgba(0,0,0,.08); text-align:center; position:relative }
+.org-node{ display:inline-block; width:180px; box-sizing:border-box; background:#fff; border:2px solid var(--line); border-radius:12px; padding:10px 12px; box-shadow:0 2px 6px rgba(0,0,0,.08); text-align:center; position:relative }
 .org-node .on-nome{ font-weight:800; font-size:.92rem; color:#1f2430; line-height:1.15 }
 .org-node .on-func{ font-size:.76rem; color:#4b5563; margin-top:3px; white-space:normal; font-weight:600 }
 .org-node .on-sub{ font-size:.72rem; color:#6b7280; margin-top:2px }
@@ -1112,21 +1112,29 @@ function desenharLinhasMulti(multi){
   var svg=stage.querySelector('.org-links'); if(!svg) return;
   var W=stage.scrollWidth||stage.offsetWidth, H=stage.scrollHeight||stage.offsetHeight;
   svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox','0 0 '+W+' '+H);
-  var sr=stage.getBoundingClientRect(), parts=[];
+  var sr=stage.getBoundingClientRect();
   var COR='#cfc8bd', SW='2';
-  (multi||[]).forEach(function(p,i){
+  var persons=[], comps={};
+  (multi||[]).forEach(function(p){
     var pe=stage.querySelector('.org-node[data-id="'+p.id+'"]'); if(!pe) return;
     var pr=pe.getBoundingClientRect();
-    var px=Math.round(pr.left-sr.left+pr.width/2), py=Math.round(pr.top-sr.top);
-    var busY=py-14-i*12;
-    parts.push('<path d="M'+px+' '+py+' L'+px+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
+    persons.push({x:Math.round(pr.left-sr.left+pr.width/2), top:Math.round(pr.top-sr.top)});
     orgEmpresasDe(p).filter(ehEmpresaId).forEach(function(cid){
       var ce=stage.querySelector('.org-node[data-id="'+cid+'"]'); if(!ce) return;
       var cr=ce.getBoundingClientRect();
-      var cx=Math.round(cr.left-sr.left+cr.width/2), cy=Math.round(cr.bottom-sr.top);
-      parts.push('<path d="M'+cx+' '+cy+' L'+cx+' '+busY+' L'+px+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
+      comps[cid]={x:Math.round(cr.left-sr.left+cr.width/2), bottom:Math.round(cr.bottom-sr.top)};
     });
   });
+  var compArr=Object.keys(comps).map(function(k){return comps[k];});
+  if(!persons.length || !compArr.length){ svg.innerHTML=''; return; }
+  var maxCB=Math.max.apply(null, compArr.map(function(c){return c.bottom;}));
+  var busY=maxCB+22;
+  var xs=compArr.map(function(c){return c.x;}).concat(persons.map(function(p){return p.x;}));
+  var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs);
+  var parts=[];
+  parts.push('<path d="M'+minX+' '+busY+' L'+maxX+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
+  compArr.forEach(function(c){ parts.push('<path d="M'+c.x+' '+c.bottom+' L'+c.x+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
+  persons.forEach(function(p){ parts.push('<path d="M'+p.x+' '+busY+' L'+p.x+' '+p.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
   svg.innerHTML=parts.join('');
 }
 (function(){
