@@ -148,6 +148,11 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .orgtree li:last-child::before{ border-right:2px solid #cfc8bd; border-radius:0 6px 0 0 }
 .orgtree li:first-child::after{ border-radius:6px 0 0 0 }
 .orgtree ul ul::before{ content:''; position:absolute; top:0; left:50%; border-left:2px solid #cfc8bd; width:0; height:22px }
+.orgtree li::before,.orgtree li::after,.orgtree li:first-child::after,.orgtree li:last-child::before,.orgtree ul ul::before{ border:0 !important; border-radius:0 !important }
+.orgtree li:only-child{ padding-top:22px }
+.org-node{ cursor:grab }
+body.org-dragging, body.org-dragging *{ cursor:grabbing !important }
+body.org-dragging{ user-select:none }
 .org-node{ display:inline-block; width:180px; box-sizing:border-box; background:#fff; border:2px solid var(--line); border-radius:12px; padding:10px 12px; box-shadow:0 2px 6px rgba(0,0,0,.08); text-align:center; position:relative }
 .org-node .on-nome{ font-weight:800; font-size:.92rem; color:#1f2430; line-height:1.15 }
 .org-node .on-func{ font-size:.76rem; color:#4b5563; margin-top:3px; white-space:normal; font-weight:600 }
@@ -293,6 +298,13 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
       <button class="btn hidden" id="btnNovaCaixa" onclick="abrirOrgNode(null,'')" style="display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;font-weight:800;font-size:.92rem;padding:11px 18px;border-radius:11px;border:0;cursor:pointer">＋ Nova caixa</button>
       <a href="https://drive.google.com/file/d/1rpOaK3htsyM3ZXfS3zzAYzaNtk-Ncz6L/view?usp=sharing" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:#fff;text-decoration:none;font-weight:800;font-size:.92rem;padding:11px 18px;border-radius:11px;box-shadow:0 4px 14px rgba(217,117,36,.4)">📘 Abrir manual de Cultura</a>
       <a href="https://drive.google.com/file/d/1fNLaKkVa3NwKjR2TjSdxAlJRWYRvA4sQ/view?usp=sharing" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;text-decoration:none;font-weight:800;font-size:.92rem;padding:11px 18px;border-radius:11px;box-shadow:0 4px 14px rgba(21,33,31,.3)">▶️ Ver vídeo</a>
+    </div>
+    <div class="row" style="gap:6px;justify-content:flex-end;align-items:center;margin-bottom:8px">
+      <span style="font-size:.8rem;color:var(--muted);margin-right:2px">Zoom</span>
+      <button type="button" title="Diminuir" onclick="orgZoom(-1)" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">−</button>
+      <button type="button" id="orgZoomLbl" title="Resetar" onclick="orgZoom(0)" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;min-width:64px">100%</button>
+      <button type="button" title="Aumentar" onclick="orgZoom(1)" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">＋</button>
+      <button type="button" title="Resetar posições das caixas" onclick="orgResetPos()" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">↺</button>
     </div>
     <div class="card pad" style="overflow:auto"><div id="orgChart"></div></div>
   </div>
@@ -1101,44 +1113,98 @@ function orgFilhosTodos(node){
 }
 function ehEmpresaId(id){ return ORG_FIXO.some(function(f){return f.tipo==='empresa' && f.id===id;}); }
 var ORG_MULTI_CACHE=[];
+var ORG_PAIRS=[];
+var ORG_OFF=(function(){ try{ return JSON.parse(localStorage.getItem('qfood_org_off')||'{}')||{}; }catch(e){ return {}; } })();
+function salvarOrgOff(){ try{ localStorage.setItem('qfood_org_off', JSON.stringify(ORG_OFF)); }catch(e){} }
+function orgResetPos(){ ORG_OFF={}; try{ localStorage.removeItem('qfood_org_off'); }catch(e){} renderOrg(); }
+function nodeStyle(base,id){
+  var o=ORG_OFF[id]; var tr=(o&&(o.dx||o.dy))?'transform:translate('+(o.dx||0)+'px,'+(o.dy||0)+'px)':'';
+  var s=[base,tr].filter(Boolean).join(';');
+  return s?(' style="'+s+'"'):'';
+}
+var ORG_DRAG_INIT=false;
+function initOrgDrag(){
+  if(ORG_DRAG_INIT) return; ORG_DRAG_INIT=true;
+  var box=document.getElementById('orgChart'); if(!box) return;
+  var cur=null;
+  box.addEventListener('mousedown', function(e){
+    var node=e.target.closest('.org-node'); if(!node) return;
+    if(e.target.closest('button,a,.on-acts')) return;
+    var id=node.getAttribute('data-id'); if(!id) return;
+    var b=ORG_OFF[id]||{dx:0,dy:0};
+    cur={id:id,node:node,sx:e.clientX,sy:e.clientY,bx:(b.dx||0),by:(b.dy||0),axis:null,raf:null};
+    document.body.classList.add('org-dragging'); e.preventDefault();
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!cur) return;
+    var Z=ORG_ZOOM||1;
+    var ddx=(e.clientX-cur.sx)/Z, ddy=(e.clientY-cur.sy)/Z;
+    if(!cur.axis && (Math.abs(ddx)>4||Math.abs(ddy)>4)) cur.axis=(Math.abs(ddx)>=Math.abs(ddy))?'x':'y';
+    var ndx=cur.bx, ndy=cur.by;
+    if(cur.axis==='x') ndx=cur.bx+ddx; else if(cur.axis==='y') ndy=cur.by+ddy;
+    ndx=Math.round(ndx); ndy=Math.round(ndy);
+    ORG_OFF[cur.id]={dx:ndx,dy:ndy};
+    cur.node.style.transform='translate('+ndx+'px,'+ndy+'px)';
+    if(!cur.raf) cur.raf=requestAnimationFrame(function(){ cur.raf=null; desenharLinhasMulti(ORG_MULTI_CACHE); });
+  });
+  window.addEventListener('mouseup', function(){
+    if(!cur) return;
+    document.body.classList.remove('org-dragging');
+    salvarOrgOff(); desenharLinhasMulti(ORG_MULTI_CACHE); cur=null;
+  });
+}
 function desenharLinhasMulti(people){
   var stage=document.querySelector('.org-stage'); if(!stage) return;
   var svg=stage.querySelector('.org-links'); if(!svg) return;
   var W=stage.scrollWidth||stage.offsetWidth, H=stage.scrollHeight||stage.offsetHeight;
   svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox','0 0 '+W+' '+H);
   var sr=stage.getBoundingClientRect();
-  var COR='#cfc8bd', SW='2';
-  function ctr(el){ var r=el.getBoundingClientRect(); return {x:Math.round(r.left-sr.left+r.width/2), top:Math.round(r.top-sr.top), bottom:Math.round(r.bottom-sr.top)}; }
+  var Z=ORG_ZOOM||1, COR='#cfc8bd', SW='2', parts=[];
+  function ctr(id){
+    var el=stage.querySelector('.org-node[data-id="'+id+'"]'); if(!el) return null;
+    var r=el.getBoundingClientRect();
+    return { x:Math.round((r.left-sr.left)/Z + (r.width/Z)/2), top:Math.round((r.top-sr.top)/Z), bottom:Math.round((r.top-sr.top)/Z + r.height/Z) };
+  }
+  function vline(x,y1,y2){ parts.push('<path d="M'+x+' '+y1+' L'+x+' '+y2+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); }
+  function hline(x1,x2,y){ parts.push('<path d="M'+x1+' '+y+' L'+x2+' '+y+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); }
+  // 1) hierarquia (pai -> filhos) agrupada por pai
+  var byParent={};
+  (ORG_PAIRS||[]).forEach(function(pr){ (byParent[pr[0]]=byParent[pr[0]]||[]).push(pr[1]); });
+  Object.keys(byParent).forEach(function(pid){
+    var p=ctr(pid); if(!p) return;
+    var kids=byParent[pid].map(ctr).filter(Boolean); if(!kids.length) return;
+    var minCT=Math.min.apply(null, kids.map(function(c){return c.top;}));
+    var busY=Math.round((p.bottom+minCT)/2); if(busY<=p.bottom) busY=p.bottom+12;
+    var xs=kids.map(function(c){return c.x;}).concat([p.x]);
+    vline(p.x, p.bottom, busY);
+    hline(Math.min.apply(null,xs), Math.max.apply(null,xs), busY);
+    kids.forEach(function(c){ vline(c.x, busY, c.top); });
+  });
+  // 2) faixa Gestor Geral (empresas -> pessoas de topo)
   var multi=[], singles=[], comps={};
-  (people||[]).forEach(function(p){
-    var pe=stage.querySelector('.org-node[data-id="'+p.id+'"]'); if(!pe) return;
-    var pp=ctr(pe);
-    var es=orgEmpresasDe(p).filter(ehEmpresaId);
-    es.forEach(function(cid){
-      if(comps[cid]) return;
-      var ce=stage.querySelector('.org-node[data-id="'+cid+'"]'); if(!ce) return;
-      comps[cid]=ctr(ce);
-    });
-    if(es.length>=2) multi.push({x:pp.x, top:pp.top, emp:es});
-    else if(es.length===1) singles.push({x:pp.x, top:pp.top, emp:es[0]});
+  (people||[]).forEach(function(pp){
+    var pc=ctr(pp.id); if(!pc) return;
+    var es=orgEmpresasDe(pp).filter(ehEmpresaId);
+    es.forEach(function(cid){ if(!comps[cid]){ var c=ctr(cid); if(c) comps[cid]=c; } });
+    if(es.length>=2) multi.push({x:pc.x, top:pc.top, emp:es});
+    else if(es.length===1) singles.push({x:pc.x, top:pc.top, emp:es[0]});
   });
   var served=Object.keys(comps);
-  if(!served.length){ svg.innerHTML=''; return; }
-  var busY=Math.max.apply(null, served.map(function(k){return comps[k].bottom;}))+22;
-  var parts=[];
-  if(multi.length){
-    var setC={}; multi.forEach(function(m){ m.emp.forEach(function(c){ if(comps[c]) setC[c]=1; }); });
-    var cks=Object.keys(setC);
-    var xs=cks.map(function(c){return comps[c].x;}).concat(multi.map(function(m){return m.x;}));
-    var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs);
-    parts.push('<path d="M'+minX+' '+busY+' L'+maxX+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
-    cks.forEach(function(c){ parts.push('<path d="M'+comps[c].x+' '+comps[c].bottom+' L'+comps[c].x+' '+busY+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
-    multi.forEach(function(m){ parts.push('<path d="M'+m.x+' '+busY+' L'+m.x+' '+m.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>'); });
+  if(served.length){
+    var busY2=Math.max.apply(null, served.map(function(k){return comps[k].bottom;}))+22;
+    if(multi.length){
+      var setC={}; multi.forEach(function(m){ m.emp.forEach(function(c){ if(comps[c]) setC[c]=1; }); });
+      var cks=Object.keys(setC);
+      var xs2=cks.map(function(c){return comps[c].x;}).concat(multi.map(function(m){return m.x;}));
+      hline(Math.min.apply(null,xs2), Math.max.apply(null,xs2), busY2);
+      cks.forEach(function(c){ vline(comps[c].x, comps[c].bottom, busY2); });
+      multi.forEach(function(m){ vline(m.x, busY2, m.top); });
+    }
+    singles.forEach(function(s){
+      var c=comps[s.emp]; if(!c) return;
+      parts.push('<path d="M'+c.x+' '+c.bottom+' L'+c.x+' '+busY2+' L'+s.x+' '+busY2+' L'+s.x+' '+s.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
+    });
   }
-  singles.forEach(function(s){
-    var c=comps[s.emp]; if(!c) return;
-    parts.push('<path d="M'+c.x+' '+c.bottom+' L'+c.x+' '+busY+' L'+s.x+' '+busY+' L'+s.x+' '+s.top+'" fill="none" stroke="'+COR+'" stroke-width="'+SW+'"/>');
-  });
   svg.innerHTML=parts.join('');
 }
 (function(){
@@ -1181,8 +1247,25 @@ function orgReachableIds(){
   });
 })();
 
+var ORG_ZOOM=1;
+function aplicarOrgZoom(){
+  var stage=document.querySelector('.org-stage'); var box=document.getElementById('orgChart');
+  if(!stage||!box) return;
+  stage.style.transformOrigin='top left';
+  stage.style.transform='scale('+ORG_ZOOM+')';
+  box.style.overflow='hidden';
+  box.style.width=Math.ceil(stage.offsetWidth*ORG_ZOOM)+'px';
+  box.style.height=Math.ceil(stage.offsetHeight*ORG_ZOOM)+'px';
+  var lbl=document.getElementById('orgZoomLbl'); if(lbl) lbl.textContent=Math.round(ORG_ZOOM*100)+'%';
+}
+function orgZoom(dir){
+  if(dir===0) ORG_ZOOM=1;
+  else ORG_ZOOM=Math.min(1.6, Math.max(0.4, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
+  aplicarOrgZoom();
+}
 function renderOrg(){
   var box=document.getElementById("orgChart");
+  ORG_PAIRS=[];
   var bnc=document.getElementById("btnNovaCaixa"); if(bnc) bnc.classList.toggle("hidden", !ehAdminOrg());
   var raiz=ORG_FIXO.filter(function(f){return !f.parent;});
   var topo='<div class="org-top"><div class="orgtree"><ul>'+raiz.map(function(n){return renderOrgNode(n,{});}).join("")+'</ul></div></div>';
@@ -1198,10 +1281,12 @@ function renderOrg(){
   });
   var grupo='';
   if(multi.length){
-    grupo='<div class="org-grupo"><div class="org-grupo-tit"></div><div class="orgtree"><ul>'+
+    grupo='<div class="org-grupo"><div class="orgtree"><ul>'+
       multi.map(function(n){return renderOrgNode(n,{});}).join("")+'</ul></div></div>';
   }
   box.innerHTML='<div class="org-stage">'+topo+grupo+'<svg class="org-links" xmlns="http://www.w3.org/2000/svg"></svg></div>';
+  aplicarOrgZoom();
+  initOrgDrag();
   ORG_MULTI_CACHE=multi;
   requestAnimationFrame(function(){ desenharLinhasMulti(multi); });
   setTimeout(function(){ desenharLinhasMulti(ORG_MULTI_CACHE); }, 250);
@@ -1212,15 +1297,15 @@ function renderOrgNode(n, visited){
   var v2={}; for(var _k in visited) v2[_k]=1; v2[n.id]=1;
   var h='<li>';
   if(n.tipo==='cultura'){
-    h+='<div class="org-node org-fix org-cultura" data-id="'+n.id+'">'+
+    h+='<div class="org-node org-fix org-cultura" data-id="'+n.id+'"'+nodeStyle('',n.id)+'>'+
        '<div class="on-nome">'+esc(n.nome)+'</div>'+
        (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+'</div>';
   } else if(n.tipo==='ceo'){
-    h+='<div class="org-node org-fix org-ceo" data-id="'+n.id+'">'+
+    h+='<div class="org-node org-fix org-ceo" data-id="'+n.id+'"'+nodeStyle('',n.id)+'>'+
        '<div class="on-nome">'+esc(n.nome)+'</div>'+
        (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+'</div>';
   } else if(n.tipo==='empresa'){
-    h+='<div class="org-node org-fix org-emp" data-id="'+n.id+'">'+
+    h+='<div class="org-node org-fix org-emp" data-id="'+n.id+'"'+nodeStyle('',n.id)+'>'+
        (n.logo?'<img class="org-logo" '+(n.logoH?'style="height:'+n.logoH+'px" ':'')+'src="'+n.logo+'" alt="'+esc(n.nome)+'">':'<div class="on-nome">'+esc(n.nome)+'</div>')+
        (n.sub?'<div class="on-sub">'+esc(n.sub)+'</div>':'')+'</div>';
   } else {
@@ -1231,13 +1316,13 @@ function renderOrgNode(n, visited){
       '<button title="Editar" onclick="abrirOrgNode(\''+n.id+'\',\'\')">✎</button>'+
       (ehAdminOrg()?'<button title="Remover" onclick="excluirOrgNode(\''+n.id+'\')">✕</button>':'')+
       '</div>'):'';
-    h+='<div class="org-node" data-id="'+n.id+'" style="background:'+cn.bg+';border-color:'+cn.bd+'"'+(n.descricao?' data-desc="'+esc(n.descricao)+'"':'')+'>'+
+    h+='<div class="org-node" data-id="'+n.id+'"'+nodeStyle('background:'+cn.bg+';border-color:'+cn.bd,n.id)+(n.descricao?' data-desc="'+esc(n.descricao)+'"':'')+'>'+
       (n.descricao?'<span class="on-info">ⓘ</span>':'')+
       '<div class="on-nome">'+esc(n.nome)+'</div>'+
       (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+acts+'</div>';
   }
   var kids=orgFilhosTodos(n);
-  if(kids.length){ h+='<ul>'+kids.map(function(k){return renderOrgNode(k,v2);}).join("")+'</ul>'; }
+  if(kids.length){ kids.forEach(function(k){ ORG_PAIRS.push([n.id,k.id]); }); h+='<ul>'+kids.map(function(k){return renderOrgNode(k,v2);}).join("")+'</ul>'; }
   h+='</li>';
   return h;
 }
