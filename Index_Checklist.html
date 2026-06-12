@@ -306,7 +306,7 @@ body.org-dragging{ user-select:none }
       <button type="button" title="Aumentar" onclick="orgZoom(1)" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">＋</button>
       <button type="button" title="Resetar posições das caixas" onclick="orgResetPos()" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">↺</button>
     </div>
-    <div class="card pad" style="overflow:auto"><div id="orgChart"></div></div>
+    <div class="card pad" style="overflow:auto;max-height:72vh"><div id="orgChart"></div></div>
   </div>
 
 </div>
@@ -1128,6 +1128,7 @@ function initOrgDrag(){
   var box=document.getElementById('orgChart'); if(!box) return;
   var cur=null;
   box.addEventListener('mousedown', function(e){
+    if(e.button!==0) return;
     var node=e.target.closest('.org-node'); if(!node) return;
     if(e.target.closest('button,a,.on-acts')) return;
     var id=node.getAttribute('data-id'); if(!id) return;
@@ -1251,17 +1252,43 @@ var ORG_ZOOM=1;
 function aplicarOrgZoom(){
   var stage=document.querySelector('.org-stage'); var box=document.getElementById('orgChart');
   if(!stage||!box) return;
+  stage.style.transform='none'; box.style.width=''; box.style.height='';
+  var w=stage.offsetWidth, h=stage.offsetHeight;
   stage.style.transformOrigin='top left';
   stage.style.transform='scale('+ORG_ZOOM+')';
   box.style.overflow='hidden';
-  box.style.width=Math.ceil(stage.offsetWidth*ORG_ZOOM)+'px';
-  box.style.height=Math.ceil(stage.offsetHeight*ORG_ZOOM)+'px';
+  box.style.width=Math.ceil(w*ORG_ZOOM)+'px';
+  box.style.height=Math.ceil(h*ORG_ZOOM)+'px';
   var lbl=document.getElementById('orgZoomLbl'); if(lbl) lbl.textContent=Math.round(ORG_ZOOM*100)+'%';
 }
 function orgZoom(dir){
   if(dir===0) ORG_ZOOM=1;
   else ORG_ZOOM=Math.min(1.6, Math.max(0.4, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
   aplicarOrgZoom();
+}
+var ORG_PAN_INIT=false;
+function initOrgPan(){
+  if(ORG_PAN_INIT) return; ORG_PAN_INIT=true;
+  var box=document.getElementById('orgChart'); if(!box) return;
+  var sc=box.parentElement; if(!sc) return;
+  var pan=null;
+  sc.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  sc.addEventListener('mousedown', function(e){
+    var onNode=e.target.closest('.org-node');
+    var rightBtn=(e.button===2);
+    var leftEmpty=(e.button===0 && !onNode);
+    if(!rightBtn && !leftEmpty) return;
+    pan={sx:e.clientX, sy:e.clientY, sl:sc.scrollLeft, st:sc.scrollTop};
+    document.body.classList.add('org-dragging'); e.preventDefault();
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!pan) return;
+    sc.scrollLeft = pan.sl - (e.clientX-pan.sx);
+    sc.scrollTop  = pan.st - (e.clientY-pan.sy);
+  });
+  window.addEventListener('mouseup', function(){
+    if(!pan) return; pan=null; document.body.classList.remove('org-dragging');
+  });
 }
 function renderOrg(){
   var box=document.getElementById("orgChart");
@@ -1287,6 +1314,7 @@ function renderOrg(){
   box.innerHTML='<div class="org-stage">'+topo+grupo+'<svg class="org-links" xmlns="http://www.w3.org/2000/svg"></svg></div>';
   aplicarOrgZoom();
   initOrgDrag();
+  initOrgPan();
   ORG_MULTI_CACHE=multi;
   requestAnimationFrame(function(){ desenharLinhasMulti(multi); });
   setTimeout(function(){ desenharLinhasMulti(ORG_MULTI_CACHE); }, 250);
