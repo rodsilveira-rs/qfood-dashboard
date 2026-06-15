@@ -567,12 +567,32 @@ function modeloEhHoje(m){
 function respDeHoje(m){
   return ST.respostas.filter(function(r){ return String(r.modelo_id)===String(m.id) && String(r.data_agendada).substring(0,10)===isoHoje(); })[0];
 }
-function horaLim(v){ v=String(v||""); return /^\d{1,2}:\d{2}$/.test(v)?(' · até '+v):''; }
+function horaLim(v){ v=String(v||""); return /^\d{1,2}:\d{2}$/.test(v)?(' \u00b7 at\u00e9 '+v):''; }
+function janelaModelo(m){
+  var lim=String(m.horario_limite||"").trim(); var hm=lim.match(/^(\d{1,2}):(\d{2})$/);
+  if(!hm) return null;
+  var ante=parseInt(m.min_antecedencia,10); if(isNaN(ante)||ante<0) ante=5;
+  var tol =parseInt(m.tolerancia_min,10);  if(isNaN(tol)||tol<0)  tol=15;
+  var limiteMin=(+hm[1])*60+(+hm[2]);
+  return { ante:ante, tol:tol, abreMin:limiteMin-ante, limiteMin:limiteMin, fechaMin:limiteMin+tol };
+}
+function minDia(iso){ try{var d=new Date(iso); return d.getHours()*60+d.getMinutes();}catch(e){return null;} }
+function agoraMin(){ var n=new Date(); return n.getHours()*60+n.getMinutes(); }
+function hhmm(min){ min=((min%1440)+1440)%1440; return pad(Math.floor(min/60))+":"+pad(min%60); }
+function feitoComAtraso(m,r){ if(!(r&&r.conclusao)) return false; var w=janelaModelo(m); if(!w) return false; var mc=minDia(r.conclusao); return mc!=null && mc>w.fechaMin; }
 function statusDoDia(m,r){
   if(r && r.conclusao) return "concluido";
-  var lim=String(m.horario_limite||""); var hm=lim.match(/^(\d{1,2}):(\d{2})$/);
-  if(hm){ var d=new Date(); var limite=new Date(d.getFullYear(),d.getMonth(),d.getDate(),+hm[1],+hm[2]); if(new Date()>limite) return "atrasado"; }
+  var w=janelaModelo(m);
+  if(w && agoraMin()>w.fechaMin) return "atrasado";
   return "pendente";
+}
+function janelaInfo(m,r){
+  var w=janelaModelo(m); if(!w) return "";
+  if(r && r.conclusao){ return feitoComAtraso(m,r) ? '<div class="small" style="color:var(--late);font-weight:700;margin-top:3px">\u26a0 conclu\u00eddo com atraso (prazo era at\u00e9 '+hhmm(w.fechaMin)+')</div>' : ''; }
+  var ag=agoraMin();
+  if(ag < w.abreMin) return '<div class="small muted" style="margin-top:3px">\u23f3 dispon\u00edvel a partir das '+hhmm(w.abreMin)+' (pode adiantar)</div>';
+  if(ag <= w.fechaMin) return '<div class="small" style="color:var(--ok);font-weight:700;margin-top:3px">no prazo at\u00e9 '+hhmm(w.fechaMin)+'</div>';
+  return '<div class="small" style="color:var(--late);font-weight:700;margin-top:3px">prazo era at\u00e9 '+hhmm(w.fechaMin)+'</div>';
 }
 function checklistsDeHoje(){
   var setor=document.getElementById("execSetor").value;
@@ -602,7 +622,7 @@ function renderExec(){
     div.innerHTML =
       '<div class="between"><div class="t">'+esc(d.m.nome)+'</div><span class="st '+d.st+'">'+rotStatus(d.st)+'</span></div>'+
       '<div class="meta">'+ (setorRot(d.m.setor)) +' · '+(momRot(d.m.momento))+' · '+rotuloRec(d.m.recorrencia)+horaLim(d.m.horario_limite)+'</div>'+
-      '<div class="meta"><span class="chip-dot" style="background:'+corDe(resp)+'"></span>'+esc(resp)+'</div>'+
+      '<div class="meta"><span class="chip-dot" style="background:'+corDe(resp)+'"></span>'+esc(resp)+'</div>'+janelaInfo(d.m,d.r)+
       (d.r && d.r.conclusao ? '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="small muted" style="margin-top:5px">Score '+pct+'% · concluído '+horaDe(d.r.conclusao)+'</div>' : '<div style="margin-top:10px"><button class="btn sm" onclick="iniciarExec(\''+d.m.id+'\')">Iniciar</button></div>');
     box.appendChild(div);
   });
@@ -826,6 +846,7 @@ function abrirModelo(id){
     '<div><label class="fld">Responsável padrão</label><select class="inp" id="m_resp">'+opResp+'</select></div>'+
     '<div><label class="fld">Recorrência</label><select class="inp" id="m_rec" onchange="aplicarRecorrenciaDias()">'+opRec+'</select></div>'+
     '<div><label class="fld">Horário limite</label><div style="display:flex;gap:6px"><select class="inp" id="m_hl_h"><option value="">--</option>'+Array.apply(null,{length:24}).map(function(_,hh){var H=("0"+hh).slice(-2);return '<option value="'+H+'" '+(m&&String(m.horario_limite||"").split(":")[0]===H?'selected':'')+'>'+H+'</option>';}).join("")+'</select><select class="inp" id="m_hl_m"><option value="">--</option>'+["00","15","30","45"].map(function(M){return '<option value="'+M+'" '+(m&&String(m.horario_limite||"").split(":")[1]===M?'selected':'')+'>'+M+'</option>';}).join("")+'</select></div></div>'+
+    '<div><label class="fld">Janela do limite <span class="hint">(min antes / depois)</span></label><div style="display:flex;gap:6px"><input class="inp" id="m_ante" type="number" min="0" placeholder="antes 5" value="'+esc(m&&m.min_antecedencia!=null?m.min_antecedencia:"")+'"><input class="inp" id="m_tol" type="number" min="0" placeholder="depois 15" value="'+esc(m&&m.tolerancia_min!=null?m.tolerancia_min:"")+'"></div></div>'+
     '<div><label class="fld">Primeiro vencimento <span onclick="ajudaVenc()" style="cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:var(--accent);color:#fff;font-size:.62rem;font-weight:800;font-style:italic;margin-left:4px">i</span></label><input type="date" class="inp" id="m_dref" value="'+esc(m?String(m.data_ref||"").substring(0,10):"")+'"></div>'+
     '</div>'+
     '<div id="ajudaEstrBox" class="hidden" style="margin-top:8px;padding:10px 12px;background:#fdf3c4;border:1px solid #e8d27a;border-radius:10px;font-size:.82rem;color:#3a3a3a"><b>Estrutura</b> é como você agrupa os itens do checklist. <b>Por blocos</b>: agrupa por etapa ou assunto (ex.: Abertura, Higienização, Estoque), sem hora fixa. <b>Por faixa horária</b>: agrupa por horário do dia (ex.: 08:00, 12:00, 17:00). Regra simples: rotina dividida por etapas → use blocos; rotina dividida por horários → use faixa horária.</div>'+
@@ -915,7 +936,7 @@ function salvarModelo(){
   var payload={
     id:EDIT.id||undefined, nome:val("m_nome"), empresa:val("m_emp"), setor:val("m_set"),
     momento:val("m_mom"), tipo_estrutura:val("m_estr"), responsavel_colab:val("m_resp"),
-    recorrencia:val("m_rec"), dias_semana:dias.join(","), horario_limite:(val("m_hl_h")&&val("m_hl_m")?val("m_hl_h")+":"+val("m_hl_m"):""), data_ref:val("m_dref"),
+    recorrencia:val("m_rec"), dias_semana:dias.join(","), horario_limite:(val("m_hl_h")&&val("m_hl_m")?val("m_hl_h")+":"+val("m_hl_m"):""), min_antecedencia:val("m_ante"), tolerancia_min:val("m_tol"), data_ref:val("m_dref"),
     itens: EDIT.itens.map(function(it,i){ it.ordem=i+1; it.obrigatorio=norm(it.obrigatorio)==="sim"; it.item_critico=norm(it.item_critico)==="sim"; return it; })
   };
   if(!payload.nome){ toast("Dê um nome ao checklist."); return; }
