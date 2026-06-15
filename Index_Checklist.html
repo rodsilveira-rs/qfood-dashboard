@@ -78,7 +78,7 @@ textarea.inp{resize:vertical;min-height:64px;}
 .kpi .l{font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:6px;}
 
 /* CHECKLIST CARDS (executar) */
-.ck{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:15px 16px;border-left:5px solid var(--pend);}
+.ck{background:var(--surface);border:1.5px solid #cdc6b8;border-radius:14px;padding:15px 16px;border-left:5px solid var(--pend);}
 .ck.concluido{border-left-color:var(--ok);}
 .ck.pendente{border-left-color:var(--pend);}
 .ck.atrasado{border-left-color:var(--late);}
@@ -567,9 +567,10 @@ function modeloEhHoje(m){
 function respDeHoje(m){
   return ST.respostas.filter(function(r){ return String(r.modelo_id)===String(m.id) && String(r.data_agendada).substring(0,10)===isoHoje(); })[0];
 }
+function horaLim(v){ v=String(v||""); return /^\d{1,2}:\d{2}$/.test(v)?(' · até '+v):''; }
 function statusDoDia(m,r){
   if(r && r.conclusao) return "concluido";
-  var lim=String(m.horario_limite||""); var hm=lim.match(/(\d{1,2}):(\d{2})/);
+  var lim=String(m.horario_limite||""); var hm=lim.match(/^(\d{1,2}):(\d{2})$/);
   if(hm){ var d=new Date(); var limite=new Date(d.getFullYear(),d.getMonth(),d.getDate(),+hm[1],+hm[2]); if(new Date()>limite) return "atrasado"; }
   return "pendente";
 }
@@ -600,7 +601,7 @@ function renderExec(){
     var div=document.createElement("div"); div.className="ck "+d.st;
     div.innerHTML =
       '<div class="between"><div class="t">'+esc(d.m.nome)+'</div><span class="st '+d.st+'">'+rotStatus(d.st)+'</span></div>'+
-      '<div class="meta">'+ (setorRot(d.m.setor)) +' · '+(momRot(d.m.momento))+' · '+rotuloRec(d.m.recorrencia)+(d.m.horario_limite?' · até '+d.m.horario_limite:'')+'</div>'+
+      '<div class="meta">'+ (setorRot(d.m.setor)) +' · '+(momRot(d.m.momento))+' · '+rotuloRec(d.m.recorrencia)+horaLim(m.horario_limite)+'</div>'+
       '<div class="meta"><span class="chip-dot" style="background:'+corDe(resp)+'"></span>'+esc(resp)+'</div>'+
       (d.r && d.r.conclusao ? '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="small muted" style="margin-top:5px">Score '+pct+'% · concluído '+horaDe(d.r.conclusao)+'</div>' : '<div style="margin-top:10px"><button class="btn sm" onclick="iniciarExec(\''+d.m.id+'\')">Iniciar</button></div>');
     box.appendChild(div);
@@ -621,7 +622,7 @@ function horaDe(iso){ try{var d=new Date(iso); return pad(d.getHours())+":"+pad(
 function renderMindmap(dados){
   var box=document.getElementById("mindmap");
   if(!dados.length){ box.innerHTML='<div class="empty small">Sem nós para hoje.</div>'; return; }
-  var W=Math.max(620, Math.min(1200, 220+dados.length*150)), H=480, cx=W/2, cy=H/2, R=Math.min(cx,cy)-90;
+  var W=Math.max(620, Math.min(1200, 220+dados.length*160)), H=540, cx=W/2, cy=H/2, R=Math.min(cx,cy)-80;
   var cor={concluido:'#2f7d5b',pendente:'#e6a200',atrasado:'#b3412c'};
   var fundo={concluido:'#e3f1ea',pendente:'#fdf2cc',atrasado:'#f7e0da'};
   var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:'+W+'px;display:block;margin:0 auto">';
@@ -631,7 +632,7 @@ function renderMindmap(dados){
     s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'" stroke="'+cor[d.st]+'" stroke-width="2.5" opacity=".55"/>';
   });
   // centro
-  s+='<circle cx="'+cx+'" cy="'+cy+'" r="54" fill="#15211f"/>';
+  s+='<circle cx="'+cx+'" cy="'+cy+'" r="60" fill="#15211f"/>';
   s+='<text x="'+cx+'" y="'+(cy-5)+'" text-anchor="middle" fill="#fff" font-size="16" font-weight="800">Hoje</text>';
   s+='<text x="'+cx+'" y="'+(cy+15)+'" text-anchor="middle" fill="#a9b5b1" font-size="11">'+brData(isoHoje())+'</text>';
   // nós
@@ -639,10 +640,10 @@ function renderMindmap(dados){
     var a=(i/dados.length)*2*Math.PI - Math.PI/2; var x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
     var c=corDe(d.colaborador);
     s+='<g class="mm-node" style="cursor:pointer" onclick="'+(d.r&&d.r.conclusao?'verResposta(\''+(d.r.id)+'\')':'iniciarExec(\''+d.m.id+'\')')+'">';
-    s+='<circle cx="'+x+'" cy="'+y+'" r="50" fill="'+fundo[d.st]+'" stroke="'+cor[d.st]+'" stroke-width="4"/>';
-    s+='<circle cx="'+x+'" cy="'+(y-26)+'" r="6" fill="'+c+'"/>';
-    s+='<text x="'+x+'" y="'+(y-6)+'" text-anchor="middle" fill="#6b6459" font-size="10.5" font-weight="600">'+esc(cortar(setorRot(d.m.setor),16))+'</text>';
-    s+='<text x="'+x+'" y="'+(y+15)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,15))+'</text>';
+    s+='<circle cx="'+x+'" cy="'+y+'" r="62" fill="'+fundo[d.st]+'" stroke="'+cor[d.st]+'" stroke-width="4"/>';
+    s+='<circle cx="'+x+'" cy="'+(y-34)+'" r="6" fill="'+c+'"/>';
+    s+='<text x="'+x+'" y="'+(y-12)+'" text-anchor="middle" fill="#6b6459" font-size="10.5" font-weight="600">'+esc(cortar(setorRot(d.m.setor),16))+'</text>';
+    s+='<text x="'+x+'" y="'+(y+16)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,16))+'</text>';
     s+='</g>';
   });
   s+='</svg>';
@@ -797,7 +798,7 @@ function renderModelos(){
     var qtd=ST.itens.filter(function(it){return String(it.modelo_id)===String(m.id);}).length;
     var div=document.createElement("div"); div.className="card pad";
     div.innerHTML='<div class="between"><div class="t" style="font-weight:700">'+esc(m.nome)+'</div><span class="tag">'+qtd+' itens</span></div>'+
-      '<div class="small muted" style="margin-top:6px">'+setorRot(m.setor)+' · '+momRot(m.momento)+' · '+rotuloRec(m.recorrencia)+(m.horario_limite?' · até '+m.horario_limite:'')+'</div>'+
+      '<div class="small muted" style="margin-top:6px">'+setorRot(m.setor)+' · '+momRot(m.momento)+' · '+rotuloRec(m.recorrencia)+horaLim(m.horario_limite)+'</div>'+
       '<div class="row" style="margin-top:12px"><button class="btn ghost sm" onclick="abrirModelo(\''+m.id+'\')">Editar</button><button class="btn ghost sm" onclick="duplicarModelo(\''+m.id+'\')">Duplicar</button><button class="btn ghost sm" onclick="excluirModelo(\''+m.id+'\')">Desativar</button></div>';
     box.appendChild(div);
   });
