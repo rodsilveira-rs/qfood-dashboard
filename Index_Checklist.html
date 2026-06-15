@@ -14,7 +14,7 @@
   --bg:#f4f1ec; --paper:#faf7f0; --surface:#ffffff; --surface2:#f4f0e8;
   --ink:#15211f; --ink2:#3a4d49; --muted:#5b554c; --soft:#8a8478; --line:#e3ddd2; --line2:#efe9dd;
   --accent:#d97524; --accent2:#b85d18; --accent-soft:#fbe9d8;
-  --ok:#2f7d5b; --pend:#8a8478; --late:#b3412c; --warn:#c79a1f; --star:#c79a1f;
+  --ok:#2f7d5b; --pend:#e6a200; --late:#b3412c; --warn:#c79a1f; --star:#c79a1f;
   --fh:'Manrope',system-ui,sans-serif; --fb:'Manrope',system-ui,sans-serif;
   --r:16px; --sh:0 1px 2px rgba(21,33,31,.04),0 8px 24px rgba(21,33,31,.06);
 }
@@ -620,27 +620,28 @@ function horaDe(iso){ try{var d=new Date(iso); return pad(d.getHours())+":"+pad(
 function renderMindmap(dados){
   var box=document.getElementById("mindmap");
   if(!dados.length){ box.innerHTML='<div class="empty small">Sem nós para hoje.</div>'; return; }
-  var W=Math.max(560, Math.min(1100, 180+dados.length*120)), H=420, cx=W/2, cy=H/2, R=Math.min(cx,cy)-90;
-  var cor={concluido:'#2f7d5b',pendente:'#8a8478',atrasado:'#b3412c'};
+  var W=Math.max(620, Math.min(1200, 220+dados.length*150)), H=480, cx=W/2, cy=H/2, R=Math.min(cx,cy)-90;
+  var cor={concluido:'#2f7d5b',pendente:'#e6a200',atrasado:'#b3412c'};
+  var fundo={concluido:'#e3f1ea',pendente:'#fdf2cc',atrasado:'#f7e0da'};
   var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:'+W+'px;display:block;margin:0 auto">';
   // linhas
   dados.forEach(function(d,i){
     var a=(i/dados.length)*2*Math.PI - Math.PI/2; var x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
-    s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'" stroke="'+cor[d.st]+'" stroke-width="2" opacity=".5"/>';
+    s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'" stroke="'+cor[d.st]+'" stroke-width="2.5" opacity=".55"/>';
   });
   // centro
-  s+='<circle cx="'+cx+'" cy="'+cy+'" r="46" fill="#15211f"/>';
-  s+='<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" fill="#fff" font-size="13" font-weight="700">Hoje</text>';
-  s+='<text x="'+cx+'" y="'+(cy+14)+'" text-anchor="middle" fill="#a9b5b1" font-size="10">'+brData(isoHoje())+'</text>';
+  s+='<circle cx="'+cx+'" cy="'+cy+'" r="54" fill="#15211f"/>';
+  s+='<text x="'+cx+'" y="'+(cy-5)+'" text-anchor="middle" fill="#fff" font-size="16" font-weight="800">Hoje</text>';
+  s+='<text x="'+cx+'" y="'+(cy+15)+'" text-anchor="middle" fill="#a9b5b1" font-size="11">'+brData(isoHoje())+'</text>';
   // nós
   dados.forEach(function(d,i){
     var a=(i/dados.length)*2*Math.PI - Math.PI/2; var x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
     var c=corDe(d.colaborador);
     s+='<g class="mm-node" style="cursor:pointer" onclick="'+(d.r&&d.r.conclusao?'verResposta(\''+(d.r.id)+'\')':'iniciarExec(\''+d.m.id+'\')')+'">';
-    s+='<circle cx="'+x+'" cy="'+y+'" r="34" fill="#fff" stroke="'+cor[d.st]+'" stroke-width="3"/>';
-    s+='<circle cx="'+x+'" cy="'+(y-12)+'" r="5" fill="'+c+'"/>';
-    s+='<text x="'+x+'" y="'+(y+4)+'" text-anchor="middle" fill="#15211f" font-size="9" font-weight="700">'+esc(cortar(setorRot(d.m.setor),10))+'</text>';
-    s+='<text x="'+x+'" y="'+(y+16)+'" text-anchor="middle" fill="#5b554c" font-size="8">'+esc(cortar(d.colaborador,12))+'</text>';
+    s+='<circle cx="'+x+'" cy="'+y+'" r="50" fill="'+fundo[d.st]+'" stroke="'+cor[d.st]+'" stroke-width="4"/>';
+    s+='<circle cx="'+x+'" cy="'+(y-26)+'" r="6" fill="'+c+'"/>';
+    s+='<text x="'+x+'" y="'+(y-6)+'" text-anchor="middle" fill="#6b6459" font-size="10.5" font-weight="600">'+esc(cortar(setorRot(d.m.setor),16))+'</text>';
+    s+='<text x="'+x+'" y="'+(y+15)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,15))+'</text>';
     s+='</g>';
   });
   s+='</svg>';
@@ -656,6 +657,7 @@ function iniciarExec(modeloId){
   var itens=ST.itens.filter(function(it){return String(it.modelo_id)===String(modeloId);}).sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
   // Define responsável: fixo do modelo OU escolha entre colaboradores do setor
   var colsSetor=ST.colaboradores.filter(function(c){ return c.empresa===m.empresa && (!m.setor || c.setor===m.setor); });
+  if(!colsSetor.length) colsSetor=ST.colaboradores.filter(function(c){ return c.empresa===m.empresa; });
   var respFixo = m.responsavel_colab ? ST.colaboradores.filter(function(c){return c.id===m.responsavel_colab;})[0] : null;
   EXEC={ modelo:m, itens:itens, inicio:new Date().toISOString(), respostas:{}, evidencias:{}, responsavel: respFixo||null, colsSetor:colsSetor };
   abrirExecModal();
