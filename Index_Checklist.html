@@ -245,6 +245,7 @@ body.org-dragging{ user-select:none }
           <button class="btn" onclick="abrirModelo()">+ Novo modelo</button>
         </div>
       </div>
+      <div style="margin-bottom:14px"><input id="buscaModelo" class="inp" oninput="renderModelos()" placeholder="🔍 Buscar por nome, setor, momento, recorrência…"></div>
       <div class="grid g2" id="modList"></div>
     </div>
 
@@ -663,7 +664,9 @@ function renderMindmap(dados){
     s+='<circle cx="'+x+'" cy="'+y+'" r="62" fill="'+fundo[d.st]+'" stroke="'+cor[d.st]+'" stroke-width="4"/>';
     s+='<circle cx="'+x+'" cy="'+(y-34)+'" r="6" fill="'+c+'"/>';
     s+='<text x="'+x+'" y="'+(y-12)+'" text-anchor="middle" fill="#6b6459" font-size="10.5" font-weight="600">'+esc(cortar(setorRot(d.m.setor),16))+'</text>';
-    s+='<text x="'+x+'" y="'+(y+16)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,16))+'</text>';
+    s+='<text x="'+x+'" y="'+(y+14)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,16))+'</text>';
+    var _lim=String(d.m.horario_limite||"").trim();
+    if(/^\d{1,2}:\d{2}$/.test(_lim)) s+='<text x="'+x+'" y="'+(y+33)+'" text-anchor="middle" fill="#9a5b14" font-size="11" font-weight="800">até '+_lim+'</text>';
     s+='</g>';
   });
   s+='</svg>';
@@ -676,7 +679,7 @@ function cortar(s,n){ s=String(s||""); return s.length>n?s.substring(0,n-1)+"…
 // ════════════════════════════════════════════════════════════
 function iniciarExec(modeloId){
   var m=ST.modelos.filter(function(x){return x.id===modeloId;})[0]; if(!m) return;
-  var itens=ST.itens.filter(function(it){return String(it.modelo_id)===String(modeloId);}).sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
+  var itens=ST.itens.filter(function(it){return String(it.modelo_id)===String(modeloId);}).sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);}).map(function(o,i){ var c=Object.assign({},o); c._rid=c.id; c.id="ex"+i; return c; });
   // Define responsável: fixo do modelo OU escolha entre colaboradores do setor
   var colsSetor=ST.colaboradores.filter(function(c){ return c.empresa===m.empresa && (!m.setor || c.setor===m.setor); });
   if(!colsSetor.length) colsSetor=ST.colaboradores.filter(function(c){ return c.empresa===m.empresa; });
@@ -716,7 +719,7 @@ function renderExecItem(it,idx){
   var tipo=norm(it.tipo);
   if(tipo==="numerico"){
     var hint=(it.meta_min!==""||it.meta_max!=="")?'Meta: '+(it.meta_min!==""?'≥'+it.meta_min:'')+(it.meta_max!==""?' ≤'+it.meta_max:''):'';
-    h+='<input type="number" step="any" class="inp" style="margin-top:9px" oninput="setNumero('+it.id+'\',this.value,this)" placeholder="Digite o número"><div class="small muted" style="margin-top:4px">'+hint+'</div><div id="mw_'+it.id+'" class="small" style="color:var(--late);font-weight:800;margin-top:4px"></div>';
+    h+='<input type="number" step="any" class="inp" style="margin-top:9px" oninput="setNumero(\''+it.id+'\',this.value,this)" placeholder="Digite o número"><div class="small muted" style="margin-top:4px">'+hint+'</div><div id="mw_'+it.id+'" class="small" style="color:var(--late);font-weight:800;margin-top:4px"></div>';
   } else if(tipo==="avaliativo"){
     h+='<div class="stars" data-it="'+it.id+'">';
     for(var i=1;i<=5;i++) h+='<span onclick="setStar(\''+it.id+'\','+i+')">★</span>';
@@ -800,18 +803,18 @@ function finalizarExec(){
     EXEC.responsavel=ST.colaboradores.filter(function(c){return c.id===cid;})[0];
   }
   // valida obrigatórios + evidências obrigatórias
-  var faltou=null;
+  var faltou=null, faltouId=null;
   EXEC.itens.forEach(function(it){
     if(faltou) return;
     var req=String(it.obrigatorio).toLowerCase()==="sim";
     var v=EXEC.respostas[it.id];
-    if(req && (v===undefined||v===""||v===null)) faltou=it.titulo;
-    if(norm(it.evidencia)==="foto_obrigatoria" && !EXEC.evidencias[it.id]) faltou=it.titulo+" (foto obrigatória)";
+    if(req && (v===undefined||v===""||v===null)){ faltou=it.titulo; faltouId=it.id; }
+    else if(norm(it.evidencia)==="foto_obrigatoria" && !EXEC.evidencias[it.id]){ faltou=it.titulo+" (foto obrigatória)"; faltouId=it.id; }
   });
-  if(faltou){ toast("Pendente: "+faltou); return; }
+  if(faltou){ toast("Pendente: "+faltou); var _el=document.querySelector('.exi[data-it="'+faltouId+'"]'); if(_el){ _el.scrollIntoView({behavior:"smooth",block:"center"}); _el.style.border="2px solid var(--late)"; _el.style.background="#f7e0da"; setTimeout(function(){ _el.style.border=""; _el.style.background=""; },2600); } return; }
 
   var itensPayload=EXEC.itens.map(function(it){
-    return { item_id:it.id, valor: (EXEC.respostas[it.id]!==undefined?EXEC.respostas[it.id]:""), evidencia_url: EXEC.evidencias[it.id]||"" };
+    return { item_id:it._rid, valor: (EXEC.respostas[it.id]!==undefined?EXEC.respostas[it.id]:""), evidencia_url: EXEC.evidencias[it.id]||"" };
   });
   var payload={
     modelo_id:m.id, modelo_nome:m.nome, empresa:m.empresa, setor:m.setor,
@@ -832,6 +835,8 @@ function finalizarExec(){
 function renderModelos(){
   var box=document.getElementById("modList"); if(!box) return; box.innerHTML="";
   var mods=ST.modelos.filter(function(m){return m.empresa===ST.empresaAtiva;});
+  var termo=(document.getElementById("buscaModelo")?document.getElementById("buscaModelo").value:"").trim().toLowerCase();
+  if(termo){ mods=mods.filter(function(m){ return [m.nome,setorRot(m.setor),momRot(m.momento),rotuloRec(m.recorrencia),m.horario_limite].join(" ").toLowerCase().indexOf(termo)>=0; }); }
   if(!mods.length){ box.innerHTML='<div class="empty">Nenhum checklist cadastrado para esta empresa. Clique em “+ Novo modelo” para criar o primeiro.</div>'; return; }
   mods.forEach(function(m){
     var qtd=ST.itens.filter(function(it){return String(it.modelo_id)===String(m.id);}).length;
