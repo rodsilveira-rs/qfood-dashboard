@@ -716,7 +716,7 @@ function renderExecItem(it,idx){
   var tipo=norm(it.tipo);
   if(tipo==="numerico"){
     var hint=(it.meta_min!==""||it.meta_max!=="")?'Meta: '+(it.meta_min!==""?'≥'+it.meta_min:'')+(it.meta_max!==""?' ≤'+it.meta_max:''):'';
-    h+='<input type="number" step="any" class="inp" style="margin-top:9px" oninput="setVal(\''+it.id+'\',this.value)" placeholder="Digite o número"><div class="small muted" style="margin-top:4px">'+hint+'</div>';
+    h+='<input type="number" step="any" class="inp" style="margin-top:9px" oninput="setNumero('+it.id+'\',this.value,this)" placeholder="Digite o número"><div class="small muted" style="margin-top:4px">'+hint+'</div><div id="mw_'+it.id+'" class="small" style="color:var(--late);font-weight:800;margin-top:4px"></div>';
   } else if(tipo==="avaliativo"){
     h+='<div class="stars" data-it="'+it.id+'">';
     for(var i=1;i<=5;i++) h+='<span onclick="setStar(\''+it.id+'\','+i+')">★</span>';
@@ -734,6 +734,25 @@ function renderExecItem(it,idx){
   return h;
 }
 function setVal(id,v){ EXEC.respostas[id]=v; atualizarProgresso(); }
+function foraDaMeta(v,it){
+  if(!it||v===""||v==null) return false;
+  var n=Number(String(v).replace(",",".")); if(isNaN(n)) return false;
+  var mn=it.meta_min, mx=it.meta_max;
+  var okMin=(mn===""||mn==null||isNaN(Number(mn)))?true:n>=Number(mn);
+  var okMax=(mx===""||mx==null||isNaN(Number(mx)))?true:n<=Number(mx);
+  return !(okMin&&okMax);
+}
+function textoMeta(it){ if(!it) return ""; var a=(it.meta_min!==""&&it.meta_min!=null)?("mín "+it.meta_min):""; var b=(it.meta_max!==""&&it.meta_max!=null)?("máx "+it.meta_max):""; return [a,b].filter(Boolean).join(" / "); }
+function metaDef(it){ var d=ST.itens.filter(function(x){return String(x.id)===String(it.item_id);})[0]; return d||{meta_min:"",meta_max:""}; }
+function setNumero(id,v,el){
+  EXEC.respostas[id]=v;
+  var it=EXEC.itens.filter(function(x){return String(x.id)===String(id);})[0];
+  var fora=foraDaMeta(v,it);
+  if(el){ el.style.borderColor=fora?"var(--late)":""; el.style.background=fora?"#f7e0da":""; }
+  var box=document.getElementById("mw_"+id);
+  if(box) box.innerHTML = fora ? ("⚠ valor fora da faixa — esperado: "+textoMeta(it)) : "";
+  atualizarProgresso();
+}
 function setCheck(id,v,btn){
   EXEC.respostas[id]=v;
   var p=btn.parentNode; p.querySelectorAll(".fb").forEach(function(b){b.classList.remove("on");}); btn.classList.add("on");
@@ -1069,7 +1088,10 @@ function verResposta(id){
     itens.forEach(function(it){
       var v=it.valor; if(norm(it.tipo)==="check") v=(String(v)==="feito"?"✓ Feito":"✗ Não feito");
       if(norm(it.tipo)==="avaliativo") v="★ "+v+"/5";
-      h+='<div class="exi" style="margin-bottom:8px"><div class="tt" style="font-size:.9rem">'+esc(it.item_titulo)+'</div><div class="small" style="margin-top:3px"><b>'+esc(v)+'</b>'+(it.dentro_meta?' · meta: '+(it.dentro_meta==="sim"?'✅':'⚠️'):'')+'</div>'+(it.evidencia_url?'<div style="margin-top:8px"><img class="evthumb" src="'+it.evidencia_url+'"></div>':'')+'</div>';
+      var fora=(it.dentro_meta==="nao"); var def_=metaDef(it); var faixa_=textoMeta(def_);
+      var cardSt='margin-bottom:8px'+(fora?';border:2px solid var(--late);background:#f7e0da':'');
+      var metaLin=it.dentro_meta?(fora?'<div class="small" style="color:var(--late);font-weight:800;margin-top:5px">⚠️ FORA DA META'+(faixa_?' (esperado: '+faixa_+')':'')+'</div>':'<div class="small" style="color:var(--ok);font-weight:700;margin-top:5px">✅ dentro da meta</div>'):'';
+      h+='<div class="exi" style="'+cardSt+'"><div class="tt" style="font-size:.9rem">'+esc(it.item_titulo)+'</div><div class="small" style="margin-top:3px"><b style="'+(fora?'color:var(--late)':'')+'">'+esc(v)+'</b></div>'+metaLin+(it.evidencia_url?'<div style="margin-top:8px"><img class="evthumb" src="'+it.evidencia_url+'"></div>':'')+'</div>';
     });
     document.getElementById("ovBody").innerHTML=h;
   });
