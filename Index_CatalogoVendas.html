@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catálogo de Vendas · Q Food Company</title>
+<!--
+  ============================================================================
+  Index_CatalogoVendas.html  ·  TELA DO VENDEDOR (protótipo navegável)
+  ============================================================================
+  ESTE ARQUIVO É SÓ O FRONT. Os dados abaixo são MOCK (demonstração).
+  Quando ligarmos no backend, o front vai chamar o webapp mestre via fetch.
+
+  CONTRATO DA API (a definir no módulo CAT_* do Apps Script):
+
+    GET  ?modulo=catalogo&acao=buscarPdv&cnpj=XXXXXXXXXXXXXX
+      -> { status:"ativo"|"inativo"|"novo",
+           pdv:{cnpj,razao,fantasia,setor,vendedor,cidade},
+           farol:"verde"|"amarelo"|"vermelho",
+           diasSemCompra, periodicidade, ultimaCompra,
+           itensComprados:[{codigo,descricao,categoria,ultimaCompra,freq}],
+           cestaOriental:[{codigo,descricao,compra:bool,score}],  // só se oriental
+           inativoDesde }                                          // só se inativo
+
+    GET  ?modulo=catalogo&acao=produtos        -> [{codigo,descricao,categoria,familia,relacionados:[...]}]
+    GET  ?modulo=catalogo&acao=promocoes       -> [{titulo,produto,de,por,validade,codigo}]
+    POST ?modulo=catalogo&acao=gerarToken      -> { token,url,expiraEm }   // grava CATALOGO_TOKENS, valida <2h
+    POST ?modulo=catalogo&acao=salvarPedido    -> { ok,pedidoId }
+  ============================================================================
+-->
+<style>
+:root{
+  --vermelho:#E2122C;
+  --vermelho-escuro:#B00C20;
+  --preto:#111114;
+  --grafite:#2A2A30;
+  --cinza:#6B6B74;
+  --cinza-claro:#9A9AA3;
+  --linha:#E7E7EA;
+  --fundo:#F5F5F4;
+  --branco:#FFFFFF;
+  --verde:#1E9E5A;
+  --verde-fundo:#E8F6EE;
+  --amarelo:#E0A92B;
+  --amarelo-fundo:#FBF3DE;
+  --azul:#2F6FE0;
+  --azul-fundo:#E9F0FC;
+  --sombra:0 1px 2px rgba(17,17,20,.06), 0 6px 20px rgba(17,17,20,.06);
+  --sombra-forte:0 10px 40px rgba(17,17,20,.18);
+  --radius:14px;
+  --radius-sm:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  background:var(--fundo);color:var(--preto);
+  -webkit-font-smoothing:antialiased;line-height:1.45;
+  padding-bottom:90px;
+}
+button{font-family:inherit;cursor:pointer;border:none}
+input{font-family:inherit}
+
+/* ---------- TOPBAR ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;background:var(--preto);
+  display:flex;align-items:center;gap:18px;
+  padding:12px 22px;box-shadow:0 2px 14px rgba(0,0,0,.25);
+}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo svg{display:block}
+.logo .mark{font-weight:800;font-size:18px;color:#fff;letter-spacing:.04em;line-height:1}
+.logo .mark b{color:var(--vermelho)}
+.logo .sub{font-size:9px;letter-spacing:.42em;color:#9a9aa3;font-weight:600}
+
+.busca{
+  flex:1;max-width:620px;display:flex;align-items:center;
+  background:#fff;border-radius:12px;overflow:hidden;
+  box-shadow:0 0 0 2px rgba(255,255,255,.04);
+}
+.busca input{
+  flex:1;border:none;outline:none;padding:13px 16px;font-size:15px;
+  letter-spacing:.02em;color:var(--preto);
+}
+.busca input::placeholder{color:var(--cinza-claro)}
+.busca button{
+  background:var(--vermelho);color:#fff;font-weight:700;font-size:14px;
+  padding:0 22px;align-self:stretch;display:flex;align-items:center;gap:7px;
+  transition:background .15s;
+}
+.busca button:hover{background:var(--vermelho-escuro)}
+.vend-tag{
+  display:flex;align-items:center;gap:8px;color:#cfcfd6;font-size:13px;flex-shrink:0;
+}
+.vend-tag .av{
+  width:30px;height:30px;border-radius:50%;background:var(--vermelho);
+  color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;
+}
+@media(max-width:720px){.vend-tag span{display:none}}
+
+/* ---------- LAYOUT ---------- */
+.wrap{max-width:1180px;margin:0 auto;padding:22px}
+
+/* ---------- ESTADO INICIAL ---------- */
+.empty{
+  text-align:center;padding:70px 20px 40px;
+}
+.empty h1{
+  font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1.05;
+  color:var(--preto);margin-bottom:6px;
+}
+.empty h1 em{font-style:normal;color:var(--vermelho)}
+.empty p{color:var(--cinza);font-size:16px;max-width:440px;margin:0 auto 26px}
+.empty .dicas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.chip-demo{
+  background:#fff;border:1px solid var(--linha);border-radius:999px;
+  padding:9px 16px;font-size:13px;color:var(--grafite);font-weight:600;
+  display:inline-flex;align-items:center;gap:8px;transition:.15s;
+}
+.chip-demo:hover{border-color:var(--vermelho);color:var(--vermelho)}
+.chip-demo small{color:var(--cinza-claro);font-weight:500}
+
+/* ---------- PAINEL DO CLIENTE (MÁGICA) ---------- */
+.cliente{display:none;animation:reveal .4s ease}
+.cliente.show{display:block}
+@keyframes reveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.status-card{
+  background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);
+  padding:0;overflow:hidden;margin-bottom:22px;
+  border-left:6px solid var(--cinza);
+}
+.status-card.ativo{border-left-color:var(--verde)}
+.status-card.inativo{border-left-color:var(--vermelho)}
+.status-card.novo{border-left-color:var(--azul)}
+.status-head{display:flex;align-items:flex-start;gap:16px;padding:20px 22px}
+.status-badge{
+  font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
+  padding:5px 11px;border-radius:7px;white-space:nowrap;
+}
+.ativo .status-badge{background:var(--verde-fundo);color:var(--verde)}
+.inativo .status-badge{background:#FCE8EB;color:var(--vermelho)}
+.novo .status-badge{background:var(--azul-fundo);color:var(--azul)}
+.status-info{flex:1;min-width:0}
+.status-info h2{font-size:21px;font-weight:800;letter-spacing:-.01em;margin-bottom:3px}
+.status-info .meta{color:var(--cinza);font-size:13.5px;display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px}
+.status-info .meta b{color:var(--grafite);font-weight:600}
+.farol{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;flex-shrink:0}
+.farol .dot{width:11px;height:11px;border-radius:50%}
+.farol.verde .dot{background:var(--verde)} .farol.verde{color:var(--verde)}
+.farol.amarelo .dot{background:var(--amarelo)} .farol.amarelo{color:var(--amarelo)}
+.farol.vermelho .dot{background:var(--vermelho)} .farol.vermelho{color:var(--vermelho)}
+
+.alerta-reativ{
+  background:#FFF6F2;border-top:1px solid #F4D9CE;
+  padding:13px 22px;font-size:13.5px;color:#9A4422;display:flex;align-items:center;gap:9px;
+}
+
+/* ---------- BLOCO MÁGICA: CESTA + JÁ COMPRA ---------- */
+.magic-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:26px}
+@media(max-width:860px){.magic-grid{grid-template-columns:1fr}}
+.painel{background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);overflow:hidden}
+.painel-head{
+  padding:15px 18px;border-bottom:1px solid var(--linha);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.painel-head h3{font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
+.painel-head .ico{
+  width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
+  background:var(--vermelho);color:#fff;font-size:14px;
+}
+.painel-head .resumo{font-size:12.5px;color:var(--cinza);font-weight:600}
+.painel-body{padding:8px 0;max-height:330px;overflow-y:auto}
+
+.linha-item{
+  display:flex;align-items:center;gap:12px;padding:10px 18px;
+  border-bottom:1px solid #F3F3F4;transition:background .12s;
+}
+.linha-item:last-child{border-bottom:none}
+.linha-item:hover{background:#FAFAFA}
+.linha-item .cod{font-size:11px;color:var(--cinza-claro);font-weight:700;width:42px;flex-shrink:0}
+.linha-item .desc{flex:1;font-size:13.5px;min-width:0}
+.linha-item .desc small{display:block;color:var(--cinza-claro);font-size:11.5px}
+.mark-ok{color:var(--verde);font-weight:800;font-size:13px;flex-shrink:0;display:flex;align-items:center;gap:5px}
+.mark-falta{
+  background:var(--vermelho);color:#fff;border-radius:7px;padding:6px 11px;
+  font-size:12px;font-weight:700;flex-shrink:0;transition:.15s;
+}
+.mark-falta:hover{background:var(--vermelho-escuro)}
+.score{font-size:11px;color:var(--amarelo);font-weight:700}
+
+/* ---------- MURAL DE PROMOÇÕES ---------- */
+.secao-titulo{
+  display:flex;align-items:baseline;gap:12px;margin:30px 0 16px;
+}
+.secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:lowercase}
+.secao-titulo h2 .ac{color:var(--vermelho)}
+.secao-titulo .rule{flex:1;height:3px;background:var(--preto);border-radius:2px;align-self:center}
+.secao-titulo .rule.red{background:var(--vermelho)}
+
+.promo-rail{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x mandatory}
+.promo-rail::-webkit-scrollbar{height:8px}
+.promo-rail::-webkit-scrollbar-thumb{background:#d8d8db;border-radius:99px}
+.promo-card{
+  flex:0 0 300px;scroll-snap-align:start;
+  background:linear-gradient(135deg,var(--preto),#2b0a0f 120%);
+  border-radius:var(--radius);overflow:hidden;color:#fff;position:relative;
+  box-shadow:var(--sombra);display:flex;flex-direction:column;
+}
+.promo-card .selo{
+  position:absolute;top:12px;left:12px;background:var(--amarelo);color:#1a1300;
+  font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:6px;
+  text-transform:uppercase;
+}
+.promo-card .img{
+  height:120px;background:var(--vermelho);position:relative;
+  display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.5);
+  background-image:radial-gradient(circle at 70% 30%,rgba(255,255,255,.12),transparent 60%);
+}
+.promo-card .corpo{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
+.promo-card .corpo .prod{font-size:15px;font-weight:700;line-height:1.25}
+.promo-card .precos{display:flex;align-items:baseline;gap:9px;margin-top:6px}
+.promo-card .de{font-size:13px;color:#8a8a92;text-decoration:line-through}
+.promo-card .por{font-size:26px;font-weight:800;color:#fff}
+.promo-card .por small{font-size:13px;font-weight:600;color:var(--amarelo)}
+.promo-card .val{font-size:11px;color:#9a9aa3;margin-top:auto;padding-top:8px}
+.promo-card .add-promo{
+  margin-top:10px;background:var(--vermelho);color:#fff;border-radius:9px;
+  padding:10px;font-weight:700;font-size:13.5px;transition:.15s;
+}
+.promo-card .add-promo:hover{background:var(--vermelho-escuro)}
+
+/* ---------- CATÁLOGO ---------- */
+.cats{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 14px;margin-bottom:4px}
+.cats::-webkit-scrollbar{height:6px}
+.cat-chip{
+  flex-shrink:0;background:#fff;border:1px solid var(--linha);border-radius:999px;
+  padding:9px 17px;font-size:13.5px;font-weight:600;color:var(--grafite);
+  transition:.15s;white-space:nowrap;
+}
+.cat-chip:hover{border-color:var(--cinza)}
+.cat-chip.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+
+.grid-prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
+.prod-card{
+  background:#fff;border-radius:var(--radius-sm);box-shadow:var(--sombra);
+  overflow:hidden;display:flex;flex-direction:column;transition:.18s;
+  border:1px solid transparent;cursor:pointer;
+}
+.prod-card:hover{transform:translateY(-3px);box-shadow:var(--sombra-forte);border-color:var(--linha)}
+.prod-card .ph{
+  height:120px;background:#F3F3F2;display:grid;place-items:center;position:relative;
+}
+.prod-card .ph .cod-badge{
+  position:absolute;top:9px;left:9px;background:rgba(17,17,20,.78);color:#fff;
+  font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;
+}
+.prod-card .ph .glyph{font-size:34px;opacity:.4}
+.prod-card .body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:4px;flex:1}
+.prod-card .fam{font-size:10.5px;color:var(--cinza-claro);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.prod-card .nome{font-size:13.5px;font-weight:600;line-height:1.3;flex:1}
+.prod-card .add{
+  margin-top:8px;background:#fff;border:1.5px solid var(--vermelho);color:var(--vermelho);
+  border-radius:9px;padding:9px;font-weight:700;font-size:13px;transition:.15s;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.prod-card .add:hover{background:var(--vermelho);color:#fff}
+.prod-card .add.in{background:var(--verde);border-color:var(--verde);color:#fff}
+
+/* ---------- DRAWER PRODUTO (relacionados) ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(17,17,20,.5);z-index:60;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.show{display:flex}
+.sheet{
+  background:#fff;width:100%;max-width:680px;border-radius:18px 18px 0 0;
+  max-height:88vh;overflow-y:auto;animation:up .28s ease;
+}
+@keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+.sheet-head{
+  position:sticky;top:0;background:#fff;display:flex;gap:16px;padding:20px 22px;
+  border-bottom:1px solid var(--linha);align-items:flex-start;
+}
+.sheet-head .ph{width:88px;height:88px;border-radius:12px;background:#F3F3F2;display:grid;place-items:center;font-size:30px;opacity:.5;flex-shrink:0}
+.sheet-head .x{margin-left:auto;background:#F3F3F4;width:34px;height:34px;border-radius:50%;font-size:18px;color:var(--cinza);flex-shrink:0}
+.sheet-head h2{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.sheet-head .cod{font-size:12px;color:var(--cinza-claro);font-weight:700;margin-bottom:4px}
+.sheet-sec{padding:18px 22px}
+.sheet-sec h4{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--grafite);margin-bottom:12px}
+.rel-rail{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px}
+.rel-card{
+  flex:0 0 140px;background:#fff;border:1px solid var(--linha);border-radius:10px;
+  padding:10px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:.15s;
+}
+.rel-card:hover{border-color:var(--vermelho)}
+.rel-card .ph{height:64px;background:#F3F3F2;border-radius:7px;display:grid;place-items:center;font-size:22px;opacity:.45}
+.rel-card .n{font-size:12px;font-weight:600;line-height:1.25}
+.rel-card .c{font-size:10px;color:var(--cinza-claro);font-weight:700}
+
+/* ---------- CARRINHO FLUTUANTE + RESUMO ---------- */
+.cart-bar{
+  position:fixed;bottom:0;left:0;right:0;z-index:55;background:var(--preto);
+  display:flex;align-items:center;gap:16px;padding:13px 22px;
+  box-shadow:0 -4px 20px rgba(0,0,0,.2);transform:translateY(110%);transition:transform .25s;
+}
+.cart-bar.show{transform:none}
+.cart-bar .info{color:#fff;flex:1}
+.cart-bar .info b{font-size:17px;font-weight:800}
+.cart-bar .info span{color:#9a9aa3;font-size:13px;margin-left:8px}
+.cart-bar .ver{
+  background:#fff;color:var(--preto);font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px;transition:.15s;
+}
+.cart-bar .ver:hover{background:#e9e9ec}
+
+.resumo-ov{position:fixed;inset:0;background:rgba(17,17,20,.55);z-index:65;display:none;justify-content:flex-end}
+.resumo-ov.show{display:flex}
+.resumo{
+  background:#fff;width:100%;max-width:440px;height:100%;overflow-y:auto;
+  animation:slide .26s ease;display:flex;flex-direction:column;
+}
+@keyframes slide{from{transform:translateX(40px);opacity:.5}to{transform:none;opacity:1}}
+.resumo-head{padding:20px 22px;border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;z-index:2}
+.resumo-head h2{font-size:18px;font-weight:800;flex:1}
+.resumo-head .x{background:#F3F3F4;width:34px;height:34px;border-radius:50%;font-size:18px;color:var(--cinza)}
+.resumo-body{flex:1;padding:6px 0}
+.resumo-cli{padding:14px 22px;background:#FAFAFA;border-bottom:1px solid var(--linha);font-size:13px;color:var(--cinza)}
+.resumo-cli b{color:var(--preto)}
+.ri{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid #F3F3F4}
+.ri .cod{font-size:11px;color:var(--cinza-claro);font-weight:700;width:40px;flex-shrink:0}
+.ri .d{flex:1;font-size:13.5px}
+.ri .d small{display:block;color:var(--cinza-claro);font-size:11px}
+.ri .qt{display:flex;align-items:center;gap:8px;background:#F3F3F4;border-radius:8px;padding:3px}
+.ri .qt button{width:26px;height:26px;border-radius:6px;background:#fff;font-size:16px;font-weight:700;color:var(--grafite);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.ri .qt span{min-width:22px;text-align:center;font-weight:700;font-size:14px}
+.ri .rm{color:var(--cinza-claro);font-size:18px;background:none;flex-shrink:0}
+.ri .rm:hover{color:var(--vermelho)}
+.ri .preco-in{width:92px;flex-shrink:0}
+.ri .preco-in input{width:100%;border:1px solid var(--linha);border-radius:8px;padding:7px 9px;font-size:13px;text-align:right;outline:none}
+.ri .preco-in input:focus{border-color:var(--vermelho)}
+
+.resumo-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--linha);padding:16px 22px;display:flex;flex-direction:column;gap:10px}
+.toggle-precos{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--grafite);font-weight:600;margin-bottom:2px}
+.toggle-precos input{width:18px;height:18px;accent-color:var(--vermelho)}
+.total-linha{display:flex;justify-content:space-between;font-size:15px;font-weight:800;padding:4px 0}
+.acoes{display:grid;gap:9px}
+.btn{border-radius:11px;padding:14px;font-weight:700;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:9px;transition:.15s}
+.btn-primary{background:var(--vermelho);color:#fff}
+.btn-primary:hover{background:var(--vermelho-escuro)}
+.btn-dark{background:var(--preto);color:#fff}
+.btn-dark:hover{background:var(--grafite)}
+.btn-ghost{background:#fff;border:1.5px solid var(--linha);color:var(--grafite)}
+.btn-ghost:hover{border-color:var(--cinza)}
+.acoes .hint{font-size:11.5px;color:var(--cinza-claro);text-align:center;margin-top:2px}
+
+/* toast */
+.toast{
+  position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--preto);color:#fff;padding:13px 22px;border-radius:12px;font-size:14px;font-weight:600;
+  z-index:90;opacity:0;pointer-events:none;transition:.25s;box-shadow:var(--sombra-forte);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- ====================== TOPBAR ====================== -->
+<header class="topbar">
+  <div class="logo">
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+      <path d="M17 3C9.8 3 4 8.8 4 16c0 4.6 2.4 8.7 6 11v-6.2A8.9 8.9 0 0 1 17 7.1 8.9 8.9 0 0 1 26 16h6C32 8.8 26.2 3 17 3Z" fill="var(--vermelho)"/>
+      <path d="M14 16l4.5 6 7-9" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div>
+      <div class="mark">Q <b>FOOD</b></div>
+      <div class="sub">CATÁLOGO</div>
+    </div>
+  </div>
+  <form class="busca" onsubmit="buscar();return false">
+    <input id="cnpj" inputmode="numeric" placeholder="Digite o CNPJ do PDV (ex.: 12.345.678/0001-90)" autocomplete="off">
+    <button type="submit">🔍 Buscar</button>
+  </form>
+  <div class="vend-tag">
+    <span>Lucas Andrade</span>
+    <div class="av">L</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ====================== ESTADO INICIAL ====================== -->
+  <section class="empty" id="empty">
+    <h1>Comece pelo <em>CNPJ</em> do cliente</h1>
+    <p>O sistema identifica se o PDV está ativo, o que ele já compra e — se for oriental — a cesta ideal que ainda falta.</p>
+    <div class="dicas">
+      <button class="chip-demo" onclick="demo('12345678000190')">🍣 Sushi Yamato <small>ativo · oriental</small></button>
+      <button class="chip-demo" onclick="demo('98765432000110')">🍔 Burger House <small>ativo</small></button>
+      <button class="chip-demo" onclick="demo('11222333000144')">⚠️ Restaurante Sakura <small>inativo</small></button>
+      <button class="chip-demo" onclick="demo('00000000000000')">✨ CNPJ novo <small>lead</small></button>
+    </div>
+  </section>
+
+  <!-- ====================== PAINEL DO CLIENTE (mágica) ====================== -->
+  <section class="cliente" id="cliente">
+    <div class="status-card" id="statusCard"></div>
+    <div class="magic-grid" id="magicGrid"></div>
+
+    <!-- MURAL DE PROMOÇÕES -->
+    <div class="secao-titulo">
+      <h2>promoções da <span class="ac">semana</span></h2>
+      <div class="rule red"></div>
+    </div>
+    <div class="promo-rail" id="promoRail"></div>
+
+    <!-- CATÁLOGO -->
+    <div class="secao-titulo">
+      <h2>catálogo</h2>
+      <div class="rule"></div>
+    </div>
+    <div class="cats" id="cats"></div>
+    <div class="grid-prod" id="gridProd"></div>
+  </section>
+
+</div>
+
+<!-- ====================== DRAWER PRODUTO + RELACIONADOS ====================== -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)fecharSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<!-- ====================== CART BAR ====================== -->
+<div class="cart-bar" id="cartBar">
+  <div class="info"><b id="cartCount">0 itens</b><span id="cartCli"></span></div>
+  <button class="ver" onclick="abrirResumo()">Ver resumo →</button>
+</div>
+
+<!-- ====================== RESUMO ====================== -->
+<div class="resumo-ov" id="resumoOv" onclick="if(event.target===this)fecharResumo()">
+  <div class="resumo">
+    <div class="resumo-head">
+      <h2>Resumo do pedido</h2>
+      <button class="x" onclick="fecharResumo()">×</button>
+    </div>
+    <div class="resumo-cli" id="resumoCli"></div>
+    <div class="resumo-body" id="resumoBody"></div>
+    <div class="resumo-foot">
+      <label class="toggle-precos">
+        <input type="checkbox" id="togPrecos" onchange="render()">
+        Preencher valores (cliente pediu cotação)
+      </label>
+      <div class="total-linha" id="totalLinha" style="display:none"><span>Total</span><span id="totalVal">R$ 0,00</span></div>
+      <div class="acoes">
+        <button class="btn btn-primary" onclick="acao('link')">🔗 Gerar link pro cliente <small style="font-weight:600;opacity:.85">(expira 2h)</small></button>
+        <button class="btn btn-dark" onclick="acao('validar')">📤 Reenviar pro cliente validar</button>
+        <button class="btn btn-ghost" onclick="acao('erp')">🧾 Lançar no ERP + anexar print</button>
+        <div class="hint">A mágica do backend (token 2h, gravação em CATALOGO_TOKENS) entra na próxima etapa.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =====================================================================
+   DADOS MOCK  — substituir por fetch() ao webapp na fase backend
+   ===================================================================== */
+
+// Produtos com códigos REAIS do catálogo Q Food
+const PRODUTOS = [
+  // ALGAS
+  {cod:"00005",nome:"Alga Nori Asakusa c/50fls 125g",cat:"Algas",fam:"Nori",rel:["01529","05210","00012"]},
+  {cod:"01529",nome:"Alga Nori Premium Gold Maki c/50fls 140g",cat:"Algas",fam:"Nori",rel:["00005","05422","06554"]},
+  {cod:"05210",nome:"Alga Nori Yaki Sushi Green Taichi 140g",cat:"Algas",fam:"Nori",rel:["07167","06554","01529"]},
+  {cod:"07990",nome:"Alga Dashi Kombu Fujiyama 50g",cat:"Algas",fam:"Kombu",rel:["02046","05629"]},
+  {cod:"05231",nome:"Wakame Temperado (Salada Alga) 500g",cat:"Algas",fam:"Wakame",rel:["07990"]},
+  // ARROZES
+  {cod:"00021",nome:"Arroz Mirokumai 5kg",cat:"Arrozes",fam:"Curto",rel:["00019","00777","00023"]},
+  {cod:"00019",nome:"Arroz Minami Mai Curto 5kg",cat:"Arrozes",fam:"Curto",rel:["00021","00777","00020"]},
+  {cod:"00777",nome:"Arroz Minami Mai Premium Curto 5kg",cat:"Arrozes",fam:"Curto",rel:["00019","00023"]},
+  {cod:"00020",nome:"Arroz Minami Mai Longo 5kg",cat:"Arrozes",fam:"Longo",rel:["00019","00441"]},
+  // SHOYU
+  {cod:"01711",nome:"Shoyu Fermentação Natural Kikkoman 1L",cat:"Shoyu",fam:"Kikkoman",rel:["03480","00400","01712"]},
+  {cod:"03480",nome:"Shoyu Fermentação Natural Kikkoman 5L",cat:"Shoyu",fam:"Kikkoman",rel:["01711","00399"]},
+  {cod:"00261",nome:"Shoyu Oriental Azuma 5L",cat:"Shoyu",fam:"Azuma",rel:["00267","01418","00262"]},
+  {cod:"00267",nome:"Shoyu Tradicional Azuma 500ml",cat:"Shoyu",fam:"Azuma",rel:["00261","01418"]},
+  // MOLHOS E TEMPEROS
+  {cod:"00631",nome:"Pimenta Sriracha Pantai 200ml",cat:"Molhos",fam:"Pimenta",rel:["00207","06853","05356"]},
+  {cod:"06853",nome:"Pasta de Pimenta Coreana Gochujang 500g",cat:"Molhos",fam:"Pimenta",rel:["06688","05868","00631"]},
+  {cod:"05356",nome:"Molho Pimenta Sweet Chilli Kikkoman 5L",cat:"Molhos",fam:"Sweet Chili",rel:["01710","00495"]},
+  {cod:"00404",nome:"Molho Tarê Kikkoman 275g",cat:"Molhos",fam:"Tarê",rel:["00406","05524","00175"]},
+  {cod:"05524",nome:"Molho Tarê Maki 5L",cat:"Molhos",fam:"Tarê",rel:["00404","00406"]},
+  {cod:"00940",nome:"Molho de Ostra Kikkoman 1L",cat:"Molhos",fam:"Ostra",rel:["00941","00997","05624"]},
+  {cod:"08218",nome:"Tempero para Sushi Azuma 1L",cat:"Molhos",fam:"Tempero",rel:["00288","00876","04767"]},
+  // FARINHAS
+  {cod:"00188",nome:"Panko (Farinha p/empanar) Woomtree 200g",cat:"Farinhas",fam:"Panko",rel:["00187","01398","07339"]},
+  {cod:"00187",nome:"Panko (Farinha p/empanar) Woomtree 1kg",cat:"Farinhas",fam:"Panko",rel:["00188","00186"]},
+  {cod:"01517",nome:"Tempurá Alfa 500g",cat:"Farinhas",fam:"Tempurá",rel:["00290","00188"]},
+  // MASSAS
+  {cod:"00139",nome:"Macarrão p/ Yakissoba Premium Alfa 500g",cat:"Massas",fam:"Yakissoba",rel:["07145","00140","04110"]},
+  {cod:"00141",nome:"Macarrão Udon Alfa 500g",cat:"Massas",fam:"Udon",rel:["04110","00140"]},
+  {cod:"04110",nome:"Macarrão Ramen Alfa 500g",cat:"Massas",fam:"Ramen",rel:["00141","00139"]},
+  {cod:"00135",nome:"Macarrão de arroz Bifum Chi-Mifem 500g",cat:"Massas",fam:"Bifum",rel:["01021","00134"]},
+  // CONGELADOS
+  {cod:"00096",nome:"Guioza carne bovina Long Way c/10un 240g",cat:"Congelados",fam:"Guioza",rel:["00098","00099","05361"]},
+  {cod:"05361",nome:"Massa p/guioza Grossa Taichi c/20fls 250g",cat:"Congelados",fam:"Massa",rel:["07968","00096"]},
+  {cod:"00146",nome:"Massa rolinho primavera Long Way 500g",cat:"Congelados",fam:"Rolinho",rel:["00908","00143"]},
+  {cod:"06947",nome:"Edamame grãos Premium Taichi 1,01kg",cat:"Congelados",fam:"Edamame",rel:["06886","05403"]},
+  // PEIXARIA
+  {cod:"00310",nome:"Salmão fresco Premium kg",cat:"Peixaria",fam:"Fresco",rel:["00421","03704","01787"]},
+  {cod:"03704",nome:"Kani kama Bom Peixe 1kg",cat:"Peixaria",fam:"Kani",rel:["02852","00310"]},
+  {cod:"01788",nome:"Polvo fresco kg",cat:"Peixaria",fam:"Fresco",rel:["00310","01787"]},
+  // QUEIJOS
+  {cod:"05620",nome:"Cream Cheese trad. Polenghi 1kg",cat:"Queijos",fam:"Cream Cheese",rel:["00038","00332","07308"]},
+  {cod:"00038",nome:"Cream Cheese trad. Polenghi 1,5kg",cat:"Queijos",fam:"Cream Cheese",rel:["05620","00040"]},
+  // UTENSÍLIOS
+  {cod:"00935",nome:"Hashi Bambu Chanfrado emb. papel Maki c/50 Pares",cat:"Utensílios",fam:"Hashi",rel:["05207","00710","00071"]},
+  {cod:"00071",nome:"Esteira p/sushi Mad Quad 27cm",cat:"Utensílios",fam:"Esteira",rel:["00070","00513"]},
+  {cod:"00076",nome:"Faca Sashimi Cabo plást. 240mm Sekizo",cat:"Utensílios",fam:"Facas",rel:["02930","05481"]},
+];
+
+const CATEGORIAS = ["Todos","Algas","Arrozes","Shoyu","Molhos","Farinhas","Massas","Congelados","Peixaria","Queijos","Utensílios"];
+
+const PROMOS = [
+  {selo:"-17%",prod:"Fruta p/ Drinks Pina Colada Easydrink 1kg",de:"69,90",por:"57,90",val:"Enquanto durar o estoque · prod. 30/06/26",cod:"—"},
+  {selo:"Combo",prod:"Shoyu Kikkoman 5L + Tarê Maki 5L",de:"—",por:"sob consulta",val:"Campanha de junho",cod:"03480"},
+  {selo:"Lançamento",prod:"Soju Jinro Morango 360ml",de:"—",por:"sob consulta",val:"Linha coreana",cod:"02215"},
+];
+
+// Cesta ideal do segmento oriental (básicos que todo sushi deve ter)
+const CESTA_ORIENTAL = [
+  {cod:"00005",nome:"Alga Nori",compra:true},
+  {cod:"00019",nome:"Arroz Minami Mai Curto",compra:true},
+  {cod:"01711",nome:"Shoyu Kikkoman",compra:true},
+  {cod:"00404",nome:"Molho Tarê",compra:false,score:9},
+  {cod:"05620",nome:"Cream Cheese Polenghi",compra:true},
+  {cod:"00631",nome:"Pimenta Sriracha",compra:false,score:7},
+  {cod:"08218",nome:"Tempero para Sushi",compra:false,score:8},
+  {cod:"00935",nome:"Hashi Bambu c/50 pares",compra:false,score:6},
+  {cod:"00188",nome:"Panko p/ empanar",compra:false,score:5},
+  {cod:"00071",nome:"Esteira p/ sushi",compra:true},
+];
+
+// Clientes demo
+const CLIENTES = {
+  "12345678000190":{status:"ativo",setor:"Oriental",razao:"Sushi Yamato Ltda",fantasia:"Sushi Yamato",cidade:"Vila Velha · ES",vendedor:"Lucas Andrade",farol:"verde",dias:8,period:15,ultima:"14/06/2026",
+    comprados:[{cod:"00005",nome:"Alga Nori Asakusa 125g",ult:"14/06",freq:"mensal"},{cod:"00019",nome:"Arroz Minami Mai Curto 5kg",ult:"14/06",freq:"quinzenal"},{cod:"01711",nome:"Shoyu Kikkoman 1L",ult:"30/05",freq:"mensal"},{cod:"05620",nome:"Cream Cheese Polenghi 1kg",ult:"14/06",freq:"semanal"},{cod:"00071",nome:"Esteira p/ sushi 27cm",ult:"02/04",freq:"trimestral"}]},
+  "98765432000110":{status:"ativo",setor:"Hamburgueria",razao:"Burger House ME",fantasia:"Burger House",cidade:"Vitória · ES",vendedor:"Lucas Andrade",farol:"amarelo",dias:22,period:20,ultima:"31/05/2026",
+    comprados:[{cod:"00188",nome:"Panko Woomtree 1kg",ult:"31/05",freq:"mensal"},{cod:"05356",nome:"Molho Sweet Chilli 5L",ult:"31/05",freq:"mensal"},{cod:"00940",nome:"Molho de Ostra Kikkoman 1L",ult:"10/05",freq:"bimestral"}]},
+  "11222333000144":{status:"inativo",setor:"Oriental",razao:"Restaurante Sakura Eireli",fantasia:"Restaurante Sakura",cidade:"Serra · ES",vendedor:"Lucas Andrade",inativoDesde:"Fevereiro/2026",
+    comprados:[{cod:"00019",nome:"Arroz Minami Mai Curto 5kg",ult:"05/02",freq:"—"},{cod:"01711",nome:"Shoyu Kikkoman 1L",ult:"05/02",freq:"—"}]},
+};
+
+/* =====================================================================
+   ESTADO
+   ===================================================================== */
+let clienteAtual=null, catAtiva="Todos", carrinho={};
+
+/* =====================================================================
+   BUSCA / DEMO
+   ===================================================================== */
+function soDigitos(s){return (s||"").replace(/\D/g,"")}
+function demo(c){document.getElementById("cnpj").value=mascaraCnpj(c);buscar()}
+function mascaraCnpj(d){d=soDigitos(d).slice(0,14);return d.replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2}\.\d{3})(\d)/,"$1.$2").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2")}
+document.getElementById("cnpj").addEventListener("input",e=>{e.target.value=mascaraCnpj(e.target.value)});
+
+function buscar(){
+  const d=soDigitos(document.getElementById("cnpj").value);
+  if(d.length<14){toast("Digite os 14 dígitos do CNPJ");return}
+  // ---- AQUI entra o fetch real: ?modulo=catalogo&acao=buscarPdv&cnpj=d ----
+  clienteAtual = CLIENTES[d] || {status:"novo",razao:"CNPJ não localizado",cidade:"—"};
+  clienteAtual.cnpj = mascaraCnpj(d);
+  renderCliente();
+  document.getElementById("empty").style.display="none";
+  document.getElementById("cliente").classList.add("show");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* =====================================================================
+   RENDER PAINEL CLIENTE
+   ===================================================================== */
+function renderCliente(){
+  const c=clienteAtual, sc=document.getElementById("statusCard");
+  sc.className="status-card "+c.status;
+  let badge = c.status==="ativo"?"Cliente ativo": c.status==="inativo"?"Base de inativos":"Lead novo";
+  let metas="";
+  if(c.status==="ativo"){
+    metas=`<div class="meta"><span><b>Setor:</b> ${c.setor}</span><span><b>Vendedor:</b> ${c.vendedor}</span><span><b>Última compra:</b> ${c.ultima}</span><span><b>Periodicidade:</b> ${c.period} dias</span></div>`;
+  } else if(c.status==="inativo"){
+    metas=`<div class="meta"><span><b>Setor:</b> ${c.setor}</span><span><b>Vendedor:</b> ${c.vendedor}</span><span><b>Inativo desde:</b> ${c.inativoDesde}</span></div>`;
+  } else {
+    metas=`<div class="meta"><span>Não está em BASE_PDV nem BASE_INATIVOS — cadastre como novo lead.</span></div>`;
+  }
+  let farolHtml="";
+  if(c.status==="ativo"){
+    const f=c.farol, txt={verde:"Em dia",amarelo:"Atenção",vermelho:"Atrasado"}[f];
+    farolHtml=`<div class="farol ${f}"><span class="dot"></span>${txt} · ${c.dias}d</div>`;
+  }
+  sc.innerHTML=`
+    <div class="status-head">
+      <div class="status-badge">${badge}</div>
+      <div class="status-info">
+        <h2>${c.fantasia||c.razao}</h2>
+        <div style="font-size:12.5px;color:var(--cinza-claro)">${c.razao} · ${c.cnpj} · ${c.cidade}</div>
+        ${metas}
+      </div>
+      ${farolHtml}
+    </div>
+    ${c.status==="inativo"?`<div class="alerta-reativ">⚠️ Oportunidade de reativação — este PDV saiu da base. Use a cesta e as promoções para trazer de volta.</div>`:""}
+  `;
+
+  // Magic grid
+  const mg=document.getElementById("magicGrid");
+  let blocos="";
+  // Cesta oriental (só se setor oriental e tiver comprados)
+  if(c.setor==="Oriental" && c.status!=="novo"){
+    const tem=CESTA_ORIENTAL.filter(i=>i.compra).length;
+    let linhas=CESTA_ORIENTAL.map(i=>{
+      if(i.compra) return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}</span><span class="mark-ok">✓ compra</span></div>`;
+      return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}<small>relevância ${i.score}/10</small></span><button class="mark-falta" onclick="addCod('${i.cod}')">+ oferecer</button></div>`;
+    }).join("");
+    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico">🍣</span>Cesta Oriental Ideal</h3><span class="resumo">${tem}/${CESTA_ORIENTAL.length} itens</span></div><div class="painel-body">${linhas}</div></div>`;
+  }
+  // Já compra
+  if(c.comprados && c.comprados.length){
+    let linhas=c.comprados.map(i=>`<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}<small>última ${i.ult} · ${i.freq}</small></span><button class="mark-falta" style="background:var(--grafite)" onclick="addCod('${i.cod}')">+ repor</button></div>`).join("");
+    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico" style="background:var(--grafite)">🛒</span>Já compra (6 meses)</h3><span class="resumo">${c.comprados.length} itens</span></div><div class="painel-body">${linhas}</div></div>`;
+  }
+  mg.innerHTML=blocos;
+  mg.style.display = blocos?"grid":"none";
+
+  renderPromos(); renderCats(); renderGrid();
+  document.getElementById("cartCli").textContent = " · "+(c.fantasia||c.razao);
+}
+
+function renderPromos(){
+  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`
+    <div class="promo-card">
+      <span class="selo">${p.selo}</span>
+      <div class="img">imagem do produto</div>
+      <div class="corpo">
+        <div class="prod">${p.prod}</div>
+        <div class="precos">${p.de!=="—"?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${p.por.startsWith("sob")?"":"R$ "}${p.por}<small>${p.por.startsWith("sob")?"":" /un"}</small></span></div>
+        <div class="val">${p.val}</div>
+        <button class="add-promo" onclick="addPromo('${p.prod.replace(/'/g,"")}')">+ Adicionar à seleção</button>
+      </div>
+    </div>`).join("");
+}
+
+function renderCats(){
+  document.getElementById("cats").innerHTML=CATEGORIAS.map(c=>`<button class="cat-chip ${c===catAtiva?'on':''}" onclick="setCat('${c}')">${c}</button>`).join("");
+}
+function setCat(c){catAtiva=c;renderCats();renderGrid()}
+
+function glyph(cat){return {Algas:"🌿",Arrozes:"🍚",Shoyu:"🍶",Molhos:"🥫",Farinhas:"🌾",Massas:"🍜",Congelados:"❄️",Peixaria:"🐟",Queijos:"🧀",Utensílios:"🥢"}[cat]||"📦"}
+
+function renderGrid(){
+  const list = catAtiva==="Todos"?PRODUTOS:PRODUTOS.filter(p=>p.cat===catAtiva);
+  document.getElementById("gridProd").innerHTML=list.map(p=>{
+    const inCart = carrinho[p.cod];
+    return `<div class="prod-card" onclick="abrirProduto('${p.cod}')">
+      <div class="ph"><span class="cod-badge">${p.cod}</span><span class="glyph">${glyph(p.cat)}</span></div>
+      <div class="body">
+        <span class="fam">${p.fam}</span>
+        <span class="nome">${p.nome}</span>
+        <button class="add ${inCart?'in':''}" onclick="event.stopPropagation();addCod('${p.cod}')">${inCart?'✓ na seleção':'+ adicionar'}</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* =====================================================================
+   DRAWER PRODUTO + RELACIONADOS (estilo Mercado Livre)
+   ===================================================================== */
+function abrirProduto(cod){
+  const p=PRODUTOS.find(x=>x.cod===cod);if(!p)return;
+  const rel=(p.rel||[]).map(rc=>PRODUTOS.find(x=>x.cod===rc)).filter(Boolean);
+  const inCart=carrinho[cod];
+  document.getElementById("sheet").innerHTML=`
+    <div class="sheet-head">
+      <div class="ph">${glyph(p.cat)}</div>
+      <div style="flex:1">
+        <div class="cod">cód. ${p.cod} · ${p.cat}</div>
+        <h2>${p.nome}</h2>
+        <button class="add ${inCart?'in':''}" style="max-width:220px;margin-top:12px" onclick="addCod('${p.cod}');abrirProduto('${p.cod}')">${inCart?'✓ na seleção':'+ adicionar à seleção'}</button>
+      </div>
+      <button class="x" onclick="fecharSheet()">×</button>
+    </div>
+    ${rel.length?`<div class="sheet-sec"><h4>Quem leva este, também leva</h4><div class="rel-rail">${rel.map(r=>`<div class="rel-card" onclick="abrirProduto('${r.cod}')"><div class="ph">${glyph(r.cat)}</div><div class="c">${r.cod}</div><div class="n">${r.nome}</div></div>`).join("")}</div></div>`:""}
+  `;
+  document.getElementById("overlay").classList.add("show");
+}
+function fecharSheet(){document.getElementById("overlay").classList.remove("show")}
+
+/* =====================================================================
+   CARRINHO
+   ===================================================================== */
+function addCod(cod){
+  const p=PRODUTOS.find(x=>x.cod===cod) || {cod,nome:cestaNome(cod)||("Item "+cod),cat:"—"};
+  if(carrinho[cod]){carrinho[cod].qt++;} else {carrinho[cod]={...p,qt:1,preco:""};}
+  toast("Adicionado: "+p.nome);
+  atualizarCart();renderGrid();
+}
+function addPromo(nome){
+  const k="promo_"+Object.keys(carrinho).length;
+  carrinho[k]={cod:"PROMO",nome:nome,cat:"Promoção",qt:1,preco:""};
+  toast("Promoção adicionada");atualizarCart();
+}
+function cestaNome(cod){const i=CESTA_ORIENTAL.find(x=>x.cod===cod);return i?i.nome:null}
+function atualizarCart(){
+  const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);
+  document.getElementById("cartCount").textContent = n+(n===1?" item":" itens");
+  document.getElementById("cartBar").classList.toggle("show", n>0);
+}
+
+/* =====================================================================
+   RESUMO
+   ===================================================================== */
+function abrirResumo(){document.getElementById("resumoOv").classList.add("show");render()}
+function fecharResumo(){document.getElementById("resumoOv").classList.remove("show")}
+function render(){
+  const c=clienteAtual||{};
+  document.getElementById("resumoCli").innerHTML = c.razao?`<b>${c.fantasia||c.razao}</b> · ${c.cnpj||""} · ${c.cidade||""}`:"Nenhum cliente selecionado";
+  const comPreco=document.getElementById("togPrecos").checked;
+  const itens=Object.entries(carrinho);
+  document.getElementById("resumoBody").innerHTML = itens.length?itens.map(([k,i])=>`
+    <div class="ri">
+      <span class="cod">${i.cod}</span>
+      <span class="d">${i.nome}<small>${i.cat}</small></span>
+      <div class="qt"><button onclick="qt('${k}',-1)">−</button><span>${i.qt}</span><button onclick="qt('${k}',1)">+</button></div>
+      ${comPreco?`<div class="preco-in"><input placeholder="R$" value="${i.preco}" oninput="setPreco('${k}',this.value)"></div>`:""}
+      <button class="rm" onclick="rm('${k}')">🗑</button>
+    </div>`).join(""):`<div style="padding:40px 22px;text-align:center;color:var(--cinza-claro)">Nenhum item na seleção ainda.</div>`;
+
+  const tl=document.getElementById("totalLinha");
+  if(comPreco){
+    const tot=itens.reduce((s,[k,i])=>s+(parseFloat((i.preco||"").replace(/\./g,"").replace(",","."))||0)*i.qt,0);
+    document.getElementById("totalVal").textContent="R$ "+tot.toLocaleString("pt-BR",{minimumFractionDigits:2});
+    tl.style.display="flex";
+  } else tl.style.display="none";
+}
+function qt(k,d){carrinho[k].qt=Math.max(1,carrinho[k].qt+d);atualizarCart();render()}
+function rm(k){delete carrinho[k];atualizarCart();render();renderGrid()}
+function setPreco(k,v){carrinho[k].preco=v;
+  const tot=Object.values(carrinho).reduce((s,i)=>s+(parseFloat((i.preco||"").replace(/\./g,"").replace(",","."))||0)*i.qt,0);
+  document.getElementById("totalVal").textContent="R$ "+tot.toLocaleString("pt-BR",{minimumFractionDigits:2});
+}
+
+function acao(tipo){
+  const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);
+  if(!n){toast("Adicione itens antes");return}
+  // ---- AQUI entram os POSTs reais (gerarToken / salvarPedido) ----
+  const msgs={
+    link:"🔗 Link gerado (demo). No backend: token assinado, grava CATALOGO_TOKENS, expira em 2h.",
+    validar:"📤 Form de validação enviado (demo).",
+    erp:"🧾 Pedido pronto pra lançar no ERP (demo)."
+  };
+  toast(msgs[tipo]);
+}
+
+/* =====================================================================
+   TOAST
+   ===================================================================== */
+let toastT;
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2600)}
+</script>
+</body>
+</html>
