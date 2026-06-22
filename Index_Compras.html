@@ -1104,8 +1104,25 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
           <div style="font-size:.82rem;color:#ff7875;font-weight:600">❌ Danificado</div>
         </label>
       </div>
-      <div style="font-size:.66rem;color:var(--mu);font-style:italic">
-        💡 Esta informação será enviada automaticamente por e-mail ao fornecedor e à transportadora.
+
+      <!-- 🆕 v6.0: Upload de até 5 fotos (Canhoto + 4 entregas) -->
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(54,207,160,.2)">
+        <label style="display:block;font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:8px">📷 Fotos (até 5) <span style="font-weight:400;text-transform:none;font-style:italic;color:var(--mu)">— opcional, mas recomendado</span></label>
+        <div id="m-st-fotos-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px"></div>
+        <div id="m-st-fotos-progresso" style="font-size:.72rem;color:var(--mu);margin-top:8px;font-style:italic">Nenhuma foto carregada ainda.</div>
+      </div>
+
+      <!-- 🆕 v6.0: Ocorrências -->
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(54,207,160,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <label style="font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600">⚠️ Ocorrências <span style="font-weight:400;text-transform:none;font-style:italic;color:var(--mu)">— opcional</span></label>
+          <button type="button" onclick="v3AddOcorrencia()" style="background:rgba(255,170,43,.12);border:1px solid rgba(255,170,43,.4);color:#ffaa2b;border-radius:6px;padding:5px 10px;font-size:.72rem;font-weight:600;cursor:pointer">➕ Adicionar ocorrência</button>
+        </div>
+        <div id="m-st-ocorrencias-lista"></div>
+      </div>
+
+      <div style="font-size:.66rem;color:var(--mu);font-style:italic;margin-top:10px">
+        💡 Fotos e ocorrências serão enviadas por e-mail ao fornecedor, à transportadora e à equipe (Cris, Célio, Rodrigo).
       </div>
     </div>
 
@@ -2838,6 +2855,8 @@ var V3 = {
   GID_HISTORICO: '305817160',
   CONFIRMACAO_URL: 'https://rodsilveira-rs.github.io/qfood-dashboard/confirmacao.html',
   APROVADORES: ['Cris','Cristina','Maiko','Maicon','Célio','Celio','Rodrigo'],
+  // 🆕 v6.0 Logística: quem pode confirmar recebimento, subir fotos e criar ocorrências
+  EDITORES_LOGISTICA: ['Maiko','Maicon','Rodrigo','Adilson'],
   CACHE_TTL_MS: 60000, // 60s
   _cache: {}, // {gid: {ts, data}}
   _state: {
@@ -2847,7 +2866,12 @@ var V3 = {
     cotacaoAtiva: null, // cotação sendo aprovada/recusada/designada
     transpEdit: null,   // transp sendo editada (objeto ou null pra nova)
     kpiPeriodo: 'mes',
-    kpiVolume: 'aprovado'
+    kpiVolume: 'aprovado',
+    // 🆕 v6.0 Logística: estado do modal de recebimento
+    recebFotos: {        // { canhoto: {url, file_id, nome}, entrega_1: {...}, ... }
+      canhoto: null, entrega_1: null, entrega_2: null, entrega_3: null, entrega_4: null
+    },
+    recebOcorrencias: [] // [{tipo, item_codigo, item_descricao, qtd_afetada, descricao}, ...]
   }
 };
 
@@ -2933,6 +2957,16 @@ function v3EhAprovador(){
   if(!nome) return false;
   var n = nome.toLowerCase();
   return V3.APROVADORES.some(function(a){ return a.toLowerCase() === n || n.indexOf(a.toLowerCase()) === 0; });
+}
+
+// 🆕 v6.0 Logística: verifica se usuário pode editar recebimentos (Maiko/Rodrigo/Adilson)
+function v3EhEditorLogistica(){
+  var nome = v3UsuarioLogado();
+  if(!nome) return false;
+  var n = nome.toLowerCase();
+  return V3.EDITORES_LOGISTICA.some(function(e){
+    return e.toLowerCase() === n || n.indexOf(e.toLowerCase()) === 0;
+  });
 }
 function v3FormatarData(d){
   if(!d) return '—';
@@ -4434,6 +4468,19 @@ function v3MudarStatus(idCotacao){
   };
   var opcoes = fluxo[st] || [{ v:'CONCLUIDO', l:'🏁 Concluído', d:'Finalizar e arquivar este pedido.' }];
 
+  // 🆕 v6.0: Editores de logística (Maiko/Rodrigo/Adilson) podem pular direto pra RECEBIDO
+  // mesmo se status atual ainda for AGUARDANDO_FORNECEDOR (mercadoria pode chegar antes de tudo).
+  if (v3EhEditorLogistica() && st !== 'RECEBIDO' && st !== 'CONCLUIDO') {
+    var jaTemRecebido = opcoes.some(function(o){ return o.v === 'RECEBIDO'; });
+    if (!jaTemRecebido) {
+      opcoes.push({
+        v: 'RECEBIDO',
+        l: '✅ Recebido (atalho)',
+        d: 'Mercadoria chegou. Confirme com fotos, observações e ocorrências.'
+      });
+    }
+  }
+
   // Preenche modal
   document.getElementById('m-st-sub').textContent = (c.ID_Cotacao||c.ID) + ' · ' + v3GetFornecedor(c);
   document.getElementById('m-st-atual').innerHTML = '<span class="status-pill status-'+st+'">'+v3Esc(labelAtual)+'</span>';
@@ -4454,6 +4501,12 @@ function v3MudarStatus(idCotacao){
       if(lb){ lb.style.borderColor = 'var(--br)'; lb.style.background = 'var(--s2)'; }
     }
   });
+
+  // 🆕 v6.0: reset de fotos e ocorrências
+  V3._state.recebFotos = { canhoto:null, entrega_1:null, entrega_2:null, entrega_3:null, entrega_4:null };
+  V3._state.recebOcorrencias = [];
+  v3RenderFotosGrid();
+  v3RenderOcorrencias();
   // reset label do obs
   var obsLabel = document.getElementById('m-st-obs-label');
   if (obsLabel) obsLabel.textContent = 'Observação (opcional)';
@@ -4542,6 +4595,179 @@ function v3AtualizarBotaoStatus(){
   }
 }
 
+// ============================================================
+// 🆕 v6.0 LOGÍSTICA: Upload de fotos + ocorrências no modal de recebimento
+// ============================================================
+
+// Renderiza o grid de 5 slots de fotos
+function v3RenderFotosGrid(){
+  var grid = document.getElementById('m-st-fotos-grid');
+  if(!grid) return;
+  var slots = [
+    { key:'canhoto',   label:'Canhoto' },
+    { key:'entrega_1', label:'Entrega 1' },
+    { key:'entrega_2', label:'Entrega 2' },
+    { key:'entrega_3', label:'Entrega 3' },
+    { key:'entrega_4', label:'Entrega 4' }
+  ];
+  var html = '';
+  slots.forEach(function(s){
+    var f = V3._state.recebFotos[s.key];
+    if(f && f.url){
+      // Foto já carregada — mostra preview com X pra remover
+      html +=
+        '<div style="position:relative;aspect-ratio:1;background:var(--s2);border:1.5px solid #36cfa0;border-radius:8px;overflow:hidden">'+
+          '<img src="'+v3Esc(f.url)+'" style="width:100%;height:100%;object-fit:cover" alt="'+v3Esc(s.label)+'">'+
+          '<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.7);color:#fff;font-size:.62rem;padding:3px 6px;text-align:center">✅ '+v3Esc(s.label)+'</div>'+
+          '<button type="button" onclick="v3RemoverFoto(\''+s.key+'\')" title="Remover" style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(255,77,79,.9);color:#fff;border:none;font-size:.7rem;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center">×</button>'+
+        '</div>';
+    } else {
+      // Slot vazio — botão de upload
+      html +=
+        '<label style="aspect-ratio:1;background:var(--s2);border:1.5px dashed var(--br);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;color:var(--mu);text-align:center;padding:4px" onmouseover="this.style.borderColor=\'#36cfa0\';this.style.color=\'#36cfa0\'" onmouseout="this.style.borderColor=\'var(--br)\';this.style.color=\'var(--mu)\'">'+
+          '<input type="file" accept="image/*" capture="environment" onchange="v3UploadFoto(this, \''+s.key+'\')" style="display:none">'+
+          '<div style="font-size:1.4rem;line-height:1">📷</div>'+
+          '<div style="font-size:.62rem;font-weight:600;margin-top:4px">'+v3Esc(s.label)+'</div>'+
+        '</label>';
+    }
+  });
+  grid.innerHTML = html;
+
+  // Atualiza contador
+  var nCarregadas = Object.keys(V3._state.recebFotos).filter(function(k){
+    return V3._state.recebFotos[k] && V3._state.recebFotos[k].url;
+  }).length;
+  var prog = document.getElementById('m-st-fotos-progresso');
+  if(prog){
+    prog.textContent = nCarregadas === 0
+      ? 'Nenhuma foto carregada ainda.'
+      : nCarregadas + ' de 5 fotos carregadas.';
+    prog.style.color = nCarregadas > 0 ? '#36cfa0' : 'var(--mu)';
+  }
+}
+
+// Recebe arquivo do input, converte pra base64 e envia pro backend
+async function v3UploadFoto(inputEl, slot){
+  var file = inputEl.files && inputEl.files[0];
+  if(!file) return;
+
+  // Limite de tamanho (5MB)
+  var MAX_BYTES = 5 * 1024 * 1024;
+  if(file.size > MAX_BYTES){
+    v3ToastShow('Foto muito grande (máx 5MB). Esta tem ' + Math.round(file.size/1024/1024 * 10)/10 + 'MB.', 'error');
+    inputEl.value = '';
+    return;
+  }
+
+  var cot = V3._state.cotacaoAtiva;
+  if(!cot){ v3ToastShow('Cotação inválida.', 'error'); return; }
+
+  // Mostra placeholder de loading no slot
+  V3._state.recebFotos[slot] = { url:'', loading:true };
+  v3RenderFotosGrid();
+
+  try {
+    // Lê arquivo como base64
+    var b64 = await v3FileToBase64(file);
+
+    var resp = await v3PostAppsScript('upload_foto', {
+      id_cotacao: cot.ID_Cotacao || cot.ID,
+      slot: slot,
+      base64: b64,
+      mime_type: file.type || 'image/jpeg',
+      atualizado_por: v3UsuarioLogado()
+    });
+
+    if(!resp || !resp.ok || !resp.url){
+      throw new Error(resp && resp.erro ? resp.erro : 'Falha ao subir foto');
+    }
+
+    V3._state.recebFotos[slot] = {
+      url: resp.url,
+      file_id: resp.file_id,
+      url_drive: resp.url_drive,
+      nome: resp.nome
+    };
+    v3RenderFotosGrid();
+    v3ToastShow('Foto "' + slot + '" carregada ✅', 'success');
+  } catch(e){
+    console.error('Erro no upload:', e);
+    V3._state.recebFotos[slot] = null;
+    v3RenderFotosGrid();
+    v3ToastShow('Erro ao subir foto: ' + e.message, 'error');
+  } finally {
+    inputEl.value = ''; // permite reupload do mesmo arquivo
+  }
+}
+
+// Remove foto de um slot
+function v3RemoverFoto(slot){
+  V3._state.recebFotos[slot] = null;
+  v3RenderFotosGrid();
+}
+
+// Converte File em base64 (dataURL) — Promise
+function v3FileToBase64(file){
+  return new Promise(function(resolve, reject){
+    var reader = new FileReader();
+    reader.onload = function(){ resolve(reader.result); }; // dataURL completo (backend trata)
+    reader.onerror = function(){ reject(new Error('Erro ao ler arquivo')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ----- Ocorrências -----
+
+function v3AddOcorrencia(){
+  V3._state.recebOcorrencias.push({
+    tipo: 'AVARIA',
+    item_codigo: '',
+    item_descricao: '',
+    qtd_afetada: 0,
+    descricao: ''
+  });
+  v3RenderOcorrencias();
+}
+
+function v3RemoverOcorrencia(idx){
+  V3._state.recebOcorrencias.splice(idx, 1);
+  v3RenderOcorrencias();
+}
+
+function v3OnOcorrenciaChange(idx, campo, valor){
+  if(!V3._state.recebOcorrencias[idx]) return;
+  if(campo === 'qtd_afetada') valor = parseFloat(valor) || 0;
+  V3._state.recebOcorrencias[idx][campo] = valor;
+}
+
+function v3RenderOcorrencias(){
+  var box = document.getElementById('m-st-ocorrencias-lista');
+  if(!box) return;
+  if(V3._state.recebOcorrencias.length === 0){
+    box.innerHTML = '<div style="font-size:.72rem;color:var(--mu);font-style:italic;padding:8px 0">Nenhuma ocorrência registrada. Clique em "➕ Adicionar ocorrência" se houver algum problema.</div>';
+    return;
+  }
+  var tipos = ['AVARIA','FALTA','SOBRA','TROCA','VALIDADE','OUTROS'];
+  var html = '';
+  V3._state.recebOcorrencias.forEach(function(oc, idx){
+    var tipoOptions = tipos.map(function(t){
+      return '<option value="'+t+'"'+(oc.tipo === t ? ' selected' : '')+'>'+t+'</option>';
+    }).join('');
+    html +=
+      '<div style="background:rgba(255,170,43,.06);border:1px solid rgba(255,170,43,.25);border-radius:8px;padding:10px 12px;margin-bottom:8px">'+
+        '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">'+
+          '<span style="font-size:.72rem;color:#ffaa2b;font-weight:700">⚠️ Ocorrência #'+(idx+1)+'</span>'+
+          '<select onchange="v3OnOcorrenciaChange('+idx+', \'tipo\', this.value)" style="background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.74rem">'+tipoOptions+'</select>'+
+          '<input type="text" placeholder="Item (opcional)" value="'+v3Esc(oc.item_descricao||'')+'" oninput="v3OnOcorrenciaChange('+idx+', \'item_descricao\', this.value)" style="background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.74rem;flex:1;min-width:120px">'+
+          '<input type="number" min="0" step="0.01" placeholder="Qtd" value="'+(oc.qtd_afetada||'')+'" oninput="v3OnOcorrenciaChange('+idx+', \'qtd_afetada\', this.value)" style="background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.74rem;width:70px">'+
+          '<button type="button" onclick="v3RemoverOcorrencia('+idx+')" title="Remover" style="background:rgba(255,77,79,.15);border:1px solid rgba(255,77,79,.4);color:#ff7875;border-radius:6px;padding:4px 8px;font-size:.7rem;cursor:pointer;font-weight:600">×</button>'+
+        '</div>'+
+        '<textarea placeholder="Descrição da ocorrência..." rows="2" oninput="v3OnOcorrenciaChange('+idx+', \'descricao\', this.value)" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:6px 8px;color:var(--tx);font-size:.74rem;resize:vertical;font-family:inherit;box-sizing:border-box">'+v3Esc(oc.descricao||'')+'</textarea>'+
+      '</div>';
+  });
+  box.innerHTML = html;
+}
+
 async function v3ConfirmarStatus(){
   var c = V3._state.cotacaoAtiva;
   var novoStatus = V3._state.statusEscolhido;
@@ -4572,19 +4798,64 @@ async function v3ConfirmarStatus(){
   btn.textContent = 'Atualizando...';
 
   try {
-    var payload = {
-      id_cotacao: c.ID_Cotacao || c.ID,
-      status_novo: novoStatus,
-      atualizado_por: v3UsuarioLogado(),
-      observacao: obs
-    };
-    // 🆕 v3.6: envia campos extras quando RECEBIDO
-    if (novoStatus === 'RECEBIDO') {
-      payload.recebido_integridade = integridade;
-      payload.recebido_obs = obs;
-    }
+    var resp;
 
-    var resp = await v3PostAppsScript('atualizar_status', payload);
+    // 🆕 v6.0: Se RECEBIDO + tem fotos/ocorrências → fluxo completo de logística
+    if (novoStatus === 'RECEBIDO') {
+      // Coleta URLs das fotos
+      var fotosObj = {};
+      ['canhoto','entrega_1','entrega_2','entrega_3','entrega_4'].forEach(function(k){
+        var f = V3._state.recebFotos[k];
+        if(f && f.url) fotosObj[k] = f.url;
+      });
+      var temFotos = Object.keys(fotosObj).length > 0;
+      var temOcorrencias = V3._state.recebOcorrencias.length > 0;
+
+      // Valida ocorrências (não deixa enviar incompletas)
+      if (temOcorrencias) {
+        for (var i = 0; i < V3._state.recebOcorrencias.length; i++) {
+          var oc = V3._state.recebOcorrencias[i];
+          if (!oc.descricao || !String(oc.descricao).trim()) {
+            err.textContent = 'Ocorrência #' + (i+1) + ' precisa de descrição.';
+            err.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Confirmar Mudança';
+            return;
+          }
+        }
+      }
+
+      if (temFotos || temOcorrencias) {
+        // Fluxo completo: registrar_recebimento (já dispara status RECEBIDO + e-mail)
+        resp = await v3PostAppsScript('registrar_recebimento', {
+          id_cotacao: c.ID_Cotacao || c.ID,
+          recebido_por: v3UsuarioLogado(),
+          integridade: integridade,
+          observacoes: obs,
+          itens: [],  // simplificado: não item-a-item
+          fotos: fotosObj,
+          ocorrencias: V3._state.recebOcorrencias
+        });
+      } else {
+        // Sem fotos nem ocorrências — fluxo simples antigo (compat)
+        resp = await v3PostAppsScript('atualizar_status', {
+          id_cotacao: c.ID_Cotacao || c.ID,
+          status_novo: novoStatus,
+          atualizado_por: v3UsuarioLogado(),
+          observacao: obs,
+          recebido_integridade: integridade,
+          recebido_obs: obs
+        });
+      }
+    } else {
+      // Status intermediário (não-RECEBIDO) — fluxo simples
+      resp = await v3PostAppsScript('atualizar_status', {
+        id_cotacao: c.ID_Cotacao || c.ID,
+        status_novo: novoStatus,
+        atualizado_por: v3UsuarioLogado(),
+        observacao: obs
+      });
+    }
 
     // 🆕 v3.6: mensagem mais rica quando RECEBIDO (mostra se e-mails foram disparados)
     var mensagem = 'Status atualizado para ' + novoStatus;
@@ -4597,6 +4868,13 @@ async function v3ConfirmarStatus(){
       } else if (!resp.emails_enviados.transportadora) {
         mensagem += ' · ⚠️ transportadora sem e-mail cadastrado (não notificada)';
       }
+    }
+    // 🆕 v6.0: confirmação de fotos/ocorrências
+    if (resp && resp.fotos_count) {
+      mensagem += ' · 📷 ' + resp.fotos_count + ' foto(s)';
+    }
+    if (resp && resp.ocorrencias_criadas && resp.ocorrencias_criadas.length > 0) {
+      mensagem += ' · ⚠️ ' + resp.ocorrencias_criadas.length + ' ocorrência(s)';
     }
     v3ToastShow(mensagem, 'success', 7000);
     v3FecharModal('modal-status');
@@ -4661,9 +4939,9 @@ function v3ParseData(valor){
   var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
   if(m){
     var dia = parseInt(m[1], 10);
-    var mes = parseInt(m[2], 10) - 1;
+    var mes = parseInt(m[2], 10) - 1; // mês é 0-indexed em JS
     var ano = parseInt(m[3], 10);
-    if(ano < 100) ano += 2000;
+    if(ano < 100) ano += 2000; // 26 → 2026
     var hh = m[4] ? parseInt(m[4], 10) : 0;
     var mm = m[5] ? parseInt(m[5], 10) : 0;
     var ss = m[6] ? parseInt(m[6], 10) : 0;
@@ -4674,6 +4952,7 @@ function v3ParseData(valor){
 }
 
 // 🆕 v3.11: Extrai a melhor data de uma cotação (fallback inteligente)
+// Tenta Data_Envio → Cotacao_Enviada_em → Aprovado_em → Timestamp → Data
 function v3DataCotacao(c){
   if(!c) return null;
   var campos = ['Data_Envio', 'Cotacao_Enviada_em', 'Aprovado_em', 'Timestamp', 'Data'];
