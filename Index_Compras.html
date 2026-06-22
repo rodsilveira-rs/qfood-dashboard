@@ -4646,6 +4646,44 @@ async function v3CarregarKPIs(){
   v3RenderKPIs();
 }
 
+// 🆕 v3.11: Parser robusto de data — entende ISO, US e pt-BR
+function v3ParseData(valor){
+  if(!valor) return null;
+  if(valor instanceof Date) return isNaN(valor.getTime()) ? null : valor;
+  var s = String(valor).trim();
+  if(!s) return null;
+
+  // Tenta ISO/US primeiro (2026-06-22, 2026/06/22, 2026-06-22T10:30:00)
+  var dt = new Date(s);
+  if(!isNaN(dt.getTime()) && dt.getFullYear() > 1900) return dt;
+
+  // Tenta formato pt-BR: DD/MM/YYYY ou DD/MM/YYYY HH:MM:SS
+  var m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?$/);
+  if(m){
+    var dia = parseInt(m[1], 10);
+    var mes = parseInt(m[2], 10) - 1;
+    var ano = parseInt(m[3], 10);
+    if(ano < 100) ano += 2000;
+    var hh = m[4] ? parseInt(m[4], 10) : 0;
+    var mm = m[5] ? parseInt(m[5], 10) : 0;
+    var ss = m[6] ? parseInt(m[6], 10) : 0;
+    var d = new Date(ano, mes, dia, hh, mm, ss);
+    if(!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+// 🆕 v3.11: Extrai a melhor data de uma cotação (fallback inteligente)
+function v3DataCotacao(c){
+  if(!c) return null;
+  var campos = ['Data_Envio', 'Cotacao_Enviada_em', 'Aprovado_em', 'Timestamp', 'Data'];
+  for(var i = 0; i < campos.length; i++){
+    var d = v3ParseData(c[campos[i]]);
+    if(d) return d;
+  }
+  return null;
+}
+
 function v3FiltrarPorPeriodo(cotacoes){
   var p = V3._state.kpiPeriodo;
   if(p === 'tudo') return cotacoes.slice();
@@ -4663,10 +4701,9 @@ function v3FiltrarPorPeriodo(cotacoes){
   }
 
   return cotacoes.filter(function(c){
-    var d = c.Data_Envio || c.Data || c.Timestamp;
-    if(!d) return false;
-    var dt = new Date(d);
-    if(isNaN(dt.getTime())) return false;
+    // 🆕 v3.11: usa parser robusto com fallback inteligente
+    var dt = v3DataCotacao(c);
+    if(!dt) return false;
     return dt >= inicio && dt <= hoje;
   });
 }
@@ -4740,12 +4777,12 @@ function v3RenderKPIs(){
 
 function v3RenderFaseMes(cot, usarAprovado){
   var fases = { inicio: {n:0, v:0}, meio: {n:0, v:0}, fim: {n:0, v:0} };
+  var orfas = 0; // 🆕 v3.11: cotações sem data classificável
 
   cot.forEach(function(c){
-    var d = c.Data_Envio || c.Data || c.Timestamp;
-    if(!d) return;
-    var dt = new Date(d);
-    if(isNaN(dt.getTime())) return;
+    // 🆕 v3.11: usa parser robusto + fallback
+    var dt = v3DataCotacao(c);
+    if(!dt){ orfas++; return; }
     var dia = dt.getDate();
     var fase = dia <= 10 ? 'inicio' : dia <= 20 ? 'meio' : 'fim';
     var vol = 0;
@@ -4825,7 +4862,11 @@ function v3RenderFaseMes(cot, usarAprovado){
       makeCell('meio', 'Meio', '11–20')+
       makeCell('fim', 'Fim', '21–31')+
     '</div>'+
-    '<div class="kpi-fase-insight '+insightCls+'">'+insight+'</div>';
+    '<div class="kpi-fase-insight '+insightCls+'">'+insight+'</div>'+
+    // 🆕 v3.11: aviso de cotações sem data classificável
+    (orfas > 0
+      ? '<div style="margin-top:10px;padding:10px 12px;background:rgba(255,170,43,.10);border:1px solid rgba(255,170,43,.35);border-radius:8px;font-size:.78rem;color:#ffaa2b">⚠️ <b>'+orfas+' cotação(ões)</b> sem data classificável (Data_Envio vazia ou em formato inválido). Não estão contadas acima — sugiro corrigir essas datas na planilha pra análise completa.</div>'
+      : '');
 }
 
 // ============================================================
