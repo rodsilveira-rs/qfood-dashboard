@@ -1166,6 +1166,15 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
           <button type="button" id="btn-limpar-todos" onclick="cmpLimparTodosEstoques()" style="background:rgba(255,77,79,.12);border:1px solid rgba(255,77,79,.35);color:#ff7875;padding:5px 12px;border-radius:6px;font-size:.7rem;font-weight:600;cursor:pointer;margin-left:8px" onmouseover="this.style.background='rgba(255,77,79,.22)'" onmouseout="this.style.background='rgba(255,77,79,.12)'">&#128465; Limpar todos do fornecedor</button>
           <span id="cmp-sync-status" style="margin-left:auto;font-size:.72rem;color:var(--mu2);font-weight:600">Sincroniza&#231;&#227;o: aguardando</span>
         </div>
+
+        <!-- 🆕 Onda 1: Busca rápida por código ou descrição -->
+        <div style="position:relative;margin-bottom:10px">
+          <input type="text" id="cmp-busca-prod" placeholder="🔍 Buscar produto por código ou descrição (ex: 1536, biscoito, gergelim...)" oninput="cmpFiltrarProdutos()"
+            style="width:100%;background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:9px 13px;color:var(--tx);font-size:.85rem;outline:none;transition:border .15s"
+            onfocus="this.style.borderColor='#a07cf6'" onblur="this.style.borderColor='var(--br)'">
+          <span id="cmp-busca-count" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:.7rem;color:var(--mu);pointer-events:none"></span>
+        </div>
+
         <div class="twrap">
           <table>
             <thead><tr>
@@ -1938,6 +1947,14 @@ function cmpSelectFornecedor(){
   var forn=document.getElementById("cmp-fornecedor").value;
   // 🆕 v3.7: ao mudar fornecedor, reseta o ID de pré-envio (próximo envio vai ter ID novo)
   cmpResetarIdPreEnvio();
+
+  // 🆕 BUGFIX: limpa email e contato ao trocar fornecedor pra o auto-fill funcionar
+  // (sem isso, o e-mail do fornecedor anterior fica preso no campo e bloqueia o preenchimento)
+  var elEmailReset = document.getElementById("cmp-email");
+  var elContReset  = document.getElementById("cmp-contato");
+  if(elEmailReset) elEmailReset.value = "";
+  if(elContReset)  elContReset.value  = "";
+
   if(!forn){document.getElementById("cmp-produtos-wrap").style.display="none";return;}
   var rows=cmpAllRows.filter(function(r){
     return (String(r["Fornecedor"]||r["FORNECEDOR"]||"").trim())===forn;
@@ -1969,7 +1986,8 @@ function cmpSelectFornecedor(){
   cmpBuscarContatoFornecedor(forn);
 }
 
-// 🆕 v3.5: Busca contato salvo do fornecedor e preenche email/contato se vazios
+// 🆕 v3.5: Busca contato salvo do fornecedor e preenche email/contato
+// 🆕 BUGFIX: agora SEMPRE atualiza — o limpa no cmpSelectFornecedor garante que não sobrescreve digitação do usuário
 async function cmpBuscarContatoFornecedor(fornecedor){
   if(!fornecedor) return;
   try {
@@ -1977,13 +1995,15 @@ async function cmpBuscarContatoFornecedor(fornecedor){
     if(resp && resp.contato){
       var elEmail = document.getElementById('cmp-email');
       var elCont  = document.getElementById('cmp-contato');
-      // Só preenche se estiver vazio (não sobrescreve digitação do usuário)
-      if(elEmail && !elEmail.value.trim() && resp.contato.email){
+      if(elEmail && resp.contato.email){
         elEmail.value = resp.contato.email;
       }
-      if(elCont && !elCont.value.trim() && resp.contato.nome_contato){
+      if(elCont && resp.contato.nome_contato){
         elCont.value = resp.contato.nome_contato;
       }
+      console.log('[cmpBuscarContato] auto-fill OK para', fornecedor, '→', resp.contato.email);
+    } else {
+      console.log('[cmpBuscarContato] sem contato salvo para', fornecedor);
     }
   } catch(e){
     console.warn('contato_get:', e.message);
@@ -2075,6 +2095,39 @@ function cmpRenderProdutos(){
     "</tr>";
   }).join("");
   cmpUpdateCount();
+  // 🆕 Onda 1: reaplica filtro após re-render (caso a Cris esteja com filtro ativo)
+  if(document.getElementById('cmp-busca-prod') && document.getElementById('cmp-busca-prod').value){
+    cmpFiltrarProdutos();
+  }
+}
+
+// 🆕 Onda 1: Filtro rápido por código ou descrição na tabela de produtos
+function cmpFiltrarProdutos(){
+  var q = (document.getElementById('cmp-busca-prod').value || '').trim().toLowerCase();
+  var tbody = document.getElementById('cmp-tbody');
+  var countEl = document.getElementById('cmp-busca-count');
+  if(!tbody) return;
+  var rows = tbody.querySelectorAll('tr');
+  var visiveis = 0;
+  rows.forEach(function(tr){
+    if(!q){
+      tr.style.display = '';
+      visiveis++;
+      return;
+    }
+    // Pega o conteúdo da célula "Produto" (primeira coluna): código + descrição
+    var primeiraCel = tr.cells[0];
+    var txt = primeiraCel ? (primeiraCel.textContent || '').toLowerCase() : '';
+    if(txt.indexOf(q) >= 0){
+      tr.style.display = '';
+      visiveis++;
+    } else {
+      tr.style.display = 'none';
+    }
+  });
+  if(countEl){
+    countEl.textContent = q ? (visiveis + ' de ' + rows.length) : '';
+  }
 }
 
 // Salva validade total flexivel (qtd + unidade)
