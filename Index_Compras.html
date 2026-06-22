@@ -332,8 +332,6 @@ td:not(:first-child){text-align:right;}
 .status-EM_TRANSITO        { background:rgba(160,124,246,.12); color:#a07cf6; border-color:rgba(160,124,246,.3); }
 .status-RECEBIDO           { background:rgba(54,207,160,.25); color:#5ddbb3; border-color:rgba(54,207,160,.45); }
 .status-CONCLUIDO          { background:rgba(143,160,192,.12); color:#8fa0c0; border-color:rgba(143,160,192,.3); }
-.status-CANCELADA          { background:rgba(143,160,192,.12); color:#8fa0c0; border-color:rgba(143,160,192,.3); }
-.status-ENTREGUE_FORA_FERRAMENTA { background:rgba(255,140,0,.12); color:#ff8c00; border-color:rgba(255,140,0,.3); }
 
 /* Bloco recolhível (KPIs e Transportadoras) */
 .collapse-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;margin-bottom:14px;overflow:hidden;}
@@ -648,6 +646,17 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
 .aba-painel{display:none;}
 .aba-painel.active{display:block;animation:abaFade .25s ease;}
 @keyframes abaFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* 🆕 v3.10: Sub-abas dentro do Operacional (Enviadas / Andamento) */
+.sub-aba-bar{display:flex;gap:4px;margin:18px 0 14px;border-bottom:1px solid var(--br);padding-bottom:0;}
+.sub-aba-btn{background:transparent;border:none;border-bottom:2.5px solid transparent;color:var(--mu);font-family:var(--fh);font-size:.82rem;font-weight:600;padding:10px 14px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;margin-bottom:-1px;}
+.sub-aba-btn:hover{color:var(--tx);background:var(--s2);}
+.sub-aba-btn.active{color:#ffaa2b;border-bottom-color:#ffaa2b;}
+.sub-aba-badge{background:rgba(255,170,43,.18);color:#ffaa2b;font-size:.72rem;font-weight:700;padding:2px 8px;border-radius:10px;min-width:22px;text-align:center;font-family:var(--fh);}
+.sub-aba-btn.active .sub-aba-badge{background:#ffaa2b;color:#1a1f2e;}
+.sub-aba-btn .sub-aba-badge.zero{background:rgba(143,160,192,.18);color:var(--mu);}
+.sub-aba-painel{display:none;}
+.sub-aba-painel.active{display:block;animation:abaFade .2s ease;}
 </style>
 </head>
 <body>
@@ -703,24 +712,38 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
       <span id="v3-op-busca-count" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:.72rem;color:var(--mu);pointer-events:none"></span>
     </div>
 
-    <!-- Card: Aprovações Pendentes -->
+    <!-- Card: Aprovações Pendentes (sempre fixo no topo — fase mais crítica) -->
     <div id="v3-card-aprov" class="op-card">
       <div class="op-loading"><span class="spin-mini"></span>Carregando aprovações...</div>
     </div>
 
-    <!-- 🆕 v3.7: Card Cotações Enviadas (aguardando resposta do fornecedor) -->
-    <div id="v3-card-enviadas" class="op-card">
-      <div class="op-loading"><span class="spin-mini"></span>Carregando cotações enviadas...</div>
+    <!-- 🆕 v3.10: Sub-abas Enviadas / Andamento -->
+    <div class="sub-aba-bar">
+      <button class="sub-aba-btn active" id="sub-aba-btn-enviadas" onclick="v3TrocarSubAba('enviadas')">
+        ⏳ Cotações Enviadas <span class="sub-aba-badge" id="sub-aba-cnt-enviadas">0</span>
+      </button>
+      <button class="sub-aba-btn" id="sub-aba-btn-andam" onclick="v3TrocarSubAba('andam')">
+        📦 Pedidos em Andamento <span class="sub-aba-badge" id="sub-aba-cnt-andam">0</span>
+      </button>
     </div>
 
-    <!-- Card: Aguardando Designação -->
-    <div id="v3-card-desig" class="op-card">
+    <!-- Sub-painel: Cotações Enviadas (aguardando resposta do fornecedor) -->
+    <div class="sub-aba-painel active" id="sub-painel-enviadas">
+      <div id="v3-card-enviadas" class="op-card">
+        <div class="op-loading"><span class="spin-mini"></span>Carregando cotações enviadas...</div>
+      </div>
+    </div>
+
+    <!-- Sub-painel: Pedidos em Andamento -->
+    <div class="sub-aba-painel" id="sub-painel-andam">
+      <div id="v3-card-andam" class="op-card">
+        <div class="op-loading"><span class="spin-mini"></span>Carregando pedidos em andamento...</div>
+      </div>
+    </div>
+
+    <!-- ⚠️ DEPRECADO v5.6: Card de Designação separada — escondido (compat com fluxo antigo) -->
+    <div id="v3-card-desig" class="op-card" style="display:none">
       <div class="op-loading"><span class="spin-mini"></span>Carregando pedidos para designação...</div>
-    </div>
-
-    <!-- Card: Pedidos em Andamento -->
-    <div id="v3-card-andam" class="op-card">
-      <div class="op-loading"><span class="spin-mini"></span>Carregando pedidos em andamento...</div>
     </div>
 
   </div>
@@ -3115,6 +3138,43 @@ async function v3Init(){
 // ============================================================
 // CARREGAR OPERACIONAL (Aprovações + Designação + Andamento)
 // ============================================================
+// 🆕 v3.10: Troca entre sub-abas do Operacional (Enviadas / Andamento)
+function v3TrocarSubAba(nome){
+  ['enviadas','andam'].forEach(function(n){
+    var painel = document.getElementById('sub-painel-'+n);
+    var btn = document.getElementById('sub-aba-btn-'+n);
+    if(painel) painel.classList.remove('active');
+    if(btn) btn.classList.remove('active');
+  });
+  var pa = document.getElementById('sub-painel-'+nome);
+  var bt = document.getElementById('sub-aba-btn-'+nome);
+  if(pa) pa.classList.add('active');
+  if(bt) bt.classList.add('active');
+  V3._state.subAbaAtual = nome;
+}
+
+// 🆕 v3.10: Atualiza contadores nas sub-abas (chamado após cada render)
+function v3AtualizarContadoresSubAbas(){
+  var nEnviadas = (V3._state.cotacoes || []).filter(function(c){
+    return (c.Status || '').trim().toUpperCase() === 'COTACAO_ENVIADA';
+  }).length;
+  var nAndamento = (V3._state.cotacoes || []).filter(function(c){
+    var s = (c.Status || '').trim().toUpperCase();
+    return s === 'AGUARDANDO_FORNECEDOR' || s === 'AGUARDANDO_COLETA' || s === 'EM_TRANSITO';
+  }).length;
+
+  var cntE = document.getElementById('sub-aba-cnt-enviadas');
+  var cntA = document.getElementById('sub-aba-cnt-andam');
+  if(cntE){
+    cntE.textContent = nEnviadas;
+    cntE.classList.toggle('zero', nEnviadas === 0);
+  }
+  if(cntA){
+    cntA.textContent = nAndamento;
+    cntA.classList.toggle('zero', nAndamento === 0);
+  }
+}
+
 async function v3CarregarOperacional(force){
   try {
     var [cot, tr] = await Promise.all([
@@ -3127,6 +3187,8 @@ async function v3CarregarOperacional(force){
     v3RenderEnviadas();      // 🆕 v3.7
     v3RenderDesignacao();
     v3RenderAndamento();
+    // 🆕 v3.10: atualiza badges das sub-abas
+    v3AtualizarContadoresSubAbas();
     // 🆕 v3.8: reaplica filtro de busca (se houver texto digitado)
     if(document.getElementById('v3-op-busca') && document.getElementById('v3-op-busca').value){
       v3FiltrarOperacional();
@@ -3389,7 +3451,6 @@ function v3RenderEnviadas(){
         '</div>'+
         '<div class="pedido-actions">'+
           '<button class="btn-cobrar" onclick="v3CobrarFornecedor(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Reabre o e-mail no Outlook com texto de cobrança">🔔 Cobrar</button>'+
-          '<button class="btn-cancel-env" onclick="v3EntregueForaFerramenta(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Marca como entregue por outros meios (compra paralela, etc)" style="background:rgba(255,140,0,.12);border-color:rgba(255,140,0,.35);color:#ff8c00">📦 Já entregue por fora</button>'+
           '<button class="btn-cancel-env" onclick="v3CancelarEnvio(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Cancelar este envio (a Cris desistiu ou errou algo)">✕ Cancelar</button>'+
         '</div>'+
       '</div>';
@@ -3450,52 +3511,6 @@ function v3CobrarFornecedor(idCotacao){
 }
 
 // 🆕 v3.7: Cancelar um envio (Cris errou ou desistiu)
-// 🆕 v5.5: Marca cotação como entregue por outros meios (com motivo obrigatório)
-async function v3EntregueForaFerramenta(idCotacao){
-  if(!v3EhAprovador()){
-    v3ToastShow('Apenas aprovadores podem marcar como entregue por fora.', 'error');
-    return;
-  }
-
-  // Pede motivo obrigatório (mín 3 caracteres)
-  var motivo = prompt(
-    '📦 Entregue por outros meios\n\n' +
-    'Esta cotação será marcada como "ENTREGUE FORA DA FERRAMENTA" — útil quando:\n' +
-    '• O fornecedor não respondeu, mas você já comprou direto na loja\n' +
-    '• A mercadoria veio em outra cota anterior\n' +
-    '• Compra de urgência feita por outro canal\n\n' +
-    'Por favor, informe o motivo (obrigatório):',
-    ''
-  );
-  if(motivo === null) return; // cancelou
-  motivo = String(motivo || '').trim();
-  if(motivo.length < 3){
-    v3ToastShow('Motivo é obrigatório (mín. 3 caracteres).', 'error');
-    return;
-  }
-
-  if(!confirm('Confirma marcar a cotação ' + idCotacao + ' como ENTREGUE POR FORA?\n\nMotivo: ' + motivo)){
-    return;
-  }
-
-  v3ToastShow('Marcando como entregue por fora...', 'info');
-  try {
-    var resp = await v3PostAppsScript('entregue_fora_ferramenta', {
-      id_cotacao: idCotacao,
-      atualizado_por: v3GetUsuarioAtual(),
-      motivo: motivo
-    });
-    if(resp && resp.ok){
-      v3ToastShow('✅ Cotação marcada como entregue por fora.', 'success');
-      await v3CarregarOperacional(true);
-    } else {
-      v3ToastShow('Erro: ' + (resp.erro || 'falha desconhecida'), 'error');
-    }
-  } catch(e){
-    v3ToastShow('Erro na requisição: ' + e.message, 'error');
-  }
-}
-
 async function v3CancelarEnvio(idCotacao){
   if(!v3EhAprovador()){
     v3ToastShow('Apenas aprovadores podem cancelar.', 'error');
@@ -3629,7 +3644,6 @@ function v3RenderAndamento(){
         '</div>'+
         '<div class="pedido-actions">'+
           '<button class="btn-status" onclick="v3MudarStatus(\''+v3Esc(id).replace(/'/g,"\\'")+'\')">Atualizar Status</button>'+
-          '<button class="btn-cancel-env" onclick="v3EntregueForaFerramenta(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Marca como entregue por outros meios" style="background:rgba(255,140,0,.12);border-color:rgba(255,140,0,.35);color:#ff8c00">📦 Já entregue por fora</button>'+
         '</div>'+
       '</div>';
   }).join('');
@@ -3819,6 +3833,31 @@ function v3MontarBodyAprovacao(itens, bonif){
     '<textarea id="ap-obs-interna" class="modal-textarea" rows="2" maxlength="500" placeholder="Ex: aprovado com folga porque tem outra cotação chegando..."></textarea>'+
   '</div>';
 
+  // 🆕 v5.6: SEÇÃO TRANSPORTADORA + TIPO FRETE (unifica designação no momento da aprovação)
+  html += '<div class="modal-aprov-section" style="background:rgba(255,170,43,.06);border-left:3px solid #ffaa2b;padding:14px 16px">'+
+    '<div class="mas-title">🚛 Transportadora e Frete <span class="mas-sub" style="color:#ff7875">obrigatório — vai no e-mail de aprovação</span></div>'+
+
+    '<div style="display:flex;gap:18px;margin:10px 0 14px;flex-wrap:wrap">'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.86rem">'+
+        '<input type="radio" name="ap-frete" value="CIF" onchange="v3OnApFreteChange()"> '+
+        '<span><b>CIF</b> · frete por conta do fornecedor</span>'+
+      '</label>'+
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.86rem">'+
+        '<input type="radio" name="ap-frete" value="FOB" onchange="v3OnApFreteChange()"> '+
+        '<span><b>FOB</b> · frete por conta da Q Food</span>'+
+      '</label>'+
+    '</div>'+
+
+    '<div id="ap-frete-explica" style="font-size:.74rem;color:var(--mu);margin-bottom:12px;font-style:italic">Selecione o tipo de frete acima.</div>'+
+
+    '<label style="display:block;font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-bottom:6px">Transportadora <span style="color:#ff7875">*</span></label>'+
+    '<select id="ap-transp" onchange="v3OnApTranspChange()" style="width:100%;background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.86rem;outline:none">'+
+      '<option value="">-- Selecione uma transportadora --</option>'+
+    '</select>'+
+
+    '<div id="ap-transp-preview" style="margin-top:10px;padding:10px 12px;background:var(--s2);border-radius:8px;font-size:.78rem;display:none"></div>'+
+  '</div>';
+
   // FOOTER
   html += '<div class="modal-foot">'+
     '<button class="btn-modal-cancel" onclick="v3FecharModal(\'modal-aprovar\')">Cancelar</button>'+
@@ -3843,6 +3882,67 @@ function v3BindAprovEvents(){
   document.querySelectorAll('#m-aprov-body .ap-qty').forEach(function(el){
     el.addEventListener('input', v3RecalcAprov);
   });
+  // 🆕 v5.6: popula dropdown de transportadoras no modal
+  v3PopularTranspAprovacao();
+}
+
+// 🆕 v5.6: popula select de transportadoras dentro do modal de aprovação
+function v3PopularTranspAprovacao(){
+  var sel = document.getElementById('ap-transp');
+  if(!sel) return;
+  var ativas = (V3._state.transps || []).filter(function(t){
+    return (t.Ativo||'SIM').toUpperCase() === 'SIM';
+  });
+  sel.innerHTML = '<option value="">-- Selecione uma transportadora --</option>';
+  if(ativas.length === 0){
+    sel.innerHTML += '<option value="" disabled>Nenhuma transportadora cadastrada</option>';
+    return;
+  }
+  ativas.forEach(function(t){
+    sel.innerHTML += '<option value="'+v3Esc(t.ID)+'">'+v3Esc(t.Nome)+(t.WhatsApp?' · '+v3Esc(t.WhatsApp):'')+'</option>';
+  });
+}
+
+// 🆕 v5.6: atualiza texto explicativo conforme escolha CIF/FOB
+function v3OnApFreteChange(){
+  var freteEl = document.querySelector('input[name="ap-frete"]:checked');
+  var tipo = freteEl ? freteEl.value : '';
+  var box = document.getElementById('ap-frete-explica');
+  if(!box) return;
+  if(tipo === 'CIF'){
+    box.innerHTML = '💡 No e-mail, o fornecedor verá que o frete é por conta dele. A transportadora abaixo é uma <b>sugestão</b> (ele pode usar outra se preferir).';
+    box.style.color = '#ffc14d';
+  } else if(tipo === 'FOB'){
+    box.innerHTML = '💡 No e-mail, o fornecedor verá que a Q Food contrata e paga a transportadora abaixo. Ele só precisa preparar a mercadoria pra coleta.';
+    box.style.color = '#5ddbb3';
+  } else {
+    box.textContent = 'Selecione o tipo de frete acima.';
+    box.style.color = 'var(--mu)';
+  }
+}
+
+// 🆕 v5.6: mostra preview da transportadora selecionada
+function v3OnApTranspChange(){
+  var idTr = document.getElementById('ap-transp').value;
+  var preview = document.getElementById('ap-transp-preview');
+  if(!preview) return;
+  if(!idTr){
+    preview.style.display = 'none';
+    return;
+  }
+  var t = (V3._state.transps || []).find(function(x){ return x.ID === idTr; });
+  if(!t){
+    preview.style.display = 'none';
+    return;
+  }
+  var html = '<div style="font-weight:700;color:var(--tx);margin-bottom:4px">🚛 '+v3Esc(t.Nome)+'</div>';
+  if(t.WhatsApp)     html += '<div><b>WhatsApp:</b> '+v3Esc(t.WhatsApp)+'</div>';
+  if(t.Responsavel)  html += '<div><b>Responsável:</b> '+v3Esc(t.Responsavel)+'</div>';
+  if(t.Email)        html += '<div><b>E-mail:</b> '+v3Esc(t.Email)+'</div>';
+  if(t.Cidade)       html += '<div><b>Cidade:</b> '+v3Esc(t.Cidade)+'</div>';
+  if(t.Observacoes)  html += '<div style="color:var(--mu);margin-top:4px"><b>Obs:</b> '+v3Esc(t.Observacoes)+'</div>';
+  preview.innerHTML = html;
+  preview.style.display = 'block';
 }
 
 function v3ToggleBonifDetail(){
@@ -4000,6 +4100,24 @@ async function v3ConfirmarAprovacao(){
   var textoLivre = (document.getElementById('ap-texto-livre')||{}).value || '';
   var obsInterna = (document.getElementById('ap-obs-interna')||{}).value || '';
 
+  // 🆕 v5.6: valida transportadora + tipo frete (agora obrigatórios)
+  var freteEl = document.querySelector('input[name="ap-frete"]:checked');
+  var tipoFrete = freteEl ? freteEl.value : '';
+  var idTransp = (document.getElementById('ap-transp') || {}).value || '';
+  if(!tipoFrete){
+    v3ToastShow('Selecione o tipo de frete (CIF ou FOB).', 'error');
+    return;
+  }
+  if(!idTransp){
+    v3ToastShow('Selecione a transportadora.', 'error');
+    return;
+  }
+  var transpObj = (V3._state.transps || []).find(function(x){ return x.ID === idTransp; });
+  if(!transpObj){
+    v3ToastShow('Transportadora não encontrada.', 'error');
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Aprovando...';
 
@@ -4011,9 +4129,15 @@ async function v3ConfirmarAprovacao(){
       itens_aprovados: itensAprovados,
       bonificacao_aprovada: bonifAprov,
       texto_livre: textoLivre,
-      total_aprovado: totalAprovado
+      total_aprovado: totalAprovado,
+      // 🆕 v5.6: fluxo unificado — manda transp + frete junto
+      tipo_frete: tipoFrete,
+      transportadora_nome: transpObj.Nome || '',
+      transportadora_whatsapp: transpObj.WhatsApp || '',
+      transportadora_responsavel: transpObj.Responsavel || '',
+      transportadora_obs: transpObj.Observacoes || ''
     });
-    v3ToastShow('Cotação aprovada com sucesso!', 'success');
+    v3ToastShow('Cotação aprovada e fornecedor notificado!', 'success');
     v3FecharModal('modal-aprovar');
     await v3CarregarOperacional(true);
   } catch(e){
@@ -5056,8 +5180,7 @@ function v3HistRenderTabHistorico(grp){
     'AGUARDANDO_COLETA':     { label: '📦 Em coleta',  cor: '#ffaa2b' },
     'EM_TRANSITO':      { label: '🚚 Em trânsito', cor: '#ffaa2b' },
     'RECEBIDO':         { label: '✅ Recebidos',  cor: '#36cfa0' },
-    'CONCLUIDO':        { label: '🏁 Concluídos', cor: '#36cfa0' },
-    'ENTREGUE_FORA_FERRAMENTA': { label: '📦 Entregue por fora', cor: '#ff8c00' }
+    'CONCLUIDO':        { label: '🏁 Concluídos', cor: '#36cfa0' }
   };
 
   // Conta cotações por status
