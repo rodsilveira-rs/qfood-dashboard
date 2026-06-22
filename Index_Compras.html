@@ -332,6 +332,8 @@ td:not(:first-child){text-align:right;}
 .status-EM_TRANSITO        { background:rgba(160,124,246,.12); color:#a07cf6; border-color:rgba(160,124,246,.3); }
 .status-RECEBIDO           { background:rgba(54,207,160,.25); color:#5ddbb3; border-color:rgba(54,207,160,.45); }
 .status-CONCLUIDO          { background:rgba(143,160,192,.12); color:#8fa0c0; border-color:rgba(143,160,192,.3); }
+.status-CANCELADA          { background:rgba(143,160,192,.12); color:#8fa0c0; border-color:rgba(143,160,192,.3); }
+.status-ENTREGUE_FORA_FERRAMENTA { background:rgba(255,140,0,.12); color:#ff8c00; border-color:rgba(255,140,0,.3); }
 
 /* Bloco recolhível (KPIs e Transportadoras) */
 .collapse-card{background:var(--sf);border:1px solid var(--br);border-radius:12px;margin-bottom:14px;overflow:hidden;}
@@ -3387,6 +3389,7 @@ function v3RenderEnviadas(){
         '</div>'+
         '<div class="pedido-actions">'+
           '<button class="btn-cobrar" onclick="v3CobrarFornecedor(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Reabre o e-mail no Outlook com texto de cobrança">🔔 Cobrar</button>'+
+          '<button class="btn-cancel-env" onclick="v3EntregueForaFerramenta(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Marca como entregue por outros meios (compra paralela, etc)" style="background:rgba(255,140,0,.12);border-color:rgba(255,140,0,.35);color:#ff8c00">📦 Já entregue por fora</button>'+
           '<button class="btn-cancel-env" onclick="v3CancelarEnvio(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Cancelar este envio (a Cris desistiu ou errou algo)">✕ Cancelar</button>'+
         '</div>'+
       '</div>';
@@ -3447,6 +3450,52 @@ function v3CobrarFornecedor(idCotacao){
 }
 
 // 🆕 v3.7: Cancelar um envio (Cris errou ou desistiu)
+// 🆕 v5.5: Marca cotação como entregue por outros meios (com motivo obrigatório)
+async function v3EntregueForaFerramenta(idCotacao){
+  if(!v3EhAprovador()){
+    v3ToastShow('Apenas aprovadores podem marcar como entregue por fora.', 'error');
+    return;
+  }
+
+  // Pede motivo obrigatório (mín 3 caracteres)
+  var motivo = prompt(
+    '📦 Entregue por outros meios\n\n' +
+    'Esta cotação será marcada como "ENTREGUE FORA DA FERRAMENTA" — útil quando:\n' +
+    '• O fornecedor não respondeu, mas você já comprou direto na loja\n' +
+    '• A mercadoria veio em outra cota anterior\n' +
+    '• Compra de urgência feita por outro canal\n\n' +
+    'Por favor, informe o motivo (obrigatório):',
+    ''
+  );
+  if(motivo === null) return; // cancelou
+  motivo = String(motivo || '').trim();
+  if(motivo.length < 3){
+    v3ToastShow('Motivo é obrigatório (mín. 3 caracteres).', 'error');
+    return;
+  }
+
+  if(!confirm('Confirma marcar a cotação ' + idCotacao + ' como ENTREGUE POR FORA?\n\nMotivo: ' + motivo)){
+    return;
+  }
+
+  v3ToastShow('Marcando como entregue por fora...', 'info');
+  try {
+    var resp = await v3PostAppsScript('entregue_fora_ferramenta', {
+      id_cotacao: idCotacao,
+      atualizado_por: v3GetUsuarioAtual(),
+      motivo: motivo
+    });
+    if(resp && resp.ok){
+      v3ToastShow('✅ Cotação marcada como entregue por fora.', 'success');
+      await v3CarregarOperacional(true);
+    } else {
+      v3ToastShow('Erro: ' + (resp.erro || 'falha desconhecida'), 'error');
+    }
+  } catch(e){
+    v3ToastShow('Erro na requisição: ' + e.message, 'error');
+  }
+}
+
 async function v3CancelarEnvio(idCotacao){
   if(!v3EhAprovador()){
     v3ToastShow('Apenas aprovadores podem cancelar.', 'error');
@@ -3580,6 +3629,7 @@ function v3RenderAndamento(){
         '</div>'+
         '<div class="pedido-actions">'+
           '<button class="btn-status" onclick="v3MudarStatus(\''+v3Esc(id).replace(/'/g,"\\'")+'\')">Atualizar Status</button>'+
+          '<button class="btn-cancel-env" onclick="v3EntregueForaFerramenta(\''+v3Esc(id).replace(/'/g,"\\'")+'\')" title="Marca como entregue por outros meios" style="background:rgba(255,140,0,.12);border-color:rgba(255,140,0,.35);color:#ff8c00">📦 Já entregue por fora</button>'+
         '</div>'+
       '</div>';
   }).join('');
@@ -5006,7 +5056,8 @@ function v3HistRenderTabHistorico(grp){
     'AGUARDANDO_COLETA':     { label: '📦 Em coleta',  cor: '#ffaa2b' },
     'EM_TRANSITO':      { label: '🚚 Em trânsito', cor: '#ffaa2b' },
     'RECEBIDO':         { label: '✅ Recebidos',  cor: '#36cfa0' },
-    'CONCLUIDO':        { label: '🏁 Concluídos', cor: '#36cfa0' }
+    'CONCLUIDO':        { label: '🏁 Concluídos', cor: '#36cfa0' },
+    'ENTREGUE_FORA_FERRAMENTA': { label: '📦 Entregue por fora', cor: '#ff8c00' }
   };
 
   // Conta cotações por status
