@@ -5,390 +5,203 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Catálogo de Vendas · Q Food Company</title>
 <!--
-  ============================================================================
-  Index_CatalogoVendas.html  ·  TELA DO VENDEDOR (protótipo navegável)
-  ============================================================================
-  ESTE ARQUIVO É SÓ O FRONT. Os dados abaixo são MOCK (demonstração).
-  Quando ligarmos no backend, o front vai chamar o webapp mestre via fetch.
-
-  CONTRATO DA API (a definir no módulo CAT_* do Apps Script):
-
-    GET  ?modulo=catalogo&acao=buscarPdv&cnpj=XXXXXXXXXXXXXX
-      -> { status:"ativo"|"inativo"|"novo",
-           pdv:{cnpj,razao,fantasia,setor,vendedor,cidade},
-           farol:"verde"|"amarelo"|"vermelho",
-           diasSemCompra, periodicidade, ultimaCompra,
-           itensComprados:[{codigo,descricao,categoria,ultimaCompra,freq}],
-           cestaOriental:[{codigo,descricao,compra:bool,score}],  // só se oriental
-           inativoDesde }                                          // só se inativo
-
-    GET  ?modulo=catalogo&acao=produtos        -> [{codigo,descricao,categoria,familia,relacionados:[...]}]
-    GET  ?modulo=catalogo&acao=promocoes       -> [{titulo,produto,de,por,validade,codigo}]
-    POST ?modulo=catalogo&acao=gerarToken      -> { token,url,expiraEm }   // grava CATALOGO_TOKENS, valida <2h
-    POST ?modulo=catalogo&acao=salvarPedido    -> { ok,pedidoId }
-  ============================================================================
+  Index_CatalogoVendas.html · TELA DO VENDEDOR
+  Catálogo populado a partir do PDF (338 produtos com foto).
+  Fotos em /img/CODIGO.jpg  (suba a pasta img/ junto no GitHub).
+  Quando ligarmos o backend, troque CATALOGO embutido por:
+     fetch(WEBAPP+'?modulo=catalogo&acao=produtos')  -> usa PRODUTO_GIRO real
+  Busca de CNPJ -> ?modulo=catalogo&acao=buscarPdv | token 2h em CATALOGO_TOKENS
 -->
 <style>
 :root{
-  --vermelho:#E2122C;
-  --vermelho-escuro:#B00C20;
-  --preto:#111114;
-  --grafite:#2A2A30;
-  --cinza:#6B6B74;
-  --cinza-claro:#9A9AA3;
-  --linha:#E7E7EA;
-  --fundo:#F5F5F4;
-  --branco:#FFFFFF;
-  --verde:#1E9E5A;
-  --verde-fundo:#E8F6EE;
-  --amarelo:#E0A92B;
-  --amarelo-fundo:#FBF3DE;
-  --azul:#2F6FE0;
-  --azul-fundo:#E9F0FC;
-  --sombra:0 1px 2px rgba(17,17,20,.06), 0 6px 20px rgba(17,17,20,.06);
-  --sombra-forte:0 10px 40px rgba(17,17,20,.18);
-  --radius:14px;
-  --radius-sm:10px;
+  --vermelho:#E2122C;--vermelho-escuro:#B00C20;--preto:#111114;--grafite:#2A2A30;
+  --cinza:#6B6B74;--cinza-claro:#9A9AA3;--linha:#E7E7EA;--fundo:#F5F5F4;--branco:#fff;
+  --verde:#1E9E5A;--verde-fundo:#E8F6EE;--amarelo:#E0A92B;--azul:#2F6FE0;--azul-fundo:#E9F0FC;
+  --sombra:0 1px 2px rgba(17,17,20,.06),0 6px 20px rgba(17,17,20,.06);
+  --sombra-forte:0 10px 40px rgba(17,17,20,.18);--radius:14px;--radius-sm:10px;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
-body{
-  font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
-  background:var(--fundo);color:var(--preto);
-  -webkit-font-smoothing:antialiased;line-height:1.45;
-  padding-bottom:90px;
-}
-button{font-family:inherit;cursor:pointer;border:none}
-input{font-family:inherit}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+body{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;background:var(--fundo);color:var(--preto);-webkit-font-smoothing:antialiased;line-height:1.45;padding-bottom:90px}
+button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 
-/* ---------- TOPBAR ---------- */
-.topbar{
-  position:sticky;top:0;z-index:50;background:var(--preto);
-  display:flex;align-items:center;gap:18px;
-  padding:12px 22px;box-shadow:0 2px 14px rgba(0,0,0,.25);
-}
+.topbar{position:sticky;top:0;z-index:50;background:var(--preto);display:flex;align-items:center;gap:18px;padding:12px 22px;box-shadow:0 2px 14px rgba(0,0,0,.25)}
 .logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
-.logo svg{display:block}
 .logo .mark{font-weight:800;font-size:18px;color:#fff;letter-spacing:.04em;line-height:1}
-.logo .mark b{color:var(--vermelho)}
-.logo .sub{font-size:9px;letter-spacing:.42em;color:#9a9aa3;font-weight:600}
-
-.busca{
-  flex:1;max-width:620px;display:flex;align-items:center;
-  background:#fff;border-radius:12px;overflow:hidden;
-  box-shadow:0 0 0 2px rgba(255,255,255,.04);
-}
-.busca input{
-  flex:1;border:none;outline:none;padding:13px 16px;font-size:15px;
-  letter-spacing:.02em;color:var(--preto);
-}
+.logo .mark b{color:var(--vermelho)}.logo .sub{font-size:9px;letter-spacing:.42em;color:#9a9aa3;font-weight:600}
+.busca{flex:1;max-width:620px;display:flex;align-items:center;background:#fff;border-radius:12px;overflow:hidden}
+.busca input{flex:1;border:none;outline:none;padding:13px 16px;font-size:15px;color:var(--preto)}
 .busca input::placeholder{color:var(--cinza-claro)}
-.busca button{
-  background:var(--vermelho);color:#fff;font-weight:700;font-size:14px;
-  padding:0 22px;align-self:stretch;display:flex;align-items:center;gap:7px;
-  transition:background .15s;
-}
+.busca button{background:var(--vermelho);color:#fff;font-weight:700;font-size:14px;padding:0 22px;align-self:stretch;display:flex;align-items:center;gap:7px;transition:.15s}
 .busca button:hover{background:var(--vermelho-escuro)}
-.vend-tag{
-  display:flex;align-items:center;gap:8px;color:#cfcfd6;font-size:13px;flex-shrink:0;
-}
-.vend-tag .av{
-  width:30px;height:30px;border-radius:50%;background:var(--vermelho);
-  color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;
-}
+.vend-tag{display:flex;align-items:center;gap:8px;color:#cfcfd6;font-size:13px;flex-shrink:0}
+.vend-tag .av{width:30px;height:30px;border-radius:50%;background:var(--vermelho);color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center}
 @media(max-width:720px){.vend-tag span{display:none}}
-
-/* ---------- LAYOUT ---------- */
 .wrap{max-width:1180px;margin:0 auto;padding:22px}
 
-/* ---------- ESTADO INICIAL ---------- */
-.empty{
-  text-align:center;padding:70px 20px 40px;
-}
-.empty h1{
-  font-size:42px;font-weight:800;letter-spacing:-.02em;line-height:1.05;
-  color:var(--preto);margin-bottom:6px;
-}
+.empty{text-align:center;padding:64px 20px 36px}
+.empty h1{font-size:40px;font-weight:800;letter-spacing:-.02em;line-height:1.05;margin-bottom:6px}
 .empty h1 em{font-style:normal;color:var(--vermelho)}
-.empty p{color:var(--cinza);font-size:16px;max-width:440px;margin:0 auto 26px}
-.empty .dicas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-.chip-demo{
-  background:#fff;border:1px solid var(--linha);border-radius:999px;
-  padding:9px 16px;font-size:13px;color:var(--grafite);font-weight:600;
-  display:inline-flex;align-items:center;gap:8px;transition:.15s;
-}
+.empty p{color:var(--cinza);font-size:16px;max-width:460px;margin:0 auto 24px}
+.dicas{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.chip-demo{background:#fff;border:1px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:13px;color:var(--grafite);font-weight:600;display:inline-flex;align-items:center;gap:8px;transition:.15s}
 .chip-demo:hover{border-color:var(--vermelho);color:var(--vermelho)}
 .chip-demo small{color:var(--cinza-claro);font-weight:500}
+.empty .cta-cat{margin-top:22px;font-size:13.5px;color:var(--cinza)}
+.empty .cta-cat button{color:var(--vermelho);font-weight:700;background:none;text-decoration:underline}
 
-/* ---------- PAINEL DO CLIENTE (MÁGICA) ---------- */
-.cliente{display:none;animation:reveal .4s ease}
-.cliente.show{display:block}
+.cliente{display:none;animation:reveal .4s ease}.cliente.show{display:block}
 @keyframes reveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-
-.status-card{
-  background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);
-  padding:0;overflow:hidden;margin-bottom:22px;
-  border-left:6px solid var(--cinza);
-}
-.status-card.ativo{border-left-color:var(--verde)}
-.status-card.inativo{border-left-color:var(--vermelho)}
-.status-card.novo{border-left-color:var(--azul)}
+.status-card{background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);overflow:hidden;margin-bottom:22px;border-left:6px solid var(--cinza)}
+.status-card.ativo{border-left-color:var(--verde)}.status-card.inativo{border-left-color:var(--vermelho)}.status-card.novo{border-left-color:var(--azul)}
 .status-head{display:flex;align-items:flex-start;gap:16px;padding:20px 22px}
-.status-badge{
-  font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;
-  padding:5px 11px;border-radius:7px;white-space:nowrap;
-}
-.ativo .status-badge{background:var(--verde-fundo);color:var(--verde)}
-.inativo .status-badge{background:#FCE8EB;color:var(--vermelho)}
-.novo .status-badge{background:var(--azul-fundo);color:var(--azul)}
-.status-info{flex:1;min-width:0}
-.status-info h2{font-size:21px;font-weight:800;letter-spacing:-.01em;margin-bottom:3px}
+.status-badge{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:5px 11px;border-radius:7px;white-space:nowrap}
+.ativo .status-badge{background:var(--verde-fundo);color:var(--verde)}.inativo .status-badge{background:#FCE8EB;color:var(--vermelho)}.novo .status-badge{background:var(--azul-fundo);color:var(--azul)}
+.status-info{flex:1;min-width:0}.status-info h2{font-size:21px;font-weight:800;letter-spacing:-.01em;margin-bottom:3px}
 .status-info .meta{color:var(--cinza);font-size:13.5px;display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px}
 .status-info .meta b{color:var(--grafite);font-weight:600}
 .farol{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;flex-shrink:0}
 .farol .dot{width:11px;height:11px;border-radius:50%}
-.farol.verde .dot{background:var(--verde)} .farol.verde{color:var(--verde)}
-.farol.amarelo .dot{background:var(--amarelo)} .farol.amarelo{color:var(--amarelo)}
-.farol.vermelho .dot{background:var(--vermelho)} .farol.vermelho{color:var(--vermelho)}
+.farol.verde .dot{background:var(--verde)}.farol.verde{color:var(--verde)}
+.farol.amarelo .dot{background:var(--amarelo)}.farol.amarelo{color:var(--amarelo)}
+.farol.vermelho .dot{background:var(--vermelho)}.farol.vermelho{color:var(--vermelho)}
+.alerta-reativ{background:#FFF6F2;border-top:1px solid #F4D9CE;padding:13px 22px;font-size:13.5px;color:#9A4422;display:flex;align-items:center;gap:9px}
 
-.alerta-reativ{
-  background:#FFF6F2;border-top:1px solid #F4D9CE;
-  padding:13px 22px;font-size:13.5px;color:#9A4422;display:flex;align-items:center;gap:9px;
-}
-
-/* ---------- BLOCO MÁGICA: CESTA + JÁ COMPRA ---------- */
 .magic-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:26px}
 @media(max-width:860px){.magic-grid{grid-template-columns:1fr}}
 .painel{background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);overflow:hidden}
-.painel-head{
-  padding:15px 18px;border-bottom:1px solid var(--linha);
-  display:flex;align-items:center;justify-content:space-between;
-}
+.painel-head{padding:15px 18px;border-bottom:1px solid var(--linha);display:flex;align-items:center;justify-content:space-between}
 .painel-head h3{font-size:15px;font-weight:800;display:flex;align-items:center;gap:9px}
-.painel-head .ico{
-  width:26px;height:26px;border-radius:7px;display:grid;place-items:center;
-  background:var(--vermelho);color:#fff;font-size:14px;
-}
+.painel-head .ico{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--vermelho);color:#fff;font-size:14px}
 .painel-head .resumo{font-size:12.5px;color:var(--cinza);font-weight:600}
 .painel-body{padding:8px 0;max-height:330px;overflow-y:auto}
-
-.linha-item{
-  display:flex;align-items:center;gap:12px;padding:10px 18px;
-  border-bottom:1px solid #F3F3F4;transition:background .12s;
-}
-.linha-item:last-child{border-bottom:none}
-.linha-item:hover{background:#FAFAFA}
+.linha-item{display:flex;align-items:center;gap:12px;padding:10px 18px;border-bottom:1px solid #F3F3F4;transition:.12s}
+.linha-item:last-child{border-bottom:none}.linha-item:hover{background:#FAFAFA}
 .linha-item .cod{font-size:11px;color:var(--cinza-claro);font-weight:700;width:42px;flex-shrink:0}
-.linha-item .desc{flex:1;font-size:13.5px;min-width:0}
-.linha-item .desc small{display:block;color:var(--cinza-claro);font-size:11.5px}
+.linha-item .desc{flex:1;font-size:13.5px;min-width:0}.linha-item .desc small{display:block;color:var(--cinza-claro);font-size:11.5px}
 .mark-ok{color:var(--verde);font-weight:800;font-size:13px;flex-shrink:0;display:flex;align-items:center;gap:5px}
-.mark-falta{
-  background:var(--vermelho);color:#fff;border-radius:7px;padding:6px 11px;
-  font-size:12px;font-weight:700;flex-shrink:0;transition:.15s;
-}
+.mark-falta{background:var(--vermelho);color:#fff;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:700;flex-shrink:0;transition:.15s}
 .mark-falta:hover{background:var(--vermelho-escuro)}
-.score{font-size:11px;color:var(--amarelo);font-weight:700}
 
-/* ---------- MURAL DE PROMOÇÕES ---------- */
-.secao-titulo{
-  display:flex;align-items:baseline;gap:12px;margin:30px 0 16px;
-}
+.secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:lowercase}
 .secao-titulo h2 .ac{color:var(--vermelho)}
 .secao-titulo .rule{flex:1;height:3px;background:var(--preto);border-radius:2px;align-self:center}
 .secao-titulo .rule.red{background:var(--vermelho)}
 
 .promo-rail{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x mandatory}
-.promo-rail::-webkit-scrollbar{height:8px}
-.promo-rail::-webkit-scrollbar-thumb{background:#d8d8db;border-radius:99px}
-.promo-card{
-  flex:0 0 300px;scroll-snap-align:start;
-  background:linear-gradient(135deg,var(--preto),#2b0a0f 120%);
-  border-radius:var(--radius);overflow:hidden;color:#fff;position:relative;
-  box-shadow:var(--sombra);display:flex;flex-direction:column;
-}
-.promo-card .selo{
-  position:absolute;top:12px;left:12px;background:var(--amarelo);color:#1a1300;
-  font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:6px;
-  text-transform:uppercase;
-}
-.promo-card .img{
-  height:120px;background:var(--vermelho);position:relative;
-  display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.5);
-  background-image:radial-gradient(circle at 70% 30%,rgba(255,255,255,.12),transparent 60%);
-}
+.promo-rail::-webkit-scrollbar{height:8px}.promo-rail::-webkit-scrollbar-thumb{background:#d8d8db;border-radius:99px}
+.promo-card{flex:0 0 300px;scroll-snap-align:start;background:linear-gradient(135deg,var(--preto),#2b0a0f 120%);border-radius:var(--radius);overflow:hidden;color:#fff;position:relative;box-shadow:var(--sombra);display:flex;flex-direction:column}
+.promo-card .selo{position:absolute;top:12px;left:12px;background:var(--amarelo);color:#1a1300;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:6px;text-transform:uppercase}
+.promo-card .img{height:120px;background:var(--vermelho);display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.5);background-image:radial-gradient(circle at 70% 30%,rgba(255,255,255,.12),transparent 60%)}
 .promo-card .corpo{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
 .promo-card .corpo .prod{font-size:15px;font-weight:700;line-height:1.25}
 .promo-card .precos{display:flex;align-items:baseline;gap:9px;margin-top:6px}
 .promo-card .de{font-size:13px;color:#8a8a92;text-decoration:line-through}
-.promo-card .por{font-size:26px;font-weight:800;color:#fff}
-.promo-card .por small{font-size:13px;font-weight:600;color:var(--amarelo)}
+.promo-card .por{font-size:26px;font-weight:800;color:#fff}.promo-card .por small{font-size:13px;font-weight:600;color:var(--amarelo)}
 .promo-card .val{font-size:11px;color:#9a9aa3;margin-top:auto;padding-top:8px}
-.promo-card .add-promo{
-  margin-top:10px;background:var(--vermelho);color:#fff;border-radius:9px;
-  padding:10px;font-weight:700;font-size:13.5px;transition:.15s;
-}
+.promo-card .add-promo{margin-top:10px;background:var(--vermelho);color:#fff;border-radius:9px;padding:10px;font-weight:700;font-size:13.5px;transition:.15s}
 .promo-card .add-promo:hover{background:var(--vermelho-escuro)}
 
-/* ---------- CATÁLOGO ---------- */
-.cats{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 14px;margin-bottom:4px}
+.cat-busca{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.cat-busca .find{flex:1;min-width:200px;display:flex;align-items:center;background:#fff;border:1px solid var(--linha);border-radius:10px;overflow:hidden}
+.cat-busca .find input{flex:1;border:none;outline:none;padding:11px 14px;font-size:14px}
+.cat-busca .find span{padding:0 12px;color:var(--cinza-claro)}
+.cats{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 14px}
 .cats::-webkit-scrollbar{height:6px}
-.cat-chip{
-  flex-shrink:0;background:#fff;border:1px solid var(--linha);border-radius:999px;
-  padding:9px 17px;font-size:13.5px;font-weight:600;color:var(--grafite);
-  transition:.15s;white-space:nowrap;
-}
-.cat-chip:hover{border-color:var(--cinza)}
-.cat-chip.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+.cat-chip{flex-shrink:0;background:#fff;border:1px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--grafite);transition:.15s;white-space:nowrap}
+.cat-chip:hover{border-color:var(--cinza)}.cat-chip.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+.cat-chip b{opacity:.5;font-weight:600;margin-left:4px}
 
-.grid-prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px}
-.prod-card{
-  background:#fff;border-radius:var(--radius-sm);box-shadow:var(--sombra);
-  overflow:hidden;display:flex;flex-direction:column;transition:.18s;
-  border:1px solid transparent;cursor:pointer;
-}
+.grid-prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:15px}
+.prod-card{background:#fff;border-radius:var(--radius-sm);box-shadow:var(--sombra);overflow:hidden;display:flex;flex-direction:column;transition:.18s;border:1px solid transparent;cursor:pointer}
 .prod-card:hover{transform:translateY(-3px);box-shadow:var(--sombra-forte);border-color:var(--linha)}
-.prod-card .ph{
-  height:120px;background:#F3F3F2;display:grid;place-items:center;position:relative;
-}
-.prod-card .ph .cod-badge{
-  position:absolute;top:9px;left:9px;background:rgba(17,17,20,.78);color:#fff;
-  font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;letter-spacing:.02em;
-}
-.prod-card .ph .glyph{font-size:34px;opacity:.4}
-.prod-card .body{padding:12px 13px 13px;display:flex;flex-direction:column;gap:4px;flex:1}
-.prod-card .fam{font-size:10.5px;color:var(--cinza-claro);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.prod-card .nome{font-size:13.5px;font-weight:600;line-height:1.3;flex:1}
-.prod-card .add{
-  margin-top:8px;background:#fff;border:1.5px solid var(--vermelho);color:var(--vermelho);
-  border-radius:9px;padding:9px;font-weight:700;font-size:13px;transition:.15s;
-  display:flex;align-items:center;justify-content:center;gap:6px;
-}
+.prod-card .ph{height:140px;background:#fff;display:grid;place-items:center;position:relative;border-bottom:1px solid #F2F2F2}
+.prod-card .ph img{max-width:90%;max-height:90%;object-fit:contain}
+.prod-card .ph.noimg{background:#F3F3F2}
+.prod-card .ph .glyph{font-size:34px;opacity:.35;display:none}
+.prod-card .ph.noimg .glyph{display:block}
+.prod-card .ph .cod-badge{position:absolute;top:8px;left:8px;background:rgba(17,17,20,.72);color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:6px}
+.prod-card .body{padding:11px 12px 12px;display:flex;flex-direction:column;gap:4px;flex:1}
+.prod-card .fam{font-size:10px;color:var(--cinza-claro);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.prod-card .nome{font-size:12.5px;font-weight:600;line-height:1.3;flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.prod-card .add{margin-top:6px;background:#fff;border:1.5px solid var(--vermelho);color:var(--vermelho);border-radius:9px;padding:8px;font-weight:700;font-size:12.5px;transition:.15s;display:flex;align-items:center;justify-content:center;gap:6px}
 .prod-card .add:hover{background:var(--vermelho);color:#fff}
 .prod-card .add.in{background:var(--verde);border-color:var(--verde);color:#fff}
+.mais{display:block;margin:18px auto 0;background:#fff;border:1px solid var(--linha);border-radius:10px;padding:12px 26px;font-weight:700;color:var(--grafite)}
+.vazio{padding:40px;text-align:center;color:var(--cinza-claro)}
 
-/* ---------- DRAWER PRODUTO (relacionados) ---------- */
-.overlay{
-  position:fixed;inset:0;background:rgba(17,17,20,.5);z-index:60;
-  display:none;align-items:flex-end;justify-content:center;
-}
+.overlay{position:fixed;inset:0;background:rgba(17,17,20,.5);z-index:60;display:none;align-items:flex-end;justify-content:center}
 .overlay.show{display:flex}
-.sheet{
-  background:#fff;width:100%;max-width:680px;border-radius:18px 18px 0 0;
-  max-height:88vh;overflow-y:auto;animation:up .28s ease;
-}
+.sheet{background:#fff;width:100%;max-width:680px;border-radius:18px 18px 0 0;max-height:88vh;overflow-y:auto;animation:up .28s ease}
 @keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
-.sheet-head{
-  position:sticky;top:0;background:#fff;display:flex;gap:16px;padding:20px 22px;
-  border-bottom:1px solid var(--linha);align-items:flex-start;
-}
-.sheet-head .ph{width:88px;height:88px;border-radius:12px;background:#F3F3F2;display:grid;place-items:center;font-size:30px;opacity:.5;flex-shrink:0}
+.sheet-head{position:sticky;top:0;background:#fff;display:flex;gap:16px;padding:20px 22px;border-bottom:1px solid var(--linha);align-items:flex-start}
+.sheet-head .ph{width:96px;height:96px;border-radius:12px;background:#F7F7F6;display:grid;place-items:center;flex-shrink:0;overflow:hidden}
+.sheet-head .ph img{max-width:90%;max-height:90%;object-fit:contain}
 .sheet-head .x{margin-left:auto;background:#F3F3F4;width:34px;height:34px;border-radius:50%;font-size:18px;color:var(--cinza);flex-shrink:0}
-.sheet-head h2{font-size:19px;font-weight:800;letter-spacing:-.01em}
+.sheet-head h2{font-size:18px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
 .sheet-head .cod{font-size:12px;color:var(--cinza-claro);font-weight:700;margin-bottom:4px}
 .sheet-sec{padding:18px 22px}
 .sheet-sec h4{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--grafite);margin-bottom:12px}
 .rel-rail{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px}
-.rel-card{
-  flex:0 0 140px;background:#fff;border:1px solid var(--linha);border-radius:10px;
-  padding:10px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:.15s;
-}
+.rel-card{flex:0 0 130px;background:#fff;border:1px solid var(--linha);border-radius:10px;padding:9px;display:flex;flex-direction:column;gap:5px;cursor:pointer;transition:.15s}
 .rel-card:hover{border-color:var(--vermelho)}
-.rel-card .ph{height:64px;background:#F3F3F2;border-radius:7px;display:grid;place-items:center;font-size:22px;opacity:.45}
-.rel-card .n{font-size:12px;font-weight:600;line-height:1.25}
+.rel-card .ph{height:70px;background:#F7F7F6;border-radius:7px;display:grid;place-items:center;overflow:hidden}
+.rel-card .ph img{max-width:90%;max-height:90%;object-fit:contain}
+.rel-card .n{font-size:11.5px;font-weight:600;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rel-card .c{font-size:10px;color:var(--cinza-claro);font-weight:700}
 
-/* ---------- CARRINHO FLUTUANTE + RESUMO ---------- */
-.cart-bar{
-  position:fixed;bottom:0;left:0;right:0;z-index:55;background:var(--preto);
-  display:flex;align-items:center;gap:16px;padding:13px 22px;
-  box-shadow:0 -4px 20px rgba(0,0,0,.2);transform:translateY(110%);transition:transform .25s;
-}
+.cart-bar{position:fixed;bottom:0;left:0;right:0;z-index:55;background:var(--preto);display:flex;align-items:center;gap:16px;padding:13px 22px;box-shadow:0 -4px 20px rgba(0,0,0,.2);transform:translateY(110%);transition:transform .25s}
 .cart-bar.show{transform:none}
-.cart-bar .info{color:#fff;flex:1}
-.cart-bar .info b{font-size:17px;font-weight:800}
-.cart-bar .info span{color:#9a9aa3;font-size:13px;margin-left:8px}
-.cart-bar .ver{
-  background:#fff;color:var(--preto);font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px;transition:.15s;
-}
+.cart-bar .info{color:#fff;flex:1}.cart-bar .info b{font-size:17px;font-weight:800}.cart-bar .info span{color:#9a9aa3;font-size:13px;margin-left:8px}
+.cart-bar .ver{background:#fff;color:var(--preto);font-weight:700;border-radius:10px;padding:12px 20px;font-size:14px;transition:.15s}
 .cart-bar .ver:hover{background:#e9e9ec}
 
 .resumo-ov{position:fixed;inset:0;background:rgba(17,17,20,.55);z-index:65;display:none;justify-content:flex-end}
 .resumo-ov.show{display:flex}
-.resumo{
-  background:#fff;width:100%;max-width:440px;height:100%;overflow-y:auto;
-  animation:slide .26s ease;display:flex;flex-direction:column;
-}
+.resumo{background:#fff;width:100%;max-width:440px;height:100%;overflow-y:auto;animation:slide .26s ease;display:flex;flex-direction:column}
 @keyframes slide{from{transform:translateX(40px);opacity:.5}to{transform:none;opacity:1}}
 .resumo-head{padding:20px 22px;border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;z-index:2}
-.resumo-head h2{font-size:18px;font-weight:800;flex:1}
-.resumo-head .x{background:#F3F3F4;width:34px;height:34px;border-radius:50%;font-size:18px;color:var(--cinza)}
+.resumo-head h2{font-size:18px;font-weight:800;flex:1}.resumo-head .x{background:#F3F3F4;width:34px;height:34px;border-radius:50%;font-size:18px;color:var(--cinza)}
 .resumo-body{flex:1;padding:6px 0}
-.resumo-cli{padding:14px 22px;background:#FAFAFA;border-bottom:1px solid var(--linha);font-size:13px;color:var(--cinza)}
-.resumo-cli b{color:var(--preto)}
-.ri{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid #F3F3F4}
-.ri .cod{font-size:11px;color:var(--cinza-claro);font-weight:700;width:40px;flex-shrink:0}
-.ri .d{flex:1;font-size:13.5px}
-.ri .d small{display:block;color:var(--cinza-claro);font-size:11px}
-.ri .qt{display:flex;align-items:center;gap:8px;background:#F3F3F4;border-radius:8px;padding:3px}
+.resumo-cli{padding:14px 22px;background:#FAFAFA;border-bottom:1px solid var(--linha);font-size:13px;color:var(--cinza)}.resumo-cli b{color:var(--preto)}
+.ri{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid #F3F3F4}
+.ri .cod{font-size:11px;color:var(--cinza-claro);font-weight:700;width:38px;flex-shrink:0}
+.ri .d{flex:1;font-size:13px}.ri .d small{display:block;color:var(--cinza-claro);font-size:11px}
+.ri .qt{display:flex;align-items:center;gap:6px;background:#F3F3F4;border-radius:8px;padding:3px}
 .ri .qt button{width:26px;height:26px;border-radius:6px;background:#fff;font-size:16px;font-weight:700;color:var(--grafite);box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.ri .qt span{min-width:22px;text-align:center;font-weight:700;font-size:14px}
-.ri .rm{color:var(--cinza-claro);font-size:18px;background:none;flex-shrink:0}
-.ri .rm:hover{color:var(--vermelho)}
-.ri .preco-in{width:92px;flex-shrink:0}
-.ri .preco-in input{width:100%;border:1px solid var(--linha);border-radius:8px;padding:7px 9px;font-size:13px;text-align:right;outline:none}
+.ri .qt span{min-width:20px;text-align:center;font-weight:700;font-size:14px}
+.ri .rm{color:var(--cinza-claro);font-size:17px;background:none;flex-shrink:0}.ri .rm:hover{color:var(--vermelho)}
+.ri .preco-in{width:84px;flex-shrink:0}
+.ri .preco-in input{width:100%;border:1px solid var(--linha);border-radius:8px;padding:7px 8px;font-size:13px;text-align:right;outline:none}
 .ri .preco-in input:focus{border-color:var(--vermelho)}
-
 .resumo-foot{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--linha);padding:16px 22px;display:flex;flex-direction:column;gap:10px}
-.toggle-precos{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--grafite);font-weight:600;margin-bottom:2px}
+.toggle-precos{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--grafite);font-weight:600}
 .toggle-precos input{width:18px;height:18px;accent-color:var(--vermelho)}
 .total-linha{display:flex;justify-content:space-between;font-size:15px;font-weight:800;padding:4px 0}
 .acoes{display:grid;gap:9px}
-.btn{border-radius:11px;padding:14px;font-weight:700;font-size:14.5px;display:flex;align-items:center;justify-content:center;gap:9px;transition:.15s}
-.btn-primary{background:var(--vermelho);color:#fff}
-.btn-primary:hover{background:var(--vermelho-escuro)}
-.btn-dark{background:var(--preto);color:#fff}
-.btn-dark:hover{background:var(--grafite)}
-.btn-ghost{background:#fff;border:1.5px solid var(--linha);color:var(--grafite)}
-.btn-ghost:hover{border-color:var(--cinza)}
+.btn{border-radius:11px;padding:14px;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:9px;transition:.15s}
+.btn-primary{background:var(--vermelho);color:#fff}.btn-primary:hover{background:var(--vermelho-escuro)}
+.btn-dark{background:var(--preto);color:#fff}.btn-dark:hover{background:var(--grafite)}
+.btn-ghost{background:#fff;border:1.5px solid var(--linha);color:var(--grafite)}.btn-ghost:hover{border-color:var(--cinza)}
 .acoes .hint{font-size:11.5px;color:var(--cinza-claro);text-align:center;margin-top:2px}
-
-/* toast */
-.toast{
-  position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--preto);color:#fff;padding:13px 22px;border-radius:12px;font-size:14px;font-weight:600;
-  z-index:90;opacity:0;pointer-events:none;transition:.25s;box-shadow:var(--sombra-forte);
-}
+.toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--preto);color:#fff;padding:13px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:90;opacity:0;pointer-events:none;transition:.25s;box-shadow:var(--sombra-forte)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
-
-<!-- ====================== TOPBAR ====================== -->
 <header class="topbar">
   <div class="logo">
-    <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
-      <path d="M17 3C9.8 3 4 8.8 4 16c0 4.6 2.4 8.7 6 11v-6.2A8.9 8.9 0 0 1 17 7.1 8.9 8.9 0 0 1 26 16h6C32 8.8 26.2 3 17 3Z" fill="var(--vermelho)"/>
-      <path d="M14 16l4.5 6 7-9" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <div>
-      <div class="mark">Q <b>FOOD</b></div>
-      <div class="sub">CATÁLOGO</div>
-    </div>
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none"><path d="M17 3C9.8 3 4 8.8 4 16c0 4.6 2.4 8.7 6 11v-6.2A8.9 8.9 0 0 1 17 7.1 8.9 8.9 0 0 1 26 16h6C32 8.8 26.2 3 17 3Z" fill="#E2122C"/><path d="M14 16l4.5 6 7-9" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <div><div class="mark">Q <b>FOOD</b></div><div class="sub">CATÁLOGO</div></div>
   </div>
   <form class="busca" onsubmit="buscar();return false">
-    <input id="cnpj" inputmode="numeric" placeholder="Digite o CNPJ do PDV (ex.: 12.345.678/0001-90)" autocomplete="off">
+    <input id="cnpj" inputmode="numeric" placeholder="CNPJ do PDV (ex.: 12.345.678/0001-90)" autocomplete="off">
     <button type="submit">🔍 Buscar</button>
   </form>
-  <div class="vend-tag">
-    <span>Lucas Andrade</span>
-    <div class="av">L</div>
-  </div>
+  <div class="vend-tag"><span>Lucas Andrade</span><div class="av">L</div></div>
 </header>
 
 <div class="wrap">
-
-  <!-- ====================== ESTADO INICIAL ====================== -->
   <section class="empty" id="empty">
     <h1>Comece pelo <em>CNPJ</em> do cliente</h1>
     <p>O sistema identifica se o PDV está ativo, o que ele já compra e — se for oriental — a cesta ideal que ainda falta.</p>
@@ -398,176 +211,84 @@ input{font-family:inherit}
       <button class="chip-demo" onclick="demo('11222333000144')">⚠️ Restaurante Sakura <small>inativo</small></button>
       <button class="chip-demo" onclick="demo('00000000000000')">✨ CNPJ novo <small>lead</small></button>
     </div>
+    <div class="cta-cat">ou <button onclick="abrirCatalogo()">explore o catálogo completo</button> (338 produtos)</div>
   </section>
 
-  <!-- ====================== PAINEL DO CLIENTE (mágica) ====================== -->
   <section class="cliente" id="cliente">
     <div class="status-card" id="statusCard"></div>
     <div class="magic-grid" id="magicGrid"></div>
 
-    <!-- MURAL DE PROMOÇÕES -->
-    <div class="secao-titulo">
-      <h2>promoções da <span class="ac">semana</span></h2>
-      <div class="rule red"></div>
-    </div>
+    <div class="secao-titulo"><h2>promoções da <span class="ac">semana</span></h2><div class="rule red"></div></div>
     <div class="promo-rail" id="promoRail"></div>
 
-    <!-- CATÁLOGO -->
-    <div class="secao-titulo">
-      <h2>catálogo</h2>
-      <div class="rule"></div>
+    <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
+    <div class="cat-busca">
+      <div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div>
     </div>
     <div class="cats" id="cats"></div>
     <div class="grid-prod" id="gridProd"></div>
+    <button class="mais" id="btnMais" style="display:none" onclick="verMais()">Ver mais produtos</button>
   </section>
-
 </div>
 
-<!-- ====================== DRAWER PRODUTO + RELACIONADOS ====================== -->
-<div class="overlay" id="overlay" onclick="if(event.target===this)fecharSheet()">
-  <div class="sheet" id="sheet"></div>
-</div>
-
-<!-- ====================== CART BAR ====================== -->
-<div class="cart-bar" id="cartBar">
-  <div class="info"><b id="cartCount">0 itens</b><span id="cartCli"></span></div>
-  <button class="ver" onclick="abrirResumo()">Ver resumo →</button>
-</div>
-
-<!-- ====================== RESUMO ====================== -->
+<div class="overlay" id="overlay" onclick="if(event.target===this)fecharSheet()"><div class="sheet" id="sheet"></div></div>
+<div class="cart-bar" id="cartBar"><div class="info"><b id="cartCount">0 itens</b><span id="cartCli"></span></div><button class="ver" onclick="abrirResumo()">Ver resumo →</button></div>
 <div class="resumo-ov" id="resumoOv" onclick="if(event.target===this)fecharResumo()">
   <div class="resumo">
-    <div class="resumo-head">
-      <h2>Resumo do pedido</h2>
-      <button class="x" onclick="fecharResumo()">×</button>
-    </div>
+    <div class="resumo-head"><h2>Resumo do pedido</h2><button class="x" onclick="fecharResumo()">×</button></div>
     <div class="resumo-cli" id="resumoCli"></div>
     <div class="resumo-body" id="resumoBody"></div>
     <div class="resumo-foot">
-      <label class="toggle-precos">
-        <input type="checkbox" id="togPrecos" onchange="render()">
-        Preencher valores (cliente pediu cotação)
-      </label>
+      <label class="toggle-precos"><input type="checkbox" id="togPrecos" onchange="render()"> Preencher valores (cliente pediu cotação)</label>
       <div class="total-linha" id="totalLinha" style="display:none"><span>Total</span><span id="totalVal">R$ 0,00</span></div>
       <div class="acoes">
-        <button class="btn btn-primary" onclick="acao('link')">🔗 Gerar link pro cliente <small style="font-weight:600;opacity:.85">(expira 2h)</small></button>
+        <button class="btn btn-primary" onclick="acao('link')">🔗 Gerar link pro cliente · expira 2h</button>
         <button class="btn btn-dark" onclick="acao('validar')">📤 Reenviar pro cliente validar</button>
         <button class="btn btn-ghost" onclick="acao('erp')">🧾 Lançar no ERP + anexar print</button>
-        <div class="hint">A mágica do backend (token 2h, gravação em CATALOGO_TOKENS) entra na próxima etapa.</div>
+        <div class="hint">Token 2h (CATALOGO_TOKENS) e gravação entram na etapa de backend.</div>
       </div>
     </div>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
 
 <script>
-/* =====================================================================
-   DADOS MOCK  — substituir por fetch() ao webapp na fase backend
-   ===================================================================== */
-
-// Produtos com códigos REAIS do catálogo Q Food
-const PRODUTOS = [
-  // ALGAS
-  {cod:"00005",nome:"Alga Nori Asakusa c/50fls 125g",cat:"Algas",fam:"Nori",rel:["01529","05210","00012"]},
-  {cod:"01529",nome:"Alga Nori Premium Gold Maki c/50fls 140g",cat:"Algas",fam:"Nori",rel:["00005","05422","06554"]},
-  {cod:"05210",nome:"Alga Nori Yaki Sushi Green Taichi 140g",cat:"Algas",fam:"Nori",rel:["07167","06554","01529"]},
-  {cod:"07990",nome:"Alga Dashi Kombu Fujiyama 50g",cat:"Algas",fam:"Kombu",rel:["02046","05629"]},
-  {cod:"05231",nome:"Wakame Temperado (Salada Alga) 500g",cat:"Algas",fam:"Wakame",rel:["07990"]},
-  // ARROZES
-  {cod:"00021",nome:"Arroz Mirokumai 5kg",cat:"Arrozes",fam:"Curto",rel:["00019","00777","00023"]},
-  {cod:"00019",nome:"Arroz Minami Mai Curto 5kg",cat:"Arrozes",fam:"Curto",rel:["00021","00777","00020"]},
-  {cod:"00777",nome:"Arroz Minami Mai Premium Curto 5kg",cat:"Arrozes",fam:"Curto",rel:["00019","00023"]},
-  {cod:"00020",nome:"Arroz Minami Mai Longo 5kg",cat:"Arrozes",fam:"Longo",rel:["00019","00441"]},
-  // SHOYU
-  {cod:"01711",nome:"Shoyu Fermentação Natural Kikkoman 1L",cat:"Shoyu",fam:"Kikkoman",rel:["03480","00400","01712"]},
-  {cod:"03480",nome:"Shoyu Fermentação Natural Kikkoman 5L",cat:"Shoyu",fam:"Kikkoman",rel:["01711","00399"]},
-  {cod:"00261",nome:"Shoyu Oriental Azuma 5L",cat:"Shoyu",fam:"Azuma",rel:["00267","01418","00262"]},
-  {cod:"00267",nome:"Shoyu Tradicional Azuma 500ml",cat:"Shoyu",fam:"Azuma",rel:["00261","01418"]},
-  // MOLHOS E TEMPEROS
-  {cod:"00631",nome:"Pimenta Sriracha Pantai 200ml",cat:"Molhos",fam:"Pimenta",rel:["00207","06853","05356"]},
-  {cod:"06853",nome:"Pasta de Pimenta Coreana Gochujang 500g",cat:"Molhos",fam:"Pimenta",rel:["06688","05868","00631"]},
-  {cod:"05356",nome:"Molho Pimenta Sweet Chilli Kikkoman 5L",cat:"Molhos",fam:"Sweet Chili",rel:["01710","00495"]},
-  {cod:"00404",nome:"Molho Tarê Kikkoman 275g",cat:"Molhos",fam:"Tarê",rel:["00406","05524","00175"]},
-  {cod:"05524",nome:"Molho Tarê Maki 5L",cat:"Molhos",fam:"Tarê",rel:["00404","00406"]},
-  {cod:"00940",nome:"Molho de Ostra Kikkoman 1L",cat:"Molhos",fam:"Ostra",rel:["00941","00997","05624"]},
-  {cod:"08218",nome:"Tempero para Sushi Azuma 1L",cat:"Molhos",fam:"Tempero",rel:["00288","00876","04767"]},
-  // FARINHAS
-  {cod:"00188",nome:"Panko (Farinha p/empanar) Woomtree 200g",cat:"Farinhas",fam:"Panko",rel:["00187","01398","07339"]},
-  {cod:"00187",nome:"Panko (Farinha p/empanar) Woomtree 1kg",cat:"Farinhas",fam:"Panko",rel:["00188","00186"]},
-  {cod:"01517",nome:"Tempurá Alfa 500g",cat:"Farinhas",fam:"Tempurá",rel:["00290","00188"]},
-  // MASSAS
-  {cod:"00139",nome:"Macarrão p/ Yakissoba Premium Alfa 500g",cat:"Massas",fam:"Yakissoba",rel:["07145","00140","04110"]},
-  {cod:"00141",nome:"Macarrão Udon Alfa 500g",cat:"Massas",fam:"Udon",rel:["04110","00140"]},
-  {cod:"04110",nome:"Macarrão Ramen Alfa 500g",cat:"Massas",fam:"Ramen",rel:["00141","00139"]},
-  {cod:"00135",nome:"Macarrão de arroz Bifum Chi-Mifem 500g",cat:"Massas",fam:"Bifum",rel:["01021","00134"]},
-  // CONGELADOS
-  {cod:"00096",nome:"Guioza carne bovina Long Way c/10un 240g",cat:"Congelados",fam:"Guioza",rel:["00098","00099","05361"]},
-  {cod:"05361",nome:"Massa p/guioza Grossa Taichi c/20fls 250g",cat:"Congelados",fam:"Massa",rel:["07968","00096"]},
-  {cod:"00146",nome:"Massa rolinho primavera Long Way 500g",cat:"Congelados",fam:"Rolinho",rel:["00908","00143"]},
-  {cod:"06947",nome:"Edamame grãos Premium Taichi 1,01kg",cat:"Congelados",fam:"Edamame",rel:["06886","05403"]},
-  // PEIXARIA
-  {cod:"00310",nome:"Salmão fresco Premium kg",cat:"Peixaria",fam:"Fresco",rel:["00421","03704","01787"]},
-  {cod:"03704",nome:"Kani kama Bom Peixe 1kg",cat:"Peixaria",fam:"Kani",rel:["02852","00310"]},
-  {cod:"01788",nome:"Polvo fresco kg",cat:"Peixaria",fam:"Fresco",rel:["00310","01787"]},
-  // QUEIJOS
-  {cod:"05620",nome:"Cream Cheese trad. Polenghi 1kg",cat:"Queijos",fam:"Cream Cheese",rel:["00038","00332","07308"]},
-  {cod:"00038",nome:"Cream Cheese trad. Polenghi 1,5kg",cat:"Queijos",fam:"Cream Cheese",rel:["05620","00040"]},
-  // UTENSÍLIOS
-  {cod:"00935",nome:"Hashi Bambu Chanfrado emb. papel Maki c/50 Pares",cat:"Utensílios",fam:"Hashi",rel:["05207","00710","00071"]},
-  {cod:"00071",nome:"Esteira p/sushi Mad Quad 27cm",cat:"Utensílios",fam:"Esteira",rel:["00070","00513"]},
-  {cod:"00076",nome:"Faca Sashimi Cabo plást. 240mm Sekizo",cat:"Utensílios",fam:"Facas",rel:["02930","05481"]},
-];
-
-const CATEGORIAS = ["Todos","Algas","Arrozes","Shoyu","Molhos","Farinhas","Massas","Congelados","Peixaria","Queijos","Utensílios"];
-
+const CATALOGO = [{"cod": "00005", "nome": "Alga (Nori) Asakusa c/50fls 125g ud Pes ' + drrPeIo Pg", "cat": "Algas"}, {"cod": "05422", "nome": "Alga (Nori) Yaki Sushi Nori Tenka Gold c/50fls 140g", "cat": "Algas"}, {"cod": "01529", "nome": "Alga (Nori) Premium Gold Maki c/50fls 140g", "cat": "Algas"}, {"cod": "05459", "nome": "Alga (Nori) Yakinori Murasaki c/50fls 125g", "cat": "Algas"}, {"cod": "05210", "nome": "Alga (Nori) Yaki Sushi Nori Green Taichi c/50fls 140g", "cat": "Algas"}, {"cod": "06554", "nome": "Alga (Nori) Sushinori Red Maki c/5BOfls 140g", "cat": "Algas"}, {"cod": "00011", "nome": "Alga (Nori) Premium Gold Tokyofoods Mac c/50fls 140g", "cat": "Algas"}, {"cod": "05828", "nome": "Alga (Nori) Yaki Sushi Nori Blue Taichi c/50fls 140g joe isemea", "cat": "Algas"}, {"cod": "07166", "nome": "Alga (Nori) Black Maki c/50fIs 140g", "cat": "Algas"}, {"cod": "07167", "nome": "Alga (Nori) Green Maki c/50fls 140g", "cat": "Algas"}, {"cod": "01186", "nome": "Alga (Nori) Trad Red Maki c/50fls 120g", "cat": "Algas"}, {"cod": "00012", "nome": "Alga (Nori) Edomae c/Ofls 25g", "cat": "Algas"}, {"cod": "00709", "nome": "Alga (Nori) Premium Maki c/1Ofls 28g", "cat": "Algas"}, {"cod": "05231", "nome": "m Wakame Temperado (Salada De Alga Marinha) 500g", "cat": "Algas"}, {"cod": "07990", "nome": "Alga Dashi Kombu Fujiyama 50g", "cat": "Algas"}, {"cod": "02046", "nome": "Alga Dashi Kombu Fujiyama 100g", "cat": "Algas"}, {"cod": "05629", "nome": "Alga Dashi Kombu Taichi 100g", "cat": "Algas"}, {"cod": "00021", "nome": "Arroz Mirokumai 5Skg e", "cat": "Arrozes"}, {"cod": "07449", "nome": "Arroz Junmai Curto Akitakomachi 5Dkg = 4 | = z um", "cat": "Arrozes"}, {"cod": "00777", "nome": "Arroz Minami Mai Premium Curto Dkg = E = k o aaa", "cat": "Arrozes"}, {"cod": "00019", "nome": "Arroz Minami Mai Curto 5kg o ,", "cat": "Arrozes"}, {"cod": "00020", "nome": "Arroz Minami Mai Longo 5Dkg []", "cat": "Arrozes"}, {"cod": "00023", "nome": "Arroz Takumi Curto 5kg", "cat": "Arrozes"}, {"cod": "00022", "nome": "Arroz Minami Mai Curto 1kg \"“ Ea PY EN", "cat": "Arrozes"}, {"cod": "00441", "nome": "Arroz Minami Mai Longo 1kg", "cat": "Arrozes"}, {"cod": "03480", "nome": "Shoyu fermentação natural Kikkoman 5L peido", "cat": "Shoyu"}, {"cod": "00400", "nome": "Shouyu para Sushi e Sashimi Kikkoman 1L", "cat": "Shoyu"}, {"cod": "00399", "nome": "Shoyu para Sushi e Sashimi Kikkoman DL", "cat": "Shoyu"}, {"cod": "00401", "nome": "Shoyu para Sushi e Sashimi Kikkoman 20L", "cat": "Shoyu"}, {"cod": "01418", "nome": "Shoyu Tradicional Azuma Blt", "cat": "Shoyu"}, {"cod": "00270", "nome": "Shoyu Light Food Solution concentrado Azuma BlIts E", "cat": "Shoyu"}, {"cod": "00261", "nome": "Shoyu Oriental Azuma Blts", "cat": "Shoyu"}, {"cod": "00262", "nome": "Shoyu Oriental Light Azuma Blts", "cat": "Shoyu"}, {"cod": "00257", "nome": "Shoyu Cereja Suave Sakura 20L", "cat": "Shoyu"}, {"cod": "00269", "nome": "Shoyu Food Service Sakura 20L", "cat": "Shoyu"}, {"cod": "00348", "nome": "Shoyu Tradicional Mitsuwa 20L | TA | À", "cat": "Shoyu"}, {"cod": "00260", "nome": "| Shoyu Light Mitsuwa 20L", "cat": "Shoyu"}, {"cod": "01026", "nome": "Shoyu Tradicional Mitsuwa 31L", "cat": "Shoyu"}, {"cod": "05130", "nome": "Shoyu Tradicional Kampai 5L", "cat": "Shoyu"}, {"cod": "05137", "nome": "Shoyu Tradicional Kampai 3/1L", "cat": "Shoyu"}, {"cod": "05138", "nome": "a | Shoyu Tradicional Kampai 20L É Soon E", "cat": "Shoyu"}, {"cod": "06005", "nome": "Shoyu Maruiti DL", "cat": "Shoyu"}, {"cod": "06006", "nome": "Shoyu Maruiti 20L", "cat": "Shoyu"}, {"cod": "04801", "nome": "Shoyu Premium Barco Hinomoto 60x30m!l", "cat": "Shoyu"}, {"cod": "07859", "nome": "Shoyu Light Barco Hinomoto 60x30mtl", "cat": "Shoyu"}, {"cod": "00254", "nome": "Saquê Mirin Licoroso Azuma DL", "cat": "Saquês"}, {"cod": "00247", "nome": "Saquê Chef Sa | Azuma DL", "cat": "Saquês"}, {"cod": "07468", "nome": "Saquê comum seco Azuma DL", "cat": "Saquês"}, {"cod": "00288", "nome": "Tempero para Sushi Azuma BL", "cat": "Saquês"}, {"cod": "00301", "nome": "Tempero para Sushi Castelo 20L FEITA À; 1", "cat": "Saquês"}, {"cod": "00002", "nome": "Ajinomoto 1kg G (Glutamato Monossodico) rue", "cat": "Saquês"}, {"cod": "07168", "nome": "Glutamato Monossodico Te ico) Maki 1kg 0 q B [= fios", "cat": "Molhos e Temperos"}, {"cod": "08218", "nome": "D) Tempero para Sushi Azuma 1L | \"", "cat": "Molhos e Temperos"}, {"cod": "07566", "nome": "Tempero para Sushi Prinz 20L", "cat": "Molhos e Temperos"}, {"cod": "00876", "nome": "Vinagre de arroz Castelo 20L", "cat": "Molhos e Temperos"}, {"cod": "07434", "nome": "Vinagre de arroz Prinz 20L", "cat": "Molhos e Temperos"}, {"cod": "04767", "nome": "Tempero para Sushi Maki 5L", "cat": "Molhos e Temperos"}, {"cod": "00941", "nome": "| Molho de Ostra N Kikkoman DL", "cat": "Molhos e Temperos"}, {"cod": "07078", "nome": "tra Molho de Ostra Molr SL Maki 2,27kg Le", "cat": "Molhos e Temperos"}, {"cod": "08300", "nome": "ra Kkum Molho de Ostra Molh im Kee Pantai 300m!l Pan J h 3", "cat": "Molhos e Temperos"}, {"cod": "05523", "nome": "055283 Molho de Ostra Pantai 730ml", "cat": "Molhos e Temperos"}, {"cod": "06853", "nome": "ta Pasta de Pimenta Coreana Ss Gochujang 500g à FRRRRA L", "cat": "Molhos e Temperos"}, {"cod": "05356", "nome": "Molho de Pimenta Sweet Chilli Kikkoman DL", "cat": "Molhos e Temperos"}, {"cod": "00409", "nome": "Molho de Laranja Kikkoman 2bOg [ame Mui", "cat": "Molhos e Temperos"}, {"cod": "05868", "nome": "Pasta de Pimenta Coreana Gochujang 1kg E -", "cat": "Molhos e Temperos"}, {"cod": "05762", "nome": "Molho de Laranja Kikkoman DL (| epa 0 |", "cat": "Molhos e Temperos"}, {"cod": "05248", "nome": "Molho de Pimenta Thai Sweet Chilli Sauce Taichi 1.01L", "cat": "Molhos e Temperos"}, {"cod": "00495", "nome": "Molho de Pimenta Sweet Chili Sauce Pantai 4,5L Chet", "cat": "Molhos e Temperos"}, {"cod": "07169", "nome": "Molho de Pimenta Sweet Chili Maki 6kg", "cat": "Molhos e Temperos"}, {"cod": "00406", "nome": "Molho Tarê Kikkoman DL", "cat": "Molhos e Temperos"}, {"cod": "00175", "nome": "Molho Tarê Mitsuwa DL", "cat": "Molhos e Temperos"}, {"cod": "05524", "nome": "Molho Tarê Maki DL", "cat": "Molhos e Temperos"}, {"cod": "04802", "nome": "Molho Tarê Barco Hinomoto 60x30m!", "cat": "Molhos e Temperos"}, {"cod": "00177", "nome": "Molho Teriyaki Sauce Lee Kkum Kee 2500m! a!", "cat": "Molhos e Temperos"}, {"cod": "00178", "nome": "Molho Tonkatsu Azuma DL (em sa E", "cat": "Molhos e Temperos"}, {"cod": "06007", "nome": "Molho Tonkatsu Maruiti DL", "cat": "Molhos e Temperos"}, {"cod": "06594", "nome": "Molho de Peixe Nampla Tiparos 700ml Im: £ * E m a T É E Ra", "cat": "Molhos e Temperos"}, {"cod": "05774", "nome": "— ObTT4 Oleo de Gergelim Torrado Sesame Oil Ganesh 900m! 3 E", "cat": "Molhos e Temperos"}, {"cod": "00161", "nome": "Missô Azuma 500g dra u = g | 5", "cat": "Molhos e Temperos"}, {"cod": "05424", "nome": "Wasabi em pó Plus Taichi 1kg Etr ia BE = = | : E Tra", "cat": "Molhos e Temperos"}, {"cod": "00304", "nome": "Wasabi em pó Premium Taichi 1kg", "cat": "Molhos e Temperos"}, {"cod": "00496", "nome": "Wasabi Powder Maki 1kg", "cat": "Molhos e Temperos"}, {"cod": "05894", "nome": "Wasabi em pasta tubo Musashi 43g", "cat": "Molhos e Temperos"}, {"cod": "07341", "nome": "Wasabi Powder Maki 100g", "cat": "Molhos e Temperos"}, {"cod": "07286", "nome": "Maionese Japonesa Kewpie 450g Td PL] Fa E", "cat": "Maionese e Furikake"}, {"cod": "00082", "nome": "Furikake Kenko Yasai (Verde) 30g do LeE- 11 a", "cat": "Maionese e Furikake"}, {"cod": "04555", "nome": "Furikake Kosakana Calcium (Azul Claro) 30g x e Da as, pn Fa. a E", "cat": "Maionese e Furikake"}, {"cod": "00085", "nome": "Furikake Nori Sake (Salmão) 30g", "cat": "Maionese e Furikake"}, {"cod": "00081", "nome": "Furikake Katsuomirin (Laranja) 30g LM e = ar .- ai", "cat": "Maionese e Furikake"}, {"cod": "00084", "nome": "Furikake Nori Tamago (Amarelo) 33g", "cat": "Maionese e Furikake"}, {"cod": "00571", "nome": "urikake Umeshiso Urashim: Ameixa (Vermelho) 30g", "cat": "Maionese e Furikake"}, {"cod": "07274", "nome": "o7eT4 -] Furikake Alho c/ Layu Urashima (laranja Il) 25g", "cat": "Maionese e Furikake"}, {"cod": "07273", "nome": "o7eT3 Furikake Curry Urashima (amarelo Il) 25g", "cat": "Maionese e Furikake"}, {"cod": "07272", "nome": "ofete ] Furikake Nori e Wasabi Urashima (verde Il) 30g o", "cat": "Maionese e Furikake"}, {"cod": "00139", "nome": "Macarrão p/ Yakissoba Premium Alfa DOOg sartStga Ê PE AE, Í", "cat": "Maionese e Furikake"}, {"cod": "00141", "nome": "Macarrão Udon Alfa BOOg Ee :", "cat": "Maionese e Furikake"}, {"cod": "04112", "nome": "Macarrão Mifum Alfa 200g e É,", "cat": "Maionese e Furikake"}, {"cod": "05234", "nome": "Macarrão p/Yakissolba Premium Romanella 500g", "cat": "Maionese e Furikake"}, {"cod": "00135", "nome": "Macarrão de arroz Bifum Chi-Mifem 500g", "cat": "Maionese e Furikake"}, {"cod": "05734", "nome": "Macarrão de feijão M Harussame Vermicelli 200g +", "cat": "Massas"}, {"cod": "00134", "nome": "Macarrão de feijão verde Harussame Taichi DBOOg", "cat": "Massas"}, {"cod": "00195", "nome": "Papel de arroz Towa 340g", "cat": "Massas"}, {"cod": "00188", "nome": "Panko (Farinha p/empanar Woomtree 200g Ea", "cat": "Farinhas"}, {"cod": "00187", "nome": "Panko (Farinha p/empanar Woomtree 1kg = 159 PRNKO", "cat": "Farinhas"}, {"cod": "01398", "nome": "Panko (Farinha p/empanan Alfa 1kg o | á", "cat": "Farinhas"}, {"cod": "07339", "nome": "Panko (Farinha p/empanar) Maki 230g me É", "cat": "Farinhas"}, {"cod": "02091", "nome": "Panko (Farinha p/empanar) Maki 1kg", "cat": "Farinhas"}, {"cod": "00186", "nome": "Panko (Farinha p/empanar Romariz 1kg d", "cat": "Farinhas"}, {"cod": "01018", "nome": "Panko (Farinha F p/empanar Romariz 18kg Conf", "cat": "Farinhas"}, {"cod": "05829", "nome": "na Panko (Farinha E ) p/empananr gs Confepan Speciale 1kg", "cat": "Farinhas"}, {"cod": "01517", "nome": "Tempurá Alfa 500g kg", "cat": "Farinhas"}, {"cod": "00290", "nome": "Tempurá Woomtree 500g", "cat": "Farinhas"}, {"cod": "01129", "nome": "Panko (Farinha p/empanar Romariz 200g o", "cat": "Farinhas"}, {"cod": "01429", "nome": "Gergelim Natural Branco c/casca 1kg a", "cat": "Farinhas"}, {"cod": "00641", "nome": "Gergelim Natural Branco s/casca 1kg a", "cat": "Grãos"}, {"cod": "01430", "nome": "Gergelim Natural Mix 1kg", "cat": "Grãos"}, {"cod": "01431", "nome": "Gergelim Natural Preto 1kg O", "cat": "Grãos"}, {"cod": "00461", "nome": "Gengibre em conserva Fatiado Maki 1kg", "cat": "Grãos"}, {"cod": "04962", "nome": "Gengibre em conserva Fatiado Taichi 1kg", "cat": "Grãos"}, {"cod": "07340", "nome": "Gengibre em conserva Maki 195g", "cat": "Grãos"}, {"cod": "00653", "nome": "Gengibre fat. trad. Mac em conserva 300g", "cat": "Grãos"}, {"cod": "01014", "nome": "[2] Geleia Morango Josepha 1,0b5kg", "cat": "Geleias e Saquês"}, {"cod": "05153", "nome": "o Geleia Sweet Chili Josepha 1 .05kg", "cat": "Geleias e Saquês"}, {"cod": "00712", "nome": "Cogumelo desidratado Shitake Taichi 500g", "cat": "Geleias e Saquês"}, {"cod": "03542", "nome": "Saquê Seco kijuro Tokubetsu Honjoso Y Hakushika 720m!l ig iciad= 1 1", "cat": "Geleias e Saquês"}, {"cod": "05104", "nome": "Saquê Seco Yamadadanishiki Honjoso Shu Hakushika 720m!l À", "cat": "Geleias e Saquês"}, {"cod": "03545", "nome": "Saquê Seco Junkai O Chokara Hakushika 7200ml", "cat": "Geleias e Saquês"}, {"cod": "00243", "nome": "Saquê Gold Yamadanishiki Tokusen Korumatsu Hakushika 720m! À", "cat": "Geleias e Saquês"}, {"cod": "03546", "nome": "Saquê Seco Hakushika Josen Komo Taru 1.8L É. be doa", "cat": "Geleias e Saquês"}, {"cod": "03160", "nome": "Saquê Seco Plum Wine Hakutsuru 7T50ml |", "cat": "Geleias e Saquês"}, {"cod": "02216", "nome": "Soju Uva Verde | Jinro 360m!l q | Em Wa", "cat": "Soju"}, {"cod": "01167", "nome": "Soju Fresh S Jinro 360mtl Emi. | = : | |= |", "cat": "Soju"}, {"cod": "04885", "nome": "Soju Original Chum € Churum 360m!l 1 ue $ | t |", "cat": "Soju"}, {"cod": "01955", "nome": "m Soju Pêssego Chum S Churum 360mtl", "cat": "Soju"}, {"cod": "02286", "nome": "Soju Blueberry Chum Churum 360m!l", "cat": "Soju"}, {"cod": "06128", "nome": "Soju logurte Chum SojuM Churum 360m!l Ch", "cat": "Soju"}, {"cod": "02285", "nome": "num - Soju Maçã Verde Chum S ml Churum 360m!l Marg", "cat": "Soju"}, {"cod": "06943", "nome": "e Chum Soju Original So Oml Margun Soft 750m!l VA - o G a ) |", "cat": "Soju"}, {"cod": "06941", "nome": "Soju Red Vevelt Margun Soft 750m!l", "cat": "Soju"}, {"cod": "05417", "nome": "Chá Verde Jabuticaba Yai e9omil eo. [ [", "cat": "Soju"}, {"cod": "05775", "nome": "Chá Verde Laranja c/Gengibre Yai eSoml", "cat": "Soju"}, {"cod": "05612", "nome": "Chá Verde Yai Frutas Vermelhas comi", "cat": "Soju"}, {"cod": "05611", "nome": "Chá Verde Yai Limão Siciliano c/Hortela eSOml", "cat": "Soju"}, {"cod": "05416", "nome": "Chá Verde Yai Lichia 290m1!l", "cat": "Soju"}, {"cod": "05448", "nome": "Chá Verde Jabuticaba Yai 1L E O YAÍ E ENE [e a r -", "cat": "Soju"}, {"cod": "05452", "nome": "Chá Verde Laranja C/Gengibre Yal 1L E : = hi YAl = o r s =", "cat": "Soju"}, {"cod": "05450", "nome": "Chá Verde Yai Frutas Vermelhas 1L La E Al.", "cat": "Soju"}, {"cod": "05446", "nome": "Chá Verde Yai Limão Siciliano c/Hortela 1L mr: E", "cat": "Sucos e Chás"}, {"cod": "05447", "nome": "Chá Verde Yai Lichia 1L", "cat": "Sucos e Chás"}, {"cod": "05449", "nome": "Suco Yaí Maçã Verde 1L C", "cat": "Sucos e Chás"}, {"cod": "05451", "nome": "Suco Yaí St IL Cranberry 1L (", "cat": "Sucos e Chás"}, {"cod": "05933", "nome": "Suco Yaí Cranberry Com Morango 1L", "cat": "Sucos e Chás"}, {"cod": "05207", "nome": "Hashi Bambu Chanfrado emb. papel Taichi c/100 Pares e", "cat": "Utensílios"}, {"cod": "00456", "nome": "Hashi Bambu Chanfrado emb. plástico Maki c/5O Pares", "cat": "Utensílios"}, {"cod": "04731", "nome": "Hashi Bambu Redondo emb. plástico Taichi 45mm c/100 Pares", "cat": "Utensílios"}, {"cod": "00070", "nome": "Esteira p/sushi Mad Ouad 24cm Shiki Es", "cat": "Utensílios"}, {"cod": "00936", "nome": "Maçarico multi-uso Maki 511", "cat": "Utensílios"}, {"cod": "05520", "nome": "Maçarico multi-uso Maki 536 & ro", "cat": "Utensílios"}, {"cod": "05805", "nome": "Maçarico Volcano Bullfire M-4", "cat": "Utensílios"}, {"cod": "01117", "nome": "Benriner ralador e fatiador Japones c/3 lâminas Green e al ao", "cat": "Utensílios"}, {"cod": "00034", "nome": "Clip no Hashi c/50", "cat": "Utensílios"}, {"cod": "07590", "nome": "Benriner ralador e fatiador de legumes Mandoltn Slicer GW", "cat": "Utensílios"}, {"cod": "06237", "nome": "“ F-628Tojiro Pro — Laranj Jlte modelos e tamanhos dispc", "cat": "Utensílios"}, {"cod": "00163", "nome": "Moedor de gergelim Slicky Original Japão", "cat": "Utensílios"}, {"cod": "00075", "nome": "Faca Deba Inox Kataoka F 1500mm ICF28S Inox - = E h + 1", "cat": "Utensílios"}, {"cod": "04356", "nome": "Faca Sushi Lâmina Fina Aço Inox F: um Cabo Madeira Taichi 360mm F i ES [ |", "cat": "Utensílios"}, {"cod": "03359", "nome": "> Inox Faca Sekizo Chinese Faca nm Fukomoto 205mm Fuku + aci A a", "cat": "Utensílios"}, {"cod": "04374", "nome": "o| LIIUS Shinese Faca Sekizo Usuba Obmm Fukumoto 170mm A =", "cat": "Utensílios"}, {"cod": "06608", "nome": "Pedra p/amolar faca Suenhiro aponesa Dupla Face £240 H100(", "cat": "Utensílios"}, {"cod": "01917", "nome": "Pedra de amolar faca Suenhirc ,", "cat": "Utensílios"}, {"cod": "01000", "nome": "Mesh 120x50x25mm teia A, a e caga so 1! EF an Big — o Caiana", "cat": "Utensílios"}, {"cod": "07943", "nome": "Grama decorativa Baran []", "cat": "Embalagens"}, {"cod": "03727", "nome": "Iti dio. ha o) LIZ (BG) c/100 - DPC Emb. p/combinado 02 c/200 - DPC", "cat": "Embalagens"}, {"cod": "02559", "nome": "Emb. Boat (BP II) c/100 - DPC Emb. p/combinado 03 c/100 - DPC", "cat": "Embalagens"}, {"cod": "02557", "nome": "Ermo. P/COMROMRNRaAdO U (Mini OO) c/200 - DPC Emb. p/combinado 04 c/100 - DPC", "cat": "Embalagens"}, {"cod": "05292", "nome": "Emb. Big Boat (BG) Il c/50 - DPC Emb. p/combinado 01 c/200 - DPC", "cat": "Embalagens"}, {"cod": "04089", "nome": "Emb. p/combinado 01 c/200 - DPC Emb. p/combinado 05B c/100 - DPC", "cat": "Embalagens"}, {"cod": "00585", "nome": "03 c/100 - DPC Emb. p/combinado 10 c/OO - DPC", "cat": "Embalagens"}, {"cod": "00586", "nome": "Fpp TITÃS Emb. p/combinado 12 | c/200 poke 480ml - DPC C/", "cat": "Embalagens"}, {"cod": "05723", "nome": "Io Emb. p/combinado 13 PC c/200 poke 600ml - DPC", "cat": "Embalagens"}, {"cod": "00588", "nome": "Emo. pP/COMBbIRAaAdO 05B c/100 - DPC Emb. p/combinado 14", "cat": "Embalagens"}, {"cod": "00674", "nome": "06 c/50 - DPC Emb. p/combinado 15 + MOO vrnavicenha - NDC", "cat": "Embalagens"}, {"cod": "00589", "nome": "10 c/100 - DPC Emb. p/combinado", "cat": "Embalagens"}, {"cod": "00590", "nome": "Emb. p/combinado 12 c/200 poke 480ml - DPC | DvaAk ninaarmabsinada 9E", "cat": "Embalagens"}, {"cod": "05808", "nome": "Emb. p/combinado 13 > c/200 poke 600ml - DPC Emb m/nozok", "cat": "Embalagens"}, {"cod": "07968", "nome": "Massa fina p/guioza Prime Taichi c/20fls 190g | mb ú m Lil p= Es ei af j SET.", "cat": "Resfriados e Congelados"}, {"cod": "00908", "nome": "Massa rolinho primavera Taichi 405g c/30fls ER |", "cat": "Resfriados e Congelados"}, {"cod": "05361", "nome": "Massa p/guioza Grossa Taichi c/ 20fls 250g Demi EE", "cat": "Resfriados e Congelados"}, {"cod": "00146", "nome": "Massa rolinho primavera Long Way 500g c/30fls We — E a a go: mm pr Bm= A", "cat": "Resfriados e Congelados"}, {"cod": "00096", "nome": "Guioza carne bovina c/legumes Long Way c/10un 240g cure E", "cat": "Resfriados e Congelados"}, {"cod": "05250", "nome": "Guioza carne suína Heiko Long Way c/iºun 320g P", "cat": "Resfriados e Congelados"}, {"cod": "05529", "nome": "Guioza legumes Heiko Long Way c/iºun 320g | Ã -", "cat": "Resfriados e Congelados"}, {"cod": "00098", "nome": "Guioza carne suína c/nira Long Way c/10un 240g", "cat": "Resfriados e Congelados"}, {"cod": "00413", "nome": "Guioza carne suína Long Way c/10un 240g P", "cat": "Resfriados e Congelados"}, {"cod": "00099", "nome": "Guioza legumes Long Way c/10un 240g cos P", "cat": "Resfriados e Congelados"}, {"cod": "00327", "nome": "Nikuman carne bovina Long Way c/8un 400g pré ' | E É ai", "cat": "Resfriados e Congelados"}, {"cod": "00328", "nome": "Nikuman carne suína Long Way c/8un 400g ks \" EMA FENET= Fi] = = san GRADS 4 rs Ng | O Papo Fa 4 . h - E o ã |:", "cat": "Resfriados e Congelados"}, {"cod": "00447", "nome": "Nikuman de frango Long Way c/8un 400g Pao = ES ma E o APPA Me e Vo es A , E ai qa! ppl a", "cat": "Resfriados e Congelados"}, {"cod": "05586", "nome": "Nikuman legumes Long Way c/8un 400g | =! = E - ”. E Ia pe d dg a Em, Et Res e, E r. Rd! ada a eia E a O a e", "cat": "Resfriados e Congelados"}, {"cod": "00449", "nome": "Bao lanche Long Way c/i2un 720g nar rem e | TERA | | == ae", "cat": "Resfriados e Congelados"}, {"cod": "05587", "nome": "Bao mini lanche Long Way c/12un 324g", "cat": "Resfriados e Congelados"}, {"cod": "06947", "nome": "Edamame grãos Premium pré cozida Taichi cong. 1,01kg tofu ER", "cat": "Resfriados e Congelados"}, {"cod": "06886", "nome": "Edamame na vagem Premium pré cozida Taichi cong. 1.01kg 2“ F o E", "cat": "Resfriados e Congelados"}, {"cod": "05403", "nome": "Edamame Repeat em grãos Kalena 1kg Nm | mA | F mn", "cat": "Resfriados e Congelados"}, {"cod": "05402", "nome": "Edamame Repeat na vagem Kalena 1kg", "cat": "Resfriados e Congelados"}, {"cod": "01180", "nome": "Tofu macio orgânico 270g", "cat": "Resfriados e Congelados"}, {"cod": "01183", "nome": "Tofu firme orgânico 250g", "cat": "Resfriados e Congelados"}, {"cod": "01990", "nome": "Tofu extra firme orgânico 230g", "cat": "Resfriados e Congelados"}, {"cod": "04894", "nome": "Melona Samanco Waffle chocolate 600g V (pct c/4 un 1508)", "cat": "Sorvetes"}, {"cod": "04892", "nome": "Melona Samanco Me g Waffle morango 600g f (pct c/4 un 150g)", "cat": "Sorvetes"}, {"cod": "02917", "nome": "Melona Samanco Waffle g feijão vermelho 600g W (pct c/4 un 1500g) E", "cat": "Sorvetes"}, {"cod": "04895", "nome": "e Melona Samanco Waffle chá verde c/feijão W 6S00g (pct c/4 un 150g)", "cat": "Sorvetes"}, {"cod": "06579", "nome": "Melona Samanco TO) Waffle mixberry 600g ) (pct c/4 un 150g)", "cat": "Sorvetes"}, {"cod": "00310", "nome": "Salmão fresco Premium kg", "cat": "Sorvetes"}, {"cod": "01788", "nome": "Polvo fresco H Kg E A:", "cat": "Sorvetes"}, {"cod": "01787", "nome": "Camarão cinza fresco 1kg + -", "cat": "Sorvetes"}, {"cod": "03704", "nome": "Kani kama Bom Peixe 1kg [|] ET | FS", "cat": "Sorvetes"}, {"cod": "02852", "nome": "Kani kama Bom Peixe 250g", "cat": "Sorvetes"}, {"cod": "02848", "nome": "Kani kama Leardini 200g", "cat": "Peixaria"}, {"cod": "05620", "nome": "Cream Cheese trad. Polenghi 1kg Pp POLI É =", "cat": "Queijos"}, {"cod": "00038", "nome": "Cream Cheese trad. Polenghi 1,5kg | RE Ip REM, |", "cat": "Queijos"}, {"cod": "04008", "nome": "Cream Cheese trad. Polenghi 400g Pp Ê FU E Chi!", "cat": "Queijos"}, {"cod": "00236", "nome": "Requeijão trad. cremoso Polenghi 1,5kg Quan fariadoa €", "cat": "Queijos"}, {"cod": "00234", "nome": "Requeijão Cheddar Polenghi 1,5kg | jp E pi ad 'hadadar Quan fariadoa", "cat": "Queijos"}, {"cod": "00170", "nome": "Queijo Cheddar Club do Molho Polenghi 1,5kg -—— o o PI LA ado Mussarela Queijo fa", "cat": "Queijos"}, {"cod": "00212", "nome": "ijo fatiado Prato nghi 192F 2/73kg", "cat": "Queijos"}, {"cod": "01143", "nome": "rFolensgni 100Us Requeijão light Polenghi 200g", "cat": "Queijos"}, {"cod": "00330", "nome": "HSNTtroilengni 10US Requeijão Cheddar Polenghi 200g", "cat": "Queijos"}, {"cod": "01698", "nome": "lactose rolengni 190UsS Queijo Club do Molho sabor Cebola Caramelizada 220g", "cat": "Queijos"}, {"cod": "00435", "nome": "Requeijão trad. cremoso Polenghi 200g Queijo Club do Molho", "cat": "Queijos"}, {"cod": "00943", "nome": "Queijo Club do Molho sabor Cebola Caramelizada 220g na Queijo Sandwich-in Mussarela Polenghi 144g", "cat": "Queijos"}, {"cod": "00226", "nome": "Queijo Club do Molho sabor Queijo Cheddar 220g sm. Queijo Sandwich-in prato Polenghi 144g", "cat": "Queijos"}, {"cod": "01448", "nome": "Queijo Sandwich-in Mussarela Polenghi 144g \" a Ei o \" Rae guide =", "cat": "Queijos"}, {"cod": "00231", "nome": "Queijo Sandwich-in prato Polenghi 144g ueijo Polenguinho rad. Polenghi 17g c/72 un.", "cat": "Queijos"}, {"cod": "00334", "nome": "Queijo Sandwich-in Cheddar light Polenghi 144g e ES me E", "cat": "Queijos"}, {"cod": "01258", "nome": "Queijo Brie Ile de France Petit Brie Polenghi 125g | EO EMI À o ===? pe p=", "cat": "Queijos"}, {"cod": "05560", "nome": "Requeijão trad. cremoso São Vicente 1,5kg mio) A O)", "cat": "Queijos"}, {"cod": "05564", "nome": "Requeijão Cheddar São Vicente 1,5kg pes a E ME | E = 2\" 0| R ] “a = e. E” \"=", "cat": "Queijos"}, {"cod": "00215", "nome": "Queijo Azul Gorgonzola Forma São Vicente aprox. 3kg r i ae É q E 3kg Ê M", "cat": "Queijos"}, {"cod": "00218", "nome": "Queijo Brie Forma São Vicente aprox. 1kg Queijo Suiço Gruyere Forma São Vicente aprox. Dkg", "cat": "Queijos"}, {"cod": "00443", "nome": "Queijo Azul Gorgonzola frac. São Vicente aprox. 200g Ss WURig a \" fd ER , 2, Frost É am À a \" = ae 5 va E |", "cat": "Queijos"}, {"cod": "07308", "nome": "Cream Cheese trad. Catupiry Prof. 1,2kg", "cat": "Queijos"}, {"cod": "07310", "nome": "Requeijão Catupiry original Prof. bisnaga 1,5kg", "cat": "Queijos"}, {"cod": "07313", "nome": "Requeijão Cheddar cremoso Catupity Prof. bisnaga 1,010kg", "cat": "Queijos"}, {"cod": "07312", "nome": "Requeijão 4 Queijos Catupiry Prof. bisnaga 1.01kg marcas o", "cat": "Queijos"}, {"cod": "01383", "nome": "Queijo tipo Burrata de Bufala trad. 200g E Es + = na", "cat": "Queijos"}, {"cod": "01395", "nome": "Queijo Muzzarella de Bufala Bola Cereja pote 250g E] o", "cat": "Queijos"}, {"cod": "04634", "nome": "Queijo Muzzarella de Bufala Bola Média pote 250g", "cat": "Queijos"}, {"cod": "01564", "nome": "Queijo Provolone de Bufala aprox. 400g", "cat": "Queijos"}, {"cod": "01387", "nome": "Ber i eijo Parmesão Farma amrox els", "cat": "Queijos"}, {"cod": "02030", "nome": "(cx c/24 de 115g) : tr sto ” ] : ET r E | l A q", "cat": "Plant-Based"}, {"cod": "00800", "nome": "Os T+ TATHT0— + +*+ Fazenda Futuro 800g Alia E À q J n E ca E 1 a q 1.4 ni f E Cl e", "cat": "Plant-Based"}, {"cod": "01303", "nome": "Fazenda Futuro (cx c/24 de 115g) | | Ra » -, Pts ) |", "cat": "Plant-Based"}, {"cod": "01538", "nome": "Fazenda Futuro 1kg", "cat": "Plant-Based"}, {"cod": "01721", "nome": "Futuro Almondega Souare Box Fazenda Futuro 1kg", "cat": "Plant-Based"}, {"cod": "01222", "nome": "Burger Fazenda Futuro 230g (cx c/15 bandejas) fongredo tira DB | | E m =", "cat": "Plant-Based"}, {"cod": "01223", "nome": "Burger defumado Fazenda Futuro 230g (cx c/15 bandejas) E Ea eq ee oO PE", "cat": "Plant-Based"}, {"cod": "01224", "nome": "Carne Moída Fazenda Futuro eTOg (cx c/15 bandejas) = = = |", "cat": "Plant-Based"}, {"cod": "01225", "nome": "Almondega Fazenda Futuro eT5g (cx c/15 bandejas) | À UTURO | Ti | | amor.", "cat": "Plant-Based"}, {"cod": "00874", "nome": "Linguiça congelada Fazenda Futuro 250g (cx c/15 bandejas)", "cat": "Plant-Based"}, {"cod": "00873", "nome": "Frango congelado Fazenda Futuro 200g (cx c/15 Bandejas) MINI", "cat": "Plant-Based"}, {"cod": "01539", "nome": "Atum Fazenda Futuro 150g (cx c/15 bandejas)", "cat": "Plant-Based"}, {"cod": "07447", "nome": "Burger 4.0 pack Fazenda Futuro 112g (cx c/40 bandejas) au", "cat": "Plant-Based"}, {"cod": "03569", "nome": "Burgers fininhos pack Fazenda Futuro 336g (cx c/12 bandejas)", "cat": "Plant-Based"}, {"cod": "03714", "nome": "Mini Kibe Party Fazenda Futuro 240g (cx c/14 bandejas)", "cat": "Plant-Based"}, {"cod": "05077", "nome": "Franguito Fazenda Futuro º40g (cx c/14 bandejas)", "cat": "Plant-Based"}, {"cod": "01136", "nome": "LVISSO >] Azeite Casa AZ a BL Blanca GL 5,02L 4 “a A Elogiaia De DD doa nt. ZA", "cat": "Azeites e Óleos"}, {"cod": "01191", "nome": "Azeite Trufado Extra Virgem La Pastina 250m! — TE FEESS", "cat": "Azeites e Óleos"}, {"cod": "03599", "nome": "Azeite Extra Virgem Bom Dia DL Ê. . hu Eln", "cat": "Azeites e Óleos"}, {"cod": "03909", "nome": "Azeitona verde fatiada Campo Belo 2kg À a |", "cat": "Azeites e Óleos"}, {"cod": "01882", "nome": "Alcaparras Campo Belo 2kg E", "cat": "Conservas"}, {"cod": "00716", "nome": "Azeitonas preta s/caroco Campo Belo BD 2kg", "cat": "Conservas"}, {"cod": "02163", "nome": "Pepinos inteiros em cond. suave Hemmer 300g À E =", "cat": "Conservas"}, {"cod": "07364", "nome": "Pepino em rodelas agridoce Campo Belo 440g", "cat": "Conservas"}, {"cod": "00700", "nome": "Pepinos rodelas agridoce Hemmer 440g Li = = L Lá | , o nm E | k 1 ha | 1 4 E «ad ) ',", "cat": "Conservas"}, {"cod": "07363", "nome": "Pepino Burguer em rodelas Campo Belo 1kg", "cat": "Conservas"}, {"cod": "07362", "nome": "Cogumelo inteiro em conserva Campo Belo 2kg Pe Wo O mo VR e o O", "cat": "Conservas"}, {"cod": "00958", "nome": "Mostarda Amarela Hemmer 2000gr", "cat": "Molhos e Temperos"}, {"cod": "00179", "nome": "Mostarda Amarela Hemmer 3,6kg TE", "cat": "Molhos e Temperos"}, {"cod": "00108", "nome": "Ketchup Tradicional Hemmer 3,8kg", "cat": "Molhos e Temperos"}, {"cod": "02111", "nome": "Ketchup Iradicional Sache Hemmer 190x7g Flor De Sal Cimsal 350g", "cat": "Molhos e Temperos"}, {"cod": "00863", "nome": "Ketchup Tradicional Hemmer 320g ma E ra “o AJ: Pr CHURR.", "cat": "Molhos e Temperos"}, {"cod": "00376", "nome": "Ketchup Tradicional Hemmer 1kg Aji Sal Churrasco Ajinomoto 2kg 1", "cat": "Molhos e Temperos"}, {"cod": "00930", "nome": "Petit Gateau Chocolate Mr. Bey 60g c/24 un.", "cat": "Sobremesas"}, {"cod": "05614", "nome": "Petit Gateau Chocolate Mr. Bey 80g c/24 un.", "cat": "Sobremesas"}, {"cod": "00752", "nome": "Petit Gateau Chocolate Mr. Bey 100g c/24 un.", "cat": "Sobremesas"}, {"cod": "01160", "nome": "Petit Gateau Doce de Leite Mr. Bey 80g c/24 un.", "cat": "Sobremesas"}, {"cod": "05561", "nome": "Brownie s/Nozes Mr. Bey 70g c/20 un. IPRVPLELPV.", "cat": "Sobremesas"}, {"cod": "00292", "nome": "Torta Holandesa Gourmet Mr. Bey 100g c/06 un.", "cat": "Sobremesas"}, {"cod": "05358", "nome": "Torta Holandesa Mr. Beyu 70g c/12 un.", "cat": "Sobremesas"}, {"cod": "08224", "nome": "Brownie Bites Mr. Bey 1kg", "cat": "Sobremesas"}, {"cod": "01602", "nome": "HFEeELIlt tgaalteadu LMOCOlALE Fr Mr. Bey 160g c/2 un. |", "cat": "Sobremesas"}, {"cod": "07354", "nome": "te Grand Gateau Petit 1. Chocolate Mr. Bey 450g Havan", "cat": "Sobremesas"}, {"cod": "06825", "nome": "Torta Holandesa Pud 1. Mr. Bey 140g c/2 un.", "cat": "Sobremesas"}, {"cod": "05349", "nome": "Pudim de Leite Condensado Mr. Bey 160g c/2 un.", "cat": "Sobremesas"}, {"cod": "08220", "nome": "Brownie Bites Mr. Bey 60g c/24 un.", "cat": "Sobremesas"}, {"cod": "00748", "nome": "Jal Laranja c/gominhos Blt", "cat": "Sucos"}, {"cod": "01120", "nome": "Jal Laranja c/gominhos s/açucar Dlt", "cat": "Sucos"}, {"cod": "00745", "nome": "Jal Uva (UvaJal) st", "cat": "Sucos"}, {"cod": "07786", "nome": "Jal Acerola concentrado b5lIt", "cat": "Sucos"}, {"cod": "07784", "nome": "Jal Manga concentrado Blt", "cat": "Sucos"}, {"cod": "07787", "nome": "Jal Caju concentrado Blt", "cat": "Sucos"}, {"cod": "07785", "nome": "Jal Abacaxi concentrado blt", "cat": "Sucos"}, {"cod": "07788", "nome": "Jal Goiaba concentrado Blt", "cat": "Sucos"}, {"cod": "03571", "nome": "suco de Uva Integral Casa Madeira 2b50m!", "cat": "Sucos"}, {"cod": "00487", "nome": "Álcool Líquido 70 Pindorama DL", "cat": "Higiene e Limpeza"}, {"cod": "00486", "nome": "Álcool Líquido 70 Pindorama 1L - Ante", "cat": "Higiene e Limpeza"}, {"cod": "00484", "nome": "Alcool em Gel 70 Pindorama 4,3kg", "cat": "Higiene e Limpeza"}, {"cod": "06831", "nome": "— 068831 Álcool Líquido 70 Clarity DL aiii a E Ta", "cat": "Higiene e Limpeza"}, {"cod": "07591", "nome": "Desengordurante Alcalino Lavve DL |", "cat": "Higiene e Limpeza"}, {"cod": "07321", "nome": "Desinfetante Cloro Proquilimp DL", "cat": "Higiene e Limpeza"}, {"cod": "05597", "nome": "Desinfetante de uso geral Bambu Lavve DL", "cat": "Higiene e Limpeza"}, {"cod": "05591", "nome": "Desinfetante de uso geral Floral Lavve BL a \"| EST", "cat": "Higiene e Limpeza"}, {"cod": "05594", "nome": "Desinfetante de uso geral Lavanda Lavve BL [= \" à", "cat": "Higiene e Limpeza"}, {"cod": "05259", "nome": "Detergente Neutro lava louças Lavve BL Pe", "cat": "Higiene e Limpeza"}, {"cod": "06766", "nome": "Sabonete Líquido Glicerinado Erva Doce Hand 5L", "cat": "Higiene e Limpeza"}, {"cod": "06765", "nome": "| Sabonete Líquido Perolado Camomila Nobre Hand DL 4 q .", "cat": "Higiene e Limpeza"}, {"cod": "06335", "nome": "Sabonete Líquido Perolado Erva Doce 5L (Fc", "cat": "Higiene e Limpeza"}, {"cod": "00043", "nome": "Detergin Clean Gr. Newdrop (forno, chapa, fritadeira, coifa) BL", "cat": "Higiene e Limpeza"}, {"cod": "00381", "nome": "Detergin deseng. Newdrop Master Foam PL DL", "cat": "Higiene e Limpeza"}, {"cod": "00047", "nome": "Detergin Limpa Alumínio DL", "cat": "Higiene e Limpeza"}, {"cod": "00041", "nome": "Detergin Sanitizante Pa Clean Veg. 3kg 4(", "cat": "Higiene e Limpeza"}, {"cod": "07216", "nome": "Pano mult. smart rolo Vabene 40x28cm (600 panos) verde O me | ar E - FO Da", "cat": "Higiene e Limpeza"}, {"cod": "05785", "nome": ") Pano multiuso smart Vabene azul 240m", "cat": "Higiene e Limpeza"}, {"cod": "07352", "nome": "Pano multiuso smart Vabene laranja 240m", "cat": "Higiene e Limpeza"}, {"cod": "00192", "nome": "Pano Limtech azul 300m", "cat": "Higiene e Limpeza"}, {"cod": "00840", "nome": "Pano Limtech P verde 300m e RC", "cat": "Higiene e Limpeza"}, {"cod": "06561", "nome": "Papel Toalha Bobina Premium e0x200 Riosampa c/6 rolos o", "cat": "Higiene e Limpeza"}, {"cod": "05725", "nome": "Bobina ECF térmica B Silfer S00mmx40mt c/30", "cat": "Higiene e Limpeza"}, {"cod": "01193", "nome": ") Saco de lixo preto Inst. 00 paperial GOL c/100", "cat": "Higiene e Limpeza"}, {"cod": "05791", "nome": "Saco de lixo preto € 00 Inst. paperial 40L c/100", "cat": "Higiene e Limpeza"}, {"cod": "00237", "nome": "Saco de lixo preto Ecológico 100L 75x90 c/100", "cat": "Higiene e Limpeza"}, {"cod": "07662", "nome": "Saco de lixo 100L 75x85 ) preto M4 c/100 E", "cat": "Higiene e Limpeza"}, {"cod": "00680", "nome": "Saco de lixo preto inst. pesado paperial 105L c/100", "cat": "Higiene e Limpeza"}, {"cod": "05031", "nome": "Saco de lixo preto Fort Flex 1100L rolo c/100", "cat": "Higiene e Limpeza"}, {"cod": "05790", "nome": "Saco de lixo preto pesado PA Perial 200L c/100", "cat": "Higiene e Limpeza"}, {"cod": "07337", "nome": "Toalha de papel Scala e2,ex12 20000F c/2 rolos", "cat": "Higiene e Limpeza"}, {"cod": "07160", "nome": "Touca descartável sanfonada branca c/100uUn.", "cat": "Higiene e Limpeza"}];
+const CATS = ["Algas", "Arrozes", "Shoyu", "Saquês", "Geleias e Saquês", "Soju", "Molhos e Temperos", "Maionese e Furikake", "Farinhas", "Grãos", "Massas", "Conservas", "Resfriados e Congelados", "Sorvetes", "Peixaria", "Queijos", "Plant-Based", "Azeites e Óleos", "Sobremesas", "Sucos", "Sucos e Chás", "Utensílios", "Embalagens", "Higiene e Limpeza"];
 const PROMOS = [
-  {selo:"-17%",prod:"Fruta p/ Drinks Pina Colada Easydrink 1kg",de:"69,90",por:"57,90",val:"Enquanto durar o estoque · prod. 30/06/26",cod:"—"},
-  {selo:"Combo",prod:"Shoyu Kikkoman 5L + Tarê Maki 5L",de:"—",por:"sob consulta",val:"Campanha de junho",cod:"03480"},
-  {selo:"Lançamento",prod:"Soju Jinro Morango 360ml",de:"—",por:"sob consulta",val:"Linha coreana",cod:"02215"},
+  {selo:"-17%",prod:"Fruta p/ Drinks Pina Colada Easydrink 1kg",de:"69,90",por:"57,90",val:"Enquanto durar o estoque · prod. 30/06/26"},
+  {selo:"Combo",prod:"Shoyu Kikkoman 5L + Tarê Maki 5L",de:"—",por:"sob consulta",val:"Campanha de junho"},
+  {selo:"Lançamento",prod:"Soju Jinro Morango 360ml",de:"—",por:"sob consulta",val:"Linha coreana"},
 ];
-
-// Cesta ideal do segmento oriental (básicos que todo sushi deve ter)
 const CESTA_ORIENTAL = [
-  {cod:"00005",nome:"Alga Nori",compra:true},
-  {cod:"00019",nome:"Arroz Minami Mai Curto",compra:true},
-  {cod:"01711",nome:"Shoyu Kikkoman",compra:true},
-  {cod:"00404",nome:"Molho Tarê",compra:false,score:9},
-  {cod:"05620",nome:"Cream Cheese Polenghi",compra:true},
-  {cod:"00631",nome:"Pimenta Sriracha",compra:false,score:7},
-  {cod:"08218",nome:"Tempero para Sushi",compra:false,score:8},
-  {cod:"00935",nome:"Hashi Bambu c/50 pares",compra:false,score:6},
-  {cod:"00188",nome:"Panko p/ empanar",compra:false,score:5},
-  {cod:"00071",nome:"Esteira p/ sushi",compra:true},
+  {cod:"00005",nome:"Alga Nori",compra:true},{cod:"00019",nome:"Arroz Minami Mai Curto",compra:true},
+  {cod:"01711",nome:"Shoyu Kikkoman",compra:true},{cod:"00404",nome:"Molho Tarê",compra:false,score:9},
+  {cod:"05620",nome:"Cream Cheese Polenghi",compra:true},{cod:"00631",nome:"Pimenta Sriracha",compra:false,score:7},
+  {cod:"08218",nome:"Tempero para Sushi",compra:false,score:8},{cod:"00935",nome:"Hashi Bambu c/50 pares",compra:false,score:6},
+  {cod:"00188",nome:"Panko p/ empanar",compra:false,score:5},{cod:"00071",nome:"Esteira p/ sushi",compra:true},
 ];
-
-// Clientes demo
 const CLIENTES = {
   "12345678000190":{status:"ativo",setor:"Oriental",razao:"Sushi Yamato Ltda",fantasia:"Sushi Yamato",cidade:"Vila Velha · ES",vendedor:"Lucas Andrade",farol:"verde",dias:8,period:15,ultima:"14/06/2026",
-    comprados:[{cod:"00005",nome:"Alga Nori Asakusa 125g",ult:"14/06",freq:"mensal"},{cod:"00019",nome:"Arroz Minami Mai Curto 5kg",ult:"14/06",freq:"quinzenal"},{cod:"01711",nome:"Shoyu Kikkoman 1L",ult:"30/05",freq:"mensal"},{cod:"05620",nome:"Cream Cheese Polenghi 1kg",ult:"14/06",freq:"semanal"},{cod:"00071",nome:"Esteira p/ sushi 27cm",ult:"02/04",freq:"trimestral"}]},
+    comprados:[{cod:"00005",nome:"Alga Nori Asakusa 125g",ult:"14/06",freq:"mensal"},{cod:"00019",nome:"Arroz Minami Mai Curto 5kg",ult:"14/06",freq:"quinzenal"},{cod:"01711",nome:"Shoyu Kikkoman 1L",ult:"30/05",freq:"mensal"},{cod:"05620",nome:"Cream Cheese Polenghi 1kg",ult:"14/06",freq:"semanal"}]},
   "98765432000110":{status:"ativo",setor:"Hamburgueria",razao:"Burger House ME",fantasia:"Burger House",cidade:"Vitória · ES",vendedor:"Lucas Andrade",farol:"amarelo",dias:22,period:20,ultima:"31/05/2026",
-    comprados:[{cod:"00188",nome:"Panko Woomtree 1kg",ult:"31/05",freq:"mensal"},{cod:"05356",nome:"Molho Sweet Chilli 5L",ult:"31/05",freq:"mensal"},{cod:"00940",nome:"Molho de Ostra Kikkoman 1L",ult:"10/05",freq:"bimestral"}]},
+    comprados:[{cod:"00188",nome:"Panko Woomtree 1kg",ult:"31/05",freq:"mensal"},{cod:"00940",nome:"Molho de Ostra Kikkoman 1L",ult:"10/05",freq:"bimestral"}]},
   "11222333000144":{status:"inativo",setor:"Oriental",razao:"Restaurante Sakura Eireli",fantasia:"Restaurante Sakura",cidade:"Serra · ES",vendedor:"Lucas Andrade",inativoDesde:"Fevereiro/2026",
     comprados:[{cod:"00019",nome:"Arroz Minami Mai Curto 5kg",ult:"05/02",freq:"—"},{cod:"01711",nome:"Shoyu Kikkoman 1L",ult:"05/02",freq:"—"}]},
 };
 
-/* =====================================================================
-   ESTADO
-   ===================================================================== */
-let clienteAtual=null, catAtiva="Todos", carrinho={};
+const byCod={}; CATALOGO.forEach(p=>byCod[p.cod]=p);
+let clienteAtual=null, catAtiva="Todos", carrinho={}, limite=24, termo="";
 
-/* =====================================================================
-   BUSCA / DEMO
-   ===================================================================== */
-function soDigitos(s){return (s||"").replace(/\D/g,"")}
-function demo(c){document.getElementById("cnpj").value=mascaraCnpj(c);buscar()}
-function mascaraCnpj(d){d=soDigitos(d).slice(0,14);return d.replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2}\.\d{3})(\d)/,"$1.$2").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2")}
+function soDig(s){return (s||"").replace(/\D/g,"")}
+function mascaraCnpj(d){d=soDig(d).slice(0,14);return d.replace(/^(\d{2})(\d)/,"$1.$2").replace(/^(\d{2}\.\d{3})(\d)/,"$1.$2").replace(/\.(\d{3})(\d)/,".$1/$2").replace(/(\d{4})(\d)/,"$1-$2")}
 document.getElementById("cnpj").addEventListener("input",e=>{e.target.value=mascaraCnpj(e.target.value)});
+function demo(c){document.getElementById("cnpj").value=mascaraCnpj(c);buscar()}
+function glyph(cat){const g={Algas:"🌿",Arrozes:"🍚",Shoyu:"🍶","Saquês":"🍶","Geleias e Saquês":"🍶",Soju:"🍶","Molhos e Temperos":"🥫","Maionese e Furikake":"🍥",Farinhas:"🌾","Grãos":"🌰",Massas:"🍜",Conservas:"🫙","Resfriados e Congelados":"❄️",Sorvetes:"🍦",Peixaria:"🐟",Queijos:"🧀","Plant-Based":"🌱","Azeites e Óleos":"🫒",Sobremesas:"🍰",Sucos:"🧃","Sucos e Chás":"🍵","Utensílios":"🥢",Embalagens:"📦","Higiene e Limpeza":"🧼"};return g[cat]||"📦"}
+function imgHtml(p,cls){return `<div class="ph ${cls||''}"><img src="img/${p.cod}.jpg" loading="lazy" onerror="this.parentNode.classList.add('noimg');this.remove()"><span class="glyph">${glyph(p.cat)}</span></div>`}
 
 function buscar(){
-  const d=soDigitos(document.getElementById("cnpj").value);
+  const d=soDig(document.getElementById("cnpj").value);
   if(d.length<14){toast("Digite os 14 dígitos do CNPJ");return}
-  // ---- AQUI entra o fetch real: ?modulo=catalogo&acao=buscarPdv&cnpj=d ----
   clienteAtual = CLIENTES[d] || {status:"novo",razao:"CNPJ não localizado",cidade:"—"};
   clienteAtual.cnpj = mascaraCnpj(d);
   renderCliente();
@@ -575,194 +296,107 @@ function buscar(){
   document.getElementById("cliente").classList.add("show");
   window.scrollTo({top:0,behavior:"smooth"});
 }
+function abrirCatalogo(){
+  clienteAtual=null;
+  document.getElementById("empty").style.display="none";
+  document.getElementById("cliente").classList.add("show");
+  document.getElementById("statusCard").innerHTML="";
+  document.getElementById("magicGrid").style.display="none";
+  renderPromos();renderCats();renderGrid();
+}
 
-/* =====================================================================
-   RENDER PAINEL CLIENTE
-   ===================================================================== */
 function renderCliente(){
   const c=clienteAtual, sc=document.getElementById("statusCard");
   sc.className="status-card "+c.status;
-  let badge = c.status==="ativo"?"Cliente ativo": c.status==="inativo"?"Base de inativos":"Lead novo";
-  let metas="";
-  if(c.status==="ativo"){
-    metas=`<div class="meta"><span><b>Setor:</b> ${c.setor}</span><span><b>Vendedor:</b> ${c.vendedor}</span><span><b>Última compra:</b> ${c.ultima}</span><span><b>Periodicidade:</b> ${c.period} dias</span></div>`;
-  } else if(c.status==="inativo"){
-    metas=`<div class="meta"><span><b>Setor:</b> ${c.setor}</span><span><b>Vendedor:</b> ${c.vendedor}</span><span><b>Inativo desde:</b> ${c.inativoDesde}</span></div>`;
-  } else {
-    metas=`<div class="meta"><span>Não está em BASE_PDV nem BASE_INATIVOS — cadastre como novo lead.</span></div>`;
-  }
+  let badge=c.status==="ativo"?"Cliente ativo":c.status==="inativo"?"Base de inativos":"Lead novo", metas="";
+  if(c.status==="ativo") metas=`<div class="meta"><span><b>Setor:</b> ${c.setor}</span><span><b>Vendedor:</b> ${c.vendedor}</span><span><b>Última compra:</b> ${c.ultima}</span><span><b>Periodicidade:</b> ${c.period} dias</span></div>`;
+  else if(c.status==="inativo") metas=`<div class="meta"><span><b>Setor:</b> ${c.setor}</span><span><b>Vendedor:</b> ${c.vendedor}</span><span><b>Inativo desde:</b> ${c.inativoDesde}</span></div>`;
+  else metas=`<div class="meta"><span>Não está em BASE_PDV nem BASE_INATIVOS — cadastre como novo lead.</span></div>`;
   let farolHtml="";
-  if(c.status==="ativo"){
-    const f=c.farol, txt={verde:"Em dia",amarelo:"Atenção",vermelho:"Atrasado"}[f];
-    farolHtml=`<div class="farol ${f}"><span class="dot"></span>${txt} · ${c.dias}d</div>`;
-  }
-  sc.innerHTML=`
-    <div class="status-head">
-      <div class="status-badge">${badge}</div>
-      <div class="status-info">
-        <h2>${c.fantasia||c.razao}</h2>
-        <div style="font-size:12.5px;color:var(--cinza-claro)">${c.razao} · ${c.cnpj} · ${c.cidade}</div>
-        ${metas}
-      </div>
-      ${farolHtml}
-    </div>
-    ${c.status==="inativo"?`<div class="alerta-reativ">⚠️ Oportunidade de reativação — este PDV saiu da base. Use a cesta e as promoções para trazer de volta.</div>`:""}
-  `;
+  if(c.status==="ativo"){const txt={verde:"Em dia",amarelo:"Atenção",vermelho:"Atrasado"}[c.farol];farolHtml=`<div class="farol ${c.farol}"><span class="dot"></span>${txt} · ${c.dias}d</div>`}
+  sc.innerHTML=`<div class="status-head"><div class="status-badge">${badge}</div><div class="status-info"><h2>${c.fantasia||c.razao}</h2><div style="font-size:12.5px;color:var(--cinza-claro)">${c.razao} · ${c.cnpj} · ${c.cidade}</div>${metas}</div>${farolHtml}</div>${c.status==="inativo"?`<div class="alerta-reativ">⚠️ Oportunidade de reativação — este PDV saiu da base. Use a cesta e as promoções para trazer de volta.</div>`:""}`;
 
-  // Magic grid
-  const mg=document.getElementById("magicGrid");
-  let blocos="";
-  // Cesta oriental (só se setor oriental e tiver comprados)
+  const mg=document.getElementById("magicGrid");let blocos="";
   if(c.setor==="Oriental" && c.status!=="novo"){
     const tem=CESTA_ORIENTAL.filter(i=>i.compra).length;
-    let linhas=CESTA_ORIENTAL.map(i=>{
-      if(i.compra) return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}</span><span class="mark-ok">✓ compra</span></div>`;
-      return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}<small>relevância ${i.score}/10</small></span><button class="mark-falta" onclick="addCod('${i.cod}')">+ oferecer</button></div>`;
-    }).join("");
+    const linhas=CESTA_ORIENTAL.map(i=>i.compra
+      ?`<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}</span><span class="mark-ok">✓ compra</span></div>`
+      :`<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}<small>relevância ${i.score}/10</small></span><button class="mark-falta" onclick="addCod('${i.cod}')">+ oferecer</button></div>`).join("");
     blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico">🍣</span>Cesta Oriental Ideal</h3><span class="resumo">${tem}/${CESTA_ORIENTAL.length} itens</span></div><div class="painel-body">${linhas}</div></div>`;
   }
-  // Já compra
-  if(c.comprados && c.comprados.length){
-    let linhas=c.comprados.map(i=>`<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}<small>última ${i.ult} · ${i.freq}</small></span><button class="mark-falta" style="background:var(--grafite)" onclick="addCod('${i.cod}')">+ repor</button></div>`).join("");
+  if(c.comprados&&c.comprados.length){
+    const linhas=c.comprados.map(i=>`<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}<small>última ${i.ult} · ${i.freq}</small></span><button class="mark-falta" style="background:var(--grafite)" onclick="addCod('${i.cod}')">+ repor</button></div>`).join("");
     blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico" style="background:var(--grafite)">🛒</span>Já compra (6 meses)</h3><span class="resumo">${c.comprados.length} itens</span></div><div class="painel-body">${linhas}</div></div>`;
   }
-  mg.innerHTML=blocos;
-  mg.style.display = blocos?"grid":"none";
-
-  renderPromos(); renderCats(); renderGrid();
-  document.getElementById("cartCli").textContent = " · "+(c.fantasia||c.razao);
+  mg.innerHTML=blocos;mg.style.display=blocos?"grid":"none";
+  renderPromos();renderCats();renderGrid();
+  document.getElementById("cartCli").textContent=" · "+(c.fantasia||c.razao);
 }
-
 function renderPromos(){
-  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`
-    <div class="promo-card">
-      <span class="selo">${p.selo}</span>
-      <div class="img">imagem do produto</div>
-      <div class="corpo">
-        <div class="prod">${p.prod}</div>
-        <div class="precos">${p.de!=="—"?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${p.por.startsWith("sob")?"":"R$ "}${p.por}<small>${p.por.startsWith("sob")?"":" /un"}</small></span></div>
-        <div class="val">${p.val}</div>
-        <button class="add-promo" onclick="addPromo('${p.prod.replace(/'/g,"")}')">+ Adicionar à seleção</button>
-      </div>
-    </div>`).join("");
+  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo}</span><div class="img">imagem do produto</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${p.de!=="—"?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${p.por.startsWith("sob")?"":"R$ "}${p.por}${p.por.startsWith("sob")?"":'<small> /un</small>'}</span></div><div class="val">${p.val}</div><button class="add-promo" onclick="addPromo('${p.prod.replace(/'/g,"")}')">+ Adicionar à seleção</button></div></div>`).join("");
 }
-
 function renderCats(){
-  document.getElementById("cats").innerHTML=CATEGORIAS.map(c=>`<button class="cat-chip ${c===catAtiva?'on':''}" onclick="setCat('${c}')">${c}</button>`).join("");
+  const all=[{n:"Todos",c:CATALOGO.length}].concat(CATS.map(c=>({n:c,c:CATALOGO.filter(p=>p.cat===c).length})));
+  document.getElementById("cats").innerHTML=all.map(o=>`<button class="cat-chip ${o.n===catAtiva?'on':''}" onclick="setCat('${o.n}')">${o.n}<b>${o.c}</b></button>`).join("");
 }
-function setCat(c){catAtiva=c;renderCats();renderGrid()}
-
-function glyph(cat){return {Algas:"🌿",Arrozes:"🍚",Shoyu:"🍶",Molhos:"🥫",Farinhas:"🌾",Massas:"🍜",Congelados:"❄️",Peixaria:"🐟",Queijos:"🧀",Utensílios:"🥢"}[cat]||"📦"}
-
+function setCat(c){catAtiva=c;limite=24;document.getElementById("find").value="";termo="";renderGrid()}
+function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();limite=24;renderGrid()}
+function filtrados(){
+  let list=CATALOGO;
+  if(catAtiva!=="Todos"&&!termo) list=list.filter(p=>p.cat===catAtiva);
+  if(termo) list=list.filter(p=>p.nome.toLowerCase().includes(termo)||p.cod.includes(termo));
+  return list;
+}
 function renderGrid(){
-  const list = catAtiva==="Todos"?PRODUTOS:PRODUTOS.filter(p=>p.cat===catAtiva);
-  document.getElementById("gridProd").innerHTML=list.map(p=>{
-    const inCart = carrinho[p.cod];
-    return `<div class="prod-card" onclick="abrirProduto('${p.cod}')">
-      <div class="ph"><span class="cod-badge">${p.cod}</span><span class="glyph">${glyph(p.cat)}</span></div>
-      <div class="body">
-        <span class="fam">${p.fam}</span>
-        <span class="nome">${p.nome}</span>
-        <button class="add ${inCart?'in':''}" onclick="event.stopPropagation();addCod('${p.cod}')">${inCart?'✓ na seleção':'+ adicionar'}</button>
-      </div>
-    </div>`;
-  }).join("");
+  const list=filtrados(), vis=list.slice(0,limite);
+  const g=document.getElementById("gridProd");
+  g.innerHTML = vis.length?vis.map(p=>{
+    const inc=carrinho[p.cod];
+    return `<div class="prod-card" onclick="abrirProduto('${p.cod}')">${imgHtml(p)}<div class="body"><span class="fam">${p.cat}</span><span class="nome">${p.nome}</span><button class="add ${inc?'in':''}" onclick="event.stopPropagation();addCod('${p.cod}')">${inc?'✓ na seleção':'+ adicionar'}</button></div></div>`;
+  }).join(""):`<div class="vazio">Nada encontrado para "${termo}".</div>`;
+  document.getElementById("btnMais").style.display = list.length>limite?"block":"none";
 }
+function verMais(){limite+=24;renderGrid()}
 
-/* =====================================================================
-   DRAWER PRODUTO + RELACIONADOS (estilo Mercado Livre)
-   ===================================================================== */
 function abrirProduto(cod){
-  const p=PRODUTOS.find(x=>x.cod===cod);if(!p)return;
-  const rel=(p.rel||[]).map(rc=>PRODUTOS.find(x=>x.cod===rc)).filter(Boolean);
-  const inCart=carrinho[cod];
+  const p=byCod[cod];if(!p)return;
+  const rel=CATALOGO.filter(x=>x.cat===p.cat&&x.cod!==cod).sort(()=>Math.random()-.5).slice(0,8);
+  const inc=carrinho[cod];
   document.getElementById("sheet").innerHTML=`
-    <div class="sheet-head">
-      <div class="ph">${glyph(p.cat)}</div>
-      <div style="flex:1">
-        <div class="cod">cód. ${p.cod} · ${p.cat}</div>
-        <h2>${p.nome}</h2>
-        <button class="add ${inCart?'in':''}" style="max-width:220px;margin-top:12px" onclick="addCod('${p.cod}');abrirProduto('${p.cod}')">${inCart?'✓ na seleção':'+ adicionar à seleção'}</button>
+    <div class="sheet-head">${imgHtml(p)}
+      <div style="flex:1"><div class="cod">cód. ${p.cod} · ${p.cat}</div><h2>${p.nome}</h2>
+        <button class="add ${inc?'in':''}" style="max-width:240px;margin-top:12px;border:1.5px solid var(--vermelho);${inc?'background:var(--verde);border-color:var(--verde);color:#fff':'color:var(--vermelho);background:#fff'};border-radius:9px;padding:9px;font-weight:700" onclick="addCod('${p.cod}');abrirProduto('${p.cod}')">${inc?'✓ na seleção':'+ adicionar à seleção'}</button>
       </div>
       <button class="x" onclick="fecharSheet()">×</button>
     </div>
-    ${rel.length?`<div class="sheet-sec"><h4>Quem leva este, também leva</h4><div class="rel-rail">${rel.map(r=>`<div class="rel-card" onclick="abrirProduto('${r.cod}')"><div class="ph">${glyph(r.cat)}</div><div class="c">${r.cod}</div><div class="n">${r.nome}</div></div>`).join("")}</div></div>`:""}
-  `;
+    ${rel.length?`<div class="sheet-sec"><h4>Quem leva este, também leva</h4><div class="rel-rail">${rel.map(r=>`<div class="rel-card" onclick="abrirProduto('${r.cod}')">${imgHtml(r)}<div class="c">${r.cod}</div><div class="n">${r.nome}</div></div>`).join("")}</div></div>`:""}`;
   document.getElementById("overlay").classList.add("show");
 }
 function fecharSheet(){document.getElementById("overlay").classList.remove("show")}
 
-/* =====================================================================
-   CARRINHO
-   ===================================================================== */
 function addCod(cod){
-  const p=PRODUTOS.find(x=>x.cod===cod) || {cod,nome:cestaNome(cod)||("Item "+cod),cat:"—"};
-  if(carrinho[cod]){carrinho[cod].qt++;} else {carrinho[cod]={...p,qt:1,preco:""};}
-  toast("Adicionado: "+p.nome);
-  atualizarCart();renderGrid();
+  const p=byCod[cod]||{cod,nome:(CESTA_ORIENTAL.find(x=>x.cod===cod)||{}).nome||("Item "+cod),cat:"—"};
+  if(carrinho[cod])carrinho[cod].qt++;else carrinho[cod]={...p,qt:1,preco:""};
+  toast("Adicionado: "+p.nome);atualizarCart();renderGrid();
 }
-function addPromo(nome){
-  const k="promo_"+Object.keys(carrinho).length;
-  carrinho[k]={cod:"PROMO",nome:nome,cat:"Promoção",qt:1,preco:""};
-  toast("Promoção adicionada");atualizarCart();
-}
-function cestaNome(cod){const i=CESTA_ORIENTAL.find(x=>x.cod===cod);return i?i.nome:null}
-function atualizarCart(){
-  const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);
-  document.getElementById("cartCount").textContent = n+(n===1?" item":" itens");
-  document.getElementById("cartBar").classList.toggle("show", n>0);
-}
+function addPromo(nome){carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1,preco:""};toast("Promoção adicionada");atualizarCart()}
+function atualizarCart(){const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);document.getElementById("cartCount").textContent=n+(n===1?" item":" itens");document.getElementById("cartBar").classList.toggle("show",n>0)}
 
-/* =====================================================================
-   RESUMO
-   ===================================================================== */
 function abrirResumo(){document.getElementById("resumoOv").classList.add("show");render()}
 function fecharResumo(){document.getElementById("resumoOv").classList.remove("show")}
 function render(){
   const c=clienteAtual||{};
-  document.getElementById("resumoCli").innerHTML = c.razao?`<b>${c.fantasia||c.razao}</b> · ${c.cnpj||""} · ${c.cidade||""}`:"Nenhum cliente selecionado";
-  const comPreco=document.getElementById("togPrecos").checked;
-  const itens=Object.entries(carrinho);
-  document.getElementById("resumoBody").innerHTML = itens.length?itens.map(([k,i])=>`
-    <div class="ri">
-      <span class="cod">${i.cod}</span>
-      <span class="d">${i.nome}<small>${i.cat}</small></span>
-      <div class="qt"><button onclick="qt('${k}',-1)">−</button><span>${i.qt}</span><button onclick="qt('${k}',1)">+</button></div>
-      ${comPreco?`<div class="preco-in"><input placeholder="R$" value="${i.preco}" oninput="setPreco('${k}',this.value)"></div>`:""}
-      <button class="rm" onclick="rm('${k}')">🗑</button>
-    </div>`).join(""):`<div style="padding:40px 22px;text-align:center;color:var(--cinza-claro)">Nenhum item na seleção ainda.</div>`;
-
+  document.getElementById("resumoCli").innerHTML=c.razao?`<b>${c.fantasia||c.razao}</b> · ${c.cnpj||""} · ${c.cidade||""}`:"Sem cliente — seleção avulsa";
+  const comPreco=document.getElementById("togPrecos").checked, itens=Object.entries(carrinho);
+  document.getElementById("resumoBody").innerHTML=itens.length?itens.map(([k,i])=>`<div class="ri"><span class="cod">${i.cod}</span><span class="d">${i.nome}<small>${i.cat}</small></span><div class="qt"><button onclick="qt('${k}',-1)">−</button><span>${i.qt}</span><button onclick="qt('${k}',1)">+</button></div>${comPreco?`<div class="preco-in"><input placeholder="R$" value="${i.preco}" oninput="setPreco('${k}',this.value)"></div>`:""}<button class="rm" onclick="rm('${k}')">🗑</button></div>`).join(""):`<div class="vazio">Nenhum item na seleção ainda.</div>`;
   const tl=document.getElementById("totalLinha");
-  if(comPreco){
-    const tot=itens.reduce((s,[k,i])=>s+(parseFloat((i.preco||"").replace(/\./g,"").replace(",","."))||0)*i.qt,0);
-    document.getElementById("totalVal").textContent="R$ "+tot.toLocaleString("pt-BR",{minimumFractionDigits:2});
-    tl.style.display="flex";
-  } else tl.style.display="none";
+  if(comPreco){const tot=itens.reduce((s,[k,i])=>s+(parseFloat((i.preco||"").replace(/\./g,"").replace(",","."))||0)*i.qt,0);document.getElementById("totalVal").textContent="R$ "+tot.toLocaleString("pt-BR",{minimumFractionDigits:2});tl.style.display="flex"}else tl.style.display="none";
 }
 function qt(k,d){carrinho[k].qt=Math.max(1,carrinho[k].qt+d);atualizarCart();render()}
 function rm(k){delete carrinho[k];atualizarCart();render();renderGrid()}
-function setPreco(k,v){carrinho[k].preco=v;
-  const tot=Object.values(carrinho).reduce((s,i)=>s+(parseFloat((i.preco||"").replace(/\./g,"").replace(",","."))||0)*i.qt,0);
-  document.getElementById("totalVal").textContent="R$ "+tot.toLocaleString("pt-BR",{minimumFractionDigits:2});
-}
-
-function acao(tipo){
-  const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);
-  if(!n){toast("Adicione itens antes");return}
-  // ---- AQUI entram os POSTs reais (gerarToken / salvarPedido) ----
-  const msgs={
-    link:"🔗 Link gerado (demo). No backend: token assinado, grava CATALOGO_TOKENS, expira em 2h.",
-    validar:"📤 Form de validação enviado (demo).",
-    erp:"🧾 Pedido pronto pra lançar no ERP (demo)."
-  };
-  toast(msgs[tipo]);
-}
-
-/* =====================================================================
-   TOAST
-   ===================================================================== */
-let toastT;
-function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),2600)}
+function setPreco(k,v){carrinho[k].preco=v;const tot=Object.values(carrinho).reduce((s,i)=>s+(parseFloat((i.preco||"").replace(/\./g,"").replace(",","."))||0)*i.qt,0);document.getElementById("totalVal").textContent="R$ "+tot.toLocaleString("pt-BR",{minimumFractionDigits:2})}
+function acao(t){const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);if(!n){toast("Adicione itens antes");return}toast({link:"🔗 Link gerado (demo) · backend: token 2h em CATALOGO_TOKENS",validar:"📤 Form de validação enviado (demo)",erp:"🧾 Pedido pronto pro ERP (demo)"}[t])}
+let tT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("show"),2600)}
 </script>
 </body>
 </html>
