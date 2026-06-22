@@ -144,13 +144,13 @@ input[data-prefilled="1"]:not([readonly]){background:#fffbf0;border-color:#ffd97
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
-            <th style="width:28%">Produto</th>
-            <th style="text-align:center;width:70px">Giro</th>
-            <th style="text-align:center;width:110px">Qtd.<br><span style="font-size:.6rem;color:#a07cf6;font-weight:400">editável</span></th>
-            <th style="color:#e63329;width:110px">Val. Mínima</th>
-            <th style="color:#a07cf6;min-width:130px">Preço Unit.</th>
-            <th style="color:#a07cf6;width:85px">Unidade</th>
-            <th style="color:#a07cf6;min-width:130px">Val. Disponível</th>
+            <th style="width:22%">Produto</th>
+            <th style="text-align:center;width:65px">Giro</th>
+            <th style="text-align:center;width:100px">Qtd.<br><span style="font-size:.6rem;color:#a07cf6;font-weight:400">editável</span></th>
+            <th style="color:#e63329;width:100px">Val. Mínima</th>
+            <th style="color:#a07cf6;min-width:230px">💰 Preço <span style="font-size:.62rem;color:#8fa0c0;font-weight:400">(unitário ou caixa)</span></th>
+            <th style="color:#a07cf6;width:75px">Unidade</th>
+            <th style="color:#a07cf6;min-width:120px">Val. Disponível</th>
           </tr></thead>
           <tbody id="TBODY"></tbody>
         </table>
@@ -405,9 +405,38 @@ function render() {
         '<div id="qtdMsg' + i + '" style="font-size:.65rem;color:#e89200;margin-top:3px;font-weight:600;display:none"></div>' +
       '</td>' +
       '<td><div id="vmin' + i + '">' + vmInicial + '</div><div>' + vi + '</div></td>' +
-      '<td><div class="pi"><span>R$</span>' +
-        '<input type="number" min="0" step="0.01" id="p' + i + '" placeholder="0,00" oninput="calc()">' +
-      '</div><div style="font-size:.67rem;color:#8fa0c0;margin-top:2px" id="sub' + i + '"></div></td>' +
+      '<td>' +
+        // 🆕 Toggle: Unitário ou Caixa
+        '<div style="display:flex;gap:10px;font-size:.7rem;margin-bottom:6px">' +
+          '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;color:#4a5d80">' +
+            '<input type="radio" name="mp' + i + '" value="unidade" checked onchange="modoPrecoChange(' + i + ')" style="margin:0"> Unitário' +
+          '</label>' +
+          '<label style="display:flex;align-items:center;gap:3px;cursor:pointer;color:#4a5d80">' +
+            '<input type="radio" name="mp' + i + '" value="caixa" onchange="modoPrecoChange(' + i + ')" style="margin:0"> Caixa/Pct' +
+          '</label>' +
+        '</div>' +
+        // Preço unitário (modo padrão)
+        '<div id="boxUni' + i + '">' +
+          '<div class="pi"><span>R$</span>' +
+            '<input type="number" min="0" step="0.01" id="p' + i + '" placeholder="0,00" oninput="calc()">' +
+          '</div>' +
+        '</div>' +
+        // Preço por caixa (modo alternativo — começa escondido)
+        '<div id="boxCx' + i + '" style="display:none">' +
+          '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">' +
+            '<span style="font-size:.68rem;color:#6b7ea8;min-width:65px">Itens/cx:</span>' +
+            '<input type="number" min="1" step="1" id="qpc' + i + '" placeholder="Ex: 12" oninput="recalcCaixa(' + i + ')" style="width:80px;padding:5px 7px;background:#f6f8fc;border:1px solid #d5dce8;border-radius:5px;font-size:.78rem">' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">' +
+            '<span style="font-size:.68rem;color:#6b7ea8;min-width:65px">R$/caixa:</span>' +
+            '<div class="pi" style="flex:1;margin:0"><span>R$</span>' +
+              '<input type="number" min="0" step="0.01" id="ppc' + i + '" placeholder="0,00" oninput="recalcCaixa(' + i + ')">' +
+            '</div>' +
+          '</div>' +
+          '<div id="calcUni' + i + '" style="font-size:.68rem;color:#a07cf6;font-weight:600;margin-top:3px"></div>' +
+        '</div>' +
+        '<div style="font-size:.67rem;color:#8fa0c0;margin-top:2px" id="sub' + i + '"></div>' +
+      '</td>' +
       '<td><select id="un' + i + '" onchange="calc()">' + uOpts + '</select></td>' +
       '<td><select id="v' + i + '" onchange="chkv(' + i + ')">' + mOpts + '</select>' +
         '<div class="vs" id="vs' + i + '"></div>' +
@@ -512,6 +541,49 @@ function chkv(i) {
     el.textContent = detalhe;
   }
   el.style.display = 'block'; calc();
+}
+
+// 🆕 Item 6: Toggle entre cotação por unidade ou por caixa/pacote
+function modoPrecoChange(i){
+  var modoEl = document.querySelector('input[name="mp' + i + '"]:checked');
+  var modo = modoEl ? modoEl.value : 'unidade';
+  var boxUni = document.getElementById('boxUni' + i);
+  var boxCx  = document.getElementById('boxCx' + i);
+  if(modo === 'caixa'){
+    if(boxUni) boxUni.style.display = 'none';
+    if(boxCx)  boxCx.style.display = '';
+    // Limpa o campo unitário (será preenchido pelo cálculo)
+    var pu = document.getElementById('p' + i);
+    if(pu) pu.value = '';
+    recalcCaixa(i);
+  } else {
+    if(boxUni) boxUni.style.display = '';
+    if(boxCx)  boxCx.style.display = 'none';
+    // Limpa campos do modo caixa
+    var qpc = document.getElementById('qpc' + i); if(qpc) qpc.value = '';
+    var ppc = document.getElementById('ppc' + i); if(ppc) ppc.value = '';
+    var cu  = document.getElementById('calcUni' + i); if(cu) cu.innerHTML = '';
+    calc();
+  }
+}
+
+// 🆕 Item 6: Quando fornecedor digita "itens por caixa" + "preço por caixa",
+// calcula o preço unitário automaticamente e guarda no input #p{i} (usado pelo backend)
+function recalcCaixa(i){
+  var qPorCaixa = parseFloat(document.getElementById('qpc' + i).value) || 0;
+  var precoCx   = parseFloat(document.getElementById('ppc' + i).value) || 0;
+  var pInput    = document.getElementById('p' + i);
+  var calcDiv   = document.getElementById('calcUni' + i);
+
+  if(qPorCaixa > 0 && precoCx > 0){
+    var precoUni = precoCx / qPorCaixa;
+    if(pInput) pInput.value = precoUni.toFixed(4); // 4 casas pra precisão; backend trata
+    if(calcDiv) calcDiv.innerHTML = '→ R$ ' + precoUni.toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:4}) + ' por unidade';
+  } else {
+    if(pInput) pInput.value = '';
+    if(calcDiv) calcDiv.innerHTML = '';
+  }
+  calc();
 }
 
 function calc() {
@@ -1175,6 +1247,11 @@ function enviar() {
     var unid = document.getElementById('un' + i).value;
     var val = parseInt(document.getElementById('v' + i).value) || 0;
     var calcMin = it.valQtd ? calcValMinima(it) : null;
+    // 🆕 Item 6: captura modo de cotação (unitário ou caixa)
+    var modoEl = document.querySelector('input[name="mp' + i + '"]:checked');
+    var modo   = modoEl ? modoEl.value : 'unidade';
+    var qPorCx = (modo === 'caixa') ? (parseFloat(document.getElementById('qpc' + i).value) || 0) : 0;
+    var pCx    = (modo === 'caixa') ? (parseFloat(document.getElementById('ppc' + i).value) || 0) : 0;
     return {
       codigo: it.cod,
       descricao: it.desc,
@@ -1188,7 +1265,11 @@ function enviar() {
       validade_total_unidade: it.valUnidade || 'meses',
       validade_min_exigida_dias: calcMin ? calcMin.minDias : 0,
       total: preco * qtdEdit,
-      classe: it.classe
+      classe: it.classe,
+      // 🆕 Item 6: auditoria do modo de cotação
+      cotado_por: modo,
+      qtd_por_caixa: qPorCx,
+      preco_caixa: pCx
     };
   });
 
