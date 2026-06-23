@@ -385,8 +385,9 @@ function renderMagic(){
   const comp=c.itensComprados||[];
   if(comp.length){
     const linhas=comp.map(i=>{const inc=!!carrinho[i.cod];
-      return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.qtde?`<small>qtde acum.: ${i.qtde}</small>`:""}</span><button class="mini ${inc?'in':''}" onclick="toggleCod('${i.cod}')">${inc?'✓ incluído':'+ repor'}</button></div>`;}).join("");
-    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico" style="background:var(--grafite)">🛒</span>Já compra (6 meses)</h3><span class="resumo">${comp.length} itens</span></div><div class="painel-body">${linhas}</div></div>`;
+      return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.qtde?`<small>qtde acum.: ${i.qtde}</small>`:""}</span><button class="mini ${inc?'in':''}" onclick="toggleCod('${i.cod}',event)">${inc?'✓ incluído':'+ repor'}</button></div>`;}).join("");
+    const sel=comp.filter(i=>carrinho[i.cod]).length;
+    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico" style="background:var(--grafite)">🛒</span><span>Já compra <small style="font-weight:600;color:var(--cinza-claro)">· 6 meses</small></span></h3><span class="resumo">${sel>0?`<b style="color:var(--verde)">${sel}</b> de ${comp.length}`:`${comp.length} itens`}</span></div><div class="painel-body">${linhas}</div></div>`;
   }
 
   // DIREITA — cesta oriental: só o que FALTA (a oportunidade), top 30 por relevância
@@ -397,19 +398,25 @@ function renderMagic(){
     const vis=gaps.slice(0,30);
     const linhas = vis.length
       ? vis.map(i=>{const inc=!!carrinho[i.cod];
-          return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.score!=null?`<small>relevância ${i.score}</small>`:""}</span><button class="mini ${inc?'in':'falta'}" onclick="toggleCod('${i.cod}')">${inc?'✓ incluído':'+ oferecer'}</button></div>`;}).join("")
+          return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.score!=null?`<small>relevância ${i.score}</small>`:""}</span><button class="mini ${inc?'in':'falta'}" onclick="toggleCod('${i.cod}',event)">${inc?'✓ incluído':'+ oferecer'}</button></div>`;}).join("")
       : `<div style="padding:26px 18px;text-align:center;color:var(--verde);font-weight:600">✓ Já compra a cesta oriental completa!</div>`;
-    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico">🍣</span>Cesta Oriental · oportunidades</h3><span class="resumo">tem ${tem} · faltam ${gaps.length}</span></div><div class="painel-body">${linhas}</div></div>`;
-  }
+const selG=gaps.filter(i=>carrinho[i.cod]).length;
+    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico">🍣</span><span>Cesta Oriental <small style="font-weight:600;color:var(--cinza-claro)">· oportunidades</small></span></h3><span class="resumo">${selG>0?`<b style="color:var(--verde)">${selG}</b> ofertados · `:""}faltam ${gaps.length}</span></div><div class="painel-body">${linhas}</div></div>`;  }
 
   mg.innerHTML=blocos; mg.style.display=blocos?"grid":"none";
 }
 
 // adiciona se ausente, remove se presente — pro vendedor ver o que já incluiu
-function toggleCod(cod){
+function toggleCod(cod, ev){
+  if(ev){ ev.preventDefault(); ev.stopPropagation(); }
+  const y = window.scrollY;
+  const sc = document.querySelector('.painel-body:hover');
+  const scTop = sc ? sc.scrollTop : null;
   if(carrinho[cod]){ delete carrinho[cod]; toast("Removido da seleção"); }
   else { carrinho[cod]={cod:cod,nome:nomeDe(cod),cat:catDe(cod),qt:1,preco:""}; toast("Incluído: "+nomeDe(cod)); }
   atualizarCart(); renderGrid(); renderMagic();
+  window.scrollTo(0, y);
+  if(scTop!=null){ const novo=document.querySelector('.painel-body'); }
 }
 
 
@@ -432,7 +439,7 @@ function renderGrid(){
   const list=filtrados(), vis=list.slice(0,limite), g=document.getElementById("gridProd");
   g.innerHTML = vis.length?vis.map(p=>{
     const inc=carrinho[p.cod];
-    return `<div class="prod-card" onclick="abrirProduto('${p.cod}')">${imgHtml(p)}<div class="body"><span class="fam">${p.cat||""}</span><span class="nome">${p.nome||""}</span><button class="add ${inc?'in':''}" onclick="event.stopPropagation();toggleCod('${p.cod}')">${inc?'✓ na seleção':'+ adicionar'}</button></div></div>`;
+    return `<div class="prod-card" onclick="abrirProduto('${p.cod}')">${imgHtml(p)}<div class="body"><span class="fam">${p.cat||""}</span><span class="nome">${p.nome||""}</span><button class="add ${inc?'in':''}" onclick="toggleCod('${p.cod}',event)">${inc?'✓ na seleção':'+ adicionar'}</button></div></div>`;
   }).join(""):`<div class="vazio">Nada encontrado${termo?` para "${termo}"`:""}.</div>`;
   document.getElementById("btnMais").style.display = list.length>limite?"block":"none";
 }
@@ -445,7 +452,7 @@ function abrirProduto(cod){
   document.getElementById("sheet").innerHTML=`
     <div class="sheet-head">${imgHtml(p)}
       <div style="flex:1"><div class="cod">cód. ${p.cod} · ${p.cat||""}${p.fam?" · "+p.fam:""}</div><h2>${p.nome||""}</h2>
-        <button class="add" style="max-width:240px;margin-top:12px;border:1.5px solid var(--vermelho);${inc?'background:var(--verde);border-color:var(--verde);color:#fff':'color:var(--vermelho);background:#fff'};border-radius:9px;padding:9px;font-weight:700" onclick="toggleCod('${p.cod}');abrirProduto('${p.cod}')">${inc?'✓ na seleção':'+ adicionar à seleção'}</button>
+        <button class="add" style="max-width:240px;margin-top:12px;border:1.5px solid var(--vermelho);${inc?'background:var(--verde);border-color:var(--verde);color:#fff':'color:var(--vermelho);background:#fff'};border-radius:9px;padding:9px;font-weight:700" onclick="toggleCod('${p.cod}',event);abrirProduto('${p.cod}')">${inc?'✓ na seleção':'+ adicionar à seleção'}</button>
       </div>
       <button class="x" onclick="fecharSheet()">×</button>
     </div>
