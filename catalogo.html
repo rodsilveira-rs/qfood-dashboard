@@ -69,10 +69,14 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .magic-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:26px}
 @media(max-width:860px){.magic-grid{grid-template-columns:1fr}}
 .painel{background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);overflow:hidden}
-.painel-head{padding:14px 16px;border-bottom:1px solid var(--linha);display:flex;flex-direction:column;gap:3px}
+.painel-head{padding:12px 16px;border-bottom:1px solid var(--linha);display:flex;align-items:center;gap:14px}
+.painel-head .ph-left{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
 .painel-head h3{font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:9px;line-height:1.2;white-space:nowrap}
 .painel-head h3 small{font-weight:600;color:var(--cinza-claro)}
-.painel-head .resumo{font-size:12.5px;color:var(--cinza);font-weight:700;padding-left:35px}
+.painel-head .resumo{font-size:12px;color:var(--cinza);font-weight:700;padding-left:35px}
+.painel-head .ph-search{flex:1;min-width:0;margin-left:auto}
+.painel-head .ph-search input{width:100%;border:1px solid var(--linha);border-radius:9px;padding:9px 12px;font-size:13px;outline:none;background:#fafafa}
+.painel-head .ph-search input:focus{border-color:var(--vermelho);background:#fff}
 .painel-head .ico{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;background:var(--vermelho);color:#fff;font-size:14px;flex-shrink:0}
 .painel-body{padding:8px 0;max-height:360px;overflow-y:auto}
 .linha-item .mini{border-radius:7px;padding:6px 11px;font-size:12px;font-weight:700;flex-shrink:0;transition:.15s;border:none;color:#fff;background:var(--grafite)}
@@ -90,7 +94,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:lowercase}
 .secao-titulo h2 .ac{color:var(--vermelho)}
-.secao-titulo .rule{flex:1;height:3px;background:var(--preto);border-radius:2px;align-self:center}
+.secao-titulo .rule{flex:1;height:3px;background:linear-gradient(90deg,var(--linha),var(--cinza-claro) 45%,var(--vermelho));border-radius:2px;align-self:center}
 .secao-titulo .rule.red{background:var(--vermelho)}
 
 .promo-rail{display:flex;gap:16px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x mandatory}
@@ -111,10 +115,15 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .cat-busca .find{flex:1;min-width:200px;display:flex;align-items:center;background:#fff;border:1px solid var(--linha);border-radius:10px;overflow:hidden}
 .cat-busca .find input{flex:1;border:none;outline:none;padding:11px 14px;font-size:14px}
 .cat-busca .find span{padding:0 12px;color:var(--cinza-claro)}
-.cats{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 14px}
-.cats::-webkit-scrollbar{height:6px}
+.cats-nav{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.cats-arrow{flex-shrink:0;width:36px;height:36px;border-radius:50%;border:1px solid var(--linha);background:#fff;font-size:20px;line-height:1;color:var(--grafite);cursor:pointer;display:grid;place-items:center;box-shadow:var(--sombra);transition:.15s}
+.cats-arrow:hover{border-color:var(--vermelho);color:var(--vermelho)}
+.cats{display:flex;gap:9px;overflow-x:auto;scroll-behavior:smooth;padding:4px 2px 10px;flex:1;min-width:0}
+.cats::-webkit-scrollbar{height:9px}
+.cats::-webkit-scrollbar-track{background:#EFEFEF;border-radius:99px}
+.cats::-webkit-scrollbar-thumb{background:linear-gradient(90deg,#fff,var(--cinza-claro),var(--vermelho));border-radius:99px}
 .cat-chip{flex-shrink:0;background:#fff;border:1px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--grafite);transition:.15s;white-space:nowrap}
-.cat-chip:hover{border-color:var(--cinza)}.cat-chip.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+.cat-chip:hover{border-color:var(--cinza)}.cat-chip.on{background:linear-gradient(135deg,var(--cinza-claro),var(--grafite) 40%,var(--vermelho));color:#fff;border-color:transparent}
 .cat-chip b{opacity:.5;font-weight:600;margin-left:4px}
 
 .grid-prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:15px}
@@ -224,7 +233,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
     <div class="cat-busca">
       <div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div>
     </div>
-    <div class="cats" id="cats"></div>
+    <div class="cats-nav"><button class="cats-arrow" onclick="scrollCats(-1)">‹</button><div class="cats" id="cats"></div><button class="cats-arrow" onclick="scrollCats(1)">›</button></div>
     <div class="grid-prod" id="gridProd"></div>
     <button class="mais" id="btnMais" style="display:none" onclick="verMais()">Ver mais produtos</button>
   </section>
@@ -385,26 +394,27 @@ function renderMagic(){
   // ESQUERDA — já compra (6 meses)
   const comp=c.itensComprados||[];
   if(comp.length){
-    const linhas=comp.map(i=>{const inc=!!carrinho[i.cod];
-      return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.qtde?`<small>qtde acum.: ${i.qtde}</small>`:""}</span><button class="mini ${inc?'in':''}" onclick="toggleCod('${i.cod}',event)">${inc?'✓ incluído':'+ repor'}</button></div>`;}).join("");
     const sel=comp.filter(i=>carrinho[i.cod]).length;
-    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico" style="background:var(--grafite)">🛒</span><span>Já compra <small style="font-weight:600;color:var(--cinza-claro)">· 6 meses</small></span></h3><span class="resumo">${sel>0?`<b style="color:var(--verde)">${sel}</b> de ${comp.length}`:`${comp.length} itens`}</span></div><div class="painel-body">${linhas}</div></div>`;
+    const linhas=comp.map(i=>{const inc=!!carrinho[i.cod];
+      return `<div class="linha-item" data-srch="${((i.nome||'')+' '+(i.cod||'')).toLowerCase()}"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.qtde?`<small>qtde acum.: ${i.qtde}</small>`:""}</span><button class="mini ${inc?'in':''}" onclick="toggleCod('${i.cod}',event)">${inc?'✓ incluído':'+ repor'}</button></div>`;}).join("");
+    blocos+=`<div class="painel"><div class="painel-head"><div class="ph-left"><h3><span class="ico" style="background:var(--grafite)">🛒</span><span>Já compra <small>· 6 meses</small></span></h3><span class="resumo">${sel>0?`<b style="color:var(--verde)">${sel}</b> de ${comp.length}`:`${comp.length} itens`}</span></div><div class="ph-search"><input placeholder="🔍 filtrar já compra…" oninput="filtrarPainel(this)"></div></div><div class="painel-body">${linhas}</div></div>`;
   }
 
-  // DIREITA — cesta oriental: só o que FALTA (a oportunidade), top 30 por relevância
+  // DIREITA — cesta oriental: tudo o que FALTA (a oportunidade)
   const cesta=c.cestaOriental||[];
   if(cesta.length){
     const gaps=cesta.filter(i=>!i.compra);
     const tem=cesta.length-gaps.length;
-    const vis=gaps.slice(0,30);
-    const linhas = vis.length
-      ? vis.map(i=>{const inc=!!carrinho[i.cod];
-          return `<div class="linha-item"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.score!=null?`<small>relevância ${i.score}</small>`:""}</span><button class="mini ${inc?'in':'falta'}" onclick="toggleCod('${i.cod}',event)">${inc?'✓ incluído':'+ oferecer'}</button></div>`;}).join("")
+    const selG=gaps.filter(i=>carrinho[i.cod]).length;
+    const linhas = gaps.length
+      ? gaps.map(i=>{const inc=!!carrinho[i.cod];
+          return `<div class="linha-item" data-srch="${((i.nome||'')+' '+(i.cod||'')).toLowerCase()}"><span class="cod">${i.cod}</span><span class="desc">${i.nome}${i.score!=null?`<small>relevância ${i.score}</small>`:""}</span><button class="mini ${inc?'in':'falta'}" onclick="toggleCod('${i.cod}',event)">${inc?'✓ incluído':'+ oferecer'}</button></div>`;}).join("")
       : `<div style="padding:26px 18px;text-align:center;color:var(--verde);font-weight:600">✓ Já compra a cesta oriental completa!</div>`;
-const selG=gaps.filter(i=>carrinho[i.cod]).length;
-    blocos+=`<div class="painel"><div class="painel-head"><h3><span class="ico">🍣</span><span>Cesta Oriental <small style="font-weight:600;color:var(--cinza-claro)">· oportunidades</small></span></h3><span class="resumo">${selG>0?`<b style="color:var(--verde)">${selG}</b> ofertados · `:""}faltam ${gaps.length}</span></div><div class="painel-body">${linhas}</div></div>`;  }
+    blocos+=`<div class="painel"><div class="painel-head"><div class="ph-left"><h3><span class="ico">🍣</span><span>Cesta Oriental <small>· oportunidades</small></span></h3><span class="resumo">${selG>0?`<b style="color:var(--verde)">${selG}</b> ofertados · `:""}faltam ${gaps.length}</span></div><div class="ph-search"><input placeholder="🔍 filtrar cesta…" oninput="filtrarPainel(this)"></div></div><div class="painel-body">${linhas}</div></div>`;
+  }
 
   mg.innerHTML=blocos; mg.style.display=blocos?"grid":"none";
+  _reaplicarFiltros();
 }
 
 // adiciona se ausente, remove se presente — pro vendedor ver o que já incluiu
@@ -419,6 +429,24 @@ function toggleCod(cod, ev){
   window.scrollTo(0, y);
   if(scTop!=null){ const novo=document.querySelector('.painel-body'); }
 }
+
+let _filtros={};
+function filtrarPainel(inp){
+  const q=(inp.value||"").toLowerCase().trim();
+  _filtros[inp.placeholder]=inp.value;
+  const painel=inp.closest('.painel');
+  if(!painel)return;
+  painel.querySelectorAll('.linha-item').forEach(li=>{
+    const t=li.getAttribute('data-srch')||'';
+    li.style.display=(!q||t.includes(q))?'':'none';
+  });
+}
+function _reaplicarFiltros(){
+  document.querySelectorAll('.ph-search input').forEach(inp=>{
+    const v=_filtros[inp.placeholder]; if(v){ inp.value=v; filtrarPainel(inp); }
+  });
+}
+function scrollCats(dir){ const el=document.getElementById('cats'); if(el) el.scrollBy({left:dir*320,behavior:'smooth'}); }
 
 
 function renderPromos(){
