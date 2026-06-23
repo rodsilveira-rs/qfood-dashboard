@@ -8,7 +8,7 @@
 :root{
   --vermelho:#E2122C;--vermelho-escuro:#B00C20;--preto:#111114;--grafite:#2A2A30;
   --cinza:#6B6B74;--cinza-claro:#9A9AA3;--linha:#E7E7EA;--fundo:#F5F5F4;--branco:#fff;
-  --verde:#1E9E5A;--verde-fundo:#E8F6EE;--amarelo:#E0A92B;--azul:#2F6FE0;--azul-fundo:#E9F0FC;
+  --verde:#1E9E5A;--verde-fundo:#E8F6EE;--amarelo:#E0A92B;--amarelo-fundo:#FCF3D9;--azul:#2F6FE0;--azul-fundo:#E9F0FC;
   --sombra:0 1px 2px rgba(17,17,20,.06),0 6px 20px rgba(17,17,20,.06);
   --sombra-forte:0 10px 40px rgba(17,17,20,.18);--radius:14px;--radius-sm:10px;
 }
@@ -251,6 +251,22 @@ let PROMOS=[
 ];
 const ORDEM_CAT=["Algas","Arroz","Arrozes","Shoyu","Saquês","Molhos","Molhos e Temperos","Maionese e Furikake","Farinhas","Grãos","Massas","Conservas","Resfriados e Congelados","Congelados","Sorvetes","Peixaria","Queijos","Plant-Based","Azeites e Óleos","Sobremesas","Sucos","Sucos e Chás","Utensílios","Embalagens","Higiene e Limpeza"];
 let byCod={}; function indexar(){byCod={};CATALOGO.forEach(p=>byCod[p.cod]=p);}
+const VALOR = {
+  "Sobremesas":["Já vem pronta: zero desperdício, zero mão de obra extra.","Padronização total — toda sobremesa sai igual, do jeito que o cliente ama.","Sobremesa na mesa = ticket médio mais alto, direto no seu caixa.","Controle de estoque fácil e zero risco de contaminação.","Mr. Bey tem ISO 9000 e selo de exportação (EUA e Europa)."],
+  "Queijos":["Queijo certo eleva o prato e justifica um preço melhor.","Rendimento e padrão de sabor a cada uso.","Linha profissional: consistência que o food service exige."],
+  "Plant-Based":["O público vegano cresce — e ele paga mais por opção de qualidade.","Abre um novo cardápio sem complicar sua operação.","Diferencial no delivery: aparece nos filtros de busca."],
+  "Molhos e Temperos":["O molho certo é o que faz o cliente voltar.","Padroniza o sabor e reduz erro na cozinha.","Pouco custo no prato, grande impacto na percepção."],
+  "Shoyu":["Base de tudo no oriental — qualidade aqui aparece no prato inteiro.","Rende mais e mantém o sabor padronizado."],
+  "Algas":["Nori de qualidade = sushi bonito, que vende pela foto.","Menos quebra na montagem, mais aproveitamento."],
+  "default":["Produto que agrega valor ao seu cardápio e ao seu caixa.","Qualidade profissional: padroniza e facilita sua operação.","Mais valor percebido pelo cliente, mais margem pra você.","Menos desperdício, mais controle de estoque."]
+};
+let _valIdx={};
+function fraseValor(cat){
+  const lista = VALOR[cat] || VALOR["default"];
+  const i = (_valIdx[cat]||0) % lista.length;
+  _valIdx[cat]=i+1;
+  return lista[i];
+}
 indexar();
 let TOKEN="", catAtiva="Todos", carrinho={}, limite=24, termo="", cesta=[];
 
@@ -332,7 +348,7 @@ function renderGrid(){const list=filtrados(),vis=list.slice(0,limite),g=document
 function verMais(){limite+=24;renderGrid()}
 
 function abrirProduto(cod){const p=byCod[cod]||{cod,nome:nomeDe(cod),cat:"—"};const rel=CATALOGO.filter(x=>x.cat===p.cat&&x.cod!==cod).sort(()=>Math.random()-.5).slice(0,8);const inc=carrinho[cod];
- document.getElementById("sheet").innerHTML=`<div class="sheet-head">${imgHtml(p)}<div style="flex:1"><div class="cod">cód. ${p.cod}${p.cat&&p.cat!=="—"?" · "+p.cat:""}</div><h2>${p.nome||""}</h2><button class="add" style="max-width:240px;margin-top:12px;border:1.5px solid var(--vermelho);${inc?'background:var(--verde);border-color:var(--verde);color:#fff':'color:var(--vermelho);background:#fff'};border-radius:9px;padding:9px;font-weight:700" onclick="toggleCod('${p.cod}');abrirProduto('${p.cod}')">${inc?'✓ adicionado':'+ adicionar ao pedido'}</button></div><button class="x" onclick="fecharSheet()">×</button></div>${rel.length?`<div class="sheet-sec"><h4>Quem leva este, também leva</h4><div class="rel-rail">${rel.map(r=>`<div class="rel-card" onclick="abrirProduto('${r.cod}')">${imgHtml(r)}<div class="c">${r.cod}</div><div class="n">${r.nome||""}</div></div>`).join("")}</div></div>`:""}`;
+ document.getElementById("sheet").innerHTML=`<div class="sheet-head">${imgHtml(p)}<div style="flex:1"><div class="cod">cód. ${p.cod}${p.cat&&p.cat!=="—"?" · "+p.cat:""}</div><h2>${p.nome||""}</h2><div style="margin-top:7px;background:var(--amarelo-fundo);border-radius:8px;padding:8px 11px;font-size:12.5px;color:#7a5e12;font-weight:600">💡 ${fraseValor(p.cat)}</div><button class="add" style="max-width:240px;margin-top:12px;border:1.5px solid var(--vermelho);${inc?'background:var(--verde);border-color:var(--verde);color:#fff':'color:var(--vermelho);background:#fff'};border-radius:9px;padding:9px;font-weight:700" onclick="toggleCod('${p.cod}');abrirProduto('${p.cod}')">${inc?'✓ adicionado':'+ adicionar ao pedido'}</button></div><button class="x" onclick="fecharSheet()">×</button></div>${rel.length?`<div class="sheet-sec"><h4>Quem leva este, também leva</h4><div class="rel-rail">${rel.map(r=>`<div class="rel-card" onclick="abrirProduto('${r.cod}')">${imgHtml(r)}<div class="c">${r.cod}</div><div class="n">${r.nome||""}</div></div>`).join("")}</div></div>`:""}`;
  document.getElementById("overlay").classList.add("show");}
 function fecharSheet(){document.getElementById("overlay").classList.remove("show")}
 
