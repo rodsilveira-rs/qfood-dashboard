@@ -209,6 +209,8 @@ body.org-dragging{ user-select:none }
 .org-grupo .orgtree > ul{ padding-top:0 }
 .org-grupo .orgtree > ul > li{ padding-top:0 }
 .org-grupo .orgtree > ul > li::before, .org-grupo .orgtree > ul > li::after{ display:none }
+.org-grupo .orgtree > ul > li{ position:relative; vertical-align:top }
+.org-grupo .orgtree > ul > li > ul{ position:absolute; left:50%; top:calc(100% + 8px); transform:translateX(-50%); margin:0; padding:0 }
 </style>
 </head>
 <body>
@@ -1359,16 +1361,20 @@ function aplicarOrgZoom(){
   var stage=document.querySelector('.org-stage'); var box=document.getElementById('orgChart');
   if(!stage||!box) return;
   box.style.overflow='visible'; box.style.width=''; box.style.height='';
+  stage.style.marginLeft='0';
   stage.style.transformOrigin='top left';
   stage.style.transform='scale('+ORG_ZOOM+')';
   var sr=stage.getBoundingClientRect();
-  var maxR=sr.width, maxB=sr.height, nodes=stage.querySelectorAll('.org-node'), i, r, rr, bb;
+  var minL=Infinity, maxR=0, maxB=sr.height, nodes=stage.querySelectorAll('.org-node'), i, r, ll, rr, bb;
   for(i=0;i<nodes.length;i++){
     r=nodes[i].getBoundingClientRect(); if(!r.width&&!r.height) continue;
-    rr=r.right-sr.left; bb=r.bottom-sr.top;
-    if(rr>maxR) maxR=rr; if(bb>maxB) maxB=bb;
+    ll=r.left-sr.left; rr=r.right-sr.left; bb=r.bottom-sr.top;
+    if(ll<minL) minL=ll; if(rr>maxR) maxR=rr; if(bb>maxB) maxB=bb;
   }
-  box.style.width=Math.ceil(maxR)+'px';
+  if(minL===Infinity){ minL=0; maxR=sr.width; }
+  if(minL<0) minL=0;
+  stage.style.marginLeft=(-Math.floor(minL))+'px';
+  box.style.width=Math.ceil(maxR-minL)+'px';
   box.style.height=Math.ceil(maxB)+'px';
   box.style.margin='0 auto';
   var lbl=document.getElementById('orgZoomLbl'); if(lbl) lbl.textContent=Math.round(ORG_ZOOM*100)+'%';
