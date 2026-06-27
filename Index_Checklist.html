@@ -333,7 +333,7 @@ body.org-dragging{ user-select:none }
       <button type="button" title="Resetar posições das caixas" onclick="orgResetPos()" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">↺</button>
       <button type="button" title="Modo TV (tela cheia)" onclick="orgTV(true)" style="height:38px;padding:0 16px;border:0;background:var(--ink);color:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:.92rem;display:inline-flex;align-items:center;gap:6px">📺 Modo TV</button>
     </div>
-    <div class="card pad" id="orgCard" style="overflow:auto;max-height:72vh"><div id="orgChart"></div></div>
+    <div class="card pad" id="orgCard" style="overflow:auto;max-height:86vh"></div><div id="orgChart"></div></div>
   </div>
 
 </div>
@@ -1206,7 +1206,7 @@ function ancOff(id){ var dx=0,dy=0,g=0,cur=id;
 }
 function offsetAcum(id){ var a=ancOff(id), o=ownOff(id); return {dx:a.dx+o.dx, dy:a.dy+o.dy}; }
 function nodeStyle(base,id){
-  var o=ORG_FILTRO?{dx:0,dy:0}:offsetAcum(id); var tr=(o.dx||o.dy)?'transform:translate('+o.dx+'px,'+o.dy+'px)':'';
+  var o=offsetAcum(id); var tr=(o.dx||o.dy)?'transform:translate('+o.dx+'px,'+o.dy+'px)':'';
   var s=[base,tr].filter(Boolean).join(';');
   return s?(' style="'+s+'"'):'';
 }
@@ -1227,7 +1227,6 @@ function initOrgDrag(){
   });
   box.addEventListener('mousedown', function(e){
     if(e.button!==0) return;
-    if(ORG_FILTRO) return;
     var node=e.target.closest('.org-node'); if(!node) return;
     if(e.target.closest('button,a,.on-acts')) return;
     var id=node.getAttribute('data-id'); if(!id) return;
@@ -1372,8 +1371,7 @@ function aplicarOrgZoom(){
     if(ll<minL) minL=ll; if(rr>maxR) maxR=rr; if(bb>maxB) maxB=bb;
   }
   if(minL===Infinity){ minL=0; maxR=sr.width; }
-  if(minL<0) minL=0;
-  stage.style.marginLeft=(-Math.floor(minL))+'px';
+  stage.style.marginLeft=(-Math.round(minL))+'px';
   box.style.width=Math.ceil(maxR-minL)+'px';
   box.style.height=Math.ceil(maxB)+'px';
   box.style.margin='0 auto';
@@ -1388,7 +1386,7 @@ function orgFit(){
   var availW=Math.max(120, card.clientWidth-40), availH=Math.max(120, card.clientHeight-40);
   var z=Math.min(availW/cw, availH/ch);
   if(!isFinite(z)||z<=0) z=pz;
-  z=Math.min(2.2, Math.max(0.3, Math.floor(z*20)/20));
+  z=Math.min(2.2, Math.max(0.15,, Math.floor(z*20)/20));
   ORG_ZOOM=z; aplicarOrgZoom(); orgCenter();
 }
 function orgCenter(){
@@ -1399,7 +1397,7 @@ function orgCenter(){
 }
 function orgZoom(dir){
   if(dir===0) ORG_ZOOM=1;
-  else ORG_ZOOM=Math.min(2.2, Math.max(0.3, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
+  else ORG_ZOOM=Math.min(2.2, Math.max(0.15,, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
   aplicarOrgZoom();
 }
 /* ===== Modo TV ===== */
