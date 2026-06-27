@@ -835,7 +835,8 @@ tbody tr:hover td{background:var(--s2);}
   <div class="chk-toolbar">
     <button class="chk-btn chk-btn-rl" onclick="chkRebuild()">🔄 Atualizar</button>
     <button class="chk-btn chk-btn-img" onclick="chkExportImage()">📸 Salvar como Imagem</button>
-    <button class="chk-btn chk-btn-wa" onclick="chkExportWhatsApp()">📋 Gerar Resumo WhatsApp</button>
+    <button class="chk-btn chk-btn-wa" onclick="chkExportWhatsApp()">👤 Resumos Individuais (WhatsApp)</button>
+    <button class="chk-btn chk-btn-wa" onclick="chkExportWhatsAppGrupo()" style="background:#1e3a8a">📢 Resumo Grupo (Compliance)</button>
   </div>
 
   <!-- BLOCO 1 — Visão Geral do Mês -->
@@ -3324,6 +3325,144 @@ function chkExportWhatsApp(){
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(txt).then(function(){
       chkShowToast("✅ Resumo copiado! Cole no WhatsApp.");
+    }).catch(function(){
+      chkFallbackCopy(txt);
+    });
+  } else {
+    chkFallbackCopy(txt);
+  }
+}
+
+// ============================================================
+// RESUMO PARA GRUPO COMERCIAL (modo compliance — sem ranking nominal)
+// Tom adaptativo baseado no estagio do mes:
+//   - INICIO (da <= 5):  foco em planejamento e abertura de carteira
+//   - MEIO  (6-15):      foco em consistencia, mix e positivacao
+//   - RETA FINAL (>=16): foco em conversao, recuperacao e fechamento
+// ============================================================
+function chkExportWhatsAppGrupo(){
+  if(!CHK_DATA){ alert("Aguarde os dados carregarem."); return; }
+  var d = CHK_DATA;
+
+  // Define o estagio do mes
+  var da = d.da || 0;
+  var du = d.du || 21;
+  var diasRest = d.diasRest || (du - da);
+  var estagio;
+  if(da <= 5)        estagio = "INICIO";
+  else if(da <= 15)  estagio = "MEIO";
+  else               estagio = "RETA_FINAL";
+
+  // Nome do mes a partir do mesLabel (ex: "JUN/2026")
+  var mesNome = (d.mesLabel||"").toUpperCase();
+
+  // Mensagem media diaria necessaria (so faz sentido se ainda ha dias)
+  var mediaNecessaria = diasRest>0 ? (d.faltam / diasRest) : 0;
+
+  // ===== CABECALHO ADAPTATIVO =====
+  var titulo, abertura;
+  if(estagio === "INICIO"){
+    titulo = "CHECKPOINT COMERCIAL — ABERTURA DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nIniciamos mais um ciclo comercial. Estamos no dia útil "+da+" de "+du+", com "+diasRest+" dias úteis pela frente. O momento é de planejamento, abertura de carteira e construção de pipeline.";
+  } else if(estagio === "MEIO"){
+    titulo = "CHECKPOINT COMERCIAL — MEIO DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nEstamos no dia útil "+da+" de "+du+", com "+diasRest+" dias úteis pela frente. É o momento de consolidar o ritmo, ampliar mix nos clientes positivados e garantir consistência no atendimento da carteira.";
+  } else {
+    titulo = "CHECKPOINT COMERCIAL — SPRINT FINAL DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nEstamos no dia útil "+da+" de "+du+" e entramos na reta final do mês. O cenário exige foco, velocidade e atuação estratégica.";
+  }
+
+  // ===== INDICADORES GERAIS (sem nomes, sem ranking) =====
+  var indicadores = "*Meta global:* "+chkFmtBR(d.totMeta)+"\n";
+  indicadores += "*Falta faturar:* "+chkFmtBR(d.faltam)+"\n";
+  if(diasRest > 0 && mediaNecessaria > 0){
+    indicadores += "*Média necessária nos próximos "+diasRest+" dias úteis:* "+chkFmtBR(mediaNecessaria)+" por dia.\n";
+  }
+
+  // ===== CONTEXTO DA CARTEIRA (agregado, sem nominar) =====
+  var contexto = "";
+  if(d.pulso && d.pulso.semAtender > 0){
+    contexto = "\nTemos uma oportunidade relevante na carteira, com PDVs ainda sem atendimento no mês. ";
+  }
+
+  // ===== MENSAGEM DE MOMENTO (varia conforme estagio) =====
+  var mensagemMomento;
+  if(estagio === "INICIO"){
+    mensagemMomento = "O momento é de planejar a agenda da semana, priorizar clientes estratégicos e iniciar a abertura de carteira com qualidade.";
+  } else if(estagio === "MEIO"){
+    mensagemMomento = "O momento é de manter o ritmo, ampliar o mix nos clientes já positivados e proteger margem em cada negociação.";
+  } else {
+    mensagemMomento = "O momento é de priorizar conversão, recuperação de contas, aumento de tíquete médio e proteção de margem.";
+  }
+
+  // ===== DIRECIONAMENTO COMERCIAL (varia conforme estagio) =====
+  var direcionamento;
+  if(estagio === "INICIO"){
+    direcionamento = "*Direcionamento comercial para o início do mês:*\n"+
+      "1. Mapear clientes estratégicos e definir agenda de visitas/contatos da semana;\n"+
+      "2. Reabrir contas que ficaram sem pedido no fechamento anterior;\n"+
+      "3. Apresentar lançamentos e linhas prioritárias logo nas primeiras visitas;\n"+
+      "4. Atualizar previsões de pedido no CRM;\n"+
+      "5. Garantir cobertura de carteira ainda na primeira semana;\n"+
+      "6. Trabalhar mix amplo desde o início, evitando dependência de poucos itens.";
+  } else if(estagio === "MEIO"){
+    direcionamento = "*Direcionamento comercial para o meio do mês:*\n"+
+      "1. Revisar carteira e identificar clientes ainda sem pedido;\n"+
+      "2. Ampliar o mix nos clientes já positivados;\n"+
+      "3. Trabalhar produtos de maior valor agregado e melhor margem;\n"+
+      "4. Acompanhar previsões no CRM e ajustar a estratégia da semana;\n"+
+      "5. Reativar clientes com histórico de compra e queda recente;\n"+
+      "6. Equilibrar volume e margem em cada negociação.";
+  } else {
+    direcionamento = "*Direcionamento comercial para a reta final:*\n"+
+      "1. Priorizar clientes ainda sem pedido no mês;\n"+
+      "2. Reativar clientes com histórico de compra e baixo volume recente;\n"+
+      "3. Trabalhar aumento de mix nos clientes já positivados;\n"+
+      "4. Focar produtos de maior valor agregado e melhor margem;\n"+
+      "5. Antecipar pedidos de redes e clientes de maior volume, evitando concentração no último dia;\n"+
+      "6. Utilizar o CRM para identificar oportunidades de recompra e complementar pedidos já lançados.";
+  }
+
+  // ===== LINHAS PRIORITARIAS (institucional, sem dados nominais) =====
+  var linhas = "*Linhas prioritárias para abordagem:*\n"+
+    "• Produtos naturais;\n"+
+    "• Proteínas;\n"+
+    "• Hashis, algas e molhos;\n"+
+    "• Panko e shoyu;\n"+
+    "• Sobremesas prontas;\n"+
+    "• Geleias, saquês e utensílios;\n"+
+    "• Cream cheese;\n"+
+    "• Massas congeladas.";
+
+  // ===== ORIENTACAO FINAL (varia conforme estagio) =====
+  var orientacao, encerramento;
+  if(estagio === "INICIO"){
+    orientacao = "A orientação é que cada parceiro revise sua carteira, organize a agenda da semana e envie as previsões iniciais de pedido conforme sua estratégia comercial.";
+    encerramento = "Estamos abrindo o mês com toda a carteira pela frente. Vamos atuar com foco, planejamento e consistência para construir um resultado sólido.";
+  } else if(estagio === "MEIO"){
+    orientacao = "A orientação é que cada parceiro revise sua carteira, identifique clientes com potencial de fechamento na semana e envie as previsões de pedido conforme sua estratégia comercial.";
+    encerramento = "Estamos no meio do mês com espaço real para construir o resultado. Vamos atuar com foco, margem e consistência.";
+  } else {
+    orientacao = "A orientação é que cada parceiro revise sua carteira ainda hoje, identifique os clientes com maior potencial de fechamento e envie as previsões de pedido conforme sua estratégia comercial.";
+    encerramento = "Estamos na reta final e ainda há espaço real para buscar a meta. Vamos atuar com foco, margem e consistência para virar esse jogo até o fechamento do mês.";
+  }
+
+  // ===== MONTA O TEXTO FINAL =====
+  var txt = "*"+titulo+"*\n\n";
+  txt += abertura + "\n\n";
+  txt += indicadores;
+  txt += contexto;
+  if(contexto) txt += mensagemMomento + "\n\n";
+  else         txt += "\n" + mensagemMomento + "\n\n";
+  txt += direcionamento + "\n\n";
+  txt += linhas + "\n\n";
+  txt += orientacao + "\n\n";
+  txt += encerramento;
+
+  // copia
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      chkShowToast("✅ Resumo institucional copiado! Cole no grupo do WhatsApp.");
     }).catch(function(){
       chkFallbackCopy(txt);
     });
