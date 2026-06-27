@@ -154,6 +154,7 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .org-node{ cursor:grab; position:relative; z-index:2 }
 .org-emp{ cursor:pointer }
 .org-oculto{ visibility:hidden }
+.org-oculto-li{ display:none }
 .org-tvbar{ display:none; position:fixed; top:0; left:0; right:0; z-index:10000; gap:14px; align-items:center; padding:10px 16px; background:#15211f; color:#fff; box-shadow:0 6px 20px rgba(0,0,0,.4); flex-wrap:wrap }
 .org-tvbar .tvgrp{ display:inline-flex; gap:6px; align-items:center }
 .org-tvbar .tvlbl{ font-size:.76rem; opacity:.65; margin-right:2px }
@@ -1186,6 +1187,7 @@ function ehEmpresaId(id){ return ORG_FIXO.some(function(f){return f.tipo==='empr
 var ORG_CORES_EMP={ fix_mvix:'#e11d48', fix_qfood:'#f59e0b', fix_mvv:'#7c3aed', fix_sushi:'#0ea5e9', fix_prime:'#10b981' };
 function corEmp(id){ return ORG_CORES_EMP[id]||'#cfc8bd'; }
 function orgEmpresasNo(node){ var own=orgEmpresasDe(node).filter(ehEmpresaId); if(own.length) return own; var cur=node,g=0; while(g++<60){ var p=String(cur.parent_id||'').trim(); if(!p||ehEmpresaId(p)) break; cur=ST.org.filter(function(x){return String(x.id)===String(p);})[0]; if(!cur) break; var ce=orgEmpresasDe(cur).filter(ehEmpresaId); if(ce.length===1) return ce; if(ce.length>=2) return []; } return []; }
+function orgSubtemMembro(node, emp){ if(orgEmpresasNo(node).indexOf(emp)>=0) return true; var ks=orgFilhosTodos(node); for(var i=0;i<ks.length;i++){ if(orgSubtemMembro(ks[i],emp)) return true; } return false; }
 function empNomeFix(id){ var f=ORG_FIXO.filter(function(n){return n.id===id;})[0]; return f?(f.nome+(f.sub?(' '+f.sub):'')):id; }
 var ORG_FILTRO=null, ORG_DRAG_MOVED=false, ORG_LAST_DRAG=0;
 function orgVerTodos(){ ORG_FILTRO=null; renderOrg(); }
@@ -1202,7 +1204,7 @@ function ancOff(id){ var dx=0,dy=0,g=0,cur=id;
 }
 function offsetAcum(id){ var a=ancOff(id), o=ownOff(id); return {dx:a.dx+o.dx, dy:a.dy+o.dy}; }
 function nodeStyle(base,id){
-  var o=offsetAcum(id); var tr=(o.dx||o.dy)?'transform:translate('+o.dx+'px,'+o.dy+'px)':'';
+  var o=ORG_FILTRO?{dx:0,dy:0}:offsetAcum(id); var tr=(o.dx||o.dy)?'transform:translate('+o.dx+'px,'+o.dy+'px)':'';
   var s=[base,tr].filter(Boolean).join(';');
   return s?(' style="'+s+'"'):'';
 }
@@ -1353,13 +1355,18 @@ var ORG_ZOOM=1;
 function aplicarOrgZoom(){
   var stage=document.querySelector('.org-stage'); var box=document.getElementById('orgChart');
   if(!stage||!box) return;
-  stage.style.transform='none'; box.style.width=''; box.style.height='';
-  var w=stage.offsetWidth, h=stage.offsetHeight;
+  box.style.overflow='visible'; box.style.width=''; box.style.height='';
   stage.style.transformOrigin='top left';
   stage.style.transform='scale('+ORG_ZOOM+')';
-  box.style.overflow='hidden';
-  box.style.width=Math.ceil(w*ORG_ZOOM)+'px';
-  box.style.height=Math.ceil(h*ORG_ZOOM)+'px';
+  var sr=stage.getBoundingClientRect();
+  var maxR=sr.width, maxB=sr.height, nodes=stage.querySelectorAll('.org-node'), i, r, rr, bb;
+  for(i=0;i<nodes.length;i++){
+    r=nodes[i].getBoundingClientRect(); if(!r.width&&!r.height) continue;
+    rr=r.right-sr.left; bb=r.bottom-sr.top;
+    if(rr>maxR) maxR=rr; if(bb>maxB) maxB=bb;
+  }
+  box.style.width=Math.ceil(maxR)+'px';
+  box.style.height=Math.ceil(maxB)+'px';
   var lbl=document.getElementById('orgZoomLbl'); if(lbl) lbl.textContent=Math.round(ORG_ZOOM*100)+'%';
   var lbl2=document.getElementById('orgZoomLbl2'); if(lbl2) lbl2.textContent=Math.round(ORG_ZOOM*100)+'%';
 }
@@ -1474,7 +1481,8 @@ function renderOrgNode(n, visited){
   visited=visited||{};
   if(visited[n.id]) return '';
   var v2={}; for(var _k in visited) v2[_k]=1; v2[n.id]=1;
-  var h='<li>';
+  var _ocuLi=(ORG_FILTRO && !n.tipo && !orgSubtemMembro(n, ORG_FILTRO));
+  var h='<li'+(_ocuLi?' class="org-oculto-li"':'')+'>';
   if(n.tipo==='cultura'){
     h+='<div class="org-node org-fix org-cultura" data-id="'+n.id+'"'+nodeStyle('',n.id)+'>'+
        '<div class="on-nome">'+esc(n.nome)+'</div>'+
