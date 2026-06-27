@@ -3335,12 +3335,179 @@ function chkExportWhatsApp(){
 
 // ============================================================
 // RESUMO PARA GRUPO COMERCIAL (modo compliance — sem ranking nominal)
-// Tom adaptativo baseado no estagio do mes:
+// Tom adaptativo baseado no estagio do mes + visual padronizado:
 //   - INICIO (da <= 5):  foco em planejamento e abertura de carteira
 //   - MEIO  (6-15):      foco em consistencia, mix e positivacao
 //   - RETA FINAL (>=16): foco em conversao, recuperacao e fechamento
+//   - FECHADO (da >= du): mes encerrado, tom de balanco
 // ============================================================
 function chkExportWhatsAppGrupo(){
+  if(!CHK_DATA){ alert("Aguarde os dados carregarem."); return; }
+  var d = CHK_DATA;
+  var SEP = "━━━━━━━━━━━━━━━━━━";
+
+  // Define estagio do mes
+  var da = d.da || 0;
+  var du = d.du || 21;
+  var diasRest = d.diasRest || Math.max(du - da, 0);
+  var estagio;
+  if(da >= du)       estagio = "FECHADO";
+  else if(da <= 5)   estagio = "INICIO";
+  else if(da <= 15)  estagio = "MEIO";
+  else               estagio = "RETA_FINAL";
+
+  var mesNome = (d.mesLabel||"").toUpperCase();
+  var mediaNecessaria = diasRest>0 ? (d.faltam / diasRest) : 0;
+
+  // ===== TITULO E ABERTURA ADAPTATIVOS =====
+  var tituloCurto, abertura;
+  if(estagio === "INICIO"){
+    tituloCurto = "ABERTURA DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nIniciamos mais um ciclo comercial. Estamos no dia útil *"+da+" de "+du+"*, com *"+diasRest+" dias úteis* pela frente. O momento é de planejamento, abertura de carteira e construção de pipeline.";
+  } else if(estagio === "MEIO"){
+    tituloCurto = "MEIO DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nEstamos no dia útil *"+da+" de "+du+"*, com *"+diasRest+" dias úteis* pela frente. É o momento de consolidar o ritmo, ampliar mix nos clientes positivados e garantir consistência no atendimento da carteira.";
+  } else if(estagio === "RETA_FINAL"){
+    tituloCurto = "SPRINT FINAL DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nEstamos no dia útil *"+da+" de "+du+"* e entramos na reta final do mês. O cenário exige foco, velocidade e atuação estratégica.";
+  } else {
+    tituloCurto = "FECHAMENTO DE "+mesNome;
+    abertura = "Bom dia, parceiros!\n\nFechamos o ciclo comercial de "+mesNome+". É hora de avaliar o resultado e começar o próximo mês com aprendizado e energia renovada.";
+  }
+
+  // ===== CABECALHO =====
+  var txt = "🎯 *CHECKPOINT COMERCIAL — "+tituloCurto+"*\n";
+  txt += "📅 _"+d.hoje+" — "+mesNome+"_\n\n";
+
+  txt += abertura + "\n\n";
+
+  // ===== VISAO GERAL =====
+  txt += SEP+"\n";
+  txt += "📊 *VISÃO GERAL DO MÊS*\n";
+  txt += SEP+"\n\n";
+  txt += "💰 *Meta:* "+chkFmtBR(d.totMeta)+"\n";
+  txt += "✅ *Realizado:* "+chkFmtBR(d.totReal)+" _("+chkFmtPctInt(d.atingidoPct)+")_\n";
+  txt += "⏳ *Falta:* "+chkFmtBR(d.faltam)+"\n\n";
+
+  // ===== TENDENCIA / ANDAMENTO DO MES =====
+  txt += SEP+"\n";
+  txt += "📈 *TENDÊNCIA DO MÊS*\n";
+  txt += SEP+"\n\n";
+  txt += "📆 Dia útil *"+da+" de "+du+"* — restam *"+diasRest+" dias*\n";
+  txt += "🎯 Média/dia necessária: *"+chkFmtBR(d.totMeta/(du||1))+"*\n";
+  txt += "📉 Média/dia atual: *"+chkFmtBR(d.mediaAtualDia)+"*\n";
+  txt += "🔮 Projeção: *"+chkFmtBR(d.projecao)+"*\n";
+  if(d.gapProjetado < 0) txt += "       _("+chkFmtBR(d.gapProjetado)+" abaixo da meta)_\n";
+  else                   txt += "       _(+"+chkFmtBR(d.gapProjetado)+" acima da meta)_\n";
+  txt += "\n*RITMO: "+d.status+"*\n";
+  if(diasRest > 0 && mediaNecessaria > 0){
+    txt += "💡 _Para alcançar a meta, são necessários "+chkFmtBR(mediaNecessaria)+"/dia nos próximos "+diasRest+" dias úteis._\n";
+  }
+  txt += "\n";
+
+  // ===== CARTEIRA GERAL =====
+  if(d.pulso && d.pulso.carteiraTotal > 0){
+    txt += SEP+"\n";
+    txt += "📊 *CARTEIRA GERAL*\n";
+    txt += SEP+"\n\n";
+    txt += "👥 PDVs na carteira: *"+chkFmtInt(d.pulso.carteiraTotal)+"*\n";
+    txt += "✅ Atendidos: *"+chkFmtInt(d.pulso.atendidos)+"* _("+chkFmtPctInt(d.pulso.positivacaoPct)+")_\n";
+    txt += "⏳ Sem atender: *"+chkFmtInt(d.pulso.semAtender)+"*\n\n";
+    if(d.pulso.semAtender > 0 && estagio !== "FECHADO"){
+      txt += "_Há oportunidade relevante na carteira, com PDVs ainda sem atendimento no mês._\n\n";
+    }
+  }
+
+  // ===== DIRECIONAMENTO COMERCIAL =====
+  txt += SEP+"\n";
+  txt += "🎯 *DIRECIONAMENTO COMERCIAL*\n";
+  txt += SEP+"\n\n";
+
+  var mensagemMomento, direcionamento;
+  if(estagio === "INICIO"){
+    mensagemMomento = "O momento é de planejar a agenda da semana, priorizar clientes estratégicos e iniciar a abertura de carteira com qualidade.\n\n";
+    direcionamento =
+      "1. Mapear clientes estratégicos e definir agenda de visitas/contatos da semana;\n"+
+      "2. Reabrir contas que ficaram sem pedido no fechamento anterior;\n"+
+      "3. Apresentar lançamentos e linhas prioritárias logo nas primeiras visitas;\n"+
+      "4. Atualizar previsões de pedido no CRM;\n"+
+      "5. Garantir cobertura de carteira ainda na primeira semana;\n"+
+      "6. Trabalhar mix amplo desde o início, evitando dependência de poucos itens.";
+  } else if(estagio === "MEIO"){
+    mensagemMomento = "O momento é de manter o ritmo, ampliar o mix nos clientes já positivados e proteger margem em cada negociação.\n\n";
+    direcionamento =
+      "1. Revisar carteira e identificar clientes ainda sem pedido;\n"+
+      "2. Ampliar o mix nos clientes já positivados;\n"+
+      "3. Trabalhar produtos de maior valor agregado e melhor margem;\n"+
+      "4. Acompanhar previsões no CRM e ajustar a estratégia da semana;\n"+
+      "5. Reativar clientes com histórico de compra e queda recente;\n"+
+      "6. Equilibrar volume e margem em cada negociação.";
+  } else if(estagio === "RETA_FINAL"){
+    mensagemMomento = "O momento é de priorizar conversão, recuperação de contas, aumento de tíquete médio e proteção de margem.\n\n";
+    direcionamento =
+      "1. Priorizar clientes ainda sem pedido no mês;\n"+
+      "2. Reativar clientes com histórico de compra e baixo volume recente;\n"+
+      "3. Trabalhar aumento de mix nos clientes já positivados;\n"+
+      "4. Focar produtos de maior valor agregado e melhor margem;\n"+
+      "5. Antecipar pedidos de redes e clientes de maior volume, evitando concentração no último dia;\n"+
+      "6. Utilizar o CRM para identificar oportunidades de recompra e complementar pedidos já lançados.";
+  } else {
+    mensagemMomento = "O ciclo se encerrou. O momento agora é de avaliar resultados, reconhecer aprendizados e preparar a abertura do próximo mês.\n\n";
+    direcionamento =
+      "1. Revisar carteira e identificar contas que ficaram sem pedido;\n"+
+      "2. Mapear motivos de não-fechamento para retomada imediata;\n"+
+      "3. Organizar agenda da primeira semana do próximo mês;\n"+
+      "4. Atualizar previsões e oportunidades no CRM;\n"+
+      "5. Garantir que clientes recorrentes não fiquem descobertos no início do novo ciclo.";
+  }
+
+  txt += mensagemMomento;
+  txt += direcionamento + "\n\n";
+
+  // ===== LINHAS PRIORITARIAS =====
+  txt += SEP+"\n";
+  txt += "🍱 *LINHAS PRIORITÁRIAS PARA ABORDAGEM*\n";
+  txt += SEP+"\n\n";
+  txt += "• Produtos naturais\n"+
+         "• Proteínas\n"+
+         "• Hashis, algas e molhos\n"+
+         "• Panko e shoyu\n"+
+         "• Sobremesas prontas\n"+
+         "• Geleias, saquês e utensílios\n"+
+         "• Cream cheese\n"+
+         "• Massas congeladas\n\n";
+
+  // ===== ENCERRAMENTO =====
+  txt += SEP+"\n\n";
+  var orientacao, encerramento;
+  if(estagio === "INICIO"){
+    orientacao = "📋 A orientação é que cada parceiro revise sua carteira, organize a agenda da semana e envie as previsões iniciais de pedido conforme sua estratégia comercial.";
+    encerramento = "💪 *Estamos abrindo o mês com toda a carteira pela frente.*\n_Vamos atuar com foco, planejamento e consistência para construir um resultado sólido._";
+  } else if(estagio === "MEIO"){
+    orientacao = "📋 A orientação é que cada parceiro revise sua carteira, identifique clientes com potencial de fechamento na semana e envie as previsões de pedido conforme sua estratégia comercial.";
+    encerramento = "💪 *Estamos no meio do mês com espaço real para construir o resultado.*\n_Vamos atuar com foco, margem e consistência._";
+  } else if(estagio === "RETA_FINAL"){
+    orientacao = "📋 A orientação é que cada parceiro revise sua carteira ainda hoje, identifique os clientes com maior potencial de fechamento e envie as previsões de pedido conforme sua estratégia comercial.";
+    encerramento = "🚀 *Estamos na reta final e ainda há espaço real para buscar a meta.*\n_Vamos atuar com foco, margem e consistência para virar esse jogo até o fechamento do mês._";
+  } else {
+    orientacao = "📋 A orientação é que cada parceiro revise sua carteira, registre aprendizados do ciclo encerrado e prepare a agenda da primeira semana do próximo mês.";
+    encerramento = "🔄 *Ciclo encerrado.*\n_Hora de transformar aprendizado em ação e abrir o próximo mês com força total._";
+  }
+  txt += orientacao + "\n\n";
+  txt += encerramento + "\n\n";
+  txt += "🚀 _Q Food Company_";
+
+  // copia
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){
+      chkShowToast("✅ Resumo institucional copiado! Cole no grupo do WhatsApp.");
+    }).catch(function(){
+      chkFallbackCopy(txt);
+    });
+  } else {
+    chkFallbackCopy(txt);
+  }
+}
   if(!CHK_DATA){ alert("Aguarde os dados carregarem."); return; }
   var d = CHK_DATA;
 
@@ -3469,7 +3636,6 @@ function chkExportWhatsAppGrupo(){
   } else {
     chkFallbackCopy(txt);
   }
-}
 
 function chkFallbackCopy(txt){
   // abre modal simples com o texto
