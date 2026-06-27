@@ -154,6 +154,22 @@ table.tb td{padding:9px 8px;border-bottom:1px solid var(--line2);}
 .org-node{ cursor:grab; position:relative; z-index:2 }
 .org-emp{ cursor:pointer }
 .org-oculto{ visibility:hidden }
+.org-tvbar{ display:none; position:fixed; top:0; left:0; right:0; z-index:10000; gap:14px; align-items:center; padding:10px 16px; background:#15211f; color:#fff; box-shadow:0 6px 20px rgba(0,0,0,.4); flex-wrap:wrap }
+.org-tvbar .tvgrp{ display:inline-flex; gap:6px; align-items:center }
+.org-tvbar .tvlbl{ font-size:.76rem; opacity:.65; margin-right:2px }
+.org-tvbar button{ height:40px; min-width:44px; padding:0 14px; border:1px solid rgba(255,255,255,.25); background:rgba(255,255,255,.10); color:#fff; border-radius:9px; cursor:pointer; font-weight:800; font-size:1rem }
+.org-tvbar button:hover{ background:rgba(255,255,255,.22) }
+.org-tvbar .tvchip{ font-size:.9rem; font-weight:700 }
+.org-tvbar .tvchip.on{ background:#fff; color:#15211f; border-color:#fff }
+.org-tvbar .tvchip[style*="--c"]{ border-left:5px solid var(--c) }
+.org-tvbar .tvtgl.on{ background:#fff; color:#15211f }
+.org-tvbar .tvexit{ margin-left:auto; background:#b3412c; border-color:#b3412c }
+body.org-tv{ overflow:hidden }
+body.org-tv #orgCard{ position:fixed; inset:0; max-height:none !important; height:100vh; width:100vw; z-index:9990; border-radius:0; padding:74px 18px 18px; background:var(--bg) }
+body.org-tv .on-acts{ display:none !important }
+body.org-tv .on-info{ display:none }
+.on-desc{ display:none; margin-top:6px; font-size:.72rem; line-height:1.25; color:var(--muted); max-width:210px; white-space:normal; text-align:center }
+body.org-tv.org-tv-desc .on-desc{ display:block }
 .org-filtro{ display:inline-flex; align-items:center; gap:10px; background:#15211f; color:#fff; font-size:.8rem; font-weight:600; padding:8px 14px; border-radius:10px; margin:0 0 12px 60px }
 .org-filtro button{ cursor:pointer; border:1px solid rgba(255,255,255,.35); background:rgba(255,255,255,.14); color:#fff; border-radius:7px; padding:3px 10px; font-size:.78rem }
 .org-filtro button:hover{ background:rgba(255,255,255,.24) }
@@ -312,8 +328,9 @@ body.org-dragging{ user-select:none }
       <button type="button" id="orgZoomLbl" title="Resetar" onclick="orgZoom(0)" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;min-width:64px">100%</button>
       <button type="button" title="Aumentar" onclick="orgZoom(1)" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">＋</button>
       <button type="button" title="Resetar posições das caixas" onclick="orgResetPos()" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">↺</button>
+      <button type="button" title="Modo TV (tela cheia)" onclick="orgTV(true)" style="height:38px;padding:0 16px;border:0;background:var(--ink);color:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:.92rem;display:inline-flex;align-items:center;gap:6px">📺 Modo TV</button>
     </div>
-    <div class="card pad" style="overflow:auto;max-height:72vh"><div id="orgChart"></div></div>
+    <div class="card pad" id="orgCard" style="overflow:auto;max-height:72vh"><div id="orgChart"></div></div>
   </div>
 
 </div>
@@ -1344,11 +1361,60 @@ function aplicarOrgZoom(){
   box.style.width=Math.ceil(w*ORG_ZOOM)+'px';
   box.style.height=Math.ceil(h*ORG_ZOOM)+'px';
   var lbl=document.getElementById('orgZoomLbl'); if(lbl) lbl.textContent=Math.round(ORG_ZOOM*100)+'%';
+  var lbl2=document.getElementById('orgZoomLbl2'); if(lbl2) lbl2.textContent=Math.round(ORG_ZOOM*100)+'%';
 }
 function orgZoom(dir){
   if(dir===0) ORG_ZOOM=1;
-  else ORG_ZOOM=Math.min(1.6, Math.max(0.4, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
+  else ORG_ZOOM=Math.min(2.2, Math.max(0.3, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
   aplicarOrgZoom();
+}
+/* ===== Modo TV ===== */
+var ORG_TV_INIT=false;
+function orgTVbar(){
+  var bar=document.getElementById('orgTVbar');
+  if(!bar){
+    bar=document.createElement('div'); bar.id='orgTVbar'; bar.className='org-tvbar';
+    bar.innerHTML='<div class="tvgrp"><span class="tvlbl">Zoom</span>'+
+      '<button onclick="orgZoom(-1)">−</button>'+
+      '<button id="orgZoomLbl2" onclick="orgZoom(0)">100%</button>'+
+      '<button onclick="orgZoom(1)">＋</button></div>'+
+      '<div class="tvgrp" id="orgTVchips"></div>'+
+      '<div class="tvgrp"><span class="tvlbl">Mover</span>'+
+      '<button onclick="orgTVpan(-1)">◀</button>'+
+      '<button onclick="orgTVpan(1)">▶</button></div>'+
+      '<button id="orgTVdescBtn" class="tvtgl" onclick="orgTVdesc()">ⓘ Descrições</button>'+
+      '<button class="tvexit" onclick="orgTV(false)">✕ Sair</button>';
+    document.body.appendChild(bar);
+  }
+  return bar;
+}
+function orgTVbuildChips(){
+  var wrap=document.getElementById('orgTVchips'); if(!wrap) return;
+  var emps=ORG_FIXO.filter(function(f){return f.tipo==='empresa';});
+  var html='<button class="tvchip'+(!ORG_FILTRO?' on':'')+'" onclick="orgTVfiltro(\'\')">Todos</button>';
+  html+=emps.map(function(e){
+    return '<button class="tvchip'+(ORG_FILTRO===e.id?' on':'')+'" style="--c:'+corEmp(e.id)+'" onclick="orgTVfiltro(\''+e.id+'\')">'+esc(e.nome)+(e.sub?(' '+esc(e.sub)):'')+'</button>';
+  }).join('');
+  wrap.innerHTML=html;
+}
+function orgTVfiltro(id){ ORG_FILTRO=id||null; renderOrg(); orgTVbuildChips(); }
+function orgTVpan(dir){ var c=document.getElementById('orgCard'); if(!c) return; var dx=dir*Math.round(c.clientWidth*0.45); try{ c.scrollBy({left:dx, behavior:'smooth'}); }catch(e){ c.scrollLeft+=dx; } }
+function orgTVdesc(){ var on=document.body.classList.toggle('org-tv-desc'); var b=document.getElementById('orgTVdescBtn'); if(b) b.classList.toggle('on', on); renderOrg(); }
+function orgTV(on){
+  if(on){
+    orgTVbar().style.display='flex';
+    document.body.classList.add('org-tv');
+    orgTVbuildChips();
+    if(!ORG_TV_INIT){ ORG_TV_INIT=true; document.addEventListener('fullscreenchange', function(){ if(!document.fullscreenElement && document.body.classList.contains('org-tv')) orgTV(false); }); }
+    try{ var el=document.documentElement; if(el.requestFullscreen) el.requestFullscreen(); }catch(e){}
+    renderOrg();
+  } else {
+    document.body.classList.remove('org-tv','org-tv-desc');
+    var bar=document.getElementById('orgTVbar'); if(bar) bar.style.display='none';
+    var b=document.getElementById('orgTVdescBtn'); if(b) b.classList.remove('on');
+    try{ if(document.fullscreenElement) document.exitFullscreen(); }catch(e){}
+    renderOrg();
+  }
 }
 var ORG_PAN_INIT=false;
 function initOrgPan(){
@@ -1435,7 +1501,8 @@ function renderOrgNode(n, visited){
     h+='<div class="org-node'+(_ocu?' org-oculto':'')+'" data-id="'+n.id+'"'+nodeStyle('background:'+cn.bg+';border-color:'+cn.bd+_ring,n.id)+(n.descricao?' data-desc="'+esc(n.descricao)+'"':'')+'>'+
       (n.descricao?'<span class="on-info">ⓘ</span>':'')+
       '<div class="on-nome">'+esc(n.nome)+'</div>'+
-      (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+acts+'</div>';
+      (n.funcao?'<div class="on-func">'+esc(n.funcao)+'</div>':'')+acts+
+      (n.descricao?'<div class="on-desc">'+esc(n.descricao)+'</div>':'')+'</div>';
   }
   var kids=orgFilhosTodos(n);
   if(kids.length){ kids.forEach(function(k){ ORG_PAIRS.push([n.id,k.id]); }); h+='<ul>'+kids.map(function(k){return renderOrgNode(k,v2);}).join("")+'</ul>'; }
