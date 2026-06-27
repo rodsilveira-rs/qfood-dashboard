@@ -333,7 +333,7 @@ body.org-dragging{ user-select:none }
       <button type="button" title="Resetar posições das caixas" onclick="orgResetPos()" style="height:38px;min-width:42px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:1rem;color:var(--ink);display:inline-flex;align-items:center;justify-content:center">↺</button>
       <button type="button" title="Modo TV (tela cheia)" onclick="orgTV(true)" style="height:38px;padding:0 16px;border:0;background:var(--ink);color:#fff;border-radius:9px;cursor:pointer;font-weight:800;font-size:.92rem;display:inline-flex;align-items:center;gap:6px">📺 Modo TV</button>
     </div>
-    <div class="card pad" id="orgCard" style="overflow:auto;max-height:86vh"></div><div id="orgChart"></div></div>
+    <div class="card pad" id="orgCard" style="overflow:auto;max-height:86vh"><div id="orgChart"></div></div>
   </div>
 
 </div>
@@ -1356,49 +1356,64 @@ function orgReachableIds(){
 })();
 
 var ORG_ZOOM=1;
+function orgBounds(stage){
+  var nodes=stage.querySelectorAll('.org-node'), i, r;
+  var b={minL:Infinity,maxR:-Infinity,minT:Infinity,maxB:-Infinity,ok:false};
+  for(i=0;i<nodes.length;i++){
+    r=nodes[i].getBoundingClientRect(); if(!r.width&&!r.height) continue; b.ok=true;
+    if(r.left<b.minL) b.minL=r.left; if(r.right>b.maxR) b.maxR=r.right;
+    if(r.top<b.minT) b.minT=r.top; if(r.bottom>b.maxB) b.maxB=r.bottom;
+  }
+  return b;
+}
 function aplicarOrgZoom(){
   var stage=document.querySelector('.org-stage'); var box=document.getElementById('orgChart');
   if(!stage||!box) return;
-  box.style.overflow='visible'; box.style.width=''; box.style.height='';
-  stage.style.marginLeft='0';
+  var card=document.getElementById('orgCard');
+  box.style.overflow='visible'; box.style.position='relative'; box.style.margin='0';
+  box.style.width=''; box.style.height='';
+  stage.style.marginLeft='0'; stage.style.marginTop='0';
   stage.style.transformOrigin='top left';
   stage.style.transform='scale('+ORG_ZOOM+')';
   var sr=stage.getBoundingClientRect();
-  var minL=Infinity, maxR=0, maxB=sr.height, nodes=stage.querySelectorAll('.org-node'), i, r, ll, rr, bb;
-  for(i=0;i<nodes.length;i++){
-    r=nodes[i].getBoundingClientRect(); if(!r.width&&!r.height) continue;
-    ll=r.left-sr.left; rr=r.right-sr.left; bb=r.bottom-sr.top;
-    if(ll<minL) minL=ll; if(rr>maxR) maxR=rr; if(bb>maxB) maxB=bb;
-  }
-  if(minL===Infinity){ minL=0; maxR=sr.width; }
-  stage.style.marginLeft=(-Math.round(minL))+'px';
-  box.style.width=Math.ceil(maxR-minL)+'px';
-  box.style.height=Math.ceil(maxB)+'px';
-  box.style.margin='0 auto';
+  var b=orgBounds(stage);
+  if(!b.ok){ b.minL=sr.left; b.maxR=sr.right; b.minT=sr.top; b.maxB=sr.bottom; }
+  var contentW=Math.max(1,b.maxR-b.minL), contentH=Math.max(1,b.maxB-b.minT);
+  var offL=b.minL-sr.left, offT=b.minT-sr.top;
+  var padX=card?Math.max(280,Math.round(card.clientWidth*0.9)):500;
+  var padY=card?Math.max(140,Math.round(card.clientHeight*0.55)):280;
+  stage.style.marginLeft=Math.round(padX-offL)+'px';
+  stage.style.marginTop=Math.round(padY-offT)+'px';
+  box.style.width=Math.ceil(contentW+padX*2)+'px';
+  box.style.height=Math.ceil(contentH+padY*2)+'px';
   var lbl=document.getElementById('orgZoomLbl'); if(lbl) lbl.textContent=Math.round(ORG_ZOOM*100)+'%';
   var lbl2=document.getElementById('orgZoomLbl2'); if(lbl2) lbl2.textContent=Math.round(ORG_ZOOM*100)+'%';
 }
 function orgFit(){
-  var card=document.getElementById('orgCard'); var box=document.getElementById('orgChart');
-  if(!card||!box) return;
-  var pz=ORG_ZOOM; ORG_ZOOM=1; aplicarOrgZoom();
-  var cw=box.offsetWidth, ch=box.offsetHeight;
-  var availW=Math.max(120, card.clientWidth-40), availH=Math.max(120, card.clientHeight-40);
+  var card=document.getElementById('orgCard'); var stage=document.querySelector('.org-stage');
+  if(!card||!stage) return;
+  if(card.clientWidth<50){ setTimeout(orgFit,60); return; }
+  ORG_ZOOM=1; aplicarOrgZoom();
+  var b=orgBounds(stage); if(!b.ok) return;
+  var cw=Math.max(1,b.maxR-b.minL), ch=Math.max(1,b.maxB-b.minT);
+  var availW=Math.max(120, card.clientWidth-48), availH=Math.max(120, card.clientHeight-48);
   var z=Math.min(availW/cw, availH/ch);
-  if(!isFinite(z)||z<=0) z=pz;
+  if(!isFinite(z)||z<=0) z=1;
   z=Math.min(2.2, Math.max(0.15, Math.floor(z*20)/20));
-  ORG_ZOOM=z; aplicarOrgZoom(); orgCenter();
+  ORG_ZOOM=z; aplicarOrgZoom();
+  requestAnimationFrame(function(){ orgCenter(); requestAnimationFrame(orgCenter); });
 }
 function orgCenter(){
-  var card=document.getElementById('orgCard'); var box=document.getElementById('orgChart');
-  if(!card||!box) return;
-  card.scrollLeft=Math.max(0,(box.offsetWidth-card.clientWidth)/2);
-  card.scrollTop=Math.max(0,(box.offsetHeight-card.clientHeight)/2);
+  var card=document.getElementById('orgCard'); var stage=document.querySelector('.org-stage'); if(!card||!stage) return;
+  var b=orgBounds(stage); if(!b.ok) return;
+  var cr=card.getBoundingClientRect();
+  card.scrollLeft += ((b.minL+b.maxR)/2) - ((cr.left+cr.right)/2);
+  card.scrollTop  += (b.minT - cr.top) - 40;
 }
 function orgZoom(dir){
   if(dir===0) ORG_ZOOM=1;
   else ORG_ZOOM=Math.min(2.2, Math.max(0.15, Math.round((ORG_ZOOM+dir*0.1)*10)/10));
-  aplicarOrgZoom();
+  aplicarOrgZoom(); orgCenter();
 }
 /* ===== Modo TV ===== */
 var ORG_TV_INIT=false;
