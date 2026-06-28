@@ -201,6 +201,9 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .acoes .hint{font-size:11.5px;color:var(--cinza-claro);text-align:center;margin-top:2px}
 .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--preto);color:#fff;padding:13px 22px;border-radius:12px;font-size:14px;font-weight:600;z-index:90;opacity:0;pointer-events:none;transition:.25s;box-shadow:var(--sombra-forte)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* === Encaixe das fotos novas (caixa quadrada, sem estourar) === */
+.ph{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.ph img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 </style>
 </head>
 <body>
@@ -213,7 +216,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
     <input id="cnpj" inputmode="numeric" placeholder="CNPJ do PDV (ex.: 12.345.678/0001-90)" autocomplete="off">
     <button type="submit">🔍 Buscar</button>
   </form>
-  <div class="vend-tag"><span>Lucas Andrade</span><div class="av">L</div></div>
+  <div class="vend-tag"><span id="vendNome">—</span><div class="av" id="vendAv">·</div></div>
 </header>
 
 <div class="wrap">
@@ -365,6 +368,13 @@ function abrirCatalogo(){
 /* ---------- RENDER painel cliente (shape do backend) ---------- */
 function renderCliente(){
   const c=clienteAtual, p=c.pdv||{}, sc=document.getElementById("statusCard");
+  // (b) cabeçalho mostra o vendedor responsável pelo cliente consultado
+  (function(){
+    var v=(p.vendedor||"").trim();
+    var nome=v?v.replace(/\./g," ").toLowerCase().replace(/\b\w/g,function(m){return m.toUpperCase();}):"—";
+    var el=document.getElementById("vendNome"); if(el) el.textContent=nome;
+    var av=document.getElementById("vendAv"); if(av) av.textContent=v?nome.charAt(0).toUpperCase():"·";
+  })();
   sc.className="status-card "+c.status;
   const badge=c.status==="ativo"?"Cliente ativo":c.status==="inativo"?"Base de inativos":"Lead novo";
   const segmento = p.segmento || p.ramo || p.setor || "";
