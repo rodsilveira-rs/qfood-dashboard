@@ -841,7 +841,7 @@ function abrirExecModal(){
     html+='<div class="tag" style="margin-bottom:12px"><span class="chip-dot" style="background:'+corDe(EXEC.responsavel.nome)+'"></span>'+esc(EXEC.responsavel.nome)+'</div>';
   }
   // progresso
-  html+='<div class="bar" style="height:9px;background:var(--line2);border-radius:99px;margin-bottom:14px"><i id="exProg" style="display:block;height:100%;background:var(--ok);width:0%;border-radius:99px"></i></div>';
+  html+='<div class="bar" style="height:9px;background:var(--line2);border-radius:99px;margin-bottom:14px;display:flex;overflow:hidden"><i id="exProgOk" style="height:100%;background:var(--ok);width:0%"></i><i id="exProgNo" style="height:100%;background:var(--late);width:0%"></i></div>';
   // itens agrupados por bloco
   EXEC.itens.forEach(function(it,i){ html+=renderExecItem(it,i); });
   html+='<div style="margin-top:18px;display:flex;gap:10px"><button class="btn ok" style="flex:1" onclick="finalizarExec()">✓ Finalizar checklist</button><button class="btn ghost" onclick="fecharOv()">Cancelar</button></div>';
@@ -930,10 +930,17 @@ function capturarFoto(id,input){
   reader.readAsDataURL(f);
 }
 function atualizarProgresso(){
-  var total=EXEC.itens.length, feitos=0;
-  EXEC.itens.forEach(function(it){ var v=EXEC.respostas[it.id]; if(v!==undefined && v!=="" && v!==null) feitos++; });
-  var pct=total?Math.round(feitos/total*100):0;
-  var el=document.getElementById("exProg"); if(el) el.style.width=pct+"%";
+  var total=EXEC.itens.length, oks=0, ruins=0;
+  EXEC.itens.forEach(function(it){
+    var v=EXEC.respostas[it.id];
+    if(v===undefined||v===""||v===null) return;
+    var tp=norm(it.tipo), bad=false;
+    if(tp==="check") bad=(v==="nao_feito");
+    else if(tp==="numerico") bad=foraDaMeta(v,it);
+    if(bad) ruins++; else oks++;
+  });
+  var ok=document.getElementById("exProgOk"); if(ok) ok.style.width=(total?(oks/total*100):0)+"%";
+  var no=document.getElementById("exProgNo"); if(no) no.style.width=(total?(ruins/total*100):0)+"%";
 }
 function finalizarExec(){
   var m=EXEC.modelo;
