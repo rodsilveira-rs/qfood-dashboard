@@ -247,8 +247,16 @@ body.org-dragging{ user-select:none }
       </div>
     </div>
     <div class="card pad" style="margin-bottom:16px">
-      <div class="between"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">🧠 Mapa mental do dia</div>
-      <div class="small muted"><span class="chip-dot" style="background:var(--ok)"></span>Concluído &nbsp;<span class="chip-dot" style="background:var(--pend)"></span>Pendente &nbsp;<span class="chip-dot" style="background:var(--late)"></span>Atrasado</div></div>
+      <div class="between" style="align-items:center;flex-wrap:wrap;gap:8px">
+        <div class="row" style="align-items:center;gap:10px">
+          <div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">📅 Mapa do dia</div>
+          <div id="execViewSeg" class="row" style="gap:4px;background:var(--line2);border-radius:999px;padding:3px">
+            <button type="button" data-v="mapa" onclick="switchExecView('mapa')" style="border:0;border-radius:999px;padding:5px 12px;font-weight:700;font-size:.76rem;cursor:pointer;background:var(--ink);color:#fff">Mapa</button>
+            <button type="button" data-v="controle" onclick="switchExecView('controle')" style="border:0;border-radius:999px;padding:5px 12px;font-weight:700;font-size:.76rem;cursor:pointer;background:transparent;color:var(--muted)">Controle</button>
+          </div>
+        </div>
+        <div class="small muted"><span class="chip-dot" style="background:var(--ok)"></span>Concluído &nbsp;<span class="chip-dot" style="background:var(--pend)"></span>Pendente &nbsp;<span class="chip-dot" style="background:var(--late)"></span>Atrasado</div>
+      </div>
       <div class="mm-wrap" id="mindmap" style="margin-top:10px"></div>
     </div>
     <div class="grid g2" id="execList"></div>
@@ -349,7 +357,7 @@ body.org-dragging{ user-select:none }
 var WEBAPP = "https://script.google.com/macros/s/AKfycbzV3YpNu6VHz-a1rONahR1yORt86F3bDuHZmgEcZu0djo4mavqfaaiRUUvwRXOD3XrfIQ/exec";
 var MODULO = "checklist";
 
-var ST = { user:null, empresaAtiva:null, empresas:[], colaboradores:[], modelos:[], itens:[], listas:[], respostas:[], org:[] };
+var ST = { user:null, empresaAtiva:null, empresas:[], colaboradores:[], modelos:[], itens:[], listas:[], respostas:[], org:[], execView:"mapa" };
 var EXEC = null; // execução em andamento
 
 // ────── Sessão (mesmo padrão dos outros index) ──────
@@ -639,7 +647,7 @@ function renderExec(){
   document.getElementById("execData").textContent = brData(isoHoje())+" · "+diaSemanaExt()+" · "+empNome(ST.empresaAtiva);
   var lst=checklistsDeHoje();
   var box=document.getElementById("execList"); box.innerHTML="";
-  if(!lst.length){ box.innerHTML='<div class="empty">Nenhum checklist para hoje com os filtros selecionados.</div>'; renderMindmap([]); return; }
+  if(!lst.length){ box.innerHTML='<div class="empty">Nenhum checklist para hoje com os filtros selecionados.</div>'; renderExecView([]); return; }
   var dados=lst.map(function(m){ var r=respDeHoje(m); return {m:m,r:r,st:statusDoDia(m,r)}; });
   dados.forEach(function(d){
     var resp=d.colaborador = nomeResp(d.m,d.r);
@@ -652,7 +660,7 @@ function renderExec(){
       (d.r && d.r.conclusao ? '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="small muted" style="margin-top:5px">Score '+pct+'% · concluído '+horaDe(d.r.conclusao)+'</div>' : '<div style="margin-top:10px"><button class="btn sm" onclick="iniciarExec(\''+d.m.id+'\')">Iniciar</button></div>');
     box.appendChild(div);
   });
-  renderMindmap(dados);
+  renderExecView(dados);
 }
 function nomeResp(m,r){
   if(r && r.responsavel_nome) return r.responsavel_nome;
@@ -685,19 +693,130 @@ function renderMindmap(dados){
   dados.forEach(function(d,i){
     var a=(i/dados.length)*2*Math.PI - Math.PI/2; var x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
     var c=corDe(d.colaborador);
-    s+='<g class="mm-node" style="cursor:pointer" onclick="'+(d.r&&d.r.conclusao?'verResposta(\''+(d.r.id)+'\')':'iniciarExec(\''+d.m.id+'\')')+'">';
+    var _done=!!(d.r&&d.r.conclusao);
+    var _score=(d.r&&d.r.score!=null)?Math.round(+d.r.score):0;
+    s+='<g class="mm-node" style="cursor:pointer" onclick="verDetalheDia(\''+d.m.id+'\')">';
     s+='<circle cx="'+x+'" cy="'+y+'" r="62" fill="'+fundo[d.st]+'" stroke="'+cor[d.st]+'" stroke-width="4"/>';
+    if(_done) s+=arcoProgresso(x,y,58,_score,cor[d.st]);
     s+='<circle cx="'+x+'" cy="'+(y-34)+'" r="6" fill="'+c+'"/>';
     s+='<text x="'+x+'" y="'+(y-12)+'" text-anchor="middle" fill="#6b6459" font-size="10.5" font-weight="600">'+esc(cortar(setorRot(d.m.setor),16))+'</text>';
-    s+='<text x="'+x+'" y="'+(y+14)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,16))+'</text>';
-    var _lim=String(d.m.horario_limite||"").trim();
-    if(/^\d{1,2}:\d{2}$/.test(_lim)) s+='<text x="'+x+'" y="'+(y+33)+'" text-anchor="middle" fill="#9a5b14" font-size="11" font-weight="800">até '+_lim+'</text>';
+    s+='<text x="'+x+'" y="'+(y+12)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(d.colaborador,16))+'</text>';
+    if(_done){
+      s+='<text x="'+x+'" y="'+(y+32)+'" text-anchor="middle" fill="'+cor.concluido+'" font-size="12" font-weight="800">\u2713 '+_score+'%</text>';
+    } else {
+      var _lim=String(d.m.horario_limite||"").trim();
+      if(d.st==="atrasado") s+='<text x="'+x+'" y="'+(y+32)+'" text-anchor="middle" fill="'+cor.atrasado+'" font-size="11.5" font-weight="800">atrasado</text>';
+      else if(/^\d{1,2}:\d{2}$/.test(_lim)) s+='<text x="'+x+'" y="'+(y+32)+'" text-anchor="middle" fill="#9a5b14" font-size="11" font-weight="800">até '+_lim+'</text>';
+      else s+='<text x="'+x+'" y="'+(y+32)+'" text-anchor="middle" fill="#9a8f7d" font-size="11" font-weight="700">pendente</text>';
+    }
     s+='</g>';
   });
   s+='</svg>';
   box.innerHTML=s;
 }
 function cortar(s,n){ s=String(s||""); return s.length>n?s.substring(0,n-1)+"…":s; }
+function arcoProgresso(cx,cy,r,pct,color){
+  pct=Math.max(0,Math.min(100,pct)); if(pct<=0) return "";
+  if(pct>=100) return '<circle cx="'+cx+'" cy="'+cy+'" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="3" opacity=".9"/>';
+  var ang=(pct/100)*2*Math.PI;
+  var x1=cx, y1=cy-r, x2=cx+r*Math.sin(ang), y2=cy-r*Math.cos(ang), large=pct>50?1:0;
+  return '<path d="M '+x1+' '+y1+' A '+r+' '+r+' 0 '+large+' 1 '+x2+' '+y2+'" fill="none" stroke="'+color+'" stroke-width="3" stroke-linecap="round" opacity=".9"/>';
+}
+function renderExecView(dados){ if(ST.execView==="controle") renderControle(dados); else renderMindmap(dados); }
+function switchExecView(v){
+  ST.execView=v;
+  var seg=document.getElementById("execViewSeg");
+  if(seg) seg.querySelectorAll("button").forEach(function(b){ var on=b.getAttribute("data-v")===v; b.style.background=on?"var(--ink)":"transparent"; b.style.color=on?"#fff":"var(--muted)"; });
+  renderExec();
+}
+function rotuloBloco(b){
+  b=String(b||"").trim(); if(!b) return "Geral";
+  var m=b.match(/T(\d{2}):(\d{2})/); if(/1899-12-30/.test(b)&&m) return m[1]+":"+m[2];
+  return b;
+}
+function itensPorBlocoModelo(modeloId){
+  var its=ST.itens.filter(function(it){return String(it.modelo_id)===String(modeloId);}).sort(function(a,b){return (+a.ordem||0)-(+b.ordem||0);});
+  var ordem=[], mapa={};
+  its.forEach(function(it){ var b=rotuloBloco(it.bloco); if(!mapa[b]){ mapa[b]=[]; ordem.push(b); } mapa[b].push(it); });
+  return ordem.map(function(b){ return {bloco:b, itens:mapa[b]}; });
+}
+function itemOk(it){
+  var tp=norm(it.tipo), v=it.valor;
+  if(tp==="check") return String(v)==="feito";
+  if(tp==="numerico") return it.dentro_meta!=="nao";
+  return v!==""&&v!=null;
+}
+function barraMini(pct,cor){ pct=Math.max(0,Math.min(100,Math.round(pct))); return '<div style="height:6px;border-radius:99px;background:var(--line2);overflow:hidden;margin-top:6px"><i style="display:block;height:100%;width:'+pct+'%;background:'+(cor||"var(--ok)")+'"></i></div>'; }
+function renderControle(dados){
+  var box=document.getElementById("mindmap");
+  if(!dados.length){ box.innerHTML='<div class="empty small">Sem checklists para hoje.</div>'; return; }
+  var ordemSt={atrasado:0, pendente:1, concluido:2};
+  var rows=dados.slice().sort(function(a,b){ var d=ordemSt[a.st]-ordemSt[b.st]; if(d) return d; return String(a.m.horario_limite||"").localeCompare(String(b.m.horario_limite||"")); });
+  var h='<div style="overflow-x:auto"><table class="tb" style="width:100%"><thead><tr><th>Status</th><th>Pessoa</th><th>Setor</th><th>Checklist</th><th>Horário</th><th>Score</th><th></th></tr></thead><tbody>';
+  rows.forEach(function(d){
+    var nome=d.colaborador||nomeResp(d.m,d.r);
+    var lim=String(d.m.horario_limite||"").trim(); var limTxt=/^\d{1,2}:\d{2}$/.test(lim)?("até "+lim):"—";
+    var sc=(d.r&&d.r.score!=null&&d.r.conclusao)?(Math.round(+d.r.score)+"%"):"—";
+    h+='<tr style="cursor:pointer" onclick="verDetalheDia(\''+d.m.id+'\')">'+
+       '<td><span class="st '+d.st+'">'+rotStatus(d.st)+'</span></td>'+
+       '<td><span class="chip-dot" style="background:'+corDe(nome)+'"></span>'+esc(nome)+'</td>'+
+       '<td>'+esc(setorRot(d.m.setor))+'</td>'+
+       '<td>'+esc(d.m.nome)+'</td>'+
+       '<td class="small muted">'+limTxt+'</td>'+
+       '<td>'+sc+'</td>'+
+       '<td><button class="link" onclick="event.stopPropagation();verDetalheDia(\''+d.m.id+'\')">ver</button></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  box.innerHTML=h;
+}
+function verDetalheDia(modeloId){
+  var m=ST.modelos.filter(function(x){return String(x.id)===String(modeloId);})[0]; if(!m) return;
+  var r=respDeHoje(m), st=statusDoDia(m,r), done=!!(r&&r.conclusao);
+  var nome=nomeResp(m,r);
+  var head='<div class="between" style="align-items:flex-start;margin-bottom:12px">'+
+    '<div class="small muted"><span class="chip-dot" style="background:'+corDe(nome)+'"></span>'+esc(nome)+' \u00b7 '+esc(setorRot(m.setor))+horaLim(m.horario_limite)+'</div>'+
+    '<span class="st '+st+'">'+rotStatus(st)+(done?(" \u00b7 "+Math.round(+(r.score||0))+"%"):"")+'</span></div>';
+  document.getElementById("ovTitle").textContent=m.nome;
+  document.getElementById("ovBody").innerHTML=head+'<div class="loading">Carregando…</div>';
+  document.getElementById("ov").classList.add("open");
+  if(!done){
+    var grupos=itensPorBlocoModelo(modeloId), h=head;
+    if(!grupos.length) h+='<div class="empty small">Sem itens cadastrados.</div>';
+    grupos.forEach(function(g){
+      h+='<div class="exi" style="margin-bottom:10px;box-shadow:none"><div class="between"><div class="tt" style="font-size:.92rem">'+esc(g.bloco)+'</div><div class="small muted">0/'+g.itens.length+'</div></div>'+barraMini(0,"var(--pend)")+
+         '<div class="small muted" style="margin-top:8px;white-space:pre-line">'+g.itens.map(function(it){return "\u2022 "+esc(it.titulo);}).join("\n")+'</div></div>';
+    });
+    h+='<div style="margin-top:14px"><button class="btn ok" style="width:100%" onclick="iniciarExec(\''+m.id+'\')">▶️ Iniciar checklist</button></div>';
+    document.getElementById("ovBody").innerHTML=h;
+    return;
+  }
+  api("getResposta",{id:r.id}).then(function(res){
+    if(!res.ok){ document.getElementById("ovBody").innerHTML=head+'<div class="empty">Erro ao carregar.</div>'; return; }
+    var itens=res.dados.itens||[], ordem=[], mapa={};
+    itens.forEach(function(it){
+      var def=ST.itens.filter(function(x){return String(x.id)===String(it.item_id);})[0];
+      var b=rotuloBloco(def?def.bloco:"");
+      if(!mapa[b]){ mapa[b]=[]; ordem.push(b); } mapa[b].push(it);
+    });
+    var h=head;
+    ordem.forEach(function(b){
+      var arr=mapa[b], ok=arr.filter(itemOk).length, tot=arr.length, pct=tot?ok/tot*100:0;
+      var cor=ok===tot?"var(--ok)":(ok===0?"var(--late)":"var(--pend)");
+      h+='<div class="exi" style="margin-bottom:10px;box-shadow:none"><div class="between"><div class="tt" style="font-size:.92rem">'+esc(b)+'</div><div class="small" style="font-weight:800;color:'+cor+'">'+ok+'/'+tot+'</div></div>'+barraMini(pct,cor);
+      arr.forEach(function(it){
+        var okk=itemOk(it), v=it.valor;
+        if(norm(it.tipo)==="check") v=(String(v)==="feito"?"\u2713 Feito":"\u2717 N\u00e3o feito");
+        else if(norm(it.tipo)==="avaliativo") v="\u2605 "+v+"/5";
+        var fora=(it.dentro_meta==="nao");
+        h+='<div class="between" style="margin-top:7px;font-size:.84rem"><span style="color:'+(okk?"var(--ink2)":"var(--late)")+'">'+(okk?"\u2713":"\u2717")+' '+esc(it.item_titulo)+'</span><b style="color:'+(okk?"var(--muted)":"var(--late)")+'">'+esc(v)+(fora?" \u26a0":"")+'</b></div>';
+        if(it.evidencia_url) h+='<div style="margin-top:5px"><img class="evthumb" src="'+it.evidencia_url+'"></div>';
+      });
+      h+='</div>';
+    });
+    document.getElementById("ovBody").innerHTML=h;
+  });
+}
+
 
 // ════════════════════════════════════════════════════════════
 // MODO EXECUÇÃO
