@@ -676,37 +676,40 @@ function horaDe(iso){ try{var d=new Date(iso); return pad(d.getHours())+":"+pad(
 function renderMindmap(dados){
   var box=document.getElementById("mindmap");
   if(!dados.length){ box.innerHTML='<div class="empty small">Sem checklists para hoje.</div>'; return; }
+  var n=dados.length, R=Math.max(175,(n*150)/(2*Math.PI)), pad=100;
+  var W=Math.round(2*(R+pad)), H=W, cx=W/2, cy=H/2;
   var cor={concluido:'#2f7d5b',pendente:'#e6a200',atrasado:'#b3412c'};
-  var rotS={concluido:'Concluído',pendente:'Pendente',atrasado:'Atrasado'};
-  var arr=dados.slice().sort(function(a,b){
-    var na=String(a.colaborador||'').localeCompare(String(b.colaborador||'')); if(na) return na;
-    return String(a.m.horario_limite||'').localeCompare(String(b.m.horario_limite||''));
+  var fundo={concluido:'#e3f1ea',pendente:'#fdf2cc',atrasado:'#f7e0da'};
+  var NW=132, NH=96, RX=16;
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="max-width:'+W+'px;display:block;margin:0 auto">';
+  dados.forEach(function(d,i){
+    var a=(i/n)*2*Math.PI - Math.PI/2; var x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
+    s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+x+'" y2="'+y+'" stroke="'+cor[d.st]+'" stroke-width="2.5" opacity=".5"/>';
   });
-  var h='<div class="small muted" style="margin-bottom:10px">📅 Hoje · '+brData(isoHoje())+' · '+arr.length+' checklist'+(arr.length===1?'':'s')+'</div>';
-  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(195px,1fr));gap:10px">';
-  arr.forEach(function(d){
+  s+='<rect x="'+(cx-66)+'" y="'+(cy-34)+'" width="132" height="68" rx="18" fill="#15211f"/>';
+  s+='<text x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" fill="#fff" font-size="16" font-weight="800">Hoje</text>';
+  s+='<text x="'+cx+'" y="'+(cy+16)+'" text-anchor="middle" fill="#a9b5b1" font-size="11">'+brData(isoHoje())+'</text>';
+  dados.forEach(function(d,i){
+    var a=(i/n)*2*Math.PI - Math.PI/2; var x=cx+R*Math.cos(a), y=cy+R*Math.sin(a);
     var nome=d.colaborador||nomeResp(d.m,d.r);
+    var faixa=String(d.m.nome||'').replace(/\s*\(.*\)\s*$/,'');
     var done=!!(d.r&&d.r.conclusao);
     var score=(d.r&&d.r.score!=null)?Math.round(+d.r.score):0;
-    var lim=String(d.m.horario_limite||'').trim();
-    var limTxt=/^\d{1,2}:\d{2}$/.test(lim)?('até '+lim):'';
-    h+='<div onclick="verDetalheDia(\''+d.m.id+'\')" style="cursor:pointer;background:var(--surface);border:1.5px solid #e3ddd2;border-left:5px solid '+cor[d.st]+';border-radius:14px;padding:12px 13px" onmouseover="this.style.boxShadow=\'0 4px 14px rgba(21,33,31,.12)\'" onmouseout="this.style.boxShadow=\'none\'">';
-    h+='<div class="between" style="align-items:flex-start;gap:8px">';
-    h+='<div style="min-width:0"><div style="font-weight:800;font-size:.86rem;line-height:1.2;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(d.m.nome)+'</div>';
-    h+='<div class="small muted" style="margin-top:3px"><span class="chip-dot" style="background:'+corDe(nome)+'"></span>'+esc(setorRot(d.m.setor))+'</div></div>';
-    h+='<span class="st '+d.st+'" style="flex:0 0 auto">'+rotS[d.st]+'</span></div>';
-    if(done){
-      h+='<div style="height:6px;border-radius:99px;background:var(--line2);overflow:hidden;margin-top:10px"><i style="display:block;height:100%;width:'+score+'%;background:'+cor.concluido+'"></i></div>';
-      h+='<div class="small" style="margin-top:5px;color:'+cor.concluido+';font-weight:800">\u2713 '+score+'%'+(limTxt?(' · '+limTxt):'')+'</div>';
-    } else if(d.st==='atrasado'){
-      h+='<div class="small" style="margin-top:9px;color:'+cor.atrasado+';font-weight:800">\u26a0 atrasado'+(limTxt?(' · '+limTxt):'')+'</div>';
-    } else {
-      h+='<div class="small" style="margin-top:9px;color:#9a5b14;font-weight:800">'+(limTxt||'pendente')+'</div>';
-    }
-    h+='</div>';
+    var c=corDe(nome);
+    s+='<g class="mm-node" style="cursor:pointer" onclick="verDetalheDia(\''+d.m.id+'\')">';
+    s+='<rect x="'+(x-NW/2)+'" y="'+(y-NH/2)+'" width="'+NW+'" height="'+NH+'" rx="'+RX+'" fill="'+fundo[d.st]+'" stroke="'+cor[d.st]+'" stroke-width="3.5"/>';
+    s+='<circle cx="'+x+'" cy="'+(y-30)+'" r="5" fill="'+c+'"/>';
+    s+='<text x="'+x+'" y="'+(y-10)+'" text-anchor="middle" fill="#15211f" font-size="12.5" font-weight="800">'+esc(cortar(faixa,17))+'</text>';
+    s+='<text x="'+x+'" y="'+(y+8)+'" text-anchor="middle" fill="#6b6459" font-size="10.5" font-weight="600">'+esc(cortar(nome,18))+'</text>';
+    var lim=String(d.m.horario_limite||'').trim(), limOk=/^\d{1,2}:\d{2}$/.test(lim);
+    if(done) s+='<text x="'+x+'" y="'+(y+30)+'" text-anchor="middle" fill="'+cor.concluido+'" font-size="11.5" font-weight="800">\u2713 '+score+'%</text>';
+    else if(d.st==="atrasado") s+='<text x="'+x+'" y="'+(y+30)+'" text-anchor="middle" fill="'+cor.atrasado+'" font-size="11" font-weight="800">\u26a0 atrasado</text>';
+    else if(limOk) s+='<text x="'+x+'" y="'+(y+30)+'" text-anchor="middle" fill="#9a5b14" font-size="11" font-weight="800">até '+lim+'</text>';
+    else s+='<text x="'+x+'" y="'+(y+30)+'" text-anchor="middle" fill="#9a8f7d" font-size="11" font-weight="700">pendente</text>';
+    s+='</g>';
   });
-  h+='</div>';
-  box.innerHTML=h;
+  s+='</svg>';
+  box.innerHTML=s;
 }
 function cortar(s,n){ s=String(s||""); return s.length>n?s.substring(0,n-1)+"…":s; }
 function arcoProgresso(cx,cy,r,pct,color){
