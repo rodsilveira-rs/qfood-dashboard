@@ -204,6 +204,20 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 /* === Encaixe das fotos novas (caixa quadrada, sem estourar) === */
 .ph{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ph img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+/* === Inteligência de valor (cabeçalho do cliente) === */
+.metricas{display:flex;flex-wrap:wrap;gap:10px;padding:14px 18px 0}
+.mtr{flex:1;min-width:118px;background:var(--fundo);border:1px solid var(--linha);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.mtr-lbl{font-size:11px;color:var(--cinza);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.mtr-lbl small{text-transform:none;letter-spacing:0;color:var(--cinza-claro);font-weight:500}
+.mtr-val{font-size:18px;font-weight:800;color:var(--preto)}
+.mtr-val small{font-size:12px;font-weight:600;color:var(--cinza)}
+.mtr-pot{background:var(--verde-fundo);border-color:#bfe6cf}
+.mtr-pot .mtr-val{color:var(--verde)}
+.pot-bar{padding:12px 18px 16px}
+.pot-track{height:9px;border-radius:999px;background:var(--linha);overflow:hidden}
+.pot-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--verde),#37b86e)}
+.pot-cap{font-size:12px;color:var(--cinza);margin-top:6px}
+.pot-cap b{color:var(--grafite)}
 </style>
 </head>
 <body>
@@ -391,7 +405,25 @@ function renderCliente(){
     const txt={verde:"Em dia",amarelo:"Atenção",vermelho:"Atrasado"}[c.farol]||"";
     farolHtml=`<div class="farol ${c.farol}"><span class="dot"></span>${txt}${c.diasSemCompra!=null?` · ${c.diasSemCompra}d`:""}</div>`;
   }
-  sc.innerHTML=`<div class="status-head"><div class="status-badge">${badge}</div><div class="status-info"><h2>${p.fantasia||p.razao||"Cliente"}</h2><div style="font-size:12.5px;color:var(--cinza-claro)">${p.razao||""}${p.cnpj?" · "+p.cnpj:""}${p.cidade?" · "+p.cidade:""}</div>${metas}</div>${farolHtml}</div>${c.status==="inativo"?`<div class="alerta-reativ">⚠️ Oportunidade de reativação — este PDV saiu da base. Use a cesta e as promoções para trazer de volta.</div>`:""}`;
+
+  // (c) Inteligência de valor — faturamento no período, mix, margem e potencial (mediana do segmento)
+  const _fmt = v => "R$ "+(Number(v)||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+  let metricas="";
+  if(c.status==="ativo"){
+    const fat=c.clienteFat||0, med=c.segMediana||0, mix=c.clienteMix||0, pot=c.potencial||0;
+    const marg=(c.clienteMargem!=null)?Number(c.clienteMargem):null;
+    const temBarra = med>0 && (c.segN||0)>=8;
+    const pct = med>0 ? Math.max(4,Math.min(100,Math.round(fat/med*100))) : 0;
+    metricas=`<div class="metricas">
+        <div class="mtr"><span class="mtr-lbl">Faturamento <small>${c.periodoLabel||"no período"}</small></span><span class="mtr-val">${_fmt(fat)}</span></div>
+        <div class="mtr"><span class="mtr-lbl">Mix</span><span class="mtr-val">${mix} <small>produtos</small></span></div>
+        ${marg!=null?`<div class="mtr"><span class="mtr-lbl">Margem</span><span class="mtr-val">${marg.toFixed(1).replace(".",",")}%</span></div>`:""}
+        ${(pot>0&&temBarra)?`<div class="mtr mtr-pot"><span class="mtr-lbl">Pode crescer</span><span class="mtr-val">+${_fmt(pot)}</span></div>`:""}
+      </div>
+      ${temBarra?`<div class="pot-bar"><div class="pot-track"><div class="pot-fill" style="width:${pct}%"></div></div><div class="pot-cap">Faturamento atual <b>${_fmt(fat)}</b> · típico do segmento <b>${_fmt(med)}</b>${pot>0?` · espaço p/ crescer <b style="color:var(--vermelho)">+${_fmt(pot)}</b>`:` · <b style="color:var(--verde)">acima da média do segmento 🎉</b>`}</div></div>`:""}`;
+  }
+
+  sc.innerHTML=`<div class="status-head"><div class="status-badge">${badge}</div><div class="status-info"><h2>${p.fantasia||p.razao||"Cliente"}</h2><div style="font-size:12.5px;color:var(--cinza-claro)">${p.razao||""}${p.cnpj?" · "+p.cnpj:""}${p.cidade?" · "+p.cidade:""}</div>${metas}</div>${farolHtml}</div>${metricas}${c.status==="inativo"?`<div class="alerta-reativ">⚠️ Oportunidade de reativação — este PDV saiu da base. Use a cesta e as promoções para trazer de volta.</div>`:""}`;
 
   renderMagic();
   renderPromos(); renderCats(); renderGrid();
