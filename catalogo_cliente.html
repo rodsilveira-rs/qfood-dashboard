@@ -81,7 +81,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .mark-falta:hover{background:var(--vermelho-escuro)}
 
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
-.secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:lowercase}
+.secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:capitalize}
 .secao-titulo h2 .ac{color:var(--vermelho)}
 .secao-titulo .rule{flex:1;height:3px;background:var(--preto);border-radius:2px;align-self:center}
 .secao-titulo .rule.red{background:var(--vermelho)}
@@ -104,10 +104,13 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .cat-busca .find{flex:1;min-width:200px;display:flex;align-items:center;background:#fff;border:1px solid var(--linha);border-radius:10px;overflow:hidden}
 .cat-busca .find input{flex:1;border:none;outline:none;padding:11px 14px;font-size:14px}
 .cat-busca .find span{padding:0 12px;color:var(--cinza-claro)}
-.cats{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 14px}
+.cats-nav{display:flex;align-items:center;gap:6px}
+.cats-arrow{flex-shrink:0;width:30px;height:30px;border-radius:50%;border:1px solid var(--linha);background:#fff;font-size:17px;color:var(--grafite);cursor:pointer;display:grid;place-items:center}
+.cats-arrow:hover{border-color:var(--vermelho);color:var(--vermelho)}
+.cats{display:flex;gap:9px;overflow-x:auto;scroll-behavior:smooth;padding:2px 2px 14px;flex:1;min-width:0}
 .cats::-webkit-scrollbar{height:6px}
 .cat-chip{flex-shrink:0;background:#fff;border:1px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--grafite);transition:.15s;white-space:nowrap}
-.cat-chip:hover{border-color:var(--cinza)}.cat-chip.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+.cat-chip:hover{border-color:var(--cinza)}.cat-chip.on{background:linear-gradient(135deg,var(--grafite),var(--vermelho) 80%);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(220,30,40,.25)}
 .cat-chip b{opacity:.5;font-weight:600;margin-left:4px}
 
 .grid-prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:15px}
@@ -237,7 +240,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
   <div class="promo-rail" id="promoRail"></div>
   <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
   <div class="cat-busca"><div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div></div>
-  <div class="cats" id="cats"></div>
+  <div class="cats-nav"><button class="cats-arrow" onclick="scrollCats(-1)">‹</button><div class="cats" id="cats"></div><button class="cats-arrow" onclick="scrollCats(1)">›</button></div>
   <div class="grid-prod" id="gridProd"></div>
   <button class="mais" id="btnMais" style="display:none" onclick="verMais()">Ver mais produtos</button>
 </div>
@@ -355,6 +358,7 @@ function renderSugestao(){
 function renderPromos(){
   document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-height:100%;max-width:90%;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div><div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}')">+ Adicionar</button></div></div>`).join("");
 }
+function scrollCats(dir){const el=document.getElementById('cats');if(el)el.scrollBy({left:dir*320,behavior:'smooth'});}
 function renderCats(){const all=[{n:"Todos",c:CATALOGO.length}].concat(CATS.map(c=>({n:c,c:CATALOGO.filter(p=>p.cat===c).length})));document.getElementById("cats").innerHTML=all.map(o=>`<button class="cat-chip ${o.n===catAtiva?'on':''}" onclick="setCat('${String(o.n).replace(/'/g,"")}')">${o.n}<b>${o.c}</b></button>`).join("");}
 function setCat(c){catAtiva=c;limite=24;document.getElementById("find").value="";termo="";renderGrid()}
 function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();limite=24;renderGrid()}
