@@ -109,11 +109,9 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .cats-arrow:hover{filter:brightness(1.1);transform:scale(1.05)}
 .cats{display:flex;gap:9px;overflow-x:auto;scroll-behavior:smooth;padding:2px 2px 14px;flex:1;min-width:0}
 .cats::-webkit-scrollbar{height:6px}
-.cat-chip{flex-shrink:0;background:#f1f1f3;border:1px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--grafite);transition:.18s;white-space:nowrap}
-.cat-chip:hover{background:#e7e7ea;border-color:var(--cinza)}
-.cat-chip.on{background:linear-gradient(135deg,var(--grafite),var(--vermelho) 80%);color:#fff;border-color:transparent;box-shadow:0 3px 10px rgba(220,30,40,.4);transform:translateY(-1px)}
-.cat-chip b{opacity:.55;font-weight:700;margin-left:5px}
-.cat-chip.on b{opacity:.8;color:#ffd9dc}
+.cat-chip{flex-shrink:0;background:#fff;border:1px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--grafite);transition:.15s;white-space:nowrap}
+.cat-chip:hover{border-color:var(--cinza)}.cat-chip.on{background:linear-gradient(135deg,var(--grafite),var(--vermelho) 80%);color:#fff;border-color:transparent;box-shadow:0 2px 8px rgba(220,30,40,.25)}
+.cat-chip b{opacity:.5;font-weight:600;margin-left:4px}
 
 .grid-prod{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:15px}
 .prod-card{background:#fff;border-radius:var(--radius-sm);box-shadow:var(--sombra);overflow:hidden;display:flex;flex-direction:column;transition:.18s;border:1px solid transparent;cursor:pointer}
@@ -200,6 +198,28 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 /* === Encaixe das fotos novas (caixa quadrada, sem estourar) === */
 .ph{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ph img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
+/* === Foto do vendedor (intro) === */
+.vend-mini{display:flex;align-items:center;gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.12)}
+.vend-av{width:42px;height:42px;border-radius:50%;overflow:hidden;background:var(--vermelho);color:#fff;font-weight:700;display:grid;place-items:center;flex-shrink:0}
+.vend-av img{width:100%;height:100%;object-fit:cover}
+.vend-info{display:flex;flex-direction:column;line-height:1.2}
+.vend-info small{font-size:11px;opacity:.7}
+.vend-info b{font-size:14px}
+/* === KPIs do histórico do cliente === */
+.hist-kpi{background:#fff;border:1px solid var(--linha);border-radius:16px;padding:18px;margin:0 0 18px}
+.hk-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:4px}
+.hk-head b{font-size:15px;color:var(--preto)}
+.hk-head small{font-size:12px;color:var(--cinza)}
+.hk-cards{display:flex;gap:10px;margin-bottom:16px}
+.hk-c{flex:1;background:var(--fundo,#f6f6f8);border-radius:12px;padding:12px;text-align:center}
+.hk-c span{display:block;font-size:20px;font-weight:800;color:var(--vermelho)}
+.hk-c small{font-size:11px;color:var(--cinza)}
+.hk-titm{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--cinza);margin-bottom:8px}
+.hk-row{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:13px}
+.hk-nome{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--grafite)}
+.hk-bar{width:90px;height:7px;background:var(--linha);border-radius:99px;overflow:hidden;flex-shrink:0}
+.hk-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--grafite),var(--vermelho));border-radius:99px}
+.hk-rep{width:34px;text-align:right;font-weight:700;color:var(--grafite);flex-shrink:0}
 </style>
 <style>
 .gate{min-height:70vh;display:grid;place-items:center;padding:30px;text-align:center}
@@ -324,7 +344,7 @@ async function start(){
     cesta=(r.cliente&&r.cliente.cestaOriental)||[];
     // pré-carrega a seleção que o vendedor sugeriu
     (r.selecao||[]).forEach(it=>{ if(it.cod) carrinho[it.cod]={cod:it.cod,nome:it.nome||nomeDe(it.cod),cat:catDe(it.cod),qt:it.qt||1}; });
-    montarApp(nome, r.expiraEm);
+    montarApp(nome, r.expiraEm, r.cliente||{}, r.vendedor||"");
     // catálogo real em background
     try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;indexar();CATS=derivarCats();renderCats();renderGrid();}}catch(e){}
     try{const pp=await apiGet("promocoes"); if(pp.ok&&pp.promocoes&&pp.promocoes.length){PROMOS=pp.promocoes;renderPromos();}}catch(e){}
@@ -337,13 +357,49 @@ function gate(ico,titulo,texto){
 }
 function derivarCats(){const set={};CATALOGO.forEach(p=>{if(p.cat)set[p.cat]=true});const pres=Object.keys(set);return ORDEM_CAT.filter(c=>set[c]).concat(pres.filter(c=>ORDEM_CAT.indexOf(c)<0).sort());}
 
-function montarApp(nome, expiraEm){
+function montarApp(nome, expiraEm, dadosCli, vendedor){
   document.getElementById("gate").style.display="none";
   document.getElementById("app").style.display="block";
   let validade="";
   if(expiraEm){const dt=new Date(expiraEm);validade=`Válido até <b>${dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b>`;}
-  document.getElementById("intro").innerHTML=`<span class="emoji">🛍️</span><div><h2>Olá, ${nome}!</h2><p>Monte seu pedido — escolha os itens e a quantidade. Seu vendedor finaliza com você.</p></div><div class="val">${validade}</div>`;
+
+  // foto do vendedor (cai na inicial se não houver arquivo)
+  var vendHtml="";
+  if(vendedor){
+    var vn=vendedor.replace(/\./g," ").toLowerCase().replace(/\b\w/g,m=>m.toUpperCase());
+    vendHtml=`<div class="vend-mini"><div class="vend-av"><img src="vendedores/${vendedor.toUpperCase()}.webp" alt="" onerror="this.parentNode.textContent='${vn.charAt(0).toUpperCase()}'"></div><div class="vend-info"><small>Seu vendedor</small><b>${vn}</b></div></div>`;
+  }
+  document.getElementById("intro").innerHTML=`<span class="emoji">🛍️</span><div><h2>Olá, ${nome}!</h2><p>Monte seu pedido — escolha os itens e a quantidade. Seu vendedor finaliza com você.</p>${vendHtml}</div><div class="val">${validade}</div>`;
   document.getElementById("cliNome").textContent=nome;
+
+  // KPIs do cliente (o que ele já comprou em 2026) — SEM margem
+  (function(){
+    var d=dadosCli||{};
+    var itens=d.itensComprados||[];
+    var fat=d.clienteFat||0, mix=d.clienteMix||itens.length||0;
+    var qtdTotal=itens.reduce((s,i)=>s+(Number(i.qtde)||0),0);
+    if(!itens.length){ return; }  // cliente novo/sem histórico: não mostra
+    var fmt=v=>"R$ "+(Number(v)||0).toLocaleString("pt-BR",{maximumFractionDigits:0});
+    // top 5 por valor, com representatividade (% do total)
+    var top=itens.slice().sort((a,b)=>(b.total||0)-(a.total||0)).slice(0,5);
+    var linhas=top.map(i=>{
+      var rep=fat>0?Math.round((i.total||0)/fat*100):0;
+      return `<div class="hk-row"><span class="hk-nome">${i.nome||i.cod}</span><span class="hk-bar"><i style="width:${Math.max(4,rep)}%"></i></span><span class="hk-rep">${rep}%</span></div>`;
+    }).join("");
+    var base=d.dadosAtualizadosEm?` · base ${d.dadosAtualizadosEm}`:"";
+    document.getElementById("intro").insertAdjacentHTML("afterend",
+      `<div class="hist-kpi">
+        <div class="hk-head"><b>Seu histórico de compras</b><small>desde jan/2026${base}</small></div>
+        <div class="hk-cards">
+          <div class="hk-c"><span>${mix}</span><small>produtos diferentes</small></div>
+          <div class="hk-c"><span>${qtdTotal.toLocaleString("pt-BR")}</span><small>itens no total</small></div>
+          <div class="hk-c"><span>${fmt(fat)}</span><small>em compras</small></div>
+        </div>
+        <div class="hk-titm">Onde você mais investe</div>
+        ${linhas}
+      </div>`);
+  })();
+
   renderPromos();renderCats();renderGrid();atualizarCart();
   if(cesta && cesta.filter(i=>!i.compra).length) renderSugestao();
 }
