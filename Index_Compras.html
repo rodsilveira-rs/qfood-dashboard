@@ -3942,6 +3942,21 @@ function v3MontarBodyAprovacao(itens, bonif){
     '<textarea id="ap-obs-interna" class="modal-textarea" rows="2" maxlength="500" placeholder="Ex: aprovado com folga porque tem outra cotação chegando..."></textarea>'+
   '</div>';
 
+  // 🆕 v6.1: SEÇÃO FORMA DE PAGAMENTO (Cris pode ajustar se fornecedor não aceitar a original)
+  var formaPagOriginal = '';
+  try {
+    if(V3._state.cotacaoAtiva) formaPagOriginal = V3._state.cotacaoAtiva.Forma_Pagamento || '';
+  } catch(e){}
+  html += '<div class="modal-aprov-section" style="background:rgba(93,219,179,.06);border-left:3px solid #5ddbb3;padding:14px 16px">'+
+    '<div class="mas-title">💳 Forma de Pagamento <span class="mas-sub">edite se precisou negociar diferente com o fornecedor</span></div>'+
+    '<input type="text" id="ap-forma-pag" maxlength="200" placeholder="Ex: Boleto 28 dias, PIX à vista, Cartão 30/60/90..." '+
+      'value="'+v3Esc(formaPagOriginal)+'" '+
+      'style="width:100%;background:var(--s2);border:1.5px solid var(--br);border-radius:8px;padding:9px 12px;color:var(--tx);font-size:.86rem;outline:none;box-sizing:border-box">'+
+    (formaPagOriginal
+      ? '<div style="font-size:.7rem;color:var(--mu);margin-top:6px;font-style:italic">📝 Valor original da cotação: <b>'+v3Esc(formaPagOriginal)+'</b></div>'
+      : '<div style="font-size:.7rem;color:#ffaa2b;margin-top:6px;font-style:italic">⚠️ Nenhuma forma de pagamento definida na cotação original.</div>')+
+  '</div>';
+
   // 🆕 v5.6: SEÇÃO TRANSPORTADORA + TIPO FRETE (unifica designação no momento da aprovação)
   html += '<div class="modal-aprov-section" style="background:rgba(255,170,43,.06);border-left:3px solid #ffaa2b;padding:14px 16px">'+
     '<div class="mas-title">🚛 Transportadora e Frete <span class="mas-sub" style="color:#ff7875">obrigatório — vai no e-mail de aprovação</span></div>'+
@@ -4208,6 +4223,8 @@ async function v3ConfirmarAprovacao(){
 
   var textoLivre = (document.getElementById('ap-texto-livre')||{}).value || '';
   var obsInterna = (document.getElementById('ap-obs-interna')||{}).value || '';
+  // 🆕 v6.1: forma de pagamento (editável pela Cris)
+  var formaPag = ((document.getElementById('ap-forma-pag')||{}).value || '').trim();
 
   // 🆕 v5.6: valida transportadora + tipo frete (agora obrigatórios)
   var freteEl = document.querySelector('input[name="ap-frete"]:checked');
@@ -4239,6 +4256,8 @@ async function v3ConfirmarAprovacao(){
       bonificacao_aprovada: bonifAprov,
       texto_livre: textoLivre,
       total_aprovado: totalAprovado,
+      // 🆕 v6.1: forma de pagamento (Cris pode ajustar se fornecedor não aceitou original)
+      forma_pagamento: formaPag,
       // 🆕 v5.6: fluxo unificado — manda transp + frete junto
       tipo_frete: tipoFrete,
       transportadora_nome: transpObj.Nome || '',
