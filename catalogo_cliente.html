@@ -25,12 +25,13 @@ window.CAT_EMB={};
     var iEmb=idx(function(h){return h.indexOf("qtde")>=0&&h.indexOf("emb")>=0;});
     var iPromo=idx(function(h){return h==="promo";});
     var iPreco=idx(function(h){return h.indexOf("pre")===0;});
+    var iDesc=idx(function(h){return h.indexOf("desc")>=0||h==="produto"||h==="nome"||h==="item";});
     if(iCod<0)return;
     var map={};
     for(var r=1;r<linhas.length;r++){
       var c=parseLinha(linhas[r]);
       var cod=pad5(c[iCod]); if(!cod)continue;
-      map[cod]={un:(c[iUn]||"").trim().toUpperCase(),emb:parseInt(String(c[iEmb]||"").replace(/\D/g,""),10)||1,promo:iPromo>=0?(c[iPromo]||"").trim():"",preco:iPreco>=0?(c[iPreco]||"").trim():""};
+      map[cod]={un:(c[iUn]||"").trim().toUpperCase(),emb:parseInt(String(c[iEmb]||"").replace(/\D/g,""),10)||1,promo:iPromo>=0?(c[iPromo]||"").trim():"",preco:iPreco>=0?(c[iPreco]||"").trim():"",desc:iDesc>=0?(c[iDesc]||"").trim():""};
     }
     window.CAT_EMB=map;
     if(typeof onEmbCarregado==="function")onEmbCarregado();
@@ -129,7 +130,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .promo-rail::-webkit-scrollbar{height:8px}.promo-rail::-webkit-scrollbar-thumb{background:#d8d8db;border-radius:99px}
 .promo-card{flex:0 0 300px;scroll-snap-align:start;background:linear-gradient(135deg,var(--preto),#2b0a0f 120%);border-radius:var(--radius);overflow:hidden;color:#fff;position:relative;box-shadow:var(--sombra);display:flex;flex-direction:column}
 .promo-card .selo{position:absolute;top:12px;left:12px;background:var(--amarelo);color:#1a1300;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:4px 9px;border-radius:6px;text-transform:uppercase}
-.promo-card .img{height:120px;background:var(--vermelho);display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.5);background-image:radial-gradient(circle at 70% 30%,rgba(255,255,255,.12),transparent 60%)}
+.promo-card .img{height:120px;overflow:hidden;background:var(--vermelho);display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.5);background-image:radial-gradient(circle at 70% 30%,rgba(255,255,255,.12),transparent 60%)}
 .promo-card .corpo{padding:14px 16px 16px;display:flex;flex-direction:column;gap:4px;flex:1}
 .promo-card .corpo .prod{font-size:15px;font-weight:700;line-height:1.25}
 .promo-card .precos{display:flex;align-items:baseline;gap:9px;margin-top:6px}
@@ -342,9 +343,9 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 
 <div class="wrap" id="app" style="display:none">
   <div class="intro" id="intro"></div>
-  <div id="sugestaoSec"></div>
   <div class="secao-titulo"><h2>ofertas da <span class="ac">semana</span></h2><div class="rule red"></div></div>
   <div class="promo-rail" id="promoRail"></div>
+  <div id="sugestaoSec"></div>
   <section id="rankMais"></section>
   <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
   <div class="cat-busca"><div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div></div>
@@ -499,7 +500,7 @@ function renderSugestao(){
 }
 
 function renderPromos(){
-  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-height:100%;max-width:90%;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div><div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}','${p.cod||""}')">+ Adicionar</button></div></div>`).join("");
+  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-width:100%;max-height:120px;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div><div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}','${p.cod||""}')">+ Adicionar</button></div></div>`).join("");
 }
 function scrollCats(dir){const el=document.getElementById('cats');if(el)el.scrollBy({left:dir*320,behavior:'smooth'});}
 function irCatalogo(){var el=document.getElementById('find')||document.getElementById('cats');if(!el)return;var y=el.getBoundingClientRect().top+window.pageYOffset-80;window.scrollTo({top:y,behavior:'smooth'});}
@@ -523,7 +524,7 @@ function toggleCod(cod){if(carrinho[cod]){delete carrinho[cod];toast("Removido")
 function addPromo(nome,cod){if(cod&&byCod[cod]){carrinho[cod]=carrinho[cod]||{cod:cod,nome:nomeDe(cod),cat:catDe(cod),qt:0,un:(typeof unPadrao==="function"?unPadrao(cod):"un")};carrinho[cod].qt+=1;}else{carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1};}toast("Adicionado");atualizarCart();}
 function _promoNum(v){v=String(v==null?"":v).replace(/[^\d,.-]/g,"");if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");var n=parseFloat(v);return isNaN(n)?0:n;}
 function _promoBRL(n){return n.toFixed(2).replace(".",",");}
-function promosDeGiro(){if(!window.CAT_EMB)return;var out=[];Object.keys(CAT_EMB).forEach(function(cod){var e=CAT_EMB[cod]||{};var por=_promoNum(e.promo),de=_promoNum(e.preco);if(por>0&&de>0&&por<de){var pct=Math.round((de-por)/de*100);out.push({cod:cod,prod:nomeDe(cod),de:_promoBRL(de),por:_promoBRL(por),selo:"-"+pct+"%",val:"Enquanto durar o estoque"});}});if(out.length){PROMOS=out;renderPromos();}}
+function promosDeGiro(){if(!window.CAT_EMB)return;var out=[];Object.keys(CAT_EMB).forEach(function(cod){var e=CAT_EMB[cod]||{};var por=_promoNum(e.promo),de=_promoNum(e.preco);if(por>0&&de>0&&por<de){var pct=Math.round((de-por)/de*100);out.push({cod:cod,prod:(e.desc||nomeDe(cod)),de:_promoBRL(de),por:_promoBRL(por),selo:"-"+pct+"%",val:"Enquanto durar o estoque"});}});if(out.length){PROMOS=out;renderPromos();}}
 function onEmbCarregado(){try{promosDeGiro();}catch(e){}}
 function atualizarCart(){const n=Object.keys(carrinho).length;document.getElementById("cartCount").textContent=n+(n===1?" item":" itens");document.getElementById("cartBar").classList.toggle("show",n>0);}
 
