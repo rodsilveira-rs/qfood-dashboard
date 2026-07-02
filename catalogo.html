@@ -56,7 +56,7 @@ window.CAT_EMB={};
 body{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;background:var(--fundo);color:var(--preto);-webkit-font-smoothing:antialiased;line-height:1.45;padding-bottom:90px}
 button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 
-.topbar{position:sticky;top:0;z-index:50;background:var(--preto);display:flex;align-items:center;gap:18px;padding:6px 22px;box-shadow:0 2px 14px rgba(0,0,0,.25)}
+.topbar{position:sticky;top:0;z-index:50;background:var(--preto);display:flex;align-items:center;gap:18px;padding:0 22px;box-shadow:0 2px 14px rgba(0,0,0,.25)}
 .logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
 .logo .mark{font-weight:800;font-size:18px;color:#fff;letter-spacing:.04em;line-height:1}
 .logo .mark b{color:var(--vermelho)}.logo .sub{font-size:9px;letter-spacing:.42em;color:#9a9aa3;font-weight:600}
@@ -66,7 +66,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .busca button{background:var(--vermelho);color:#fff;font-weight:700;font-size:14px;padding:0 22px;align-self:stretch;display:flex;align-items:center;gap:7px;transition:.15s}
 .busca button:hover{background:var(--vermelho-escuro)}
 .vend-tag{display:flex;align-items:center;gap:8px;color:#cfcfd6;font-size:13px;flex-shrink:0}
-.vend-tag .av{width:66px;height:66px;border-radius:50%;background:var(--vermelho);color:#fff;font-weight:700;font-size:23px;display:grid;place-items:center;overflow:hidden;flex-shrink:0}
+.vend-tag .av{width:76px;height:76px;border-radius:50%;background:var(--vermelho);color:#fff;font-weight:700;font-size:26px;display:grid;place-items:center;overflow:hidden;flex-shrink:0}
 .vend-tag .av img{width:100%;height:100%;object-fit:cover;display:block}
 @media(max-width:720px){.vend-tag span{display:none}}
 .wrap{max-width:1180px;margin:0 auto;padding:22px}
@@ -395,7 +395,7 @@ function imgHtml(p,cls){const s=imgFor(p.cod);return s?`<div class="ph ${cls||''
 /* ---------- BUSCA CNPJ (mágica real) ---------- */
 async function buscar(){
   const d=soDig(document.getElementById("cnpj").value);
-  if(d.length<14){toast("Digite os 14 dígitos do CNPJ");return}
+  if(d.length!==11&&d.length!==14){toast("Digite um CPF (11) ou CNPJ (14)");return}
   document.getElementById("empty").style.display="none";
   document.getElementById("cliente").classList.add("show");
   document.getElementById("statusCard").innerHTML='<div class="status-head"><div class="status-info"><h2>Buscando…</h2></div></div>';
@@ -582,7 +582,11 @@ function addCod(cod){
   else carrinho[cod]={cod:cod,nome:nomeDe(cod),cat:catDe(cod),qt:1,preco:""};
   toast("Adicionado: "+carrinho[cod].nome); atualizarCart(); renderGrid();
 }
-function addPromo(nome){carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1,preco:""};toast("Promoção adicionada");atualizarCart()}
+function addPromo(nome,cod){if(cod&&byCod[cod]){carrinho[cod]=carrinho[cod]||{cod:cod,nome:nomeDe(cod),cat:catDe(cod),qt:0,preco:"",un:(typeof unPadrao==="function"?unPadrao(cod):"un")};carrinho[cod].qt+=1;}else{carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1,preco:""};}toast("Promoção adicionada");atualizarCart()}
+function _promoNum(v){v=String(v==null?"":v).replace(/[^\d,.-]/g,"");if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");var n=parseFloat(v);return isNaN(n)?0:n;}
+function _promoBRL(n){return n.toFixed(2).replace(".",",");}
+function promosDeGiro(){if(!window.CAT_EMB)return;var out=[];Object.keys(CAT_EMB).forEach(function(cod){var e=CAT_EMB[cod]||{};var por=_promoNum(e.promo),de=_promoNum(e.preco);if(por>0&&de>0&&por<de){var pct=Math.round((de-por)/de*100);out.push({cod:cod,prod:nomeDe(cod),de:_promoBRL(de),por:_promoBRL(por),selo:"-"+pct+"%",val:"Enquanto durar o estoque"});}});if(out.length){PROMOS=out;renderPromos();}}
+function onEmbCarregado(){try{promosDeGiro();}catch(e){}}
 function atualizarCart(){const n=Object.keys(carrinho).length;document.getElementById("cartCount").textContent=n+(n===1?" item":" itens");document.getElementById("cartBar").classList.toggle("show",n>0)}
 
 function abrirResumo(){document.getElementById("resumoOv").classList.add("show");render()}
