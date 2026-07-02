@@ -9,6 +9,32 @@
 // Descrições comerciais (carrega do GitHub junto com as fotos). Falha silenciosa.
 window.CAT_DESC = {};
 fetch("fotos/descricoes.json").then(r=>r.json()).then(d=>{ window.CAT_DESC=d||{}; }).catch(()=>{});
+window.CAT_EMB={};
+(function(){
+  var GIRO_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=429598287&single=true&output=csv";
+  function pad5(c){c=String(c||"").replace(/\D/g,"");return c?("00000"+c).slice(-5):"";}
+  function parseLinha(line){var out=[],cur="",q=false;for(var i=0;i<line.length;i++){var ch=line[i];if(q){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++;}else{q=false;}}else{cur+=ch;}}else{if(ch==='"'){q=true;}else if(ch===','){out.push(cur);cur="";}else{cur+=ch;}}}out.push(cur);return out;}
+  function norm(s){return String(s||"").trim().toLowerCase();}
+  fetch(GIRO_CSV).then(function(r){return r.text();}).then(function(t){
+    var linhas=t.replace(/\r/g,"").split("\n").filter(function(l){return l.length;});
+    if(!linhas.length)return;
+    var head=parseLinha(linhas[0]).map(norm);
+    function idx(pred){for(var i=0;i<head.length;i++){if(pred(head[i]))return i;}return -1;}
+    var iCod=idx(function(h){return h.indexOf("digo")>=0||h==="codigo";});
+    var iUn=idx(function(h){return h==="un";});
+    var iEmb=idx(function(h){return h.indexOf("qtde")>=0&&h.indexOf("emb")>=0;});
+    var iPromo=idx(function(h){return h==="promo";});
+    if(iCod<0)return;
+    var map={};
+    for(var r=1;r<linhas.length;r++){
+      var c=parseLinha(linhas[r]);
+      var cod=pad5(c[iCod]); if(!cod)continue;
+      map[cod]={un:(c[iUn]||"").trim().toUpperCase(),emb:parseInt(String(c[iEmb]||"").replace(/\D/g,""),10)||1,promo:iPromo>=0?(c[iPromo]||"").trim():""};
+    }
+    window.CAT_EMB=map;
+    if(typeof onEmbCarregado==="function")onEmbCarregado();
+  }).catch(function(){});
+})();
 window.CAT_RANK=[];
 (function(){
   var RANK_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=82888014&single=true&output=csv";
@@ -228,6 +254,11 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .ri .qt{display:flex;align-items:center;gap:6px;background:#F3F3F4;border-radius:8px;padding:3px}
 .ri .qt button{width:26px;height:26px;border-radius:6px;background:#fff;font-size:16px;font-weight:700;color:var(--grafite);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .ri .qt span{min-width:20px;text-align:center;font-weight:700;font-size:14px}
+.ri-uns{display:flex;gap:5px;margin-top:5px}
+.ri-un{border:1px solid var(--linha);background:#fff;color:var(--grafite);border-radius:7px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer;transition:.12s}
+.ri-un b{font-weight:600;opacity:.6;font-size:10px}
+.ri-un.on{background:linear-gradient(135deg,var(--grafite),var(--vermelho) 80%);color:#fff;border-color:transparent}
+.ri-un.on b{color:#ffd9dc;opacity:.85}
 .ri .rm{color:var(--cinza-claro);font-size:17px;background:none;flex-shrink:0}.ri .rm:hover{color:var(--vermelho)}
 .ri .preco-in{width:84px;flex-shrink:0}
 .ri .preco-in input{width:100%;border:1px solid var(--linha);border-radius:8px;padding:7px 8px;font-size:13px;text-align:right;outline:none}
@@ -484,13 +515,19 @@ function nomeDe(cod){if(byCod[cod])return byCod[cod].nome;const f=(cesta||[]).fi
 function catDe(cod){return byCod[cod]?byCod[cod].cat:"—";}
 function toggleCod(cod){if(carrinho[cod]){delete carrinho[cod];toast("Removido");}else{carrinho[cod]={cod,nome:nomeDe(cod),cat:catDe(cod),qt:1};toast("Adicionado: "+nomeDe(cod));}atualizarCart();renderGrid();if(document.getElementById("sugestaoSec").innerHTML)renderSugestao();}
 function addPromo(nome){carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1};toast("Adicionado");atualizarCart();}
-function atualizarCart(){const n=Object.values(carrinho).reduce((s,i)=>s+i.qt,0);document.getElementById("cartCount").textContent=n+(n===1?" item":" itens");document.getElementById("cartBar").classList.toggle("show",n>0);}
+function atualizarCart(){const n=Object.keys(carrinho).length;document.getElementById("cartCount").textContent=n+(n===1?" item":" itens");document.getElementById("cartBar").classList.toggle("show",n>0);}
 
 function abrirResumo(){document.getElementById("resumoOv").classList.add("show");render();}
 function fecharResumo(){document.getElementById("resumoOv").classList.remove("show");}
+function embDe(cod){var e=(window.CAT_EMB&&CAT_EMB[pad5(cod)])||null;return e&&e.emb?e.emb:1;}
+function unidadesDe(cod){var e=(window.CAT_EMB&&CAT_EMB[pad5(cod)])||null;if(!e)return["un"];if(e.un==="KG")return["kg"];return (e.emb&&e.emb>1)?["un","cx"]:["un"];}
+function unPadrao(cod){var o=unidadesDe(cod);return o.indexOf("cx")>=0?"cx":o[0];}
+function rotuloUn(u){return u==="cx"?"cx":u==="kg"?"kg":"un";}
+function fmtQt(i){return i.un==="kg"?String(i.qt).replace(".",","):i.qt;}
+function setUn(k,u){if(!carrinho[k])return;carrinho[k].un=u;if(u==="kg"&&carrinho[k].qt<0.5)carrinho[k].qt=1;atualizarCart();render();}
 function render(){const itens=Object.entries(carrinho);
- document.getElementById("resumoBody").innerHTML=itens.length?itens.map(([k,i])=>`<div class="ri"><span class="cod">${i.cod}</span><span class="d">${i.nome}<small>${i.cat||""}</small></span><div class="qt"><button onclick="qt('${k}',-1)">−</button><span>${i.qt}</span><button onclick="qt('${k}',1)">+</button></div><button class="rm" onclick="rm('${k}')">🗑</button></div>`).join(""):`<div class="vazio">Seu pedido está vazio.</div>`;}
-function qt(k,d){carrinho[k].qt=Math.max(1,carrinho[k].qt+d);atualizarCart();render();}
+ document.getElementById("resumoBody").innerHTML=itens.length?itens.map(([k,i])=>{if(!i.un)i.un=unPadrao(i.cod);var ops=unidadesDe(i.cod);var chips=ops.length>1?`<div class="ri-uns">${ops.map(u=>`<button class="ri-un${i.un===u?' on':''}" onclick="setUn('${k}','${u}')">${rotuloUn(u)}${u==='cx'?` <b>${embDe(i.cod)}un</b>`:''}</button>`).join("")}</div>`:'';return `<div class="ri"><span class="cod">${i.cod}</span><span class="d">${i.nome}<small>${i.cat||""}</small>${chips}</span><div class="qt"><button onclick="qt('${k}',-1)">−</button><span>${fmtQt(i)} ${rotuloUn(i.un)}</span><button onclick="qt('${k}',1)">+</button></div><button class="rm" onclick="rm('${k}')">🗑</button></div>`;}).join(""):`<div class="vazio">Seu pedido está vazio.</div>`;}
+function qt(k,d){var i=carrinho[k];if(!i)return;var passo=i.un==="kg"?0.5:1,min=i.un==="kg"?0.5:1;i.qt=Math.max(min,Math.round((i.qt+d*passo)*100)/100);atualizarCart();render();}
 function rm(k){delete carrinho[k];atualizarCart();render();renderGrid();}
 
 async function enviar(){
@@ -498,7 +535,7 @@ async function enviar(){
  if(!itens.length){toast("Adicione itens antes de enviar");return;}
  const btn=document.getElementById("btnEnviar");btn.disabled=true;btn.textContent="Enviando…";
  try{
-   const r=await apiPost("salvarPedido",{token:TOKEN,modo:"cliente",itens:itens.map(i=>({cod:i.cod,nome:i.nome,qt:i.qt}))});
+   const r=await apiPost("salvarPedido",{token:TOKEN,modo:"cliente",itens:itens.map(i=>({cod:i.cod,nome:i.nome,qt:i.qt,un:i.un||unPadrao(i.cod),emb:embDe(i.cod)}))});
    if(r.ok && r.resultado && r.resultado.ok){ sucesso(r.resultado); }
    else { toast("Não foi possível enviar: "+((r.resultado&&r.resultado.error)||r.error||"tente de novo")); btn.disabled=false;btn.textContent="Enviar pedido"; }
  }catch(e){ toast("Falha de conexão ao enviar"); btn.disabled=false;btn.textContent="Enviar pedido"; }
