@@ -172,6 +172,18 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .pend-tag{background:#FCF3D9;color:#7a5a00;font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px;text-transform:uppercase;flex-shrink:0}
 .pend-tag.ajuste{background:#FDEAEA;color:#9B1C1C}
 .pend-go{color:var(--vermelho);font-weight:800;font-size:13px;flex-shrink:0}
+.hist-box{max-width:640px;margin:12px auto 0;padding:0 16px}
+.hist-head{font-size:13px;font-weight:800;color:var(--cinza);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
+.hist-item{display:flex;align-items:center;gap:12px;background:var(--branco);border:1px solid var(--linha);border-radius:10px;padding:10px 14px;margin-bottom:7px}
+.hist-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.hist-info b{font-size:13px;font-weight:700}
+.hist-info small{color:var(--cinza);font-size:12px}
+.hist-badge{font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px;text-transform:uppercase;flex-shrink:0}
+.hist-badge.ok{background:var(--verde-fundo);color:var(--verde)}
+.hist-badge.open{background:#FCF3D9;color:#7a5a00}
+.hist-badge.wait{background:var(--azul-fundo);color:var(--azul)}
+.hist-badge.exp{background:#EFEFF1;color:#8A8A93}
+.hist-go{color:var(--vermelho);font-weight:800;font-size:12px;text-decoration:none;flex-shrink:0}
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:capitalize}
 .secao-titulo h2 .ac{color:var(--vermelho)}
@@ -456,6 +468,7 @@ function imgHtml(p,cls){const s=imgFor(p.cod);return s?`<div class="ph ${cls||''
 async function buscar(){
   const d=soDig(document.getElementById("cnpj").value);
   if(d.length!==11&&d.length!==14){toast("Digite um CPF (11) ou CNPJ (14)");return}
+  var _pf=document.getElementById("precifica"); if(_pf) _pf.remove();
   document.getElementById("empty").style.display="none";
   document.getElementById("cliente").classList.add("show");
   document.getElementById("statusCard").innerHTML='<div class="status-head"><div class="status-info"><h2>Buscando…</h2></div></div>';
@@ -467,6 +480,7 @@ async function buscar(){
     if(!r || !r.ok){ toast("Erro: "+((r&&r.error)||"sem resposta")); return; }
     clienteAtual = r.resultado;
     renderCliente();
+    renderHistorico(d);
   }catch(e){ toast("Falha de conexão com o backend"); console.error(e); }
 }
 function abrirCatalogo(){
@@ -718,6 +732,7 @@ async function modoPrecificar(){
   var host=document.createElement("div"); host.id="precifica"; wrap.prepend(host);
   var emp=document.getElementById("empty"); if(emp) emp.style.display="none";
   var cli=document.getElementById("cliente"); if(cli) cli.classList.remove("show");
+  var _bc=document.querySelector(".brand-card"); if(_bc) _bc.style.display="none";
   host.innerHTML='<div class="prc-card prc-msg"><div class="prc-ico">⏳</div><h2>Carregando pedido…</h2></div>';
   var r;
   try{ r=await apiGet("validarToken",{token:tk}); }catch(e){ host.innerHTML=prcMsg("📡","Sem conexão","Não consegui carregar o pedido. Recarregue a página."); return true; }
@@ -774,6 +789,26 @@ function renderPendentes(list){
   }).join("");
   var html='<div class="pend-wrap"><div class="pend-head">📋 Pedidos aguardando precificação <span class="pend-n">'+list.length+'</span></div>'+cards+'</div>';
   document.querySelector(".wrap").insertAdjacentHTML("afterbegin", html);
+}
+function histStatus(etapa,expirado){
+  if(etapa==="APROVADO") return {cls:"ok",txt:"aprovado"};
+  if(etapa==="APROVACAO") return expirado?{cls:"exp",txt:"expirou"}:{cls:"wait",txt:"aguardando cliente"};
+  if(etapa==="PRECIFICAR"||etapa==="AJUSTE") return expirado?{cls:"exp",txt:"expirou"}:{cls:"open",txt:"a precificar"};
+  return expirado?{cls:"exp",txt:"expirou"}:{cls:"open",txt:"em aberto"};
+}
+async function renderHistorico(cnpj){
+  var old=document.getElementById("histBox"); if(old) old.remove();
+  try{
+    var r=await apiGet("historico",{cnpj:cnpj});
+    if(!r||!r.ok||!r.historico||!r.historico.length) return;
+    var cards=r.historico.map(function(h){
+      var st=histStatus(h.etapa,h.expirado);
+      var tot=h.total>0?("R$ "+_promoBRL(h.total)):"—";
+      var acao=(!h.expirado&&(h.etapa==="PRECIFICAR"||h.etapa==="AJUSTE"))?'<a class="hist-go" href="?token='+encodeURIComponent(h.token)+'">Precificar →</a>':((h.etapa==="APROVACAO"&&!h.expirado)?'<a class="hist-go" href="?token='+encodeURIComponent(h.token)+'">Ver →</a>':"");
+      return '<div class="hist-item"><div class="hist-info"><b>'+h.data+'</b><small>'+h.nItens+' itens · '+tot+'</small></div><span class="hist-badge '+st.cls+'">'+st.txt+'</span>'+acao+'</div>';
+    }).join("");
+    document.getElementById("statusCard").insertAdjacentHTML("afterend",'<div class="hist-box" id="histBox"><div class="hist-head">Últimos pedidos deste cliente</div>'+cards+'</div>');
+  }catch(e){}
 }
 let tT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("show"),2600)}
 
