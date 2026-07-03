@@ -136,6 +136,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .brand-iglg:hover{filter:brightness(1.08)}
 .brand-iglg svg{stroke:#fff}
 @media(max-width:560px){.brand-card{flex-direction:column;align-items:flex-start}.brand-iglg{align-self:flex-start}}
+.promo-card .economia{color:var(--verde);font-weight:800;font-size:13px;margin:3px 0 2px}
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:capitalize}
 .secao-titulo h2 .ac{color:var(--vermelho)}
@@ -529,7 +530,7 @@ function montarApp(nome, expiraEm, dadosCli, vendedor){
         <div class="hk-head"><b>Seu histórico de compras</b><small>desde jan/2026${base}</small></div>
         <div class="hk-cards">
           <div class="hk-c"><span>${mix}</span><small>produtos diferentes</small></div>
-          <div class="hk-c"><span>${qtdTotal.toLocaleString("pt-BR")}</span><small>itens no total</small></div>
+          <div class="hk-c"><span>${qtdTotal.toLocaleString("pt-BR")}</span><small>unidades em 2026</small></div>
                   </div>
         <div class="hk-titm">Onde você mais investe</div>
         ${linhas}
@@ -550,7 +551,7 @@ function renderSugestao(){
 }
 
 function renderPromos(){
-  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-width:100%;max-height:120px;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div><div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}','${p.cod||""}')">+ Adicionar</button></div></div>`).join("");
+  document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-width:100%;max-height:120px;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div>${p.economia?`<div class="economia">Economia de R$ ${p.economia}</div>`:""}<div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}','${p.cod||""}')">+ Adicionar</button></div></div>`).join("");
 }
 function scrollCats(dir){const el=document.getElementById('cats');if(el)el.scrollBy({left:dir*320,behavior:'smooth'});}
 function irCatalogo(){var el=document.getElementById('find')||document.getElementById('cats');if(!el)return;var y=el.getBoundingClientRect().top+window.pageYOffset-80;window.scrollTo({top:y,behavior:'smooth'});}
@@ -571,10 +572,10 @@ function fecharSheet(){document.getElementById("overlay").classList.remove("show
 function nomeDe(cod){if(byCod[cod])return byCod[cod].nome;const f=(cesta||[]).find(x=>x.cod===cod);return f?f.nome:("Item "+cod);}
 function catDe(cod){return byCod[cod]?byCod[cod].cat:"—";}
 function toggleCod(cod){if(carrinho[cod]){delete carrinho[cod];toast("Removido");}else{carrinho[cod]={cod,nome:nomeDe(cod),cat:catDe(cod),qt:1};toast("Adicionado: "+nomeDe(cod));}atualizarCart();renderGrid();if(document.getElementById("sugestaoSec").innerHTML)renderSugestao();}
-function addPromo(nome,cod){if(cod&&byCod[cod]){carrinho[cod]=carrinho[cod]||{cod:cod,nome:nomeDe(cod),cat:catDe(cod),qt:0,un:(typeof unPadrao==="function"?unPadrao(cod):"un")};carrinho[cod].qt+=1;}else{carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1};}toast("Adicionado");atualizarCart();}
+function addPromo(nome,cod){if(cod&&byCod[cod]){var _e=(window.CAT_EMB&&CAT_EMB[cod])||{};var _pp=_promoNum(_e.promo),_pd=_promoNum(_e.preco),_lk=(_pp>0&&_pd>0&&_pp<_pd);carrinho[cod]=carrinho[cod]||{cod:cod,nome:nomeDe(cod),cat:catDe(cod),qt:0,un:(typeof unPadrao==="function"?unPadrao(cod):"un"),preco:_lk?_promoBRL(_pp):"",promoLock:_lk};carrinho[cod].qt+=1;}else{carrinho["promo_"+Object.keys(carrinho).length]={cod:"PROMO",nome,cat:"Promoção",qt:1};}toast("Adicionado");atualizarCart();}
 function _promoNum(v){v=String(v==null?"":v).replace(/[^\d,.-]/g,"");if(v.indexOf(",")>=0)v=v.replace(/\./g,"").replace(",",".");var n=parseFloat(v);return isNaN(n)?0:n;}
 function _promoBRL(n){return n.toFixed(2).replace(".",",");}
-function promosDeGiro(){if(!window.CAT_EMB)return;var out=[];Object.keys(CAT_EMB).forEach(function(cod){var e=CAT_EMB[cod]||{};var por=_promoNum(e.promo),de=_promoNum(e.preco);if(por>0&&de>0&&por<de){var pct=Math.round((de-por)/de*100);out.push({cod:cod,prod:(e.desc||nomeDe(cod)),de:_promoBRL(de),por:_promoBRL(por),selo:"-"+pct+"%",val:"Enquanto durar o estoque"});}});if(out.length){PROMOS=out;renderPromos();}}
+function promosDeGiro(){if(!window.CAT_EMB)return;var out=[];Object.keys(CAT_EMB).forEach(function(cod){var e=CAT_EMB[cod]||{};var por=_promoNum(e.promo),de=_promoNum(e.preco);if(por>0&&de>0&&por<de){var pct=Math.round((de-por)/de*100);out.push({cod:cod,prod:(e.desc||nomeDe(cod)),de:_promoBRL(de),por:_promoBRL(por),economia:_promoBRL(de-por),selo:"-"+pct+"%",pct:pct,val:"Enquanto durar o estoque"});}});out.sort(function(a,b){return (b.pct||0)-(a.pct||0);});if(out.length){PROMOS=out;renderPromos();}}
 function onEmbCarregado(){try{promosDeGiro();}catch(e){}}
 function atualizarCart(){const n=Object.keys(carrinho).length;document.getElementById("cartCount").textContent=n+(n===1?" item":" itens");document.getElementById("cartBar").classList.toggle("show",n>0);}
 
@@ -596,7 +597,7 @@ async function enviar(){
  if(!itens.length){toast("Adicione itens antes de enviar");return;}
  const btn=document.getElementById("btnEnviar");btn.disabled=true;btn.textContent="Enviando…";
  try{
-   const r=await apiPost("salvarPedido",{token:TOKEN,modo:"cliente",obs:(document.getElementById("notaPedido")?.value||"").trim(),itens:itens.map(i=>({cod:i.cod,nome:i.nome,qt:i.qt,un:i.un||unPadrao(i.cod),emb:embDe(i.cod)}))});
+   const r=await apiPost("salvarPedido",{token:TOKEN,modo:"cliente",obs:(document.getElementById("notaPedido")?.value||"").trim(),itens:itens.map(i=>({cod:i.cod,nome:i.nome,qt:i.qt,un:i.un||unPadrao(i.cod),emb:embDe(i.cod),preco:i.preco||"",promoLock:!!i.promoLock}))});
    if(r.ok && r.resultado && r.resultado.ok){ sucesso(r.resultado); }
    else { toast("Não foi possível enviar: "+((r.resultado&&r.resultado.error)||r.error||"tente de novo")); btn.disabled=false;btn.textContent="Enviar pedido"; }
  }catch(e){ toast("Falha de conexão ao enviar"); btn.disabled=false;btn.textContent="Enviar pedido"; }
