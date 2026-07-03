@@ -161,6 +161,17 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .prc-enviar{display:block;width:calc(100% - 44px);margin:16px 22px 22px;background:var(--verde);color:#fff;font-weight:800;border:none;border-radius:12px;padding:15px;font-size:16px;cursor:pointer}
 .prc-waWrap{text-align:center;margin-top:16px}
 .prc-wa{display:inline-flex;align-items:center;gap:8px;background:#25D366;color:#fff;font-weight:700;text-decoration:none;padding:12px 20px;border-radius:12px}
+.pend-wrap{max-width:640px;margin:18px auto 0;padding:0 16px}
+.pend-head{font-size:15px;font-weight:800;color:var(--preto);display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pend-n{background:var(--vermelho);color:#fff;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px}
+.pend-card{display:flex;align-items:center;gap:12px;background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:12px 14px;margin-bottom:8px;text-decoration:none;color:var(--preto);transition:.12s}
+.pend-card:hover{border-color:var(--vermelho);box-shadow:0 4px 14px rgba(0,0,0,.06)}
+.pend-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pend-info b{font-size:14px;font-weight:700}
+.pend-info small{color:var(--cinza);font-size:12px}
+.pend-tag{background:#FCF3D9;color:#7a5a00;font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px;text-transform:uppercase;flex-shrink:0}
+.pend-tag.ajuste{background:#FDEAEA;color:#9B1C1C}
+.pend-go{color:var(--vermelho);font-weight:800;font-size:13px;flex-shrink:0}
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:capitalize}
 .secao-titulo h2 .ac{color:var(--vermelho)}
@@ -414,6 +425,7 @@ async function init(){
     const p = await apiGet("promocoes");
     if(!window._promosGiro && p && p.ok && Array.isArray(p.promocoes) && p.promocoes.length){ PROMOS = p.promocoes; renderPromos(); }
   }catch(e){ console.warn("promocoes:",e); }
+  try{ const pd=await apiGet("pendentes"); if(pd&&pd.ok) renderPendentes(pd.pendentes||[]); }catch(e){ console.warn("pendentes:",e); }
 }
 function derivarCats(){
   const set = {}; CATALOGO.forEach(p=>{ if(p.cat) set[p.cat]=true; });
@@ -753,6 +765,16 @@ async function enviarPrecos(btn){
   }catch(e){ toast("Falha de conexão"); btn.disabled=false; btn.textContent="Enviar para aprovação do cliente →"; }
 }
 
+function renderPendentes(list){
+  if(!list||!list.length) return;
+  var cards=list.map(function(p){
+    var vn=(p.vendedor||"").replace(/\./g," ");
+    var tag=p.etapa==="AJUSTE"?'<span class="pend-tag ajuste">pediu ajuste</span>':'<span class="pend-tag">aguardando</span>';
+    return '<a class="pend-card" href="?token='+encodeURIComponent(p.token)+'"><div class="pend-info"><b>'+(p.cliente||p.cnpj)+'</b><small>'+vn+' · '+p.nItens+' '+(p.nItens===1?'item':'itens')+'</small></div>'+tag+'<span class="pend-go">Precificar →</span></a>';
+  }).join("");
+  var html='<div class="pend-wrap"><div class="pend-head">📋 Pedidos aguardando precificação <span class="pend-n">'+list.length+'</span></div>'+cards+'</div>';
+  document.querySelector(".wrap").insertAdjacentHTML("afterbegin", html);
+}
 let tT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("show"),2600)}
 
 /* arranca */
