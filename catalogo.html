@@ -361,14 +361,14 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
   <section class="cliente" id="cliente">
     <div class="status-card" id="statusCard"></div>
     <div class="magic-grid" id="magicGrid"></div>
+    <div class="cat-busca">
+      <div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div>
+    </div>
 
     <div class="secao-titulo"><h2>promoções da <span class="ac">semana</span></h2><div class="rule red"></div></div>
     <div class="promo-rail" id="promoRail"></div>
 
     <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
-    <div class="cat-busca">
-      <div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div>
-    </div>
     <div class="cats-nav"><button class="cats-arrow" onclick="scrollCats(-1)">‹</button><div class="cats" id="cats"></div><button class="cats-arrow" onclick="scrollCats(1)">›</button></div>
     <div class="grid-prod" id="gridProd"></div>
     <button class="mais" id="btnMais" style="display:none" onclick="verMais()">Ver mais produtos</button>
@@ -413,7 +413,7 @@ const ORDEM_CAT = ["Algas","Arroz","Arrozes","Shoyu","Saquês","Saquê","Molhos"
 
 let byCod={}; function indexar(){ byCod={}; CATALOGO.forEach(p=>byCod[p.cod]=p); }
 indexar();
-let clienteAtual=null, catAtiva="Todos", carrinho={}, limite=24, termo="";
+let clienteAtual=null, catAtiva="Todos", carrinho={}, limite=5, termo="";
 
 /* ---------- API ---------- */
 async function apiGet(action, params){
@@ -618,8 +618,8 @@ function renderCats(){
   const all=[{n:"Todos",c:CATALOGO.length}].concat(CATS.map(c=>({n:c,c:CATALOGO.filter(p=>p.cat===c).length})));
   document.getElementById("cats").innerHTML=all.map(o=>`<button class="cat-chip ${o.n===catAtiva?'on':''}" onclick="setCat('${String(o.n).replace(/'/g,"")}')">${o.n}<b>${o.c}</b></button>`).join("");
 }
-function setCat(c){catAtiva=c;limite=24;document.getElementById("find").value="";termo="";renderCats();renderGrid()}
-function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();limite=24;renderGrid()}
+function setCat(c){catAtiva=c;limite=5;document.getElementById("find").value="";termo="";renderCats();renderGrid()}
+function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();limite=5;renderGrid();if(termo){var g=document.getElementById("gridProd");if(g)window.scrollTo({top:g.getBoundingClientRect().top+window.pageYOffset-90,behavior:"smooth"});}}
 function filtrados(){
   let list=CATALOGO;
   if(catAtiva!=="Todos"&&!termo) list=list.filter(p=>p.cat===catAtiva);
@@ -634,7 +634,7 @@ function renderGrid(){
   }).join(""):`<div class="vazio">Nada encontrado${termo?` para "${termo}"`:""}.</div>`;
   document.getElementById("btnMais").style.display = list.length>limite?"block":"none";
 }
-function verMais(){limite+=24;renderGrid()}
+function verMais(){limite=(limite<=5)?15:999999;renderGrid()}
 
 function abrirProduto(cod){
   const p=byCod[cod];if(!p)return;
