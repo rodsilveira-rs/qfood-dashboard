@@ -146,6 +146,21 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .rep-info small{color:#c9c9d2;font-size:12px}
 .rep-btn{background:var(--vermelho);color:#fff;font-weight:800;border:none;border-radius:10px;padding:11px 18px;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .rep-btn:disabled{background:var(--verde);opacity:1}
+.rep-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;z-index:60;align-items:flex-end;justify-content:center}
+.rep-ov.show{display:flex}
+.rep-modal{background:#fff;width:100%;max-width:460px;max-height:82vh;border-radius:18px 18px 0 0;display:flex;flex-direction:column;animation:slide .26s ease}
+.rep-mhead{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 6px}
+.rep-mhead h2{font-size:19px;font-weight:800}
+.rep-mhead .x{background:none;border:none;font-size:26px;line-height:1;color:var(--cinza);cursor:pointer}
+.rep-msub{padding:0 20px 8px;color:var(--cinza);font-size:13px}
+.rep-body{flex:1;overflow-y:auto;padding:4px 12px}
+.rep-item{display:flex;align-items:center;gap:10px;padding:10px 8px;border-bottom:1px solid var(--linha)}
+.rep-item input[type=checkbox]{width:20px;height:20px;flex-shrink:0;accent-color:var(--vermelho)}
+.rep-nome{flex:1;font-size:14px;font-weight:600;min-width:0}
+.rep-qt{width:60px;border:1px solid var(--linha);border-radius:8px;padding:6px 8px;font:inherit;font-size:14px;text-align:center}
+.rep-item small{color:var(--cinza);font-size:12px;width:26px}
+.rep-mfoot{padding:14px 20px 20px;border-top:1px solid var(--linha)}
+.rep-add{width:100%;background:var(--vermelho);color:#fff;font-weight:800;border:none;border-radius:12px;padding:15px;font-size:16px;cursor:pointer}
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:capitalize}
 .secao-titulo h2 .ac{color:var(--vermelho)}
@@ -410,6 +425,14 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 
 <div class="overlay" id="overlay" onclick="if(event.target===this)fecharSheet()"><div class="sheet" id="sheet"></div></div>
 <div class="cart-bar" id="cartBar"><div class="info"><b id="cartCount">0 itens</b><span>no seu pedido</span></div><button class="ir-cat" onclick="irCatalogo()">ir para Catálogo</button><button class="ver" onclick="abrirResumo()">Revisar e enviar →</button></div>
+<div class="rep-ov" id="repOv" onclick="if(event.target===this)fecharRepetir()">
+  <div class="rep-modal">
+    <div class="rep-mhead"><h2>Sua última compra</h2><button class="x" onclick="fecharRepetir()">×</button></div>
+    <div class="rep-msub">Revise, ajuste as quantidades e adicione o que quiser.</div>
+    <div class="rep-body"></div>
+    <div class="rep-mfoot"><button class="rep-add" onclick="confirmarRepetir()">Adicionar selecionados</button></div>
+  </div>
+</div>
 <div class="resumo-ov" id="resumoOv" onclick="if(event.target===this)fecharResumo()">
   <div class="resumo">
     <div class="resumo-head"><h2>Seu pedido</h2><button class="x" onclick="fecharResumo()">×</button></div>
@@ -679,24 +702,38 @@ async function carregarRepetir(){
     if(!uc||!uc.itens||!uc.itens.length) return;
     ULTIMA=uc.itens;
     var mes=uc.data?(" · "+uc.data):"";
-    var html='<div class="rep-card"><div class="rep-info"><b>🔁 Repetir última compra</b><small>'+uc.itens.length+' itens'+mes+'</small></div><button class="rep-btn" onclick="repetirUltima(this)">Adicionar tudo</button></div>';
+    var html='<div class="rep-card"><div class="rep-info"><b>🔁 Repetir última compra</b><small>'+uc.itens.length+' itens'+mes+'</small></div><button class="rep-btn" onclick="abrirRepetir()">Ver e adicionar</button></div>';
     var intro=document.getElementById("intro");
     if(intro) intro.insertAdjacentHTML("afterend", html);
   }catch(e){}
 }
-function repetirUltima(btn){
+function abrirRepetir(){
   if(!ULTIMA||!ULTIMA.length){ toast("Nada para repetir"); return; }
+  var linhas=ULTIMA.map(function(it,i){
+    var un=(typeof unPadrao==="function"?unPadrao(it.cod):"un");
+    return '<label class="rep-item"><input type="checkbox" data-i="'+i+'" checked><span class="rep-nome">'+(it.nome||nomeDe(it.cod))+'</span><input class="rep-qt" type="number" min="0" step="1" data-q="'+i+'" value="'+(Number(it.qt)||1)+'"><small>'+un+'</small></label>';
+  }).join("");
+  var ov=document.getElementById("repOv");
+  ov.querySelector(".rep-body").innerHTML=linhas;
+  ov.classList.add("show");
+}
+function fecharRepetir(){ document.getElementById("repOv").classList.remove("show"); }
+function confirmarRepetir(){
+  var ov=document.getElementById("repOv");
+  var checks=ov.querySelectorAll(".rep-body input[type=checkbox]");
   var add=0;
-  ULTIMA.forEach(function(it){
+  checks.forEach(function(ch){
+    if(!ch.checked) return;
+    var i=+ch.getAttribute("data-i"); var it=ULTIMA[i]; if(!it) return;
+    var q=Number(ov.querySelector('.rep-qt[data-q="'+i+'"]').value)||0;
+    if(q<=0) return;
     var cod=String(it.cod);
-    if(!carrinho[cod]){
-      carrinho[cod]={cod:cod,nome:it.nome||nomeDe(cod),cat:catDe(cod),qt:(Number(it.qt)||1),un:(typeof unPadrao==="function"?unPadrao(cod):"un")};
-      add++;
-    }
+    carrinho[cod]={cod:cod,nome:it.nome||nomeDe(cod),cat:catDe(cod),qt:q,un:(typeof unPadrao==="function"?unPadrao(cod):"un")};
+    add++;
   });
-  toast(add?(add+" itens adicionados"):"Já estão no carrinho");
+  fecharRepetir();
+  toast(add?(add+" itens adicionados"):"Nenhum selecionado");
   atualizarCart(); renderGrid();
-  if(btn){ btn.textContent="✓ Adicionado"; btn.disabled=true; }
 }
 let tT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("show"),2600);}
 start();
