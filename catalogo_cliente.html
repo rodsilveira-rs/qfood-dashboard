@@ -161,6 +161,11 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .rep-item small{color:var(--cinza);font-size:12px;width:26px}
 .rep-mfoot{padding:14px 20px 20px;border-top:1px solid var(--linha)}
 .rep-add{width:100%;background:var(--vermelho);color:#fff;font-weight:800;border:none;border-radius:12px;padding:15px;font-size:16px;cursor:pointer}
+.quick-filtros{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;-webkit-overflow-scrolling:touch}
+.quick-filtros::-webkit-scrollbar{display:none}
+.qf{flex-shrink:0;background:var(--branco);border:1.5px solid var(--linha);border-radius:999px;padding:9px 16px;font-size:14px;font-weight:700;color:var(--preto);cursor:pointer;white-space:nowrap}
+.qf.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+.qf:hover{border-color:var(--vermelho)}
 .secao-titulo{display:flex;align-items:baseline;gap:12px;margin:30px 0 16px}
 .secao-titulo h2{font-size:27px;font-weight:800;letter-spacing:-.02em;text-transform:capitalize}
 .secao-titulo h2 .ac{color:var(--vermelho)}
@@ -417,6 +422,7 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
   <div id="sugestaoSec"></div>
   <section id="rankMais"></section>
   <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
+  <div class="quick-filtros" id="quickFiltros"></div>
   <div class="cat-busca"><div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" oninput="onFind()"></div></div>
   <div class="cats-nav"><button class="cats-arrow" onclick="scrollCats(-1)">‹</button><div class="cats" id="cats"></div><button class="cats-arrow" onclick="scrollCats(1)">›</button></div>
   <div class="grid-prod" id="gridProd"></div>
@@ -475,7 +481,7 @@ function fraseValor(cat){
   return lista[i];
 }
 indexar();
-let TOKEN="", catAtiva="Todos", carrinho={}, limite=24, termo="", cesta=[], CLI_CNPJ="", ULTIMA=null;
+let TOKEN="", catAtiva="Todos", carrinho={}, limite=24, termo="", cesta=[], CLI_CNPJ="", ULTIMA=null, filtroTag="";
 
 function qs(k){return new URLSearchParams(location.search).get(k)}
 async function apiGet(action,params){const u=new URL(WEBAPP);u.searchParams.set("modulo","catalogo");u.searchParams.set("action",action);Object.keys(params||{}).forEach(k=>u.searchParams.set(k,params[k]));const r=await fetch(u.toString());return r.json();}
@@ -517,7 +523,7 @@ async function start(){
     montarApp(nome, r.expiraEm, r.cliente||{}, r.vendedor||"");
     carregarRepetir();
     // catálogo real em background
-    try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;indexar();CATS=derivarCats();renderCats();renderGrid();}}catch(e){}
+    try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;indexar();CATS=derivarCats();renderCats();renderQuick();renderGrid();}}catch(e){}
     try{const pp=await apiGet("promocoes"); if(pp.ok&&pp.promocoes&&pp.promocoes.length){PROMOS=pp.promocoes;renderPromos();}}catch(e){}
   }catch(e){ gate("📡","Sem conexão","Não consegui carregar o catálogo agora. Tente abrir o link de novo em instantes."); }
 }
@@ -590,9 +596,9 @@ function renderPromos(){
 function scrollCats(dir){const el=document.getElementById('cats');if(el)el.scrollBy({left:dir*320,behavior:'smooth'});}
 function irCatalogo(){var el=document.getElementById('find')||document.getElementById('cats');if(!el)return;var y=el.getBoundingClientRect().top+window.pageYOffset-80;window.scrollTo({top:y,behavior:'smooth'});}
 function renderCats(){const all=[{n:"Todos",c:CATALOGO.length}].concat(CATS.map(c=>({n:c,c:CATALOGO.filter(p=>p.cat===c).length})));document.getElementById("cats").innerHTML=all.map(o=>`<button class="cat-chip ${o.n===catAtiva?'on':''}" onclick="setCat('${String(o.n).replace(/'/g,"")}')">${o.n}<b>${o.c}</b></button>`).join("");}
-function setCat(c){catAtiva=c;limite=24;document.getElementById("find").value="";termo="";renderCats();renderGrid()}
-function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();limite=24;renderGrid()}
-function filtrados(){let l=CATALOGO;if(catAtiva!=="Todos"&&!termo)l=l.filter(p=>p.cat===catAtiva);if(termo)l=l.filter(p=>(p.nome||"").toLowerCase().includes(termo)||(p.cod||"").includes(termo));return l;}
+function setCat(c){catAtiva=c;filtroTag="";limite=24;document.getElementById("find").value="";termo="";renderCats();renderQuick();renderGrid()}
+function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();filtroTag="";limite=24;renderQuick();renderGrid()}
+function filtrados(){let l=CATALOGO;if(filtroTag)l=l.filter(p=>((p.tags||"").indexOf(filtroTag)>=0));else if(catAtiva!=="Todos"&&!termo)l=l.filter(p=>p.cat===catAtiva);if(termo)l=l.filter(p=>(p.nome||"").toLowerCase().includes(termo)||(p.cod||"").includes(termo)||((p.tags||"").indexOf(termo)>=0));return l;}
 function renderGrid(){const list=filtrados(),vis=list.slice(0,limite),g=document.getElementById("gridProd");
  g.innerHTML=vis.length?vis.map(p=>{const inc=carrinho[p.cod];return `<div class="prod-card" onclick="abrirProduto('${p.cod}')">${imgHtml(p)}<div class="body"><span class="fam">${p.cat||""}</span><span class="nome">${p.nome||""}</span><button class="add ${inc?'in':''}" onclick="event.stopPropagation();toggleCod('${p.cod}')">${inc?'✓ adicionado':'+ adicionar'}</button></div></div>`;}).join(""):`<div class="vazio">Nada encontrado${termo?` para "${termo}"`:""}.</div>`;
  document.getElementById("btnMais").style.display=list.length>limite?"block":"none";}
@@ -735,6 +741,15 @@ function confirmarRepetir(){
   toast(add?(add+" itens adicionados"):"Nenhum selecionado");
   atualizarCart(); renderGrid();
 }
+const QUICK=[["ð£","japones"],["ð¥«","molho"],["ð","hamburguer"],["ð§","queijo"],["ð¥¤","bebida"],["ð¦","sorvete"],["ð","pizza"],["ð±","vegano"],["â­","premium"],["ð¦","descartavel"]];
+function rotuloTag(t){var m={japones:"JaponÃªs",molho:"Molhos",hamburguer:"HambÃºrguer",queijo:"Queijos",bebida:"Bebidas",sorvete:"Sorvetes",pizza:"Pizza",vegano:"Vegano",premium:"Premium",descartavel:"DescartÃ¡veis"};return m[t]||t;}
+function renderQuick(){
+  var box=document.getElementById("quickFiltros"); if(!box) return;
+  var presentes={}; CATALOGO.forEach(function(p){ (p.tags||"").split(";").forEach(function(t){ t=t.trim(); if(t)presentes[t]=true; }); });
+  var btns=QUICK.filter(function(q){return presentes[q[1]];}).map(function(q){return '<button class="qf'+(filtroTag===q[1]?" on":"")+'" onclick="setTag(\''+q[1]+'\')">'+q[0]+' '+rotuloTag(q[1])+'</button>';}).join("");
+  box.innerHTML = btns ? ('<button class="qf'+(filtroTag?"":" on")+'" onclick="setTag(\'\')">Todos</button>'+btns) : "";
+}
+function setTag(t){filtroTag=t;catAtiva="Todos";termo="";var f=document.getElementById("find");if(f)f.value="";limite=24;renderQuick();renderGrid();var box=document.getElementById("quickFiltros");if(box)window.scrollTo({top:box.getBoundingClientRect().top+window.scrollY-80,behavior:"smooth"});}
 let tT;function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(tT);tT=setTimeout(()=>t.classList.remove("show"),2600);}
 start();
 
