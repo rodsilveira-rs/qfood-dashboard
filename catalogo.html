@@ -167,6 +167,8 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .pend-wrap{max-width:640px;margin:18px auto 0;padding:0 16px}
 .pend-head{font-size:15px;font-weight:800;color:var(--preto);display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .pend-n{background:var(--vermelho);color:#fff;font-size:12px;font-weight:800;border-radius:999px;padding:2px 9px}
+.pend-limpar{margin-left:auto;background:none;border:1px solid var(--linha);color:var(--cinza);font-size:12px;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer}
+.pend-limpar:hover{border-color:var(--vermelho);color:var(--vermelho)}
 .pend-card{display:flex;align-items:center;gap:12px;background:var(--branco);border:1px solid var(--linha);border-radius:12px;padding:12px 14px;margin-bottom:8px;text-decoration:none;color:var(--preto);transition:.12s}
 .pend-card:hover{border-color:var(--vermelho);box-shadow:0 4px 14px rgba(0,0,0,.06)}
 .pend-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -842,8 +844,14 @@ function renderPendentes(list){
     var tag=p.etapa==="AJUSTE"?'<span class="pend-tag ajuste">pediu ajuste</span>':'<span class="pend-tag">aguardando</span>';
     return '<a class="pend-card" href="?token='+encodeURIComponent(p.token)+'"><div class="pend-info"><b>'+(p.cliente||p.cnpj)+'</b><small>'+vn+' · '+p.nItens+' '+(p.nItens===1?'item':'itens')+'</small></div>'+tag+'<span class="pend-go">Precificar →</span></a>';
   }).join("");
-  var html='<div class="pend-wrap"><div class="pend-head">📋 Pedidos aguardando precificação <span class="pend-n">'+list.length+'</span></div>'+cards+'</div>';
+  var html='<div class="pend-wrap"><div class="pend-head">📋 Pedidos aguardando precificação <span class="pend-n">'+list.length+'</span><button class="pend-limpar" onclick="limparPendentes(event)">🗑️ Limpar</button></div>'+cards+'</div>';
   document.querySelector(".wrap").insertAdjacentHTML("afterbegin", html);
+}
+function limparPendentes(ev){
+  if(ev)ev.stopPropagation();
+  if(!confirm("Limpar a lista de pedidos aguardando?\n\nOs links somem da sua lista. Os pedidos NÃO são apagados do sistema (ficam guardados na planilha).")) return;
+  var w=document.querySelector(".pend-wrap"); if(w) w.remove();
+  try{ apiPost("arquivarPendentes",{}).catch(function(){}); }catch(e){}
 }
 function histStatus(etapa,expirado){
   if(etapa==="APROVADO") return {cls:"ok",txt:"aprovado"};
