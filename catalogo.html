@@ -189,6 +189,8 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .hist-badge.wait{background:var(--azul-fundo);color:var(--azul)}
 .hist-badge.exp{background:#EFEFF1;color:#8A8A93}
 .hist-go{color:var(--vermelho);font-weight:800;font-size:12px;text-decoration:none;flex-shrink:0}
+.hist-del{background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px;flex-shrink:0;opacity:.6}
+.hist-del:hover{opacity:1}
 
 .cli-kpis{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
 .cli-kpis .ck{background:var(--fundo);border:1px solid var(--linha);border-radius:10px;padding:8px 14px;min-width:110px}
@@ -859,6 +861,12 @@ function histStatus(etapa,expirado){
   if(etapa==="PRECIFICAR"||etapa==="AJUSTE") return expirado?{cls:"exp",txt:"expirou"}:{cls:"open",txt:"a precificar"};
   return expirado?{cls:"exp",txt:"expirou"}:{cls:"open",txt:"em aberto"};
 }
+function excluirHist(tok,ev){
+  if(ev)ev.stopPropagation();
+  if(!confirm("Excluir este registro do histórico?")) return;
+  var el=ev&&ev.target?ev.target.closest(".hist-item"):null; if(el) el.remove();
+  try{ apiPost("arquivarToken",{token:tok}).catch(function(){}); }catch(e){}
+}
 async function renderHistorico(cnpj){
   var old=document.getElementById("histBox"); if(old) old.remove();
   try{
@@ -868,7 +876,7 @@ async function renderHistorico(cnpj){
       var st=histStatus(h.etapa,h.expirado);
       var tot=h.total>0?("R$ "+_promoBRL(h.total)):"—";
       var acao=(!h.expirado&&(h.etapa==="PRECIFICAR"||h.etapa==="AJUSTE"))?'<a class="hist-go" href="?token='+encodeURIComponent(h.token)+'">Precificar →</a>':((h.etapa==="APROVACAO"&&!h.expirado)?'<a class="hist-go" href="?token='+encodeURIComponent(h.token)+'">Ver →</a>':"");
-      return '<div class="hist-item"><div class="hist-info"><b>'+h.data+'</b><small>'+h.nItens+' itens · '+tot+'</small></div><span class="hist-badge '+st.cls+'">'+st.txt+'</span>'+acao+'</div>';
+      return '<div class="hist-item"><div class="hist-info"><b>'+h.data+'</b><small>'+h.nItens+' itens · '+tot+'</small></div><span class="hist-badge '+st.cls+'">'+st.txt+'</span>'+acao+'<button class="hist-del" title="Excluir registro" onclick="excluirHist(\''+h.token+'\',event)">🗑️</button></div>';
     }).join("");
     document.getElementById("statusCard").insertAdjacentHTML("afterend",'<div class="hist-box" id="histBox"><div class="hist-head">Últimos pedidos deste cliente</div>'+cards+'</div>');
   }catch(e){}
