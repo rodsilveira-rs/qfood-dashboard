@@ -160,6 +160,8 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .prc-un{border:1px solid var(--linha);border-radius:6px;padding:3px 5px;font:inherit;font-size:12px;font-weight:700;color:var(--preto);background:var(--branco);cursor:pointer}
 .prc-preco{display:flex;align-items:center;gap:6px;background:var(--fundo);border:1px solid var(--linha);border-radius:10px;padding:6px 10px;flex-shrink:0}
 .prc-preco span{color:var(--cinza);font-weight:700;font-size:13px}
+.prc-del{background:none;border:none;cursor:pointer;font-size:16px;line-height:1;padding:4px 2px;flex-shrink:0;opacity:.55}
+.prc-del:hover{opacity:1}
 .prc-preco input{width:78px;border:none;background:transparent;font:inherit;font-size:15px;font-weight:700;text-align:right;outline:none}
 .prc-total{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;background:var(--fundo);font-size:16px}
 .prc-total b{font-size:22px;color:var(--vermelho)}
@@ -810,7 +812,7 @@ async function modoPrecificar(){
     var un=it.un?(" "+String(it.un).toLowerCase()):"";
     var unAtual=String(it.un||"un").toLowerCase();
     var opts=["un","cx","kg","pc","fd","lt"].map(function(u){return '<option value="'+u+'"'+(u===unAtual?' selected':'')+'>'+u+'</option>';}).join("");
-    return '<div class="prc-item"><div class="prc-nome">'+(it.nome||("Item "+it.cod))+(it.promoLock?' <span class="prc-lock">🔒 promoção</span>':'')+'<small><input class="prc-qt" type="number" min="1" step="1" data-q="'+i+'" value="'+(Number(it.qt)||1)+'" oninput="prcTotal()"><select class="prc-un" data-u="'+i+'">'+opts+'</select> · cód '+it.cod+'</small></div><div class="prc-preco"><span>R$</span><input type="text" inputmode="decimal" data-i="'+i+'" value="'+(it.preco||"")+'"'+(it.promoLock?' readonly':'')+' oninput="prcTotal()" placeholder="0,00"></div></div>';
+    return '<div class="prc-item" data-row="'+i+'"><div class="prc-nome">'+(it.nome||("Item "+it.cod))+(it.promoLock?' <span class="prc-lock">🔒 promoção</span>':'')+'<small><input class="prc-qt" type="number" min="1" step="1" data-q="'+i+'" value="'+(Number(it.qt)||1)+'" oninput="prcTotal()"><select class="prc-un" data-u="'+i+'">'+opts+'</select> · cód '+it.cod+'</small></div><div class="prc-preco"><span>R$</span><input type="text" inputmode="decimal" data-i="'+i+'" value="'+(it.preco||"")+'"'+(it.promoLock?' readonly':'')+' oninput="prcTotal()" placeholder="0,00"></div><button class="prc-del" title="Remover item" onclick="prcRemover('+i+',event)">🗑️</button></div>';
   }).join("");
   host.innerHTML='<div class="prc-card"><div class="prc-head"><h2>Precificar pedido</h2><p>Cliente: <b>'+nomeCli+'</b>'+(vend?(" · "+vend):"")+'</p>'+nota+'</div><div class="prc-lista">'+linhas+'</div><div class="prc-total"><span>Total</span><b id="prcTotalV">R$ 0,00</b></div><button class="prc-enviar" onclick="enviarPrecos(this)">Enviar para aprovação do cliente →</button></div>';
   prcTotal();
@@ -822,19 +824,34 @@ function prcWa(tk){
   var msg="Seu pedido está com os valores prontos! É só abrir e aprovar: "+cliUrl;
   return '<div class="prc-waWrap"><a class="prc-wa" href="https://wa.me/?text='+encodeURIComponent(msg)+'" target="_blank">📲 Reenviar ao cliente</a></div>';
 }
+function prcRemover(i,ev){
+  if(ev)ev.stopPropagation();
+  var itens=window._prcItens||[];
+  var vivos=itens.filter(function(x){return !x._rm;});
+  if(vivos.length<=1){ toast("O pedido precisa ter pelo menos 1 item"); return; }
+  var it=itens[i]||{};
+  if(!confirm("Remover \""+(it.nome||("item "+it.cod))+"\" do pedido?")) return;
+  it._rm=true;
+  var row=document.querySelector('#precifica .prc-item[data-row="'+i+'"]');
+  if(row) row.remove();
+  prcTotal();
+}
 function prcTotal(){
   var ins=document.querySelectorAll("#precifica input[data-i]");
   var total=0;
-  ins.forEach(function(inp){ var i=+inp.getAttribute("data-i"); var q=document.querySelector('#precifica .prc-qt[data-q="'+i+'"]'); var qt=q?(Number(q.value)||1):((window._prcItens||[])[i]||{}).qt||1; total+=_promoNum(inp.value)*qt; });
+  ins.forEach(function(inp){ var i=+inp.getAttribute("data-i"); var it=(window._prcItens||[])[i]||{}; if(it._rm) return; var q=document.querySelector('#precifica .prc-qt[data-q="'+i+'"]'); var qt=q?(Number(q.value)||1):(it.qt||1); total+=_promoNum(inp.value)*qt; });
   var el=document.getElementById("prcTotalV"); if(el) el.textContent="R$ "+_promoBRL(total);
 }
 async function enviarPrecos(btn){
   var itens=(window._prcItens||[]).map(function(it,i){
+    if(it._rm) return null;
     var inp=document.querySelector('#precifica input[data-i="'+i+'"]');
     var q=document.querySelector('#precifica .prc-qt[data-q="'+i+'"]');
     var u=document.querySelector('#precifica .prc-un[data-u="'+i+'"]');
     return {cod:it.cod,nome:it.nome,qt:q?(Number(q.value)||1):it.qt,un:u?u.value:it.un,emb:it.emb,preco:inp?inp.value.trim():""};
   });
+  itens=itens.filter(function(it){ return it!==null; });
+  if(!itens.length){ toast("O pedido está sem itens"); return; }
   if(itens.some(function(it){ return _promoNum(it.preco)<=0; })){ toast("Preencha o preço de todos os itens"); return; }
   btn.disabled=true; btn.textContent="Enviando…";
   try{
