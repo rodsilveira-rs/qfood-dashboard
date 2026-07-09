@@ -155,7 +155,9 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .prc-lista{padding:8px 22px}
 .prc-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--linha)}
 .prc-nome{font-size:14px;font-weight:600;display:flex;flex-direction:column;gap:2px;min-width:0}
-.prc-nome small{color:var(--cinza);font-weight:500;font-size:12px}
+.prc-nome small{color:var(--cinza);font-weight:500;font-size:12px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:3px}
+.prc-qt{width:52px;border:1px solid var(--linha);border-radius:6px;padding:3px 6px;font:inherit;font-size:12px;font-weight:700;text-align:center;color:var(--preto)}
+.prc-un{border:1px solid var(--linha);border-radius:6px;padding:3px 5px;font:inherit;font-size:12px;font-weight:700;color:var(--preto);background:var(--branco);cursor:pointer}
 .prc-preco{display:flex;align-items:center;gap:6px;background:var(--fundo);border:1px solid var(--linha);border-radius:10px;padding:6px 10px;flex-shrink:0}
 .prc-preco span{color:var(--cinza);font-weight:700;font-size:13px}
 .prc-preco input{width:78px;border:none;background:transparent;font:inherit;font-size:15px;font-weight:700;text-align:right;outline:none}
@@ -806,7 +808,9 @@ async function modoPrecificar(){
   var nota=(etapa==="AJUSTE"&&r.nota)?'<div class="prc-nota">✎ Ajuste pedido pelo cliente: "'+r.nota+'"</div>':"";
   var linhas=itens.map(function(it,i){
     var un=it.un?(" "+String(it.un).toLowerCase()):"";
-    return '<div class="prc-item"><div class="prc-nome">'+(it.nome||("Item "+it.cod))+(it.promoLock?' <span class="prc-lock">🔒 promoção</span>':'')+'<small>'+(Number(it.qt)||1)+un+' · cód '+it.cod+'</small></div><div class="prc-preco"><span>R$</span><input type="text" inputmode="decimal" data-i="'+i+'" value="'+(it.preco||"")+'"'+(it.promoLock?' readonly':'')+' oninput="prcTotal()" placeholder="0,00"></div></div>';
+    var unAtual=String(it.un||"un").toLowerCase();
+    var opts=["un","cx","kg","pc","fd","lt"].map(function(u){return '<option value="'+u+'"'+(u===unAtual?' selected':'')+'>'+u+'</option>';}).join("");
+    return '<div class="prc-item"><div class="prc-nome">'+(it.nome||("Item "+it.cod))+(it.promoLock?' <span class="prc-lock">🔒 promoção</span>':'')+'<small><input class="prc-qt" type="number" min="1" step="1" data-q="'+i+'" value="'+(Number(it.qt)||1)+'" oninput="prcTotal()"><select class="prc-un" data-u="'+i+'">'+opts+'</select> · cód '+it.cod+'</small></div><div class="prc-preco"><span>R$</span><input type="text" inputmode="decimal" data-i="'+i+'" value="'+(it.preco||"")+'"'+(it.promoLock?' readonly':'')+' oninput="prcTotal()" placeholder="0,00"></div></div>';
   }).join("");
   host.innerHTML='<div class="prc-card"><div class="prc-head"><h2>Precificar pedido</h2><p>Cliente: <b>'+nomeCli+'</b>'+(vend?(" · "+vend):"")+'</p>'+nota+'</div><div class="prc-lista">'+linhas+'</div><div class="prc-total"><span>Total</span><b id="prcTotalV">R$ 0,00</b></div><button class="prc-enviar" onclick="enviarPrecos(this)">Enviar para aprovação do cliente →</button></div>';
   prcTotal();
@@ -821,13 +825,15 @@ function prcWa(tk){
 function prcTotal(){
   var ins=document.querySelectorAll("#precifica input[data-i]");
   var total=0;
-  ins.forEach(function(inp){ var it=(window._prcItens||[])[+inp.getAttribute("data-i")]||{}; total+=_promoNum(inp.value)*(Number(it.qt)||1); });
+  ins.forEach(function(inp){ var i=+inp.getAttribute("data-i"); var q=document.querySelector('#precifica .prc-qt[data-q="'+i+'"]'); var qt=q?(Number(q.value)||1):((window._prcItens||[])[i]||{}).qt||1; total+=_promoNum(inp.value)*qt; });
   var el=document.getElementById("prcTotalV"); if(el) el.textContent="R$ "+_promoBRL(total);
 }
 async function enviarPrecos(btn){
   var itens=(window._prcItens||[]).map(function(it,i){
     var inp=document.querySelector('#precifica input[data-i="'+i+'"]');
-    return {cod:it.cod,nome:it.nome,qt:it.qt,un:it.un,emb:it.emb,preco:inp?inp.value.trim():""};
+    var q=document.querySelector('#precifica .prc-qt[data-q="'+i+'"]');
+    var u=document.querySelector('#precifica .prc-un[data-u="'+i+'"]');
+    return {cod:it.cod,nome:it.nome,qt:q?(Number(q.value)||1):it.qt,un:u?u.value:it.un,emb:it.emb,preco:inp?inp.value.trim():""};
   });
   if(itens.some(function(it){ return _promoNum(it.preco)<=0; })){ toast("Preencha o preço de todos os itens"); return; }
   btn.disabled=true; btn.textContent="Enviando…";
