@@ -561,7 +561,7 @@ async function start(){
     montarApp(nome, r.expiraEm, r.cliente||{}, r.vendedor||"");
     carregarRepetir();
     // catálogo real em background
-    try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;indexar();CATS=derivarCats();renderCats();renderGrid();}}catch(e){}
+    try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;CATALOGO.sort(function(a,b){return (imgFor(b.cod)?1:0)-(imgFor(a.cod)?1:0);});indexar();CATS=derivarCats();renderCats();renderGrid();}}catch(e){}
     try{const pp=await apiGet("promocoes"); if(pp.ok&&pp.promocoes&&pp.promocoes.length){PROMOS=pp.promocoes;renderPromos();}}catch(e){}
   }catch(e){ gate("📡","Sem conexão","Não consegui carregar o catálogo agora. Tente abrir o link de novo em instantes."); }
 }
@@ -570,7 +570,7 @@ function gate(ico,titulo,texto){
   document.getElementById("gate").style.display="grid";
   document.getElementById("app").style.display="none";
 }
-function derivarCats(){const set={};CATALOGO.forEach(p=>{if(p.cat)set[p.cat]=true});const pres=Object.keys(set);return ORDEM_CAT.filter(c=>set[c]).concat(pres.filter(c=>ORDEM_CAT.indexOf(c)<0).sort());}
+function derivarCats(){const set={};CATALOGO.forEach(p=>{if(p.cat)set[p.cat]=true});const pres=Object.keys(set);const norm=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();const PRIOR=["oriental","alimentos","hamburgueria","utensilios","utencilios","embalagens","emporio"];const prioridade=[];PRIOR.forEach(function(pk){pres.forEach(function(c){if(norm(c)===pk&&prioridade.indexOf(c)<0)prioridade.push(c);});});const usados={};prioridade.forEach(c=>usados[c]=1);const ord=ORDEM_CAT.filter(c=>set[c]&&!usados[c]);ord.forEach(c=>usados[c]=1);const extras=pres.filter(c=>!usados[c]).sort();return prioridade.concat(ord).concat(extras);}
 
 function montarApp(nome, expiraEm, dadosCli, vendedor){
   document.getElementById("gate").style.display="none";

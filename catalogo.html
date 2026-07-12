@@ -490,7 +490,7 @@ async function init(){
   try{
     const r = await apiGet("produtos");
     if(r && r.ok && Array.isArray(r.produtos) && r.produtos.length){
-      CATALOGO = r.produtos; indexar(); CATS = derivarCats();
+      CATALOGO = r.produtos; CATALOGO.sort(function(a,b){return (imgFor(b.cod)?1:0)-(imgFor(a.cod)?1:0);}); indexar(); CATS = derivarCats();
       if(document.getElementById("cliente").classList.contains("show")){ renderCats(); renderGrid(); }
     }
   }catch(e){ console.warn("produtos:",e); }
@@ -503,9 +503,14 @@ async function init(){
 function derivarCats(){
   const set = {}; CATALOGO.forEach(p=>{ if(p.cat) set[p.cat]=true; });
   const presentes = Object.keys(set);
-  const ord = ORDEM_CAT.filter(c=>set[c]);
-  const extras = presentes.filter(c=>ORDEM_CAT.indexOf(c)<0).sort();
-  return ord.concat(extras);
+  const norm = s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+  const PRIOR = ["oriental","alimentos","hamburgueria","utensilios","utencilios","embalagens","emporio"];
+  const prioridade = [];
+  PRIOR.forEach(function(pk){ presentes.forEach(function(c){ if(norm(c)===pk && prioridade.indexOf(c)<0) prioridade.push(c); }); });
+  const usados = {}; prioridade.forEach(c=>usados[c]=1);
+  const ord = ORDEM_CAT.filter(c=>set[c] && !usados[c]); ord.forEach(c=>usados[c]=1);
+  const extras = presentes.filter(c=>!usados[c]).sort();
+  return prioridade.concat(ord).concat(extras);
 }
 
 /* ---------- helpers ---------- */
