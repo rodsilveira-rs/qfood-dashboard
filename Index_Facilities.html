@@ -113,6 +113,9 @@ a{color:inherit;}
 .pill-filter{display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap;}
 .pill-filter button{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:999px;padding:6px 13px;font-size:0.74rem;cursor:pointer;font-family:var(--fb);}
 .pill-filter button.active{background:var(--orange);color:#2a1500;border-color:var(--orange);}
+.fab{position:fixed;right:16px;bottom:86px;z-index:70;width:56px;height:56px;border-radius:50%;background:var(--orange);color:#2a1500;border:none;font-size:1.9rem;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.4);line-height:1;}
+.nv-opt{display:flex;align-items:center;gap:12px;width:100%;background:var(--s2);border:1px solid var(--br);color:var(--tx);border-radius:12px;padding:14px;margin-bottom:10px;font-family:var(--fb);font-size:0.95rem;cursor:pointer;text-align:left;}
+.nv-opt .ic{font-size:1.5rem;} .nv-opt b{font-family:var(--fh);display:block;} .nv-opt small{color:var(--mu);font-size:0.72rem;}
 </style>
 </head>
 <body>
@@ -147,6 +150,8 @@ a{color:inherit;}
       <div id="obras-list"><div class="loader">Carregando obras…</div></div>
     </div>
   </div>
+
+  <button id="fab" class="fab hidden" onclick="FAC.openNovo()" title="Novo">＋</button>
 
   <div class="nav">
     <button id="nav-agenda" onclick="FAC.go('agenda')"><span class="ic">📆</span>Agenda</button>
@@ -198,6 +203,65 @@ a{color:inherit;}
   </div>
 </div>
 
+<!-- NOVO (escolha) -->
+<div class="ov" id="nv-ov">
+  <div class="sheet">
+    <h3>➕ Novo <button class="close-x" onclick="FAC.closeNovo()">×</button></h3>
+    <div class="sub">O que você quer cadastrar?</div>
+    <button class="nv-opt" onclick="FAC.openObra()"><span class="ic">🧱</span><span><b>Obra / Reforma / Reparo</b><small>Cadastro principal</small></span></button>
+    <button class="nv-opt" onclick="FAC.openEtapa()"><span class="ic">🔧</span><span><b>Etapa</b><small>Passo de uma obra (define o serviço e os EPIs)</small></span></button>
+    <button class="nv-opt" onclick="FAC.openTarefa()"><span class="ic">📆</span><span><b>Tarefa na agenda</b><small>Agendar para o pedreiro/ajudante</small></span></button>
+  </div>
+</div>
+
+<!-- NOVA OBRA -->
+<div class="ov" id="ob-ov">
+  <div class="sheet">
+    <h3>🧱 Nova obra <button class="close-x" onclick="FAC.close('ob')">×</button></h3>
+    <div class="field"><label>Tipo</label><select id="o-tipo"></select></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Loja / unidade</label><input id="o-loja" placeholder="Loja Vitória"></div>
+      <div class="field" style="flex:1"><label>Setor</label><input id="o-setor" placeholder="Salão"></div></div>
+    <div class="field"><label>Descrição</label><input id="o-desc" placeholder="Troca de piso do salão"></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Prioridade</label><select id="o-prio"></select></div>
+      <div class="field" style="flex:1"><label>Status</label><select id="o-status"></select></div></div>
+    <div class="field"><label>Responsável</label><input id="o-resp" placeholder="João Pedreiro"></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Data prevista</label><input type="date" id="o-prev"></div>
+      <div class="field" style="flex:1"><label>Valor previsto (R$)</label><input type="number" id="o-valor" step="0.01" placeholder="0"></div></div>
+    <button class="big big-ok" onclick="FAC.saveObra(this)">Salvar obra</button>
+  </div>
+</div>
+
+<!-- NOVA ETAPA -->
+<div class="ov" id="et-ov">
+  <div class="sheet">
+    <h3>🔧 Nova etapa <button class="close-x" onclick="FAC.close('et')">×</button></h3>
+    <div class="field"><label>Obra</label><select id="e-obra"></select></div>
+    <div class="field"><label>Descrição</label><input id="e-desc" placeholder="Assentar porcelanato"></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Serviço (define EPIs)</label><select id="e-serv"></select></div>
+      <div class="field" style="flex:1"><label>Vínculo</label><select id="e-vinc"></select></div></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Executor</label><input id="e-exec" placeholder="João Pedreiro"></div>
+      <div class="field" style="flex:1"><label>Horas previstas</label><input type="number" id="e-horas" step="0.5" placeholder="0"></div></div>
+    <div class="field"><label>Responsável</label><input id="e-resp" placeholder="João Pedreiro"></div>
+    <button class="big big-ok" onclick="FAC.saveEtapa(this)">Salvar etapa</button>
+  </div>
+</div>
+
+<!-- NOVA TAREFA -->
+<div class="ov" id="tf-ov">
+  <div class="sheet">
+    <h3>📆 Nova tarefa <button class="close-x" onclick="FAC.close('tf')">×</button></h3>
+    <div class="field"><label>O que fazer</label><input id="t-tarefa" placeholder="Assentar porcelanato"></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Data</label><input type="date" id="t-data"></div>
+      <div class="field" style="flex:1"><label>Colaborador</label><input id="t-colab" placeholder="João Pedreiro"></div></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Início</label><input type="time" id="t-ini"></div>
+      <div class="field" style="flex:1"><label>Fim</label><input type="time" id="t-fim"></div></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Obra</label><select id="t-obra" onchange="FAC.fillEtapasTarefa()"></select></div>
+      <div class="field" style="flex:1"><label>Etapa (EPIs)</label><select id="t-etapa"></select></div></div>
+    <div class="field"><label>Loja / local</label><input id="t-loja" placeholder="Loja Vitória"></div>
+    <button class="big big-ok" onclick="FAC.saveTarefa(this)">Agendar tarefa</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -242,6 +306,7 @@ function boot(){
   facGet('me',{email:SESS.email}).then(function(r){
     ME = (r&&r.ok)? r.me : {papel:SESS.role||"Gestor",podeEditar:true,acesso:true};
     $('u-papel').textContent = ME.papel + (ME.podeEditar? "" : " · consulta");
+    if(ME.podeEditar) $('fab').classList.remove('hidden');
     var operador = /pedreiro|ajudante/i.test(ME.papel||"");
     buildFilters(operador);
     FAC.go(operador ? 'agenda' : 'painel');
@@ -478,6 +543,85 @@ function renderPainel(){
   }).join('');
 }
 function badge2(st){ return '<span class="badge '+(st==='Concluída'?'b-done':st==='Em Execução'?'b-run':st==='Parada'?'b-cancel':'b-plan')+'">'+(st||'—')+'</span>'; }
+
+/* ---------- CADASTRO (Nova obra / etapa / tarefa) ---------- */
+var LST={
+  Tipo:["Obra","Reforma","Reparo","Manutenção Preventiva","Manutenção Corretiva","Pintura","Elétrica","Hidráulica","Marcenaria","Refrigeração","Jardinagem"],
+  Prioridade:["Baixa","Média","Alta","Urgente"],
+  Status_Obra:["Solicitada","Aguardando Aprovação","Aprovada","Planejada","Em Execução","Parada","Aguardando Material","Aguardando Terceiro","Inspeção","Concluída","Cancelada"],
+  Servico:["Alvenaria","Demolição","Elétrica","Hidráulica","Pintura","Marcenaria","Refrigeração","Trabalho em Altura","Solda","Jardinagem","Limpeza Pós-Obra"],
+  Vinculo:["Efetivo","Terceiro"]
+};
+function opts(arr,sel){ return arr.map(function(v){return '<option'+(v==sel?' selected':'')+'>'+v+'</option>';}).join(''); }
+function obraOpts(sel){ return '<option value="">— obra —</option>'+DATA.obras.map(function(o){return '<option value="'+o.ID+'"'+(o.ID==sel?' selected':'')+'>'+o.ID+' · '+(o.Descricao||'')+'</option>';}).join(''); }
+
+FAC.openNovo=function(){ $('nv-ov').classList.add('open'); };
+FAC.closeNovo=function(){ $('nv-ov').classList.remove('open'); };
+FAC.close=function(k){ $(k+'-ov').classList.remove('open'); };
+
+FAC.openObra=function(){
+  FAC.closeNovo();
+  $('o-tipo').innerHTML=opts(LST.Tipo,'Reforma');
+  $('o-prio').innerHTML=opts(LST.Prioridade,'Média');
+  $('o-status').innerHTML=opts(LST.Status_Obra,'Solicitada');
+  ['o-loja','o-setor','o-desc','o-resp','o-prev','o-valor'].forEach(function(id){$(id).value='';});
+  $('ob-ov').classList.add('open');
+};
+FAC.saveObra=function(btn){
+  if(!$('o-desc').value){ toast('Descreva a obra'); return; }
+  btn.disabled=true; btn.textContent='Salvando…';
+  facPost({action:'save_obra',dados:{
+    Tipo:$('o-tipo').value,Loja:$('o-loja').value,Setor:$('o-setor').value,Descricao:$('o-desc').value,
+    Solicitante:SESS.nome,Responsavel:$('o-resp').value,Prioridade:$('o-prio').value,Status:$('o-status').value,
+    Data_Solicitacao:hojeISO(),Data_Prevista:$('o-prev').value,Valor_Previsto:$('o-valor').value,Pct_Conclusao:0
+  }}).then(function(r){ btn.disabled=false; btn.textContent='Salvar obra';
+    if(r&&r.ok){ toast('🧱 Obra '+r.id+' criada'); FAC.close('ob'); loadAll(); FAC.go('painel'); }
+    else toast((r&&r.error)||'Erro'); }).catch(function(){ btn.disabled=false; btn.textContent='Salvar obra'; toast('Falha de conexão'); });
+};
+
+FAC.openEtapa=function(){
+  FAC.closeNovo();
+  $('e-obra').innerHTML=obraOpts('');
+  $('e-serv').innerHTML=opts(LST.Servico,'Alvenaria');
+  $('e-vinc').innerHTML=opts(LST.Vinculo,'Efetivo');
+  ['e-desc','e-exec','e-horas','e-resp'].forEach(function(id){$(id).value='';});
+  $('et-ov').classList.add('open');
+};
+FAC.saveEtapa=function(btn){
+  if(!$('e-obra').value){ toast('Escolha a obra'); return; }
+  btn.disabled=true; btn.textContent='Salvando…';
+  facPost({action:'save_etapa',dados:{
+    ID_Obra:$('e-obra').value,Descricao:$('e-desc').value,Servico_Tipo:$('e-serv').value,Executor:$('e-exec').value,
+    Vinculo_Executor:$('e-vinc').value,Responsavel:$('e-resp').value,Horas_Previstas:$('e-horas').value,
+    Status:'Não Iniciada',Pct_Conclusao:0
+  }}).then(function(r){ btn.disabled=false; btn.textContent='Salvar etapa';
+    if(r&&r.ok){ toast('🔧 Etapa '+r.id+' criada'); FAC.close('et'); loadAll(); }
+    else toast((r&&r.error)||'Erro'); }).catch(function(){ btn.disabled=false; btn.textContent='Salvar etapa'; toast('Falha de conexão'); });
+};
+
+FAC.openTarefa=function(){
+  FAC.closeNovo();
+  $('t-obra').innerHTML=obraOpts('');
+  $('t-etapa').innerHTML='<option value="">— etapa (opcional) —</option>';
+  ['t-tarefa','t-colab','t-data','t-ini','t-fim','t-loja'].forEach(function(id){$(id).value='';});
+  $('t-data').value=hojeISO();
+  $('tf-ov').classList.add('open');
+};
+FAC.fillEtapasTarefa=function(){
+  var ob=$('t-obra').value;
+  var es=DATA.etapas.filter(function(e){return String(e.ID_Obra)===String(ob);});
+  $('t-etapa').innerHTML='<option value="">— etapa (opcional) —</option>'+es.map(function(e){return '<option value="'+e.ID_Etapa+'">'+e.ID_Etapa+' · '+(e.Descricao||'')+' ('+(e.Servico_Tipo||'')+')</option>';}).join('');
+};
+FAC.saveTarefa=function(btn){
+  if(!$('t-tarefa').value){ toast('Descreva a tarefa'); return; }
+  btn.disabled=true; btn.textContent='Agendando…';
+  facPost({action:'save_agenda',dados:{
+    Data:$('t-data').value,Hora_Inicio:$('t-ini').value,Hora_Fim:$('t-fim').value,Colaborador:$('t-colab').value,
+    ID_Obra:$('t-obra').value,ID_Etapa:$('t-etapa').value,Tarefa:$('t-tarefa').value,Loja:$('t-loja').value
+  }}).then(function(r){ btn.disabled=false; btn.textContent='Agendar tarefa';
+    if(r&&r.ok){ toast('📆 Tarefa '+r.id+' agendada'); FAC.close('tf'); loadAll(); FAC.go('agenda'); }
+    else toast((r&&r.error)||'Erro'); }).catch(function(){ btn.disabled=false; btn.textContent='Agendar tarefa'; toast('Falha de conexão'); });
+};
 
 boot();
 </script>
