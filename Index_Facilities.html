@@ -143,6 +143,7 @@ a{color:inherit;}
     <!-- AGENDA -->
     <div id="view-agenda">
       <div class="section-title">📆 Agenda <span id="ag-scope" class="muted" style="font-size:.8rem;font-weight:400"></span></div>
+      <input id="ag-busca" class="busca" placeholder="Buscar por tarefa, obra, loja, colaborador…" oninput="renderAgenda()">
       <div class="pill-filter" id="ag-filter"></div>
       <div id="agenda-list"><div class="loader">Carregando agenda…</div></div>
     </div>
@@ -385,7 +386,9 @@ function renderAgenda(){
   if(FAC._op){ var meu=norm(SESS.nome); rows=rows.filter(function(r){return norm(r.Colaborador).indexOf(meu)>=0 || !r.Colaborador;}); }
   if(FAC.filter==='hoje'){ var h=hojeISO(); rows=rows.filter(function(r){return toDate(r.Data)===h;}); }
   if(FAC.filter==='abertas'){ rows=rows.filter(function(r){return ['Concluída','Cancelada'].indexOf(r.Status_Tarefa)<0;}); }
-  if(!rows.length){ host.innerHTML='<div class="empty">Nenhuma tarefa por aqui.<br>Aproveite ou fale com o gestor. 👷</div>'; return; }
+  var q=norm(($('ag-busca')&&$('ag-busca').value)||'');
+  if(q){ rows=rows.filter(function(r){ return norm([r.Tarefa,r.ID_Obra,r.ID_Etapa,r.Loja,r.Colaborador,r.Status_Tarefa].join(' ')).indexOf(q)>=0; }); }
+  if(!rows.length){ host.innerHTML='<div class="empty">Nenhuma tarefa encontrada.</div>'; return; }
   rows.sort(function(a,b){ return (toDate(a.Data)+fmtHora(a.Hora_Inicio)).localeCompare(toDate(b.Data)+fmtHora(b.Hora_Inicio)); });
   var out='', lastDay='';
   rows.forEach(function(r){
