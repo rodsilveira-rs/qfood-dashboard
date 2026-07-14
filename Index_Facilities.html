@@ -136,7 +136,7 @@ a{color:inherit;}
     <div class="brand"><img src="logo.png" class="brand-logo" alt="Q Food" onerror="this.style.display='none'">Facilities</div>
     <div class="who"><b id="u-nome">—</b><span id="u-papel">—</span></div>
     <button class="icon-btn" onclick="FAC.reload()" title="Recarregar">↻</button>
-    <button class="icon-btn" onclick="location.href='Index_Menu.html'" title="Menu">⌂</button>
+    <button class="icon-btn" onclick="location.href='Index_Menu.html'" title="Menu">MENU</button>
   </div>
 
   <div class="wrap">
@@ -235,6 +235,8 @@ a{color:inherit;}
       <div class="field" style="flex:1"><label>% concluído</label><input type="number" id="o-pct" min="0" max="100" step="5" placeholder="0"></div></div>
     <div class="row2"><div class="field" style="flex:1"><label>Valor previsto (R$)</label><input type="number" id="o-valor" step="0.01" placeholder="0"></div>
       <div class="field" style="flex:1"><label>Valor real (R$)</label><input type="number" id="o-real" step="0.01" placeholder="0"></div></div>
+    <div class="row2"><div class="field" style="flex:1"><label>Fotos — momento</label><select id="o-momento"><option>Antes</option><option>Durante</option><option>Depois</option></select></div>
+      <div class="field" style="flex:2"><label>Adicionar fotos (pode várias)</label><input type="file" id="o-fotos" accept="image/*" multiple></div></div>
     <button class="big big-ok" onclick="FAC.saveObra(this)">Salvar obra</button>
   </div>
 </div>
@@ -592,7 +594,8 @@ FAC.openObra=function(){
   $('o-tipo').innerHTML=opts(LST.Tipo,'Reforma');
   $('o-prio').innerHTML=opts(LST.Prioridade,'Média');
   $('o-status').innerHTML=opts(LST.Status_Obra,'Solicitada');
-  ['o-loja','o-setor','o-desc','o-resp','o-prev','o-valor','o-real','o-pct'].forEach(function(id){$(id).value='';});
+  ['o-loja','o-setor','o-desc','o-resp','o-prev','o-valor','o-real','o-pct','o-fotos'].forEach(function(id){$(id).value='';});
+  $('o-momento').value='Antes';
   $('ob-ov').classList.add('open');
 };
 FAC.editObra=function(id){
@@ -607,8 +610,22 @@ FAC.editObra=function(id){
   $('o-resp').value=o.Responsavel||''; $('o-prev').value=toDate(o.Data_Prevista)||'';
   $('o-valor').value=o.Valor_Previsto||''; $('o-real').value=o.Valor_Real||'';
   $('o-pct').value=o.Pct_Conclusao? Math.round(Number(o.Pct_Conclusao)*100):'';
+  $('o-fotos').value=''; $('o-momento').value='Depois';
   $('ob-ov').classList.add('open');
 };
+function FAC_uploadFotos(obraId, files, momento, done){
+  var arr=Array.prototype.slice.call(files||[]), i=0, ok=0;
+  (function next(){
+    if(i>=arr.length){ done(ok); return; }
+    var f=arr[i++], rd=new FileReader();
+    rd.onload=function(){
+      facPost({action:'add_evidencia',dados:{ID_Obra:obraId,Momento:momento,Tipo:'Foto',Descricao:''},
+        file:{base64:String(rd.result).split(',')[1],mime:f.type,nome:f.name}})
+        .then(function(r){ if(r&&r.ok) ok++; next(); }).catch(function(){ next(); });
+    };
+    rd.readAsDataURL(f);
+  })();
+}
 FAC.saveObra=function(btn){
   if(!$('o-desc').value){ toast('Descreva a obra'); return; }
   btn.disabled=true; btn.textContent='Salvando…';
@@ -616,10 +633,19 @@ FAC.saveObra=function(btn){
     Responsavel:$('o-resp').value,Prioridade:$('o-prio').value,Status:$('o-status').value,
     Data_Prevista:$('o-prev').value,Valor_Previsto:$('o-valor').value,Valor_Real:$('o-real').value};
   var pct=$('o-pct').value; if(pct!=='') d.Pct_Conclusao=Number(pct)/100;
-  if(EDIT_OBRA_ID){ d.ID=EDIT_OBRA_ID; } else { d.Solicitante=SESS.nome; d.Data_Solicitacao=hojeISO(); if(pct==='') d.Pct_Conclusao=0; }
-  facPost({action:'save_obra',dados:d}).then(function(r){ btn.disabled=false; btn.textContent='Salvar obra';
-    if(r&&r.ok){ toast(EDIT_OBRA_ID?('✏ Obra '+r.id+' atualizada'):('🧱 Obra '+r.id+' criada')); FAC.close('ob'); loadAll(); FAC.go('painel'); }
-    else toast((r&&r.error)||'Erro'); }).catch(function(){ btn.disabled=false; btn.textContent='Salvar obra'; toast('Falha de conexão'); });
+  var edit=EDIT_OBRA_ID;
+  if(edit){ d.ID=edit; } else { d.Solicitante=SESS.nome; d.Data_Solicitacao=hojeISO(); if(pct==='') d.Pct_Conclusao=0; }
+  facPost({action:'save_obra',dados:d}).then(function(r){
+    if(!(r&&r.ok)){ btn.disabled=false; btn.textContent='Salvar obra'; toast((r&&r.error)||'Erro'); return; }
+    var fotos=$('o-fotos').files, mom=$('o-momento').value;
+    function fim(msg){ btn.disabled=false; btn.textContent='Salvar obra'; toast(msg); FAC.close('ob'); loadAll(); FAC.go('painel'); }
+    if(fotos && fotos.length){
+      btn.textContent='Enviando '+fotos.length+' foto(s)…';
+      FAC_uploadFotos(r.id, fotos, mom, function(n){ fim((edit?'✏ Obra atualizada':'🧱 Obra criada')+' · '+n+' foto(s) '+mom); });
+    } else {
+      fim(edit?('✏ Obra '+r.id+' atualizada'):('🧱 Obra '+r.id+' criada'));
+    }
+  }).catch(function(){ btn.disabled=false; btn.textContent='Salvar obra'; toast('Falha de conexão'); });
 };
 
 FAC.openEtapa=function(){
