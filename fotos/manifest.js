@@ -1,4 +1,4 @@
-/* Catálogo Q Food - mapa código(5 díg)->foto. 585 produtos. */
+/* Catálogo Q Food - mapa código(5 díg)->foto. 603 produtos. */
 window.CAT_FOTOS = {
  "00002": "fotos/00002.webp",
  "00005": "fotos/00005.webp",
@@ -584,5 +584,23 @@ window.CAT_FOTOS = {
   "08530": "fotos/08530.webp",
   "08641": "fotos/08641.webp",
   "08735": "fotos/08735.webp",
-  "08736": "fotos/08736.webp"
+  "08736": "fotos/08736.webp",
+  "00013": "fotos/00013.webp",
+  "00015": "fotos/00015.webp",
+  "00017": "fotos/00017.webp",
+  "01982": "fotos/01982.webp",
+  "02314": "fotos/02314.webp",
+  "02331": "fotos/02331.webp",
+  "02457": "fotos/02457.webp",
+  "02514": "fotos/02514.webp",
+  "05888": "fotos/05888.webp",
+  "06472": "fotos/06472.webp",
+  "06661": "fotos/06661.webp",
+  "06752": "fotos/06752.webp",
+  "06887": "fotos/06887.webp",
+  "07415": "fotos/07415.webp",
+  "07448": "fotos/07448.webp",
+  "07490": "fotos/07490.webp",
+  "07991": "fotos/07991.webp",
+  "08086": "fotos/08086.webp"
 };
