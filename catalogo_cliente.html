@@ -402,6 +402,27 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .gate{min-height:70vh;display:grid;place-items:center;padding:30px;text-align:center}
 .gate .card{max-width:420px}
 .gate .ico{font-size:54px;margin-bottom:14px}
+.ident-in{display:flex;gap:8px;margin-top:16px}
+.ident-in input{flex:1;min-width:0;border:1.5px solid #C6C6CF;border-radius:10px;padding:13px 14px;font:inherit;font-size:16px;text-align:center;font-weight:700;background:#E7E7EC}
+.ident-in button{background:var(--vermelho);color:#fff;font-weight:800;border:none;border-radius:10px;padding:0 22px;font-size:15px;cursor:pointer;white-space:nowrap}
+.ident-err{display:block;color:var(--vermelho);font-size:12.5px;margin-top:8px;min-height:16px;font-weight:600}
+.load-sub{display:block;color:var(--cinza);font-size:12px;margin-top:6px}
+.hand-list{display:flex;flex-direction:column;gap:10px;margin:18px 0 12px}
+.hand-v{display:flex;align-items:center;gap:12px;background:var(--branco);border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;text-decoration:none;color:inherit;text-align:left}
+.hand-v:hover{border-color:#25D366}
+.hand-av{width:42px;height:42px;border-radius:50%;background:var(--vermelho);color:#fff;font-weight:800;font-size:18px;display:grid;place-items:center;flex-shrink:0}
+.hand-tx{flex:1;min-width:0}
+.hand-tx b{display:block;font-size:15px}
+.hand-tx small{color:var(--cinza);font-size:12px}
+.hand-go{font-size:20px;flex-shrink:0}
+.hand-cod{color:var(--cinza);font-size:12px}
+.cesta-sub{color:var(--cinza);font-size:13px;margin:-6px 0 12px}
+.cesta-tabs{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.ct{background:var(--branco);border:1.5px solid var(--linha);border-radius:999px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;color:var(--preto)}
+.ct.on{background:var(--preto);color:#fff;border-color:var(--preto)}
+.ct b{color:var(--vermelho);margin-left:4px}
+.ct.on b{color:#fff}
+.cesta-vazio{color:var(--cinza);font-size:13px;padding:10px}
 .gate h1{font-size:24px;font-weight:800;margin-bottom:8px}
 .gate p{color:var(--cinza);font-size:15px;line-height:1.5}
 .gate .spin{width:38px;height:38px;border:4px solid var(--linha);border-top-color:var(--vermelho);border-radius:50%;animation:rot 1s linear infinite;margin:0 auto 16px}
@@ -528,6 +549,8 @@ function fraseValor(cat){
 }
 indexar();
 let TOKEN="", catAtiva="Todos", carrinho={}, limite=5, termo="", cesta=[], CLI_CNPJ="", ULTIMA=null, rankLim=5;
+let MODO_LIVRE=false, VENDEDORES=[], VEND_CLI="", NOME_CLI="", STATUS_CLI="", CESTA_ABA="falta", cestaLim=8;
+const VEND_URL=location.origin+location.pathname.replace(/[^/]*$/,"catalogo.html");
 
 function qs(k){return new URLSearchParams(location.search).get(k)}
 async function apiGet(action,params){const u=new URL(WEBAPP);u.searchParams.set("modulo","catalogo");u.searchParams.set("action",action);Object.keys(params||{}).forEach(k=>u.searchParams.set(k,params[k]));const r=await fetch(u.toString());return r.json();}
@@ -548,31 +571,85 @@ function glyph(cat){const c=(cat||"").toLowerCase();
 /* ---------- GATE: valida token ---------- */
 async function start(){
   TOKEN=qs("token")||"";
-  if(!TOKEN){ return gate("⚠️","Link inválido","Este link não tem um código válido. Peça um novo ao seu vendedor."); }
+  try{ const v=await apiGet("vendedores"); if(v&&v.ok) VENDEDORES=v.vendedores||[]; }catch(e){}
+  if(!TOKEN){ MODO_LIVRE=true; return telaIdentificacao(); }
+  gateCarregando();
   try{
     const r=await apiGet("validarToken",{token:TOKEN});
     if(!r.ok){
-      if(r.expirado) return gate("⏰","Link expirado","Este link tinha validade de 2 horas e já expirou. Peça um novo ao seu vendedor — é rapidinho!");
+      if(r.expirado) return gate("⏰","Link expirado","Este link tinha validade de 12 horas e já expirou. Peça um novo ao seu vendedor — é rapidinho.");
       return gate("⚠️","Link inválido", r.error||"Não encontramos este link. Peça um novo ao seu vendedor.");
     }
-    // ok!
     const etapa=(r.etapa||"SELECAO");
     if(etapa==="PRECIFICAR"||etapa==="AJUSTE"){ return telaAguardando(r); }
     if(etapa==="APROVACAO"){ return telaAprovacao(r); }
     if(etapa==="APROVADO"){ return telaAprovado(r); }
     const cli=(r.cliente&&r.cliente.pdv)||{};
     CLI_CNPJ=String(r.cnpj||"").replace(/\D/g,"");
+    VEND_CLI=String(r.vendedor||cli.vendedor||"").trim().toUpperCase();
+    STATUS_CLI=(r.cliente&&r.cliente.status)||"";
     const nome=cli.fantasia||cli.razao||"Cliente";
+    NOME_CLI=nome;
     cesta=(r.cliente&&r.cliente.cestaOriental)||[];
-    // pré-carrega a seleção que o vendedor sugeriu
     (r.selecao||[]).forEach(it=>{ if(it.cod) carrinho[it.cod]={cod:it.cod,nome:it.nome||nomeDe(it.cod),cat:catDe(it.cod),qt:it.qt||1}; });
     montarApp(nome, r.expiraEm, r.cliente||{}, r.vendedor||"");
     carregarRepetir();
-    // catálogo real em background
-    try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;CATALOGO.sort(function(a,b){var fa=imgFor(a.cod)?1:0,fb=imgFor(b.cod)?1:0;if(fa!==fb)return fb-fa;return (a.nome||"").localeCompare(b.nome||"","pt",{sensitivity:"base"});});indexar();CATS=derivarCats();renderCats();renderGrid();}}catch(e){}
-    try{const pp=await apiGet("promocoes"); if(pp.ok&&pp.promocoes&&pp.promocoes.length){PROMOS=pp.promocoes;renderPromos();}}catch(e){}
+    carregarCatalogo();
   }catch(e){ gate("📡","Sem conexão","Não consegui carregar o catálogo agora. Tente abrir o link de novo em instantes."); }
 }
+
+async function carregarCatalogo(){
+  try{const pr=await apiGet("produtos"); if(pr.ok&&pr.produtos&&pr.produtos.length){CATALOGO=pr.produtos;CATALOGO.sort(function(a,b){var fa=imgFor(a.cod)?1:0,fb=imgFor(b.cod)?1:0;if(fa!==fb)return fb-fa;return (a.nome||"").localeCompare(b.nome||"","pt",{sensitivity:"base"});});indexar();CATS=derivarCats();renderCats();renderGrid();}}catch(e){}
+  try{const pp=await apiGet("promocoes"); if(pp.ok&&pp.promocoes&&pp.promocoes.length){PROMOS=pp.promocoes;renderPromos();}}catch(e){}
+}
+
+function gateCarregando(){
+  var g=document.getElementById("gate");
+  g.style.display="grid";
+  document.getElementById("app").style.display="none";
+  g.innerHTML='<div class="card"><div class="spin"></div><p id="loadMsg">Localizando seu cadastro…</p><small class="load-sub" id="loadSub">isso leva alguns segundos</small></div>';
+  var L=["Localizando seu cadastro…","Carregando o catálogo…","Separando suas promoções…","Quase pronto…"];
+  var i=0,seg=0;
+  clearInterval(window._loadT);
+  window._loadT=setInterval(function(){
+    seg++;
+    var m=document.getElementById("loadMsg"),sb=document.getElementById("loadSub");
+    if(!m){ clearInterval(window._loadT); return; }
+    if(seg%4===0&&i<L.length-1){ i++; m.textContent=L[i]; }
+    if(sb) sb.textContent=seg+"s · não feche esta tela";
+  },1000);
+}
+
+function telaIdentificacao(){
+  clearInterval(window._loadT);
+  var g=document.getElementById("gate");
+  g.style.display="grid";
+  document.getElementById("app").style.display="none";
+  g.innerHTML='<div class="card"><div class="ico">🛍️</div><h1>Bem-vindo à Q Food</h1><p>Informe seu <b>CNPJ</b> ou <b>CPF</b> para montar seu pedido.</p><div class="ident-in"><input id="docIn" inputmode="numeric" placeholder="CNPJ ou CPF" autocomplete="off" onkeydown="if(event.key===\'Enter\')identificar()"><button onclick="identificar()">Entrar</button></div><small class="ident-err" id="identErr"></small></div>';
+  setTimeout(function(){ var d=document.getElementById("docIn"); if(d) d.focus(); },150);
+}
+
+async function identificar(){
+  var el=document.getElementById("docIn");
+  var doc=String(el?el.value:"").replace(/\D/g,"");
+  var err=document.getElementById("identErr");
+  if(doc.length!==11&&doc.length!==14){ if(err) err.textContent="Digite um CNPJ (14 dígitos) ou um CPF (11 dígitos)."; return; }
+  gateCarregando();
+  try{
+    const r=await apiGet("buscarPdv",{cnpj:doc});
+    const res=(r&&r.resultado)||{};
+    const cli=res.pdv||{};
+    CLI_CNPJ=doc;
+    STATUS_CLI=res.status||"novo";
+    VEND_CLI=String(cli.vendedor||"").trim().toUpperCase();
+    cesta=res.cestaOriental||[];
+    NOME_CLI=cli.fantasia||cli.razao||"Cliente";
+    montarApp(NOME_CLI, "", res, VEND_CLI);
+    carregarRepetir();
+    carregarCatalogo();
+  }catch(e){ gate("📡","Sem conexão","Não consegui conectar agora. Tente de novo em instantes."); }
+}
+
 function gate(ico,titulo,texto){
   document.getElementById("gate").innerHTML=`<div class="card"><div class="ico">${ico}</div><h1>${titulo}</h1><p>${texto}</p></div>`;
   document.getElementById("gate").style.display="grid";
@@ -581,6 +658,7 @@ function gate(ico,titulo,texto){
 function derivarCats(){const set={};CATALOGO.forEach(p=>{if(p.cat)set[p.cat]=true});const pres=Object.keys(set);const norm=s=>s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();const PRIOR=["oriental","alimentos","hamburgueria","utensilios","utencilios","embalagens","emporio"];const prioridade=[];PRIOR.forEach(function(pk){pres.forEach(function(c){if(norm(c)===pk&&prioridade.indexOf(c)<0)prioridade.push(c);});});const usados={};prioridade.forEach(c=>usados[c]=1);const ord=ORDEM_CAT.filter(c=>set[c]&&!usados[c]);ord.forEach(c=>usados[c]=1);const extras=pres.filter(c=>!usados[c]).sort();return prioridade.concat(ord).concat(extras);}
 
 function montarApp(nome, expiraEm, dadosCli, vendedor){
+  clearInterval(window._loadT);
   document.getElementById("gate").style.display="none";
   document.getElementById("app").style.display="block";
   let validade="";
@@ -624,17 +702,30 @@ function montarApp(nome, expiraEm, dadosCli, vendedor){
   })();
 
   renderPromos();renderCats();renderGrid();atualizarCart();
-  if(cesta && cesta.filter(i=>!i.compra).length) renderSugestao();
+  if(cesta && cesta.length) renderSugestao();
 }
 
-/* ---------- sugestão: cesta oriental que falta ---------- */
+/* ---------- cesta oriental completa (igual visao do vendedor) ---------- */
 function renderSugestao(){
-  const gaps=cesta.filter(i=>!i.compra).slice(0,12);
-  if(!gaps.length)return;
-  const cards=gaps.map(i=>{const p={cod:i.cod,nome:i.nome,cat:"Sugestão"};const inc=!!carrinho[i.cod];
-    return `<div class="prod-card" style="flex:0 0 168px" onclick="abrirProduto('${i.cod}')">${imgHtml(p)}<div class="body"><span class="fam">Sugestão pra você</span><span class="nome">${i.nome}</span><button class="add ${inc?'in':''}" onclick="event.stopPropagation();toggleCod('${i.cod}')">${inc?'✓ adicionado':'+ adicionar'}</button></div></div>`;}).join("");
-  document.getElementById("sugestaoSec").innerHTML=`<div class="secao-titulo"><h2>que tal levar <span class="ac">também</span>?</h2><div class="rule red"></div></div><div class="promo-rail">${cards}</div>`;
+  var sec=document.getElementById("sugestaoSec");
+  if(!sec) return;
+  if(!cesta||!cesta.length){ sec.innerHTML=""; return; }
+  var falta=cesta.filter(function(i){return !i.compra;});
+  var tem=cesta.filter(function(i){return i.compra;});
+  var lista=(CESTA_ABA==="tem")?tem:falta;
+  var cards=lista.slice(0,cestaLim).map(function(i){
+    var p={cod:i.cod,nome:i.nome,cat:i.categoria||"Cesta Oriental"};
+    var inc=!!carrinho[i.cod];
+    return '<div class="prod-card" onclick="abrirProduto(\''+i.cod+'\')">'+imgHtml(p)+'<div class="body"><span class="fam">'+(i.categoria||"cesta oriental")+'</span><span class="nome">'+i.nome+'</span><button class="add '+(inc?"in":"")+'" onclick="event.stopPropagation();toggleCod(\''+i.cod+'\')">'+(inc?"✓ adicionado":"+ adicionar")+'</button></div></div>';
+  }).join("");
+  var mais=(lista.length>cestaLim)?'<div style="text-align:center;margin-top:12px"><button class="ver-mais" onclick="verMaisCesta()">Ver mais +</button></div>':"";
+  sec.innerHTML='<div class="secao-titulo"><h2>cesta <span class="ac">oriental</span></h2><div class="rule red"></div></div>'
+    +'<p class="cesta-sub">O que mais gira no seu segmento. Veja o que você já leva e o que está deixando passar.</p>'
+    +'<div class="cesta-tabs"><button class="ct'+(CESTA_ABA==="falta"?" on":"")+'" onclick="setCestaAba(\'falta\')">Oportunidades <b>'+falta.length+'</b></button><button class="ct'+(CESTA_ABA==="tem"?" on":"")+'" onclick="setCestaAba(\'tem\')">Você já compra <b>'+tem.length+'</b></button></div>'
+    +'<div class="grid-prod">'+(cards||'<p class="cesta-vazio">Nada por aqui ainda.</p>')+'</div>'+mais;
 }
+function setCestaAba(a){ CESTA_ABA=a; cestaLim=8; renderSugestao(); }
+function verMaisCesta(){ cestaLim=(cestaLim<=8)?24:99999; renderSugestao(); }
 
 function renderPromos(){
   document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-width:100%;max-height:120px;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div>${p.economia?`<div class="economia">Economia de R$ ${p.economia}</div>`:""}<div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}','${p.cod||""}')">+ Adicionar</button></div></div>`).join("");
@@ -684,12 +775,37 @@ async function enviar(){
  if(!itens.length){toast("Adicione itens antes de enviar");return;}
  const btn=document.getElementById("btnEnviar");btn.disabled=true;btn.textContent="Enviando…";
  try{
-   const r=await apiPost("salvarPedido",{token:TOKEN,modo:"cliente",obs:(document.getElementById("notaPedido")?.value||"").trim(),itens:itens.map(i=>({cod:i.cod,nome:i.nome,qt:i.qt,un:i.un||unPadrao(i.cod),emb:embDe(i.cod),preco:i.preco||"",promoLock:!!i.promoLock}))});
-   if(r.ok && r.resultado && r.resultado.ok){ sucesso(r.resultado); }
+   let tk=TOKEN;
+   if(MODO_LIVRE||!tk){ const gt=await apiPost("gerarToken",{cnpj:CLI_CNPJ,vendedor:VEND_CLI||"",selecao:[]}); const rt=(gt&&gt.resultado)||{}; if(!rt.token) throw new Error("sem token"); tk=rt.token; TOKEN=tk; }
+   const r=await apiPost("salvarPedido",{token:tk,modo:"cliente",obs:(document.getElementById("notaPedido")?.value||"").trim(),itens:itens.map(i=>({cod:i.cod,nome:i.nome,qt:i.qt,un:i.un||unPadrao(i.cod),emb:embDe(i.cod),preco:i.preco||"",promoLock:!!i.promoLock}))});
+   if(r.ok && r.resultado && r.resultado.ok){ sucesso(r.resultado, tk); }
    else { toast("Não foi possível enviar: "+((r.resultado&&r.resultado.error)||r.error||"tente de novo")); btn.disabled=false;btn.textContent="Enviar pedido"; }
  }catch(e){ toast("Falha de conexão ao enviar"); btn.disabled=false;btn.textContent="Enviar pedido"; }
 }
-function sucesso(res){
+function fmtDoc(d){d=String(d||"").replace(/\D/g,"");if(d.length===14)return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,"$1.$2.$3/$4-$5");if(d.length===11)return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,"$1.$2.$3-$4");return d;}
+function telaHandoff(res,tk){
+  fecharResumo();
+  document.getElementById("app").style.display="none";
+  var g=document.getElementById("gate"); g.style.display="grid";
+  var sig=String(VEND_CLI||"").toUpperCase();
+  var alvo=sig?VENDEDORES.filter(function(v){return v.sigla&&v.sigla.toUpperCase()===sig;}):[];
+  var direto=alvo.length>0;
+  if(!alvo.length) alvo=VENDEDORES.filter(function(v){return v.lead;});
+  if(!alvo.length) alvo=VENDEDORES.slice(0,3);
+  var link=VEND_URL+"?token="+tk;
+  var quem=(NOME_CLI&&NOME_CLI!=="Cliente")?NOME_CLI:("CNPJ "+fmtDoc(CLI_CNPJ));
+  var txt="Olá! Aqui é "+quem+". Montei um pedido de "+res.itens+" "+(res.itens===1?"item":"itens")+" no catálogo Q Food. Pode precificar pra mim? "+link;
+  var botoes=alvo.map(function(v){
+    var n=(v.nome||v.sigla||"Vendedor");
+    return '<a class="hand-v" target="_blank" rel="noopener" href="https://wa.me/'+v.wa+'?text='+encodeURIComponent(txt)+'"><span class="hand-av">'+n.charAt(0).toUpperCase()+'</span><span class="hand-tx"><b>'+n+'</b><small>Enviar no WhatsApp</small></span><span class="hand-go">💬</span></a>';
+  }).join("");
+  if(!botoes) botoes='<p class="cesta-vazio">Não consegui carregar os contatos. Fale com a Q Food pelo Instagram @qfoodcompany.</p>';
+  var tit=direto?"Envie para seu vendedor":"Escolha quem vai te atender";
+  var sub=direto?"Seu pedido está montado. Toque abaixo para avisar seu vendedor pelo WhatsApp — ele finaliza os preços com você.":"Seu pedido está montado. Toque em um dos nossos vendedores para finalizar pelo WhatsApp.";
+  g.innerHTML='<div class="sucesso"><div class="card"><div class="ico">✓</div><h1>'+tit+'</h1><p>'+sub+'</p><div class="hand-list">'+botoes+'</div><small class="hand-cod">Código do pedido: <b>'+String(tk).slice(0,8).toUpperCase()+'</b></small></div></div>';
+}
+function sucesso(res, tk){
+ if(MODO_LIVRE) return telaHandoff(res, tk||TOKEN);
  fecharResumo();
  document.getElementById("app").style.display="none";
  const g=document.getElementById("gate");g.style.display="grid";
