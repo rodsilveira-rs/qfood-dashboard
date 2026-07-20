@@ -427,6 +427,12 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .gate p{color:var(--cinza);font-size:15px;line-height:1.5}
 .gate .spin{width:38px;height:38px;border:4px solid var(--linha);border-top-color:var(--vermelho);border-radius:50%;animation:rot 1s linear infinite;margin:0 auto 16px}
 @keyframes rot{to{transform:rotate(360deg)}}
+.tuto{position:relative;background:linear-gradient(135deg,#FFF4EC,#FDE7D8);border:1.5px solid #F3D3BC;border-radius:16px;padding:16px 18px;margin:0 0 14px}
+.tuto-x{position:absolute;top:8px;right:10px;background:none;border:none;font-size:22px;line-height:1;color:#9a6a45;cursor:pointer}
+.tuto-h{font-size:15px;font-weight:800;color:#8a4b1e;margin-bottom:10px}
+.tuto-s{display:flex;gap:10px;align-items:flex-start;margin:7px 0}
+.tuto-s span{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--vermelho);color:#fff;font-size:12px;font-weight:800;display:grid;place-items:center}
+.tuto-s p{font-size:13.5px;color:var(--preto);line-height:1.35;margin:0}
 .intro{background:#fff;border-radius:var(--radius);box-shadow:var(--sombra);padding:20px 22px;margin-bottom:22px;display:flex;align-items:center;gap:16px;border-left:6px solid var(--vermelho)}
 .intro .emoji{font-size:34px}
 .intro h2{font-size:20px;font-weight:800;letter-spacing:-.01em}
@@ -485,6 +491,13 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 <div class="cal-banner" onclick="abrirCalendario()"><div class="cal-top"><div class="cal-ico"><svg viewBox="0 0 48 48" width="50" height="50" fill="none"><rect x="4" y="10" width="40" height="34" rx="5" fill="#fff" stroke="currentColor" stroke-width="2.5"/><path d="M4 16a6 6 0 0 1 6-6h28a6 6 0 0 1 6 6v2H4z" fill="currentColor"/><line x1="15" y1="5" x2="15" y2="13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><line x1="33" y1="5" x2="33" y2="13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><text x="24" y="39" font-size="17" font-weight="800" fill="currentColor" text-anchor="middle" font-family="Arial,sans-serif">31</text></svg></div><div class="cal-bt"><b>Calendário de Eventos</b><small>Planeje-se</small></div><div class="cal-prox" id="calProx"></div><span class="cal-arrow">›</span></div><a class="cal-promo-cta" onclick="event.stopPropagation();irPromocoes()">🎁 Veja nossas promoções da semana ›</a></div>
 <div class="cal-ov" id="calOv" onclick="if(event.target===this)fecharCalendario()"><div class="cal-modal"><div class="cal-head"><h2>📅 Calendário de Eventos</h2><button class="x" onclick="fecharCalendario()">×</button></div><div class="cal-sub">Antecipe seus pedidos e não deixe para cima da hora.</div><div class="cal-body" id="calBody"></div></div></div>
   <div class="intro" id="intro"></div>
+  <div class="tuto" id="tuto" style="display:none">
+    <button class="tuto-x" onclick="fecharTutorial()" aria-label="fechar">×</button>
+    <div class="tuto-h">🛒 Como fazer seu pedido</div>
+    <div class="tuto-s"><span>1</span><p>Navegue no catálogo e toque em <b>+ adicionar</b> nos produtos que quiser.</p></div>
+    <div class="tuto-s"><span>2</span><p>Ao terminar, toque em <b>Revisar e enviar →</b> na barra de baixo.</p></div>
+    <div class="tuto-s"><span>3</span><p>Escolha seu <b>vendedor</b> e envie pelo <b>WhatsApp</b>. Ele finaliza o pedido com você!</p></div>
+  </div>
   <div class="cat-busca"><div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" onkeydown="if(event.key==='Enter')onFind()"></div><button class="find-btn" onclick="onFind()">Buscar</button></div>
   <div class="secao-titulo"><h2>ofertas da <span class="ac">semana</span></h2><div class="rule red"></div></div>
   <div class="promo-rail" id="promoRail"></div>
@@ -643,13 +656,36 @@ async function identificar(){
     STATUS_CLI=res.status||"novo";
     VEND_CLI=String(cli.vendedor||"").trim().toUpperCase();
     cesta=res.cestaOriental||[];
-    NOME_CLI=cli.fantasia||cli.razao||"Cliente";
+    window._resIdent=res;
+    var nomeExistente=(cli.fantasia||cli.razao||"").trim();
+    if(!nomeExistente){ return telaNome(); }
+    NOME_CLI=nomeExistente;
     montarApp(NOME_CLI, "", res, VEND_CLI);
     carregarRepetir();
     carregarCatalogo();
   }catch(e){ gate("📡","Sem conexão","Não consegui conectar agora. Tente de novo em instantes."); }
 }
 
+function telaNome(){
+  clearInterval(window._loadT);
+  var g=document.getElementById("gate"); g.style.display="grid";
+  document.getElementById("app").style.display="none";
+  g.innerHTML='<div class="card"><div class="ico">👋</div><h1>Seja bem-vindo!</h1><p>Ainda não temos seu cadastro. Como se chama seu estabelecimento?</p><div class="ident-in"><input id="nomeIn" placeholder="Nome do restaurante / loja" autocomplete="off" onkeydown="if(event.key===\'Enter\')confirmarNome()"><button onclick="confirmarNome()">Continuar</button></div><small class="ident-err" id="nomeErr"></small></div>';
+  setTimeout(function(){ var d=document.getElementById("nomeIn"); if(d) d.focus(); },150);
+}
+function confirmarNome(){
+  var el=document.getElementById("nomeIn");
+  var nome=String(el?el.value:"").trim();
+  var err=document.getElementById("nomeErr");
+  if(nome.length<2){ if(err) err.textContent="Digite o nome do seu estabelecimento."; return; }
+  NOME_CLI=nome;
+  var res=window._resIdent||{};
+  montarApp(NOME_CLI, "", res, VEND_CLI);
+  carregarRepetir();
+  carregarCatalogo();
+}
+
+function fecharTutorial(){ var t=document.getElementById("tuto"); if(t) t.style.display="none"; try{ localStorage.setItem("qf_tuto","1"); }catch(e){} }
 function gate(ico,titulo,texto){
   document.getElementById("gate").innerHTML=`<div class="card"><div class="ico">${ico}</div><h1>${titulo}</h1><p>${texto}</p></div>`;
   document.getElementById("gate").style.display="grid";
@@ -661,6 +697,7 @@ function montarApp(nome, expiraEm, dadosCli, vendedor){
   clearInterval(window._loadT);
   document.getElementById("gate").style.display="none";
   document.getElementById("app").style.display="block";
+  try{ if(!localStorage.getItem("qf_tuto")){ var _t=document.getElementById("tuto"); if(_t)_t.style.display="block"; } }catch(e){ var _t2=document.getElementById("tuto"); if(_t2)_t2.style.display="block"; }
   let validade="";
   if(expiraEm){const dt=new Date(expiraEm);validade=`Válido até <b>${dt.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})}</b>`;}
 
