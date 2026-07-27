@@ -34,6 +34,15 @@
     background:var(--accent); color:#fff; border:0; padding:13px 24px; border-radius:999px; font-weight:800; font-size:1rem;
     cursor:pointer; box-shadow:0 10px 26px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:opacity .35s, transform .35s }
   .restart.show{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0) }
+  .zoom{ position:fixed; inset:0; z-index:20; background:rgba(8,12,11,.96); display:none; flex-direction:column }
+  .zoom.show{ display:flex }
+  .zoom .side{ top:58px }
+  .ztop{ display:flex; align-items:center; gap:10px; padding:10px 16px; height:58px; border-bottom:1px solid var(--line); background:rgba(0,0,0,.4) }
+  .ztop .zpg{ color:var(--mu); font-size:.85rem; font-variant-numeric:tabular-nums }
+  .ztop .zsp{ flex:1 }
+  .zwrap{ flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:center; cursor:grab; padding:14px }
+  .zwrap.drag{ cursor:grabbing }
+  .zwrap img{ display:block; height:auto; max-width:none; user-select:none; -webkit-user-drag:none; box-shadow:0 10px 40px rgba(0,0,0,.5) }
   .load{ position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:9;
     background:radial-gradient(120% 120% at 50% 0%, #22302c 0%, #0e1413 70%) }
   .spin{ width:44px; height:44px; border:4px solid rgba(255,255,255,.18); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite }
@@ -52,7 +61,7 @@
     <div class="sp"></div>
     <div class="pg" id="pg">–</div>
     <button class="ico hideSm" id="bStart" title="Voltar ao início">↺ Início</button>
-    <button class="ico hideSm" id="bMode" title="Alternar entre 1 e 2 páginas">📄 1 página</button>
+    <button class="ico hideSm" id="bZoom" title="Ampliar página (lupa)">🔍 Zoom</button>
     <button class="ico" id="bPrev" title="Página anterior">‹</button>
     <button class="ico" id="bNext" title="Próxima página">›</button>
     <button class="ico" id="bFull" title="Modo TV (tela cheia) — tecla F">📺 TV</button>
@@ -67,6 +76,19 @@
   <button class="side r" id="sNext"><span>›</span></button>
   <button class="restart" id="restart">↺ Voltar ao início</button>
   <div class="hint" id="hint">Arraste o canto da página · use ← → · tecla F = tela cheia</div>
+
+  <div class="zoom" id="zoom" aria-hidden="true">
+    <div class="ztop">
+      <span class="zpg" id="zpg">–</span>
+      <span class="zsp"></span>
+      <button class="ico" id="zOut" title="Diminuir">🔍−</button>
+      <button class="ico" id="zIn" title="Aumentar">🔍+</button>
+      <button class="ico accent" id="zClose" title="Fechar (Esc)">✕ Fechar</button>
+    </div>
+    <div class="zwrap" id="zwrap"><img id="zimg" alt="Página do manual"></div>
+    <button class="side l" id="zPrev"><span>‹</span></button>
+    <button class="side r" id="zNext"><span>›</span></button>
+  </div>
 
   <div class="load" id="load">
     <div class="spin"></div>
@@ -103,7 +125,7 @@
   var TARGET_W = Math.min(1800, Math.round(1200 * Math.min(2, window.devicePixelRatio || 1)));
 
   function renderAll(){
-    return pdfjsLib.getDocument({ url: pdfUrl }).promise.then(function(pdf){
+    return pdfjsLib.getDocument({ url: pdfUrl, verbosity: 0 }).promise.then(function(pdf){
       var n = pdf.numPages;
       var imgs = new Array(n);
       var aspect = 0.707; // A4 retrato fallback (w/h)
@@ -141,7 +163,7 @@
     var pg = document.getElementById('pg');
     var bPrev = document.getElementById('bPrev'), bNext = document.getElementById('bNext');
     var sPrev = document.getElementById('sPrev'), sNext = document.getElementById('sNext');
-    var bMode = document.getElementById('bMode'), bStart = document.getElementById('bStart');
+    var bZoom = document.getElementById('bZoom'), bStart = document.getElementById('bStart');
     var bFull = document.getElementById('bFull'), restart = document.getElementById('restart');
     var hint = document.getElementById('hint');
 
@@ -194,13 +216,39 @@
     bNext.onclick = sNext.onclick = next;
     bStart.onclick = restart.onclick = toStart;
 
-    bMode.onclick = function(){
-      var idx = pageFlip ? pageFlip.getCurrentPageIndex() : 0;
-      single = !single;
-      bMode.textContent = single ? '📖 2 páginas' : '📄 1 página';
-      bMode.title = single ? 'Voltar para 2 páginas' : 'Ver 1 página (maior)';
-      buildFlip(idx);
-    };
+    // ---- Lupa / zoom da página atual ----
+    var zoom = document.getElementById('zoom'), zimg = document.getElementById('zimg'), zwrap = document.getElementById('zwrap'), zpg = document.getElementById('zpg');
+    var zidx = 0, zlvl = 1.4, zDrag=false, zsx=0, zsy=0, zsl=0, zst=0;
+    function zApply(){ zimg.style.width = Math.round(zwrap.clientWidth * zlvl) + 'px'; }
+    function zShow(){
+      zimg.src = IMGS[zidx];
+      zpg.textContent = (zidx+1) + ' / ' + IMGS.length;
+      document.getElementById('zPrev').disabled = (zidx<=0);
+      document.getElementById('zNext').disabled = (zidx>=IMGS.length-1);
+      zApply(); zwrap.scrollTop = 0;
+    }
+    function zOpen(){ zidx = pageFlip ? pageFlip.getCurrentPageIndex() : 0; zlvl = 1.4; zoom.classList.add('show'); zShow(); }
+    function zHide(){ zoom.classList.remove('show'); if(pageFlip){ try{ pageFlip.turnToPage(zidx); }catch(e){} upd(); } }
+    bZoom.onclick = zOpen;
+    document.getElementById('zClose').onclick = zHide;
+    document.getElementById('zIn').onclick  = function(){ zlvl = Math.min(4, zlvl+0.3); zApply(); };
+    document.getElementById('zOut').onclick = function(){ zlvl = Math.max(0.6, zlvl-0.3); zApply(); };
+    document.getElementById('zPrev').onclick = function(){ if(zidx>0){ zidx--; zShow(); } };
+    document.getElementById('zNext').onclick = function(){ if(zidx<IMGS.length-1){ zidx++; zShow(); } };
+    zimg.addEventListener('dblclick', function(){ zlvl = (zlvl>1.5?1.0:2.4); zApply(); });
+    zwrap.addEventListener('mousedown', function(e){ zDrag=true; zsx=e.clientX; zsy=e.clientY; zsl=zwrap.scrollLeft; zst=zwrap.scrollTop; zwrap.classList.add('drag'); e.preventDefault(); });
+    window.addEventListener('mousemove', function(e){ if(!zDrag) return; zwrap.scrollLeft = zsl-(e.clientX-zsx); zwrap.scrollTop = zst-(e.clientY-zsy); });
+    window.addEventListener('mouseup', function(){ zDrag=false; zwrap.classList.remove('drag'); });
+    window.addEventListener('resize', function(){ if(zoom.classList.contains('show')) zApply(); });
+    document.addEventListener('keydown', function(e){
+      if(!zoom.classList.contains('show')) return;
+      e.stopPropagation();
+      if(e.key==='Escape') zHide();
+      else if(e.key==='ArrowLeft'){ if(zidx>0){ zidx--; zShow(); } }
+      else if(e.key==='ArrowRight'){ if(zidx<IMGS.length-1){ zidx++; zShow(); } }
+      else if(e.key==='+'||e.key==='='){ zlvl=Math.min(4,zlvl+0.3); zApply(); }
+      else if(e.key==='-'){ zlvl=Math.max(0.6,zlvl-0.3); zApply(); }
+    }, true);
 
     function toggleTV(){
       if(document.fullscreenElement){ if(document.exitFullscreen) document.exitFullscreen(); }
