@@ -1191,6 +1191,84 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
 <div class="aba-painel" id="painel-cotacao">
 <div id="tab-compras" class="page active" style="display:block">
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       📥 CONFERÊNCIA DE ENTRADA DE MERCADORIA (Célio)
+       Card recolhível, começa fechado. Grava em Estoque_Validades_Entrada.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="valent-painel" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;margin-bottom:20px;overflow:hidden;transition:all .25s">
+    <div id="valent-toggle" onclick="toggleValEntPainel()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;user-select:none;background:linear-gradient(90deg,rgba(77,142,245,.10),rgba(54,207,160,.06))">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:1.2rem">&#128229;</span>
+        <div>
+          <div style="font-size:.9rem;font-weight:700;color:var(--tx);letter-spacing:.3px">Confer&#234;ncia de Entrada de Mercadoria</div>
+          <div id="valent-subtitulo" style="font-size:.7rem;color:var(--mu);margin-top:2px">Registrar produtos + validades recebidas (clique para abrir)</div>
+        </div>
+      </div>
+      <span id="valent-arrow" style="font-size:1.1rem;color:var(--mu);transition:transform .25s">&#9656;</span>
+    </div>
+
+    <div id="valent-content" style="display:none;padding:18px 20px 20px;border-top:1px solid var(--br)">
+
+      <!-- Cabeçalho da conferência -->
+      <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:12px;margin-bottom:16px">
+        <div>
+          <label style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:4px">Data da Confer&#234;ncia</label>
+          <input type="date" id="valent-data" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem">
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:4px">Fornecedor</label>
+          <select id="valent-fornecedor" onchange="valentSelecionarFornecedor()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem">
+            <option value="">Selecione o fornecedor...</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:4px">Conferido por</label>
+          <input type="text" id="valent-conferido-por" readonly style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem;opacity:.7">
+        </div>
+      </div>
+
+      <!-- Área de produtos (só aparece após selecionar fornecedor) -->
+      <div id="valent-produtos-area" style="display:none">
+
+        <!-- Barra de busca e ações -->
+        <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px;position:relative">
+            <input type="text" id="valent-busca" placeholder="&#128269; Buscar por c&#243;digo ou nome..." oninput="valentFiltrarProdutos()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.85rem">
+          </div>
+          <span id="valent-count-info" style="font-size:.72rem;color:var(--mu);font-weight:600"></span>
+          <button type="button" onclick="valentAdicionarManual()" style="background:rgba(160,124,246,.15);border:1px solid rgba(160,124,246,.35);color:#a07cf6;padding:7px 14px;border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer">+ Produto Livre</button>
+        </div>
+
+        <!-- Lista de produtos -->
+        <div id="valent-lista-produtos" style="max-height:420px;overflow-y:auto;border:1px solid var(--br);border-radius:8px;background:var(--s2)">
+        </div>
+
+        <!-- Resumo + botões -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;padding:12px 14px;background:rgba(54,207,160,.06);border:1px solid rgba(54,207,160,.25);border-radius:8px;flex-wrap:wrap;gap:10px">
+          <div>
+            <span style="font-size:.72rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600">Itens confirmados:</span>
+            <span id="valent-total-itens" style="font-size:1.1rem;font-weight:800;color:#36cfa0;margin-left:8px">0</span>
+            <span id="valent-alerta-info" style="margin-left:12px;font-size:.72rem;color:#ffaa2b;display:none">&#9888; <span id="valent-alerta-count">0</span> j&#225; est&#227;o dentro de 90 dias</span>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button type="button" onclick="valentImprimir()" id="valent-btn-imprimir" style="background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:8px 16px;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer" disabled>&#128424; Imprimir</button>
+            <button type="button" onclick="valentSalvar()" id="valent-btn-salvar" style="background:rgba(54,207,160,.2);border:1px solid #36cfa0;color:#36cfa0;padding:8px 20px;border-radius:8px;font-size:.82rem;font-weight:700;cursor:pointer" disabled>&#128190; Salvar Confer&#234;ncia</button>
+          </div>
+        </div>
+
+        <div id="valent-status-salvar" style="margin-top:12px;font-size:.78rem;padding:10px;border-radius:8px;display:none"></div>
+      </div>
+
+      <!-- Painel: Aba Histórico -->
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--br);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button type="button" onclick="valentAbrirHistorico()" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer">&#128196; Ver Hist&#243;rico de Confer&#234;ncias</button>
+        <button type="button" onclick="valentDispararAlertaAgora()" style="background:rgba(255,170,43,.12);border:1px solid rgba(255,170,43,.3);color:#ffaa2b;padding:6px 12px;border-radius:6px;font-size:.72rem;font-weight:600;cursor:pointer">&#9888; Disparar Alertas Agora (Teste)</button>
+        <span style="font-size:.68rem;color:var(--mu2);font-style:italic">Trigger autom&#225;tico roda todo dia \u00e0s 8h</span>
+      </div>
+
+    </div>
+  </div>
+
   <div id="cmp-step1">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
       <div class="sec" style="margin:0">&#128722; Cota&#231;&#227;o de Compras</div>
@@ -6181,6 +6259,410 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// CONFERÊNCIA DE ENTRADA DE MERCADORIA (Célio) — v6
+// ═══════════════════════════════════════════════════════════════
+
+var VALENT = {
+  aberto: false,
+  fornecedorSelecionado: "",
+  produtosPortfolio: [],       // produtos do fornecedor atual (do UGIRO)
+  produtosMarcados: {},        // { codigo: { qtde, validade, unidade } }
+  fornecedoresLista: [],       // cache de fornecedores únicos
+  carregando: false
+};
+
+function toggleValEntPainel() {
+  var content = document.getElementById('valent-content');
+  var arrow = document.getElementById('valent-arrow');
+  var sub = document.getElementById('valent-subtitulo');
+  VALENT.aberto = !VALENT.aberto;
+  if (VALENT.aberto) {
+    content.style.display = 'block';
+    arrow.style.transform = 'rotate(90deg)';
+    sub.textContent = 'Preencha os dados abaixo';
+    valentInicializar();
+  } else {
+    content.style.display = 'none';
+    arrow.style.transform = 'rotate(0deg)';
+    sub.textContent = 'Registrar produtos + validades recebidas (clique para abrir)';
+  }
+}
+
+function valentInicializar() {
+  // Data hoje
+  var hoje = new Date();
+  var ano = hoje.getFullYear(), mes = String(hoje.getMonth()+1).padStart(2,'0'), dia = String(hoje.getDate()).padStart(2,'0');
+  var inputData = document.getElementById('valent-data');
+  if (!inputData.value) inputData.value = ano + "-" + mes + "-" + dia;
+
+  // Nome do usuário via sessão
+  var sess = {};
+  try { sess = JSON.parse(localStorage.getItem("qfood_session") || "{}"); } catch(e) {}
+  document.getElementById('valent-conferido-por').value = sess.nome || sess.email || "desconhecido";
+
+  // Carrega lista de fornecedores do UGIRO se ainda não carregou
+  if (VALENT.fornecedoresLista.length === 0) {
+    valentCarregarFornecedores();
+  }
+}
+
+async function valentCarregarFornecedores() {
+  try {
+    // Se UGIRO já foi carregado por cmpLoad, aproveita
+    var r = await fetch(UGIRO + "&t=" + Date.now());
+    var txt = await r.text();
+    var rows = csv(txt);
+    var fornSet = new Set();
+    rows.forEach(function(row) {
+      var f = String(row["Fornecedor"] || row["FORNECEDOR"] || "").trim();
+      if (f) fornSet.add(f);
+    });
+    VALENT.fornecedoresLista = Array.from(fornSet).sort();
+    var sel = document.getElementById('valent-fornecedor');
+    sel.innerHTML = '<option value="">Selecione o fornecedor...</option>' +
+      VALENT.fornecedoresLista.map(function(f) {
+        return '<option value="' + f.replace(/"/g,'&quot;') + '">' + f + '</option>';
+      }).join('');
+  } catch (e) {
+    console.warn("Erro ao carregar fornecedores:", e);
+  }
+}
+
+async function valentSelecionarFornecedor() {
+  var forn = document.getElementById('valent-fornecedor').value;
+  VALENT.fornecedorSelecionado = forn;
+  VALENT.produtosMarcados = {}; // reseta seleções ao trocar fornecedor
+  document.getElementById('valent-total-itens').textContent = '0';
+  document.getElementById('valent-btn-salvar').disabled = true;
+  document.getElementById('valent-btn-imprimir').disabled = true;
+
+  if (!forn) {
+    document.getElementById('valent-produtos-area').style.display = 'none';
+    return;
+  }
+  document.getElementById('valent-produtos-area').style.display = 'block';
+  var lista = document.getElementById('valent-lista-produtos');
+  lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)"><div class="spin" style="margin:0 auto 10px"></div>Carregando produtos...</div>';
+
+  try {
+    var r = await fetch(UGIRO + "&t=" + Date.now());
+    var txt = await r.text();
+    var rows = csv(txt);
+    VALENT.produtosPortfolio = rows.filter(function(row) {
+      var f = String(row["Fornecedor"] || row["FORNECEDOR"] || "").trim();
+      return f === forn;
+    }).map(function(row) {
+      return {
+        codigo: String(row["Codigo"] || row["Cod"] || "").trim(),
+        descricao: String(row["Descricao"] || row["Descrição"] || row["Produto"] || "").trim(),
+        unidade: String(row["Unidade"] || row["UN"] || "UN").trim() || "UN",
+        ativo: String(row["Ativo?"] || row["Ativo"] || "Sim").trim(),
+        origem: 'UGIRO'
+      };
+    }).filter(function(p) { return p.codigo && p.descricao; });
+
+    valentRenderizarLista();
+  } catch (e) {
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:#ff7875">Erro ao carregar produtos: ' + e.message + '</div>';
+  }
+}
+
+function valentRenderizarLista() {
+  var busca = String(document.getElementById('valent-busca').value || "").toLowerCase().trim();
+  var lista = document.getElementById('valent-lista-produtos');
+  var filtrados = VALENT.produtosPortfolio.filter(function(p) {
+    if (!busca) return true;
+    return p.codigo.toLowerCase().includes(busca) || p.descricao.toLowerCase().includes(busca);
+  });
+
+  document.getElementById('valent-count-info').textContent = filtrados.length + ' produto(s) do fornecedor';
+
+  if (filtrados.length === 0) {
+    lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado. Use "+ Produto Livre" abaixo para adicionar manualmente.</div>';
+    return;
+  }
+
+  lista.innerHTML = filtrados.map(function(p) {
+    var marcado = VALENT.produtosMarcados[p.codigo];
+    var checked = marcado ? 'checked' : '';
+    var qtdeVal = marcado ? marcado.qtde : '';
+    var validadeVal = marcado ? marcado.validade : '';
+    var opacity = (p.ativo === "Não" || p.ativo === "NAO") ? 'opacity:.55' : '';
+    var tagInativo = (p.ativo === "Não" || p.ativo === "NAO") ? '<span style="background:rgba(255,120,117,.15);color:#ff7875;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px">INATIVO</span>' : '';
+    return '<div class="valent-row" style="display:grid;grid-template-columns:28px 60px 1fr 60px 90px 130px;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--br);' + opacity + '">' +
+      '<input type="checkbox" ' + checked + ' onchange="valentToggleProduto(\'' + p.codigo + '\', this.checked)" style="width:16px;height:16px;cursor:pointer">' +
+      '<span style="font-size:.72rem;color:var(--mu);font-weight:700">' + p.codigo + '</span>' +
+      '<span style="font-size:.78rem;color:var(--tx)">' + p.descricao + tagInativo + '</span>' +
+      '<span style="font-size:.7rem;color:var(--mu);text-align:center">' + p.unidade + '</span>' +
+      '<input type="number" min="0" step="1" value="' + qtdeVal + '" placeholder="Qtde" onchange="valentAtualizarProduto(\'' + p.codigo + '\', \'qtde\', this.value)" style="background:var(--sf);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;text-align:right">' +
+      '<input type="date" value="' + validadeVal + '" onchange="valentAtualizarProduto(\'' + p.codigo + '\', \'validade\', this.value)" style="background:var(--sf);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.75rem">' +
+    '</div>';
+  }).join('');
+}
+
+function valentFiltrarProdutos() {
+  valentRenderizarLista();
+}
+
+function valentToggleProduto(codigo, marcado) {
+  if (marcado) {
+    var p = VALENT.produtosPortfolio.find(function(x) { return x.codigo === codigo; });
+    if (!p) return;
+    VALENT.produtosMarcados[codigo] = {
+      codigo: p.codigo,
+      descricao: p.descricao,
+      unidade: p.unidade,
+      qtde: '',
+      validade: '',
+      origem: 'UGIRO'
+    };
+  } else {
+    delete VALENT.produtosMarcados[codigo];
+  }
+  valentAtualizarResumo();
+}
+
+function valentAtualizarProduto(codigo, campo, valor) {
+  if (!VALENT.produtosMarcados[codigo]) return;
+  VALENT.produtosMarcados[codigo][campo] = valor;
+  valentAtualizarResumo();
+}
+
+function valentAtualizarResumo() {
+  var codigos = Object.keys(VALENT.produtosMarcados);
+  var validos = codigos.filter(function(c) {
+    var p = VALENT.produtosMarcados[c];
+    return p.qtde && parseFloat(p.qtde) > 0 && p.validade;
+  });
+  document.getElementById('valent-total-itens').textContent = validos.length;
+
+  // Contagem de alertas imediatos (< 90 dias)
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var alertas = 0;
+  validos.forEach(function(c) {
+    var val = new Date(VALENT.produtosMarcados[c].validade);
+    var dias = Math.floor((val - hoje) / (1000*60*60*24));
+    if (dias <= 90) alertas++;
+  });
+  var alertaInfo = document.getElementById('valent-alerta-info');
+  if (alertas > 0) {
+    alertaInfo.style.display = 'inline';
+    document.getElementById('valent-alerta-count').textContent = alertas;
+  } else {
+    alertaInfo.style.display = 'none';
+  }
+
+  document.getElementById('valent-btn-salvar').disabled = (validos.length === 0);
+  document.getElementById('valent-btn-imprimir').disabled = (validos.length === 0);
+}
+
+function valentAdicionarManual() {
+  var codigo = prompt("Código do produto (digite qualquer, ex: MANUAL-001):");
+  if (!codigo) return;
+  codigo = codigo.trim();
+  if (VALENT.produtosMarcados[codigo]) { alert("Código já adicionado"); return; }
+  var descricao = prompt("Descrição do produto:");
+  if (!descricao) return;
+  var unidade = prompt("Unidade (UN, CX, KG, PCT, LT...):", "UN") || "UN";
+
+  VALENT.produtosPortfolio.push({
+    codigo: codigo,
+    descricao: descricao,
+    unidade: unidade,
+    ativo: "Sim",
+    origem: 'MANUAL'
+  });
+  VALENT.produtosMarcados[codigo] = {
+    codigo: codigo,
+    descricao: descricao,
+    unidade: unidade,
+    qtde: '',
+    validade: '',
+    origem: 'MANUAL'
+  };
+  valentRenderizarLista();
+  valentAtualizarResumo();
+  // Rola até o item novo
+  setTimeout(function() {
+    var busca = document.getElementById('valent-busca');
+    busca.value = codigo;
+    valentFiltrarProdutos();
+  }, 100);
+}
+
+async function valentSalvar() {
+  var forn = VALENT.fornecedorSelecionado;
+  var data = document.getElementById('valent-data').value;
+  var conferidoPor = document.getElementById('valent-conferido-por').value;
+  if (!forn || !data || !conferidoPor) {
+    alert("Preencha data, fornecedor e usuário");
+    return;
+  }
+
+  var entradas = [];
+  Object.keys(VALENT.produtosMarcados).forEach(function(c) {
+    var p = VALENT.produtosMarcados[c];
+    if (!p.qtde || parseFloat(p.qtde) <= 0 || !p.validade) return;
+    entradas.push({
+      fornecedor: forn,
+      codigo_produto: p.codigo,
+      descricao: p.descricao,
+      unidade: p.unidade,
+      qtde: parseFloat(p.qtde),
+      validade: p.validade,
+      conferido_por: conferidoPor,
+      data_conferencia: data
+    });
+  });
+  if (entradas.length === 0) { alert("Nenhum item válido para salvar"); return; }
+
+  // Verifica se há itens < 90 dias — pergunta antes se dispara alerta agora
+  var hoje = new Date(); hoje.setHours(0,0,0,0);
+  var alertaImediato = entradas.some(function(e) {
+    var val = new Date(e.validade);
+    return Math.floor((val - hoje) / (1000*60*60*24)) <= 90;
+  });
+  var forcarAlerta = false;
+  if (alertaImediato) {
+    forcarAlerta = confirm("⚠️ Alguns produtos já estão dentro de 90 dias de vencimento!\n\nDeseja disparar o alerta por e-mail AGORA para Célio, Maiko e Jonathas?\n\n✅ SIM = envia e-mail agora\n❌ NÃO = salva sem alerta (o trigger diário disparará amanhã se aplicável)");
+  }
+
+  var btn = document.getElementById('valent-btn-salvar');
+  var statusEl = document.getElementById('valent-status-salvar');
+  btn.disabled = true;
+  btn.innerHTML = '⏳ Salvando...';
+  statusEl.style.display = 'block';
+  statusEl.style.background = 'var(--s2)';
+  statusEl.style.color = 'var(--mu)';
+  statusEl.style.border = '1px solid var(--br)';
+  statusEl.innerHTML = 'Salvando ' + entradas.length + ' entrada(s)...';
+
+  try {
+    var payload = {
+      token: VALIDADES_SYNC_TOKEN,
+      tipo: "validade_entrada_lote",
+      dado: {
+        fornecedor: forn,
+        conferido_por: conferidoPor,
+        data_conferencia: data,
+        forcar_alerta_agora: forcarAlerta,
+        entradas: entradas
+      }
+    };
+    var r = await fetch(VALIDADES_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    var resp = await r.json();
+    if (resp.ok) {
+      statusEl.style.background = 'rgba(54,207,160,.12)';
+      statusEl.style.color = '#36cfa0';
+      statusEl.style.border = '1px solid rgba(54,207,160,.35)';
+      statusEl.innerHTML = '✅ <b>Salvo com sucesso!</b> ' + resp.sucessos + ' entrada(s) gravada(s)' +
+        (resp.alertas_imediatos > 0 ? '. E-mail de alerta enviado para ' + resp.alertas_imediatos + ' produto(s).' : '.');
+      // Guarda para imprimir
+      VALENT.ultimaConferencia = { fornecedor: forn, data: data, conferidoPor: conferidoPor, entradas: entradas };
+      // Reseta seleção
+      VALENT.produtosMarcados = {};
+      valentRenderizarLista();
+      valentAtualizarResumo();
+      // Deixa botão imprimir habilitado
+      document.getElementById('valent-btn-imprimir').disabled = false;
+    } else {
+      statusEl.style.background = 'rgba(255,120,117,.12)';
+      statusEl.style.color = '#ff7875';
+      statusEl.style.border = '1px solid rgba(255,120,117,.35)';
+      statusEl.innerHTML = '❌ Erro: ' + (resp.erro || 'desconhecido');
+    }
+  } catch (e) {
+    statusEl.style.background = 'rgba(255,120,117,.12)';
+    statusEl.style.color = '#ff7875';
+    statusEl.style.border = '1px solid rgba(255,120,117,.35)';
+    statusEl.innerHTML = '❌ Falha de rede: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '💾 Salvar Conferência';
+  }
+}
+
+function valentImprimir() {
+  var c = VALENT.ultimaConferencia;
+  if (!c) {
+    // Se não salvou ainda, monta com o que está marcado
+    var forn = VALENT.fornecedorSelecionado;
+    var data = document.getElementById('valent-data').value;
+    var conferidoPor = document.getElementById('valent-conferido-por').value;
+    var entradas = [];
+    Object.keys(VALENT.produtosMarcados).forEach(function(cod) {
+      var p = VALENT.produtosMarcados[cod];
+      if (p.qtde && parseFloat(p.qtde) > 0 && p.validade) {
+        entradas.push({
+          fornecedor: forn,
+          codigo_produto: p.codigo,
+          descricao: p.descricao,
+          unidade: p.unidade,
+          qtde: p.qtde,
+          validade: p.validade
+        });
+      }
+    });
+    if (entradas.length === 0) { alert("Nada para imprimir"); return; }
+    c = { fornecedor: forn, data: data, conferidoPor: conferidoPor, entradas: entradas };
+  }
+
+  var w = window.open('', '_blank');
+  var dataBR = c.data.split('-').reverse().join('/');
+  var html = '<html><head><title>Conferência ' + c.fornecedor + ' - ' + dataBR + '</title>' +
+    '<style>body{font-family:Arial,sans-serif;padding:20px;max-width:900px;margin:0 auto;color:#000}' +
+    'h1{font-size:16px;margin:0 0 4px}h2{font-size:13px;font-weight:normal;font-style:italic;margin:0 0 16px}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px}' +
+    'th,td{border:1px solid #333;padding:5px 8px;text-align:left}' +
+    'th{background:#f0f0f0;font-weight:bold}' +
+    '.right{text-align:right}.center{text-align:center}' +
+    '.footer{margin-top:20px;font-size:11px;color:#666;text-align:center;font-style:italic}' +
+    '@media print{body{padding:0}}' +
+    '</style></head><body>' +
+    '<h1>Entrada de Produtos Conferidos na data*</h1>' +
+    '<h2>Data da Conferência: ' + dataBR + ', Fabricante: ' + c.fornecedor + '</h2>' +
+    '<table><thead><tr><th style="width:60px">Código</th><th>Descrição</th><th style="width:40px" class="center">UN</th><th style="width:80px" class="right">Qtde</th><th style="width:100px" class="center">Validade</th></tr></thead><tbody>';
+  c.entradas.forEach(function(e) {
+    var valBR = (e.validade || '').split('-').reverse().join('/');
+    html += '<tr><td>' + e.codigo_produto + '</td><td>' + e.descricao + '</td><td class="center">' + (e.unidade || 'UN') + '</td><td class="right">' + parseFloat(e.qtde).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td><td class="center">' + valBR + '</td></tr>';
+  });
+  html += '</tbody></table>' +
+    '<div class="footer">' + c.fornecedor.split(' ')[0] + ' em estoque</div>' +
+    '<div class="footer" style="margin-top:8px">Conferido por: ' + (c.conferidoPor || '—') + ' | Q Food Company</div>' +
+    '</body></html>';
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function() { w.print(); }, 400);
+}
+
+function valentAbrirHistorico() {
+  alert("📋 Histórico de Conferências\n\nEsta funcionalidade estará disponível na próxima entrega (Mensagem 4).\n\nPor enquanto, consulte diretamente na aba Estoque_Validades_Entrada do Google Sheets.");
+}
+
+async function valentDispararAlertaAgora() {
+  if (!confirm("⚠️ Isso vai disparar o e-mail de alerta AGORA para Célio, Maiko e Jonathas com todos os produtos vencendo em até 90 dias.\n\nContinuar?")) return;
+  try {
+    var r = await fetch(VALIDADES_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: VALIDADES_SYNC_TOKEN, tipo: "disparar_alerta_agora" })
+    });
+    var resp = await r.json();
+    if (resp.ok) {
+      alert("✅ " + (resp.msg || "Alerta disparado com sucesso!"));
+    } else {
+      alert("❌ Erro: " + (resp.erro || "desconhecido"));
+    }
+  } catch (e) {
+    alert("❌ Falha de rede: " + e.message);
+  }
+}
 
 // ============================================================
 // FIM Q FOOD v3
