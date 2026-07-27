@@ -9,17 +9,17 @@
   *{ box-sizing:border-box }
   html,body{ margin:0; height:100%; background:radial-gradient(120% 120% at 50% 0%, #22302c 0%, #0e1413 70%); color:var(--tx);
     font-family:'DM Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden; -webkit-tap-highlight-color:transparent }
-  .bar{ display:flex; align-items:center; gap:12px; padding:12px 18px; background:rgba(0,0,0,.28); border-bottom:1px solid var(--line);
-    position:fixed; inset:0 0 auto 0; height:60px; z-index:5; backdrop-filter:blur(6px) }
-  .bar .tt{ font-weight:800; letter-spacing:.2px; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .bar{ display:flex; align-items:center; gap:10px; padding:10px 16px; background:rgba(0,0,0,.28); border-bottom:1px solid var(--line);
+    position:fixed; inset:0 0 auto 0; height:58px; z-index:5; backdrop-filter:blur(6px) }
+  .bar .tt{ font-weight:800; letter-spacing:.2px; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34vw }
   .bar .sp{ flex:1 }
-  .bar .pg{ font-size:.85rem; color:var(--mu); min-width:74px; text-align:center; font-variant-numeric:tabular-nums }
+  .bar .pg{ font-size:.85rem; color:var(--mu); min-width:66px; text-align:center; font-variant-numeric:tabular-nums }
   .ico{ height:40px; min-width:44px; padding:0 12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--tx);
-    border-radius:10px; cursor:pointer; font-weight:800; font-size:1rem; display:inline-flex; align-items:center; justify-content:center; gap:6px }
+    border-radius:10px; cursor:pointer; font-weight:800; font-size:.95rem; display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap }
   .ico:hover{ background:rgba(255,255,255,.14) }
   .ico:disabled{ opacity:.35; cursor:default }
   .ico.accent{ background:var(--accent); border-color:transparent }
-  .stage{ position:fixed; inset:60px 0 0 0; display:flex; align-items:center; justify-content:center; padding:10px }
+  .stage{ position:fixed; inset:58px 0 0 0; display:flex; align-items:center; justify-content:center; padding:10px }
   #book{ width:96vw; height:100%; }
   #book .page{ background:#fff }
   body.tv .bar{ background:rgba(0,0,0,.5) }
@@ -30,6 +30,10 @@
   .side span{ display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:50%;
     background:rgba(0,0,0,.35); font-size:1.4rem; opacity:0; transition:opacity .2s }
   .side:hover span{ opacity:1 }
+  .restart{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); z-index:6;
+    background:var(--accent); color:#fff; border:0; padding:13px 24px; border-radius:999px; font-weight:800; font-size:1rem;
+    cursor:pointer; box-shadow:0 10px 26px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:opacity .35s, transform .35s }
+  .restart.show{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0) }
   .load{ position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:9;
     background:radial-gradient(120% 120% at 50% 0%, #22302c 0%, #0e1413 70%) }
   .spin{ width:44px; height:44px; border:4px solid rgba(255,255,255,.18); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite }
@@ -39,7 +43,7 @@
   .err a{ color:var(--accent); font-weight:700 }
   .hint{ position:fixed; left:50%; bottom:14px; transform:translateX(-50%); color:var(--mu); font-size:.78rem; z-index:4;
     background:rgba(0,0,0,.3); padding:6px 12px; border-radius:999px; pointer-events:none; transition:opacity .4s }
-  @media (max-width:640px){ .bar .tt{ font-size:.9rem } .ico.hideSm{ display:none } .side{ width:22vw } }
+  @media (max-width:680px){ .bar .tt{ max-width:40vw; font-size:.9rem } .ico.hideSm{ display:none } .side{ width:22vw } }
 </style>
 </head>
 <body>
@@ -47,6 +51,8 @@
     <div class="tt" id="tt">Manual de Cultura</div>
     <div class="sp"></div>
     <div class="pg" id="pg">–</div>
+    <button class="ico hideSm" id="bStart" title="Voltar ao início">↺ Início</button>
+    <button class="ico hideSm" id="bMode" title="Alternar entre 1 e 2 páginas">📄 1 página</button>
     <button class="ico" id="bPrev" title="Página anterior">‹</button>
     <button class="ico" id="bNext" title="Próxima página">›</button>
     <button class="ico" id="bFull" title="Modo TV (tela cheia) — tecla F">📺 TV</button>
@@ -59,7 +65,8 @@
 
   <button class="side l" id="sPrev"><span>‹</span></button>
   <button class="side r" id="sNext"><span>›</span></button>
-  <div class="hint" id="hint">Arraste o canto da página ou use ← →</div>
+  <button class="restart" id="restart">↺ Voltar ao início</button>
+  <div class="hint" id="hint">Arraste o canto da página · use ← → · tecla F = tela cheia</div>
 
   <div class="load" id="load">
     <div class="spin"></div>
@@ -88,12 +95,12 @@
   if(typeof pdfjsLib === 'undefined'){ fail('Não foi possível carregar o leitor de PDF (PDF.js).', pdfUrl); return; }
   if(typeof St === 'undefined' || !St.PageFlip){ fail('Não foi possível carregar o efeito de livro (StPageFlip).', pdfUrl); return; }
 
-  var dl = document.getElementById('bDown'); dl.href = pdfUrl;
+  document.getElementById('bDown').href = pdfUrl;
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  // largura-alvo de render por página (nitidez) limitada por densidade da tela
-  var TARGET_W = Math.min(1600, Math.round(1100 * Math.min(2, window.devicePixelRatio || 1)));
+  // largura-alvo de render por página (nitidez), limitada pela densidade da tela
+  var TARGET_W = Math.min(1800, Math.round(1200 * Math.min(2, window.devicePixelRatio || 1)));
 
   function renderAll(){
     return pdfjsLib.getDocument({ url: pdfUrl }).promise.then(function(pdf){
@@ -115,7 +122,7 @@
               var ctx = canvas.getContext('2d', { alpha:false });
               return page.render({ canvasContext:ctx, viewport:vp }).promise.then(function(){
                 imgs[pageNum-1] = canvas.toDataURL('image/jpeg', 0.9);
-                canvas.width = canvas.height = 0; // libera memória
+                canvas.width = canvas.height = 0;
               });
             });
           });
@@ -127,53 +134,79 @@
 
   renderAll().then(function(data){
     var aspect = data.aspect || 0.707;
-    var baseW = 560, baseH = Math.round(baseW / aspect);
-    var pageFlip = new St.PageFlip(document.getElementById('book'), {
-      width: baseW, height: baseH,
-      size: 'stretch',
-      minWidth: 280, maxWidth: 2600,
-      minHeight: 380, maxHeight: 2400,
-      maxShadowOpacity: 0.5,
-      showCover: true,
-      usePortrait: true,
-      autoSize: true,
-      mobileScrollSupport: false,
-      flippingTime: 700
-    });
-    pageFlip.loadFromImages(data.imgs);
+    var IMGS = data.imgs;
+    var single = false;       // false = 2 páginas (livro aberto) · true = 1 página (maior)
+    var pageFlip = null;
 
     var pg = document.getElementById('pg');
     var bPrev = document.getElementById('bPrev'), bNext = document.getElementById('bNext');
     var sPrev = document.getElementById('sPrev'), sNext = document.getElementById('sNext');
+    var bMode = document.getElementById('bMode'), bStart = document.getElementById('bStart');
+    var bFull = document.getElementById('bFull'), restart = document.getElementById('restart');
     var hint = document.getElementById('hint');
 
     function upd(){
+      if(!pageFlip) return;
       var cur = pageFlip.getCurrentPageIndex() + 1;
       var tot = pageFlip.getPageCount();
       pg.textContent = cur + ' / ' + tot;
       var atStart = cur <= 1, atEnd = cur >= tot;
       bPrev.disabled = sPrev.disabled = atStart;
       bNext.disabled = sNext.disabled = atEnd;
+      restart.classList.toggle('show', atEnd && tot > 1);
     }
-    pageFlip.on('flip', upd);
-    pageFlip.on('init', upd);
 
-    function prev(){ pageFlip.flipPrev(); }
-    function next(){ pageFlip.flipNext(); }
+    function buildFlip(keepIndex){
+      var el = document.getElementById('book');
+      if(pageFlip){ try{ pageFlip.destroy(); }catch(e){} }
+      el.innerHTML = '';
+      var baseW = single ? 900 : 560, baseH = Math.round(baseW / aspect);
+      pageFlip = new St.PageFlip(el, {
+        width: baseW, height: baseH,
+        size: 'stretch',
+        // minWidth alto no modo 1 página força o retrato (uma página ocupa toda a largura)
+        minWidth: single ? 1400 : 280, maxWidth: single ? 3000 : 2600,
+        minHeight: 380, maxHeight: 2400,
+        maxShadowOpacity: 0.5,
+        showCover: true,
+        usePortrait: true,
+        autoSize: true,
+        mobileScrollSupport: false,
+        flippingTime: 700
+      });
+      pageFlip.on('flip', upd);
+      pageFlip.on('init', upd);
+      pageFlip.loadFromImages(IMGS);
+      if(typeof keepIndex === 'number' && keepIndex > 0){
+        setTimeout(function(){
+          try{ pageFlip.turnToPage(Math.min(keepIndex, pageFlip.getPageCount()-1)); }catch(e){}
+          upd();
+        }, 60);
+      } else { upd(); }
+    }
+
+    buildFlip();
+
+    function prev(){ if(pageFlip) pageFlip.flipPrev(); }
+    function next(){ if(pageFlip) pageFlip.flipNext(); }
+    function toStart(){ if(pageFlip) pageFlip.turnToPage(0); upd(); }
     bPrev.onclick = sPrev.onclick = prev;
     bNext.onclick = sNext.onclick = next;
-    document.addEventListener('keydown', function(e){
-      if(e.key==='ArrowLeft') prev();
-      else if(e.key==='ArrowRight') next();
-    });
+    bStart.onclick = restart.onclick = toStart;
 
-    var bFull = document.getElementById('bFull');
+    bMode.onclick = function(){
+      var idx = pageFlip ? pageFlip.getCurrentPageIndex() : 0;
+      single = !single;
+      bMode.textContent = single ? '📖 2 páginas' : '📄 1 página';
+      bMode.title = single ? 'Voltar para 2 páginas' : 'Ver 1 página (maior)';
+      buildFlip(idx);
+    };
+
     function toggleTV(){
       if(document.fullscreenElement){ if(document.exitFullscreen) document.exitFullscreen(); }
       else { var el=document.documentElement; var r=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen; if(r) r.call(el); }
     }
     bFull.onclick = toggleTV;
-    document.addEventListener('keydown', function(e){ if((e.key||'').toLowerCase()==='f' && !e.ctrlKey && !e.metaKey) toggleTV(); });
     document.addEventListener('fullscreenchange', function(){
       var on = !!document.fullscreenElement;
       document.body.classList.toggle('tv', on);
@@ -181,10 +214,17 @@
       setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 120);
     });
 
+    document.addEventListener('keydown', function(e){
+      var k = (e.key||'').toLowerCase();
+      if(e.key==='ArrowLeft') prev();
+      else if(e.key==='ArrowRight') next();
+      else if(e.key==='Home') toStart();
+      else if(k==='f' && !e.ctrlKey && !e.metaKey) toggleTV();
+    });
+
     load.style.opacity = '0';
     setTimeout(function(){ load.style.display = 'none'; }, 300);
-    setTimeout(function(){ hint.style.opacity = '0'; }, 5000);
-    upd();
+    setTimeout(function(){ hint.style.opacity = '0'; }, 6000);
   }).catch(function(err){
     console.error(err);
     fail('Não consegui abrir este PDF. Verifique se o arquivo existe no repositório e se o nome/caminho está correto.', pdfUrl);
