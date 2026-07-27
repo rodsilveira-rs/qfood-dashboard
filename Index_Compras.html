@@ -1213,7 +1213,7 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
       <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:12px;margin-bottom:16px">
         <div>
           <label style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:4px">Data da Confer&#234;ncia</label>
-          <input type="date" id="valent-data" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem">
+          <input type="date" id="valent-data" onchange="if(document.getElementById('valent-fornecedor').value) valentSelecionarFornecedor()" style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem">
         </div>
         <div>
           <label style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:4px">Fornecedor</label>
@@ -1225,6 +1225,12 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
           <label style="font-size:.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;display:block;margin-bottom:4px">Conferido por</label>
           <input type="text" id="valent-conferido-por" readonly style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem;opacity:.7">
         </div>
+      </div>
+
+      <!-- Banner de aviso: registros de hoje já existem -->
+      <div id="valent-banner-hoje" style="display:none;padding:10px 14px;background:rgba(77,142,245,.10);border:1px solid rgba(77,142,245,.35);border-radius:8px;font-size:.78rem;color:#4d8ef5;margin-bottom:12px">
+        <span style="font-weight:700">&#8505;&#65039; Editando confer&#234;ncia de hoje:</span>
+        <span id="valent-banner-hoje-msg">Voc&#234; j&#225; registrou X produto(s) deste fornecedor hoje. Os valores foram pr&#233;-preenchidos. Ao salvar, ser&#227;o <b>atualizados</b> (n&#227;o duplicados).</span>
       </div>
 
       <!-- Área de produtos (só aparece após selecionar fornecedor) -->
@@ -6268,7 +6274,8 @@ var VALENT = {
   aberto: false,
   fornecedorSelecionado: "",
   produtosPortfolio: [],       // produtos do fornecedor atual (do UGIRO)
-  produtosMarcados: {},        // { codigo: { qtde, validade, unidade } }
+  produtosMarcados: {},        // { codigo: { qtde, validade, unidade, id_entrada } }
+  registrosExistentesHoje: {}, // { codigo: { id_entrada, qtde, validade, status_alerta } }
   fornecedoresLista: [],       // cache de fornecedores únicos
   carregando: false
 };
@@ -6310,16 +6317,17 @@ function valentInicializar() {
 
 async function valentCarregarFornecedores() {
   try {
-    // Se UGIRO já foi carregado por cmpLoad, aproveita
     var r = await fetch(UGIRO + "&t=" + Date.now());
     var txt = await r.text();
     var rows = csv(txt);
+    console.log("[valent] UGIRO carregado:", rows.length, "linhas totais");
     var fornSet = new Set();
     rows.forEach(function(row) {
       var f = String(row["Fornecedor"] || row["FORNECEDOR"] || "").trim();
       if (f) fornSet.add(f);
     });
     VALENT.fornecedoresLista = Array.from(fornSet).sort();
+    console.log("[valent] Fornecedores únicos:", VALENT.fornecedoresLista.length);
     var sel = document.getElementById('valent-fornecedor');
     sel.innerHTML = '<option value="">Selecione o fornecedor...</option>' +
       VALENT.fornecedoresLista.map(function(f) {
@@ -6334,9 +6342,11 @@ async function valentSelecionarFornecedor() {
   var forn = document.getElementById('valent-fornecedor').value;
   VALENT.fornecedorSelecionado = forn;
   VALENT.produtosMarcados = {}; // reseta seleções ao trocar fornecedor
+  VALENT.registrosExistentesHoje = {}; // { codigo: { id_entrada, qtde, validade, status_alerta } }
   document.getElementById('valent-total-itens').textContent = '0';
   document.getElementById('valent-btn-salvar').disabled = true;
   document.getElementById('valent-btn-imprimir').disabled = true;
+  document.getElementById('valent-banner-hoje').style.display = 'none';
 
   if (!forn) {
     document.getElementById('valent-produtos-area').style.display = 'none';
@@ -6344,12 +6354,18 @@ async function valentSelecionarFornecedor() {
   }
   document.getElementById('valent-produtos-area').style.display = 'block';
   var lista = document.getElementById('valent-lista-produtos');
-  lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)"><div class="spin" style="margin:0 auto 10px"></div>Carregando produtos...</div>';
+  lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)"><div class="spin" style="margin:0 auto 10px"></div>Carregando produtos e conferu00eancias de hoje...</div>';
 
   try {
-    var r = await fetch(UGIRO + "&t=" + Date.now());
-    var txt = await r.text();
-    var rows = csv(txt);
+    // Carrega em paralelo: portfólio do UGIRO + registros existentes de hoje
+    var dataConf = document.getElementById('valent-data').value; // yyyy-mm-dd
+    var [ugiroTxt, entradasResp] = await Promise.all([
+      fetch(UGIRO + "&t=" + Date.now()).then(function(r) { return r.text(); }),
+      fetch(VALIDADES_SYNC_URL + "?tipo=validade_entrada&_=" + Date.now()).then(function(r) { return r.json(); })
+    ]);
+
+    // 1. Processa portfólio UGIRO
+    var rows = csv(ugiroTxt);
     VALENT.produtosPortfolio = rows.filter(function(row) {
       var f = String(row["Fornecedor"] || row["FORNECEDOR"] || "").trim();
       return f === forn;
@@ -6363,9 +6379,121 @@ async function valentSelecionarFornecedor() {
       };
     }).filter(function(p) { return p.codigo && p.descricao; });
 
+    console.log("[valent] Fornecedor:", forn, "| Produtos encontrados:", VALENT.produtosPortfolio.length);
+    if (VALENT.produtosPortfolio.length === 0 && rows.length > 0) {
+      console.warn("[valent] UGIRO tem", rows.length, "linhas mas nenhuma bate com o fornecedor. Cabeçalhos disponíveis:", Object.keys(rows[0]));
+    }
+
+    // 2. Processa registros existentes de HOJE deste fornecedor
+    // Função helper para converter QUALQUER formato de data em "yyyy-mm-dd"
+    var parseDataSheets = function(v) {
+      if (!v && v !== 0) return "";
+      if (typeof v === 'string') {
+        // ISO com T (ex: "2027-03-25T03:00:00.000Z") — pega usando UTC pra evitar shift de fuso
+        if (v.indexOf('T') > 0) {
+          var d1 = new Date(v);
+          if (!isNaN(d1.getTime())) {
+            return d1.getUTCFullYear() + '-' +
+                   String(d1.getUTCMonth() + 1).padStart(2, '0') + '-' +
+                   String(d1.getUTCDate()).padStart(2, '0');
+          }
+        }
+        // yyyy-mm-dd direto
+        if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
+        // dd/mm/yyyy — converte
+        var m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+        if (m) return m[3] + '-' + m[2] + '-' + m[1];
+        return v.substring(0, 10);
+      }
+      if (v instanceof Date) {
+        // Usa UTC pra evitar shift de fuso (Sheets grava data como meia-noite UTC)
+        return v.getUTCFullYear() + '-' +
+               String(v.getUTCMonth() + 1).padStart(2, '0') + '-' +
+               String(v.getUTCDate()).padStart(2, '0');
+      }
+      if (typeof v === 'number') {
+        // Número serial do Sheets (dias desde 30/12/1899)
+        var dt = new Date(Math.round((v - 25569) * 86400 * 1000));
+        return dt.getUTCFullYear() + '-' +
+               String(dt.getUTCMonth() + 1).padStart(2, '0') + '-' +
+               String(dt.getUTCDate()).padStart(2, '0');
+      }
+      return "";
+    };
+
+    if (entradasResp && entradasResp.ok && entradasResp.registros) {
+      var totalDoFornecedorHoje = 0;
+      entradasResp.registros.forEach(function(reg) {
+        var fornReg = String(reg["Fornecedor"] || "").trim();
+        var dataReg = parseDataSheets(reg["Data_Conferencia"]);
+        if (fornReg === forn && dataReg === dataConf) {
+          totalDoFornecedorHoje++;
+          var cod = String(reg["Codigo_Produto"] || "").trim();
+          if (!cod) return;
+          var val = parseDataSheets(reg["Validade"]);
+          VALENT.registrosExistentesHoje[cod] = {
+            id_entrada: reg["ID_Entrada"],
+            qtde: reg["Qtde"],
+            validade: val,
+            status_alerta: reg["Status_Alerta"] || "NORMAL",
+            descricao: reg["Descricao"],
+            unidade: reg["Unidade"] || "UN"
+          };
+          VALENT.produtosMarcados[cod] = {
+            codigo: cod,
+            descricao: reg["Descricao"] || "",
+            unidade: reg["Unidade"] || "UN",
+            qtde: reg["Qtde"] || "",
+            validade: val || "",
+            origem: 'HOJE',
+            id_entrada: reg["ID_Entrada"],
+            status_alerta: reg["Status_Alerta"] || "NORMAL"
+          };
+          var existe = VALENT.produtosPortfolio.find(function(p) { return p.codigo === cod; });
+          if (!existe) {
+            VALENT.produtosPortfolio.push({
+              codigo: cod,
+              descricao: reg["Descricao"] || "",
+              unidade: reg["Unidade"] || "UN",
+              ativo: "Sim",
+              origem: 'HOJE'
+            });
+          }
+        }
+      });
+      console.log("[valent] Registros do fornecedor NA DATA", dataConf + ":", totalDoFornecedorHoje);
+      if (totalDoFornecedorHoje === 0 && entradasResp.registros.length > 0) {
+        // Debug: mostra amostra pra diagnosticar
+        var amostra = entradasResp.registros.slice(0, 3).map(function(r) {
+          return {
+            fornecedor: r["Fornecedor"],
+            data_raw: r["Data_Conferencia"],
+            data_parsed: parseDataSheets(r["Data_Conferencia"]),
+            validade_raw: r["Validade"],
+            validade_parsed: parseDataSheets(r["Validade"])
+          };
+        });
+        console.warn("[valent] Nenhum registro bateu. Amostra dos primeiros 3:", amostra);
+        console.warn("[valent] Fornecedor buscado:", forn, "| Data buscada:", dataConf);
+      }
+    }
+
+    // Mostra banner se houver registros de hoje
+    var qtdHoje = Object.keys(VALENT.registrosExistentesHoje).length;
+    if (qtdHoje > 0) {
+      var banner = document.getElementById('valent-banner-hoje');
+      banner.style.display = 'block';
+      document.getElementById('valent-banner-hoje-msg').innerHTML =
+        'Voc&#234; j&#225; registrou <b>' + qtdHoje + ' produto(s)</b> deste fornecedor hoje. ' +
+        'Os valores foram pr&#233;-preenchidos. Ao salvar, ser&#227;o <b>atualizados</b> (n&#227;o duplicados).';
+      console.log("[valent]", qtdHoje, "registro(s) de hoje pré-carregado(s) para", forn);
+    }
+
     valentRenderizarLista();
+    valentAtualizarResumo();
   } catch (e) {
     lista.innerHTML = '<div style="padding:20px;text-align:center;color:#ff7875">Erro ao carregar produtos: ' + e.message + '</div>';
+    console.error("[valent] Erro:", e);
   }
 }
 
@@ -6377,7 +6505,18 @@ function valentRenderizarLista() {
     return p.codigo.toLowerCase().includes(busca) || p.descricao.toLowerCase().includes(busca);
   });
 
-  document.getElementById('valent-count-info').textContent = filtrados.length + ' produto(s) do fornecedor';
+  // Ordena: marcados de hoje primeiro (topo), depois os demais
+  filtrados.sort(function(a, b) {
+    var aEditavel = !!VALENT.registrosExistentesHoje[a.codigo];
+    var bEditavel = !!VALENT.registrosExistentesHoje[b.codigo];
+    if (aEditavel && !bEditavel) return -1;
+    if (!aEditavel && bEditavel) return 1;
+    return a.codigo.localeCompare(b.codigo);
+  });
+
+  var qtdHoje = Object.keys(VALENT.registrosExistentesHoje).length;
+  var infoHoje = qtdHoje > 0 ? ' &middot; <span style="color:#36cfa0">' + qtdHoje + ' de hoje pr\u00e9-carregado(s)</span>' : '';
+  document.getElementById('valent-count-info').innerHTML = filtrados.length + ' produto(s)' + infoHoje;
 
   if (filtrados.length === 0) {
     lista.innerHTML = '<div style="padding:20px;text-align:center;color:var(--mu)">Nenhum produto encontrado. Use "+ Produto Livre" abaixo para adicionar manualmente.</div>';
@@ -6386,18 +6525,24 @@ function valentRenderizarLista() {
 
   lista.innerHTML = filtrados.map(function(p) {
     var marcado = VALENT.produtosMarcados[p.codigo];
+    var registroHoje = VALENT.registrosExistentesHoje[p.codigo];
+    var acaoBloqueada = registroHoje && registroHoje.status_alerta === 'ACAO_TOMADA';
     var checked = marcado ? 'checked' : '';
     var qtdeVal = marcado ? marcado.qtde : '';
     var validadeVal = marcado ? marcado.validade : '';
     var opacity = (p.ativo === "Não" || p.ativo === "NAO") ? 'opacity:.55' : '';
     var tagInativo = (p.ativo === "Não" || p.ativo === "NAO") ? '<span style="background:rgba(255,120,117,.15);color:#ff7875;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px">INATIVO</span>' : '';
-    return '<div class="valent-row" style="display:grid;grid-template-columns:28px 60px 1fr 60px 90px 130px;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--br);' + opacity + '">' +
-      '<input type="checkbox" ' + checked + ' onchange="valentToggleProduto(\'' + p.codigo + '\', this.checked)" style="width:16px;height:16px;cursor:pointer">' +
+    var tagHoje = registroHoje ? '<span style="background:rgba(54,207,160,.18);color:#36cfa0;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px">\u270f\ufe0f EDITANDO</span>' : '';
+    var tagAcao = acaoBloqueada ? '<span style="background:rgba(255,120,117,.2);color:#ff7875;font-size:.62rem;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:6px">A\u00c7\u00c3O TOMADA</span>' : '';
+    var bgLinha = registroHoje ? 'background:rgba(54,207,160,.06);' : '';
+    var disabledAttr = acaoBloqueada ? 'disabled' : '';
+    return '<div class="valent-row" style="display:grid;grid-template-columns:28px 60px 1fr 60px 90px 130px;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--br);' + opacity + bgLinha + '">' +
+      '<input type="checkbox" ' + checked + ' ' + disabledAttr + ' onchange="valentToggleProduto(\'' + p.codigo + '\', this.checked)" style="width:16px;height:16px;cursor:pointer">' +
       '<span style="font-size:.72rem;color:var(--mu);font-weight:700">' + p.codigo + '</span>' +
-      '<span style="font-size:.78rem;color:var(--tx)">' + p.descricao + tagInativo + '</span>' +
+      '<span style="font-size:.78rem;color:var(--tx)">' + p.descricao + tagInativo + tagHoje + tagAcao + '</span>' +
       '<span style="font-size:.7rem;color:var(--mu);text-align:center">' + p.unidade + '</span>' +
-      '<input type="number" min="0" step="1" value="' + qtdeVal + '" placeholder="Qtde" onchange="valentAtualizarProduto(\'' + p.codigo + '\', \'qtde\', this.value)" style="background:var(--sf);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;text-align:right">' +
-      '<input type="date" value="' + validadeVal + '" onchange="valentAtualizarProduto(\'' + p.codigo + '\', \'validade\', this.value)" style="background:var(--sf);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.75rem">' +
+      '<input type="number" min="0" step="1" value="' + qtdeVal + '" placeholder="Qtde" ' + disabledAttr + ' onchange="valentAtualizarProduto(\'' + p.codigo + '\', \'qtde\', this.value)" style="background:var(--sf);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.78rem;text-align:right">' +
+      '<input type="date" value="' + validadeVal + '" ' + disabledAttr + ' onchange="valentAtualizarProduto(\'' + p.codigo + '\', \'validade\', this.value)" style="background:var(--sf);border:1px solid var(--br);border-radius:6px;padding:4px 8px;color:var(--tx);font-size:.75rem">' +
     '</div>';
   }).join('');
 }
@@ -6410,18 +6555,23 @@ function valentToggleProduto(codigo, marcado) {
   if (marcado) {
     var p = VALENT.produtosPortfolio.find(function(x) { return x.codigo === codigo; });
     if (!p) return;
+    // Se produto já existe hoje, herda id_entrada
+    var registroHoje = VALENT.registrosExistentesHoje[codigo];
     VALENT.produtosMarcados[codigo] = {
       codigo: p.codigo,
       descricao: p.descricao,
       unidade: p.unidade,
-      qtde: '',
-      validade: '',
-      origem: 'UGIRO'
+      qtde: registroHoje ? registroHoje.qtde : '',
+      validade: registroHoje ? registroHoje.validade : '',
+      origem: registroHoje ? 'HOJE' : (p.origem || 'UGIRO'),
+      id_entrada: registroHoje ? registroHoje.id_entrada : null,
+      status_alerta: registroHoje ? registroHoje.status_alerta : 'NORMAL'
     };
   } else {
     delete VALENT.produtosMarcados[codigo];
   }
   valentAtualizarResumo();
+  valentRenderizarLista();
 }
 
 function valentAtualizarProduto(codigo, campo, valor) {
@@ -6558,18 +6708,35 @@ async function valentSalvar() {
     });
     var resp = await r.json();
     if (resp.ok) {
+      var criados = 0, atualizados = 0;
+      if (resp.resultados) {
+        resp.resultados.forEach(function(x) {
+          if (x.ok && x.acao === 'atualizado') atualizados++;
+          else if (x.ok && x.acao === 'criado') criados++;
+        });
+      }
+      var msgAcoes = '';
+      if (criados > 0 && atualizados > 0) {
+        msgAcoes = criados + ' criado(s), ' + atualizados + ' atualizado(s)';
+      } else if (criados > 0) {
+        msgAcoes = criados + ' registro(s) criado(s)';
+      } else if (atualizados > 0) {
+        msgAcoes = atualizados + ' registro(s) atualizado(s)';
+      } else {
+        msgAcoes = resp.sucessos + ' entrada(s) processada(s)';
+      }
       statusEl.style.background = 'rgba(54,207,160,.12)';
       statusEl.style.color = '#36cfa0';
       statusEl.style.border = '1px solid rgba(54,207,160,.35)';
-      statusEl.innerHTML = '✅ <b>Salvo com sucesso!</b> ' + resp.sucessos + ' entrada(s) gravada(s)' +
+      statusEl.innerHTML = '\u2705 <b>Salvo com sucesso!</b> ' + msgAcoes +
         (resp.alertas_imediatos > 0 ? '. E-mail de alerta enviado para ' + resp.alertas_imediatos + ' produto(s).' : '.');
       // Guarda para imprimir
       VALENT.ultimaConferencia = { fornecedor: forn, data: data, conferidoPor: conferidoPor, entradas: entradas };
-      // Reseta seleção
-      VALENT.produtosMarcados = {};
-      valentRenderizarLista();
-      valentAtualizarResumo();
-      // Deixa botão imprimir habilitado
+      // Recarrega para pegar os IDs atualizados (pra próxima edição ficar coerente)
+      setTimeout(function() {
+        var selForn = document.getElementById('valent-fornecedor');
+        if (selForn.value) valentSelecionarFornecedor();
+      }, 500);
       document.getElementById('valent-btn-imprimir').disabled = false;
     } else {
       statusEl.style.background = 'rgba(255,120,117,.12)';
