@@ -9,25 +9,40 @@
   *{ box-sizing:border-box }
   html,body{ margin:0; height:100%; background:radial-gradient(120% 120% at 50% 0%, #22302c 0%, #0e1413 70%); color:var(--tx);
     font-family:'DM Sans',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; overflow:hidden; -webkit-tap-highlight-color:transparent }
-  .bar{ display:flex; align-items:center; gap:12px; padding:12px 18px; background:rgba(0,0,0,.28); border-bottom:1px solid var(--line);
-    position:fixed; inset:0 0 auto 0; height:60px; z-index:5; backdrop-filter:blur(6px) }
-  .bar .tt{ font-weight:800; letter-spacing:.2px; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .bar{ display:flex; align-items:center; gap:10px; padding:10px 16px; background:rgba(0,0,0,.28); border-bottom:1px solid var(--line);
+    position:fixed; inset:0 0 auto 0; height:58px; z-index:5; backdrop-filter:blur(6px) }
+  .bar .tt{ font-weight:800; letter-spacing:.2px; font-size:1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:34vw }
   .bar .sp{ flex:1 }
-  .bar .pg{ font-size:.85rem; color:var(--mu); min-width:74px; text-align:center; font-variant-numeric:tabular-nums }
+  .bar .pg{ font-size:.85rem; color:var(--mu); min-width:66px; text-align:center; font-variant-numeric:tabular-nums }
   .ico{ height:40px; min-width:44px; padding:0 12px; border:1px solid var(--line); background:rgba(255,255,255,.06); color:var(--tx);
-    border-radius:10px; cursor:pointer; font-weight:800; font-size:1rem; display:inline-flex; align-items:center; justify-content:center; gap:6px }
+    border-radius:10px; cursor:pointer; font-weight:800; font-size:.95rem; display:inline-flex; align-items:center; justify-content:center; gap:6px; white-space:nowrap }
   .ico:hover{ background:rgba(255,255,255,.14) }
   .ico:disabled{ opacity:.35; cursor:default }
   .ico.accent{ background:var(--accent); border-color:transparent }
-  .stage{ position:fixed; inset:60px 0 0 0; display:flex; align-items:center; justify-content:center; padding:18px }
-  #book{ width:min(94vw, 1400px); height:100%; }
+  .stage{ position:fixed; inset:58px 0 0 0; display:flex; align-items:center; justify-content:center; padding:10px }
+  #book{ width:96vw; height:100%; }
   #book .page{ background:#fff }
+  body.tv .bar{ background:rgba(0,0,0,.5) }
+  body.tv .stage{ inset:0; padding:6px }
   .side{ position:fixed; top:0; bottom:0; width:12vw; max-width:120px; z-index:4; border:0; background:transparent; cursor:pointer; color:#fff }
   .side:disabled{ opacity:0; cursor:default }
   .side.l{ left:0 } .side.r{ right:0 }
   .side span{ display:inline-flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:50%;
     background:rgba(0,0,0,.35); font-size:1.4rem; opacity:0; transition:opacity .2s }
   .side:hover span{ opacity:1 }
+  .restart{ position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(20px); z-index:6;
+    background:var(--accent); color:#fff; border:0; padding:13px 24px; border-radius:999px; font-weight:800; font-size:1rem;
+    cursor:pointer; box-shadow:0 10px 26px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:opacity .35s, transform .35s }
+  .restart.show{ opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0) }
+  .zoom{ position:fixed; inset:0; z-index:20; background:rgba(8,12,11,.96); display:none; flex-direction:column }
+  .zoom.show{ display:flex }
+  .zoom .side{ top:58px }
+  .ztop{ display:flex; align-items:center; gap:10px; padding:10px 16px; height:58px; border-bottom:1px solid var(--line); background:rgba(0,0,0,.4) }
+  .ztop .zpg{ color:var(--mu); font-size:.85rem; font-variant-numeric:tabular-nums }
+  .ztop .zsp{ flex:1 }
+  .zwrap{ flex:1; overflow:auto; display:flex; align-items:flex-start; justify-content:center; cursor:grab; padding:14px }
+  .zwrap.drag{ cursor:grabbing }
+  .zwrap img{ display:block; height:auto; max-width:none; user-select:none; -webkit-user-drag:none; box-shadow:0 10px 40px rgba(0,0,0,.5) }
   .load{ position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:9;
     background:radial-gradient(120% 120% at 50% 0%, #22302c 0%, #0e1413 70%) }
   .spin{ width:44px; height:44px; border:4px solid rgba(255,255,255,.18); border-top-color:var(--accent); border-radius:50%; animation:sp 1s linear infinite }
@@ -37,7 +52,7 @@
   .err a{ color:var(--accent); font-weight:700 }
   .hint{ position:fixed; left:50%; bottom:14px; transform:translateX(-50%); color:var(--mu); font-size:.78rem; z-index:4;
     background:rgba(0,0,0,.3); padding:6px 12px; border-radius:999px; pointer-events:none; transition:opacity .4s }
-  @media (max-width:640px){ .bar .tt{ font-size:.9rem } .ico.hideSm{ display:none } .side{ width:22vw } }
+  @media (max-width:680px){ .bar .tt{ max-width:40vw; font-size:.9rem } .ico.hideSm{ display:none } .side{ width:22vw } }
 </style>
 </head>
 <body>
@@ -45,9 +60,11 @@
     <div class="tt" id="tt">Manual de Cultura</div>
     <div class="sp"></div>
     <div class="pg" id="pg">–</div>
+    <button class="ico hideSm" id="bStart" title="Voltar ao início">↺ Início</button>
+    <button class="ico hideSm" id="bZoom" title="Ampliar página (lupa)">🔍 Zoom</button>
     <button class="ico" id="bPrev" title="Página anterior">‹</button>
     <button class="ico" id="bNext" title="Próxima página">›</button>
-    <button class="ico hideSm" id="bFull" title="Tela cheia">⛶</button>
+    <button class="ico" id="bFull" title="Modo TV (tela cheia) — tecla F">📺 TV</button>
     <a class="ico accent hideSm" id="bDown" title="Baixar PDF" download>⬇︎</a>
   </div>
 
@@ -57,7 +74,21 @@
 
   <button class="side l" id="sPrev"><span>‹</span></button>
   <button class="side r" id="sNext"><span>›</span></button>
-  <div class="hint" id="hint">Arraste o canto da página ou use ← →</div>
+  <button class="restart" id="restart">↺ Voltar ao início</button>
+  <div class="hint" id="hint">Arraste o canto da página · use ← → · tecla F = tela cheia</div>
+
+  <div class="zoom" id="zoom" aria-hidden="true">
+    <div class="ztop">
+      <span class="zpg" id="zpg">–</span>
+      <span class="zsp"></span>
+      <button class="ico" id="zOut" title="Diminuir">🔍−</button>
+      <button class="ico" id="zIn" title="Aumentar">🔍+</button>
+      <button class="ico accent" id="zClose" title="Fechar (Esc)">✕ Fechar</button>
+    </div>
+    <div class="zwrap" id="zwrap"><img id="zimg" alt="Página do manual"></div>
+    <button class="side l" id="zPrev"><span>‹</span></button>
+    <button class="side r" id="zNext"><span>›</span></button>
+  </div>
 
   <div class="load" id="load">
     <div class="spin"></div>
@@ -86,15 +117,15 @@
   if(typeof pdfjsLib === 'undefined'){ fail('Não foi possível carregar o leitor de PDF (PDF.js).', pdfUrl); return; }
   if(typeof St === 'undefined' || !St.PageFlip){ fail('Não foi possível carregar o efeito de livro (StPageFlip).', pdfUrl); return; }
 
-  var dl = document.getElementById('bDown'); dl.href = pdfUrl;
+  document.getElementById('bDown').href = pdfUrl;
 
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-  // largura-alvo de render por página (nitidez) limitada por densidade da tela
-  var TARGET_W = Math.min(1400, Math.round(900 * Math.min(2, window.devicePixelRatio || 1)));
+  // largura-alvo de render por página (nitidez), limitada pela densidade da tela
+  var TARGET_W = Math.min(1800, Math.round(1200 * Math.min(2, window.devicePixelRatio || 1)));
 
   function renderAll(){
-    return pdfjsLib.getDocument({ url: pdfUrl }).promise.then(function(pdf){
+    return pdfjsLib.getDocument({ url: pdfUrl, verbosity: 0 }).promise.then(function(pdf){
       var n = pdf.numPages;
       var imgs = new Array(n);
       var aspect = 0.707; // A4 retrato fallback (w/h)
@@ -113,7 +144,7 @@
               var ctx = canvas.getContext('2d', { alpha:false });
               return page.render({ canvasContext:ctx, viewport:vp }).promise.then(function(){
                 imgs[pageNum-1] = canvas.toDataURL('image/jpeg', 0.9);
-                canvas.width = canvas.height = 0; // libera memória
+                canvas.width = canvas.height = 0;
               });
             });
           });
@@ -125,55 +156,123 @@
 
   renderAll().then(function(data){
     var aspect = data.aspect || 0.707;
-    var baseW = 560, baseH = Math.round(baseW / aspect);
-    var pageFlip = new St.PageFlip(document.getElementById('book'), {
-      width: baseW, height: baseH,
-      size: 'stretch',
-      minWidth: 280, maxWidth: 1400,
-      minHeight: 380, maxHeight: 1980,
-      maxShadowOpacity: 0.5,
-      showCover: true,
-      usePortrait: true,
-      autoSize: true,
-      mobileScrollSupport: false,
-      flippingTime: 700
-    });
-    pageFlip.loadFromImages(data.imgs);
+    var IMGS = data.imgs;
+    var single = false;       // false = 2 páginas (livro aberto) · true = 1 página (maior)
+    var pageFlip = null;
 
     var pg = document.getElementById('pg');
     var bPrev = document.getElementById('bPrev'), bNext = document.getElementById('bNext');
     var sPrev = document.getElementById('sPrev'), sNext = document.getElementById('sNext');
+    var bZoom = document.getElementById('bZoom'), bStart = document.getElementById('bStart');
+    var bFull = document.getElementById('bFull'), restart = document.getElementById('restart');
     var hint = document.getElementById('hint');
 
     function upd(){
+      if(!pageFlip) return;
       var cur = pageFlip.getCurrentPageIndex() + 1;
       var tot = pageFlip.getPageCount();
       pg.textContent = cur + ' / ' + tot;
       var atStart = cur <= 1, atEnd = cur >= tot;
       bPrev.disabled = sPrev.disabled = atStart;
       bNext.disabled = sNext.disabled = atEnd;
+      restart.classList.toggle('show', atEnd && tot > 1);
     }
-    pageFlip.on('flip', upd);
-    pageFlip.on('init', upd);
 
-    function prev(){ pageFlip.flipPrev(); }
-    function next(){ pageFlip.flipNext(); }
+    function buildFlip(keepIndex){
+      var el = document.getElementById('book');
+      if(pageFlip){ try{ pageFlip.destroy(); }catch(e){} }
+      el.innerHTML = '';
+      var baseW = single ? 900 : 560, baseH = Math.round(baseW / aspect);
+      pageFlip = new St.PageFlip(el, {
+        width: baseW, height: baseH,
+        size: 'stretch',
+        // minWidth alto no modo 1 página força o retrato (uma página ocupa toda a largura)
+        minWidth: single ? 1400 : 280, maxWidth: single ? 3000 : 2600,
+        minHeight: 380, maxHeight: 2400,
+        maxShadowOpacity: 0.5,
+        showCover: true,
+        usePortrait: true,
+        autoSize: true,
+        mobileScrollSupport: false,
+        flippingTime: 700
+      });
+      pageFlip.on('flip', upd);
+      pageFlip.on('init', upd);
+      pageFlip.loadFromImages(IMGS);
+      if(typeof keepIndex === 'number' && keepIndex > 0){
+        setTimeout(function(){
+          try{ pageFlip.turnToPage(Math.min(keepIndex, pageFlip.getPageCount()-1)); }catch(e){}
+          upd();
+        }, 60);
+      } else { upd(); }
+    }
+
+    buildFlip();
+
+    function prev(){ if(pageFlip) pageFlip.flipPrev(); }
+    function next(){ if(pageFlip) pageFlip.flipNext(); }
+    function toStart(){ if(pageFlip) pageFlip.turnToPage(0); upd(); }
     bPrev.onclick = sPrev.onclick = prev;
     bNext.onclick = sNext.onclick = next;
+    bStart.onclick = restart.onclick = toStart;
+
+    // ---- Lupa / zoom da página atual ----
+    var zoom = document.getElementById('zoom'), zimg = document.getElementById('zimg'), zwrap = document.getElementById('zwrap'), zpg = document.getElementById('zpg');
+    var zidx = 0, zlvl = 1.4, zDrag=false, zsx=0, zsy=0, zsl=0, zst=0;
+    function zApply(){ zimg.style.width = Math.round(zwrap.clientWidth * zlvl) + 'px'; }
+    function zShow(){
+      zimg.src = IMGS[zidx];
+      zpg.textContent = (zidx+1) + ' / ' + IMGS.length;
+      document.getElementById('zPrev').disabled = (zidx<=0);
+      document.getElementById('zNext').disabled = (zidx>=IMGS.length-1);
+      zApply(); zwrap.scrollTop = 0;
+    }
+    function zOpen(){ zidx = pageFlip ? pageFlip.getCurrentPageIndex() : 0; zlvl = 1.4; zoom.classList.add('show'); zShow(); }
+    function zHide(){ zoom.classList.remove('show'); if(pageFlip){ try{ pageFlip.turnToPage(zidx); }catch(e){} upd(); } }
+    bZoom.onclick = zOpen;
+    document.getElementById('zClose').onclick = zHide;
+    document.getElementById('zIn').onclick  = function(){ zlvl = Math.min(4, zlvl+0.3); zApply(); };
+    document.getElementById('zOut').onclick = function(){ zlvl = Math.max(0.6, zlvl-0.3); zApply(); };
+    document.getElementById('zPrev').onclick = function(){ if(zidx>0){ zidx--; zShow(); } };
+    document.getElementById('zNext').onclick = function(){ if(zidx<IMGS.length-1){ zidx++; zShow(); } };
+    zimg.addEventListener('dblclick', function(){ zlvl = (zlvl>1.5?1.0:2.4); zApply(); });
+    zwrap.addEventListener('mousedown', function(e){ zDrag=true; zsx=e.clientX; zsy=e.clientY; zsl=zwrap.scrollLeft; zst=zwrap.scrollTop; zwrap.classList.add('drag'); e.preventDefault(); });
+    window.addEventListener('mousemove', function(e){ if(!zDrag) return; zwrap.scrollLeft = zsl-(e.clientX-zsx); zwrap.scrollTop = zst-(e.clientY-zsy); });
+    window.addEventListener('mouseup', function(){ zDrag=false; zwrap.classList.remove('drag'); });
+    window.addEventListener('resize', function(){ if(zoom.classList.contains('show')) zApply(); });
     document.addEventListener('keydown', function(e){
-      if(e.key==='ArrowLeft') prev();
-      else if(e.key==='ArrowRight') next();
+      if(!zoom.classList.contains('show')) return;
+      e.stopPropagation();
+      if(e.key==='Escape') zHide();
+      else if(e.key==='ArrowLeft'){ if(zidx>0){ zidx--; zShow(); } }
+      else if(e.key==='ArrowRight'){ if(zidx<IMGS.length-1){ zidx++; zShow(); } }
+      else if(e.key==='+'||e.key==='='){ zlvl=Math.min(4,zlvl+0.3); zApply(); }
+      else if(e.key==='-'){ zlvl=Math.max(0.6,zlvl-0.3); zApply(); }
+    }, true);
+
+    function toggleTV(){
+      if(document.fullscreenElement){ if(document.exitFullscreen) document.exitFullscreen(); }
+      else { var el=document.documentElement; var r=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen; if(r) r.call(el); }
+    }
+    bFull.onclick = toggleTV;
+    document.addEventListener('fullscreenchange', function(){
+      var on = !!document.fullscreenElement;
+      document.body.classList.toggle('tv', on);
+      bFull.textContent = on ? '📕 Sair' : '📺 TV';
+      setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 120);
     });
 
-    document.getElementById('bFull').onclick = function(){
-      if(document.fullscreenElement){ document.exitFullscreen(); }
-      else if(document.documentElement.requestFullscreen){ document.documentElement.requestFullscreen(); }
-    };
+    document.addEventListener('keydown', function(e){
+      var k = (e.key||'').toLowerCase();
+      if(e.key==='ArrowLeft') prev();
+      else if(e.key==='ArrowRight') next();
+      else if(e.key==='Home') toStart();
+      else if(k==='f' && !e.ctrlKey && !e.metaKey) toggleTV();
+    });
 
     load.style.opacity = '0';
     setTimeout(function(){ load.style.display = 'none'; }, 300);
-    setTimeout(function(){ hint.style.opacity = '0'; }, 5000);
-    upd();
+    setTimeout(function(){ hint.style.opacity = '0'; }, 6000);
   }).catch(function(err){
     console.error(err);
     fail('Não consegui abrir este PDF. Verifique se o arquivo existe no repositório e se o nome/caminho está correto.', pdfUrl);
