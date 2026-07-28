@@ -100,6 +100,9 @@ td.at{font-weight:700;text-align:right;font-variant-numeric:tabular-nums;}
 .subsec{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--mu);margin:16px 0 6px;}
 .cult{display:flex;flex-wrap:wrap;gap:10px;}
 .cult label{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--tx);background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:6px 10px;cursor:pointer;}
+.disc label{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--tx);background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:6px 10px;cursor:pointer;}
+.disc label .peso{font-size:.7rem;color:var(--mu2);font-weight:700;}
+.disc input:not(:checked)+span{color:var(--red);}
 .ralos-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .ralos-row input[type=number]{width:90px;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:6px 8px;color:var(--tx);font-family:inherit;outline:none;}
 .score-total{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--br);}
@@ -158,13 +161,13 @@ ul.lst li::before{content:'→';position:absolute;left:0;color:var(--pur);font-w
 <div id="painel"></div>
 
 <div class="foot">
-  Painel QDACE® · Passo 3 — motor de Score (70 KPIs · 20 Ralos · 10 Cultura). Disciplina de Execução e Premiação chegam nos próximos passos.
+  Painel QDACE® · Passo 4 — Disciplina de Execução (as 7 entregas obrigatórias descontam do Score). Premiação chega no próximo passo.
 </div>
 
 <script>
 /* ══════════════════════════════════════════════════════════════════
    PAINEL QDACE® — Q FOOD GROUP (Parte A)
-   Passo 3: motor de Score QDACE® (100 pts) + faixas Bronze→Diamante
+   Passo 4: Disciplina de Execução (descontos) integrada ao Score
    ══════════════════════════════════════════════════════════════════ */
 
 // ─── Organograma / pessoas (Parte A) ───
@@ -188,8 +191,7 @@ var ORG_A = {
 // Ids que possuem coluna/prefixo no Sheets (aba DIARIO) — habilita o envio via QFoodSync
 var SYNC_IDS = { gustavo:1, celio:1, cris:1, maiko:1, barbara:1 };
 
-// KPIs por área (metas definidas na atualização v4/v5) — base do bloco de 70 pts
-// dir: 'maior' = quanto maior melhor · 'menor' = quanto menor melhor
+// KPIs por área (metas v4/v5) — base do bloco de 70 pts
 var KPIS_AREA = {
   gustavo: [
     { id:'inadimplencia', label:'Inadimplência total',        meta:50000, dir:'menor', metaLabel:'R$ 50k' },
@@ -229,6 +231,17 @@ var KPIS_AREA = {
 
 // Itens de Cultura (10 pts = 5 itens × 2)
 var CULTURA_ITENS = ['Disciplina','POPs','Trabalho em equipe','Feedback','Atitude'];
+
+// Disciplina de Execução (doc A.6) — entrega obrigatória + peso que DESCONTA se faltar
+var DISCIPLINA_ENTREGAS = [
+  { nome:'Dashboard diário',      peso:2 },
+  { nome:'Reunião semanal',       peso:3 },
+  { nome:'Relatório semanal',     peso:5 },
+  { nome:'Inventário / Controle', peso:5 },
+  { nome:'Plano de ação',         peso:5 },
+  { nome:'Feedback da equipe',    peso:5 },
+  { nome:'Atualização dos KPIs',  peso:5 }
+];
 
 // Painel mínimo cobrado por setor (doc A.8)
 var PAINEL_MINIMO = {
@@ -309,14 +322,18 @@ function recalcScore(id){
   var ralos = ralosInp ? Math.max(0, Math.min(20, parseFloat(ralosInp.value)||0)) : 0;
   var cult=0;
   CULTURA_ITENS.forEach(function(c,i){ var cb=el('q-'+id+'-cult-'+i); if(cb&&cb.checked) cult+=2; });
-  var total = Math.round(kpiBlock + ralos + cult);
+  // Disciplina: cada entrega NÃO marcada (não entregue) desconta o peso
+  var desc=0;
+  DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); var entregue = cb ? cb.checked : true; if(!entregue) desc+=e.peso; });
+  var total = Math.max(0, Math.round(kpiBlock + ralos + cult - desc));
   setTxt('q-'+id+'-bk-kpi', kpiBlock.toFixed(1));
   setTxt('q-'+id+'-bk-ralos', ralos);
   setTxt('q-'+id+'-bk-cult', cult);
+  setTxt('q-'+id+'-bk-disc', desc);
   setTxt('q-'+id+'-total', total);
   var f=faixaQDACE(total), fb=el('q-'+id+'-faixa');
   if(fb){ fb.textContent=f.nome; fb.style.color=f.cor; fb.style.borderColor=f.cor; }
-  return { kpiBlock:kpiBlock, ralos:ralos, cult:cult, total:total, faixa:f.nome };
+  return { kpiBlock:kpiBlock, ralos:ralos, cult:cult, desc:desc, total:total, faixa:f.nome };
 }
 function scoreTrocarMes(id){
   var mes = el('q-'+id+'-mes').value || mesAtual();
@@ -325,6 +342,7 @@ function scoreTrocarMes(id){
     var inp=el('q-'+id+'-'+k.id); if(inp) inp.value=(s.kpis && s.kpis[k.id]!=null)?s.kpis[k.id]:'';
   });
   CULTURA_ITENS.forEach(function(c,i){ var cb=el('q-'+id+'-cult-'+i); if(cb) cb.checked=!!(s.cultura && s.cultura[i]); });
+  DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); if(cb) cb.checked=(s.disciplina && s.disciplina[i]!=null)? !!s.disciplina[i] : true; });
   var ral=el('q-'+id+'-ralos'); if(ral) ral.value=(s.ralos!=null)?s.ralos:'';
   recalcScore(id);
   setTxt('q-'+id+'-msg','');
@@ -334,8 +352,9 @@ function salvarScore(id){
   var r=recalcScore(id);
   var kpis={}; (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); kpis[k.id]=inp?inp.value.trim():''; });
   var cultura=CULTURA_ITENS.map(function(c,i){ var cb=el('q-'+id+'-cult-'+i); return cb?cb.checked:false; });
+  var disciplina=DISCIPLINA_ENTREGAS.map(function(e,i){ var cb=el('q-'+id+'-disc-'+i); return cb?cb.checked:true; });
   var ralosInp=el('q-'+id+'-ralos');
-  var obj={ mes:mes, kpis:kpis, ralos:ralosInp?ralosInp.value:'', cultura:cultura, total:r.total, faixa:r.faixa, salvo_em:new Date().toISOString() };
+  var obj={ mes:mes, kpis:kpis, ralos:ralosInp?ralosInp.value:'', cultura:cultura, disciplina:disciplina, desconto:r.desc, total:r.total, faixa:r.faixa, salvo_em:new Date().toISOString() };
   try{ localStorage.setItem(scoreKey(id,mes), JSON.stringify(obj)); }catch(e){}
   setTxt('q-'+id+'-msg','✓ score salvo ('+mes+')');
 }
@@ -358,13 +377,17 @@ function renderScoreCard(r){
     var chk = (s.cultura && s.cultura[i]) ? ' checked' : '';
     return '<label><input type="checkbox" id="q-'+r.id+'-cult-'+i+'"'+chk+' onchange="recalcScore(\''+r.id+'\')"> '+c+'</label>';
   }).join('');
+  var disc = DISCIPLINA_ENTREGAS.map(function(e,i){
+    var chk = (s.disciplina && s.disciplina[i]!=null) ? (s.disciplina[i]?' checked':'') : ' checked';
+    return '<label><input type="checkbox" id="q-'+r.id+'-disc-'+i+'"'+chk+' onchange="recalcScore(\''+r.id+'\')"> <span>'+e.nome+'</span> <span class="peso">−'+e.peso+'</span></label>';
+  }).join('');
   var ralos = (s.ralos!=null) ? esc(s.ralos) : '';
   return '<div class="card">'+
     '<div class="sec">🎯 Score QDACE® — 100 pontos</div>'+
     '<div class="rep-head">'+
       '<label>Mês</label>'+
       '<input type="month" id="q-'+r.id+'-mes" value="'+mes+'" onchange="scoreTrocarMes(\''+r.id+'\')">'+
-      '<span style="font-size:.72rem;color:var(--mu2)">70 KPIs · 20 Fechar Ralos · 10 Cultura</span>'+
+      '<span style="font-size:.72rem;color:var(--mu2)">70 KPIs · 20 Fechar Ralos · 10 Cultura · − Disciplina</span>'+
     '</div>'+
     '<div class="subsec">Indicadores da área — 70 pts</div>'+
     '<table class="sc"><thead><tr><th>KPI</th><th>Meta</th><th>Realizado</th><th style="text-align:right">Atingimento</th></tr></thead><tbody>'+rows+'</tbody></table>'+
@@ -374,11 +397,14 @@ function renderScoreCard(r){
       '<span style="font-size:.74rem;color:var(--mu2)">redução comprovada de custos, desperdícios e perdas</span></div>'+
     '<div class="subsec">Cultura — 10 pts (2 cada)</div>'+
     '<div class="cult">'+cult+'</div>'+
+    '<div class="subsec">Disciplina de Execução — descontos</div>'+
+    '<div class="cult disc">'+disc+'</div>'+
+    '<div style="font-size:.74rem;color:var(--mu2);margin-top:6px">Marcado = entregue. <strong>Desmarque o que faltou</strong> — cada falta desconta o peso do score.</div>'+
     '<div class="score-total">'+
       '<div><div style="font-size:.66rem;text-transform:uppercase;letter-spacing:1px;color:var(--mu)">Score do mês</div>'+
         '<span class="big" id="q-'+r.id+'-total">0</span><span style="color:var(--mu);font-weight:700"> / 100</span></div>'+
       '<span class="faixa" id="q-'+r.id+'-faixa">—</span>'+
-      '<span class="bk">KPIs <b id="q-'+r.id+'-bk-kpi">0</b>/70 · Ralos <b id="q-'+r.id+'-bk-ralos">0</b>/20 · Cultura <b id="q-'+r.id+'-bk-cult">0</b>/10</span>'+
+      '<span class="bk">KPIs <b id="q-'+r.id+'-bk-kpi">0</b>/70 · Ralos <b id="q-'+r.id+'-bk-ralos">0</b>/20 · Cultura <b id="q-'+r.id+'-bk-cult">0</b>/10 · <span style="color:var(--red)">− Disc <b id="q-'+r.id+'-bk-disc">0</b></span></span>'+
       '<span style="flex:1"></span>'+
       '<button class="btn-save" onclick="salvarScore(\''+r.id+'\')">💾 Salvar score</button>'+
       '<span class="rep-msg" id="q-'+r.id+'-msg"></span>'+
@@ -521,10 +547,7 @@ function painelResponsavel(r){
     '</div>'+
     renderReportForm(r)+
     renderScoreCard(r)+
-    '<div class="grid2">'+
-      placeholder('Passo 4', '✅ Disciplina de Execução', '7 entregas obrigatórias com peso que desconta do score.')+
-      placeholder('Passo 5', '🏆 Premiação trimestral', 'Faixa do trimestre + trava de caixa (bônus só com metas globais atingidas).')+
-    '</div>';
+    placeholder('Passo 5', '🏆 Premiação trimestral', 'Faixa do trimestre + trava de caixa (bônus só com metas globais do Grupo atingidas).');
   atualizarStatusInline(r.id, hoje());
   recalcScore(r.id);
 }
@@ -565,8 +588,9 @@ function painelCEO(){
     var sc = loadScore(r.id, mes);
     if(!sc) return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td><td style="color:var(--mu2)">— sem score</td></tr>';
     var f=faixaQDACE(sc.total);
+    var descTxt = (sc.desconto>0) ? ' <span style="color:var(--red);font-size:.72rem">(−'+sc.desconto+' disc.)</span>' : '';
     return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td>'+
-      '<td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+sc.faixa+' · '+sc.total+'/100</span></td></tr>';
+      '<td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+sc.faixa+' · '+sc.total+'/100</span>'+descTxt+'</td></tr>';
   }).join('');
   var comScore = ORG_A.responsaveis.map(function(r){ return loadScore(r.id, mes); }).filter(function(x){ return x; });
   var media = comScore.length ? Math.round(comScore.reduce(function(a,s){ return a+s.total; },0)/comScore.length) : null;
@@ -580,16 +604,13 @@ function painelCEO(){
     '</div>'+
     '<div class="card"><div class="ct">🎯 Score QDACE® por área — '+mes+'</div>'+
       '<table class="st"><thead><tr><th>Área</th><th>Função</th><th>Faixa · Score</th></tr></thead><tbody>'+scoreRows+'</tbody></table>'+
-      '<div class="rota-nota">Faixas: Diamante ≥100 · Ouro 90–99 · Prata 80–89 · Bronze 70–79 · Abaixo &lt;70.</div>'+
+      '<div class="rota-nota">Faixas: Diamante ≥100 · Ouro 90–99 · Prata 80–89 · Bronze 70–79 · Abaixo &lt;70. Descontos de Disciplina já aplicados.</div>'+
     '</div>'+
     '<div class="card"><div class="ct">📊 Painel de Cobrança — mínimo por setor</div>'+
       '<table class="st"><thead><tr><th>Setor</th><th>O que é cobrado</th></tr></thead><tbody>'+
       Object.keys(PAINEL_MINIMO).map(function(k){ var n=k.charAt(0).toUpperCase()+k.slice(1); return '<tr><td><strong>'+n+'</strong></td><td style="color:var(--mu)">'+PAINEL_MINIMO[k]+'</td></tr>'; }).join('')+
       '</tbody></table></div>'+
-    '<div class="grid2">'+
-      placeholder('Passo 5', '🏆 Premiação & Trava de Caixa', 'Bônus trimestral só é liberado se o Grupo bater faturamento, margem e geração de caixa.')+
-      placeholder('Passo 4', '✅ Disciplina de Execução', 'Descontos por entregas obrigatórias não cumpridas entram no score.')+
-    '</div>';
+    placeholder('Passo 5', '🏆 Premiação & Trava de Caixa', 'Bônus trimestral só é liberado se o Grupo bater faturamento, margem e geração de caixa.');
 }
 
 // ─── init ───
