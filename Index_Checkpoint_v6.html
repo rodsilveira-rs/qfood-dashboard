@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Painel QDACE®</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#e63329;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --gold:#e8c268;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;padding:20px 24px 60px;}
+a{color:inherit;text-decoration:none;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--br);flex-wrap:wrap;gap:10px;}
+.topbar-left{display:flex;align-items:center;gap:14px;}
+.topbar h1{font-family:var(--fh);font-size:1.2rem;font-weight:800;letter-spacing:.3px;}
+.topbar h1 span{color:var(--pur);}
+.topbar .sub{font-size:.72rem;color:var(--mu);margin-top:2px;}
+.topbar-right{display:flex;align-items:center;gap:12px;font-size:.78rem;color:var(--mu);}
+.badge-sem{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:6px 12px;font-size:.72rem;color:var(--mu);}
+
+/* FLUXO BANNER */
+.fluxo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:linear-gradient(90deg,rgba(160,124,246,.12),rgba(77,142,245,.08));border:1px solid var(--br);border-radius:12px;padding:12px 18px;margin-bottom:18px;font-size:.82rem;}
+.fluxo .step{display:flex;align-items:center;gap:8px;}
+.fluxo .chip{background:var(--s2);border:1px solid var(--b2);border-radius:20px;padding:5px 12px;font-weight:600;white-space:nowrap;}
+.fluxo .arw{color:var(--mu);font-size:1.1rem;}
+.fluxo .hr08{color:var(--gold);font-weight:700;}
+
+/* CARDS / SEÇÕES */
+.card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 20px;margin-bottom:16px;}
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+.ct{font-family:var(--fh);font-size:1rem;font-weight:700;margin-bottom:6px;color:var(--tx);}
+
+/* ORGANOGRAMA */
+.org{display:flex;flex-direction:column;align-items:center;gap:10px;}
+.org-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.org-node{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:10px 14px;text-align:center;min-width:130px;}
+.org-node .n{font-weight:700;font-size:.86rem;}
+.org-node .f{font-size:.68rem;color:var(--mu);margin-top:2px;}
+.org-node.ceo{border-color:var(--gold);background:rgba(232,194,104,.10);}
+.org-node.ger{border-color:var(--pur);background:rgba(160,124,246,.10);}
+.org-node.front{background:var(--sf);border-style:dashed;}
+.org-conn{color:var(--mu2);font-size:1rem;line-height:1;}
+.org-lbl{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--mu2);}
+
+/* NAV */
+.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:2px solid var(--br);padding-bottom:0;}
+.nav button{padding:9px 16px;cursor:pointer;border-radius:9px 9px 0 0;font-size:.8rem;font-weight:600;background:var(--s2);color:var(--mu);border:1px solid var(--br);border-bottom:none;margin-bottom:-2px;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:7px;}
+.nav button:hover{background:var(--s3);color:var(--tx);}
+.nav button.active{background:var(--sf);color:var(--tx);border-color:var(--b2);border-bottom:2px solid var(--sf);}
+.nav button.ceo.active{color:var(--gold);}
+.nav button.ger.active{color:var(--pur);}
+
+/* PAINEL / STATUS */
+.hero{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;}
+.hero .emoji{font-size:2rem;line-height:1;}
+.hero .missao{font-size:.86rem;color:var(--mu);margin-top:4px;font-style:italic;}
+.chip-status{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.74rem;font-weight:700;}
+.chip-na{background:rgba(230,51,41,.14);color:var(--red);border:1px solid rgba(230,51,41,.4);}
+.chip-ok{background:rgba(54,207,160,.14);color:var(--ok);border:1px solid rgba(54,207,160,.4);}
+
+.placeholder{border:1px dashed var(--b2);border-radius:10px;padding:16px 18px;background:rgba(255,255,255,.02);}
+.placeholder .tag{display:inline-block;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--pur);background:rgba(160,124,246,.14);border:1px solid rgba(160,124,246,.35);border-radius:6px;padding:2px 8px;margin-bottom:8px;}
+.placeholder p{font-size:.82rem;color:var(--mu);line-height:1.5;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media(max-width:820px){.grid2{grid-template-columns:1fr;}}
+
+/* TABELA STATUS (Rodrigo) */
+table.st{width:100%;border-collapse:collapse;font-size:.82rem;}
+table.st th,table.st td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--br);}
+table.st th{font-size:.66rem;text-transform:uppercase;letter-spacing:1px;color:var(--mu);font-weight:700;}
+ul.lst{list-style:none;display:flex;flex-direction:column;gap:8px;}
+ul.lst li{font-size:.84rem;color:var(--tx);padding-left:20px;position:relative;line-height:1.45;}
+ul.lst li::before{content:'→';position:absolute;left:0;color:var(--pur);font-weight:700;}
+.rota-nota{font-size:.72rem;color:var(--mu2);margin-top:14px;padding-top:10px;border-top:1px dashed var(--br);}
+.foot{margin-top:26px;padding-top:14px;border-top:1px solid var(--br);font-size:.72rem;color:var(--mu2);text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div>
+      <h1>Q Food Group · Painel <span>QDACE®</span></h1>
+      <div class="sub">Grupo Adilson Salles — Distribuição • Logística • Compras • Atendimento</div>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="badge-sem" id="badge-periodo">2º semestre / 2026</span>
+    <span class="badge-sem" id="badge-hoje">—</span>
+  </div>
+</div>
+
+<!-- FLUXO DE REPORTE -->
+<div class="fluxo">
+  <div class="step"><span class="chip">📥 Responsáveis reportam</span></div>
+  <span class="hr08">até 08:00</span>
+  <span class="arw">→</span>
+  <div class="step"><span class="chip" style="border-color:var(--pur)">🧭 Rodrigo consolida</span></div>
+  <span class="arw">→</span>
+  <div class="step"><span class="chip" style="border-color:var(--gold)">👑 CEO Adilson decide</span></div>
+  <span style="flex:1"></span>
+  <span style="font-size:.72rem;color:var(--mu2)">Report atrasado/incompleto entra como <strong style="color:var(--red)">"não entregue"</strong></span>
+</div>
+
+<!-- ORGANOGRAMA -->
+<div class="card">
+  <div class="sec">Organograma — Q Food Group</div>
+  <div class="org" id="org"></div>
+</div>
+
+<!-- NAVEGAÇÃO -->
+<div class="nav" id="nav"></div>
+
+<!-- PAINEL ATIVO -->
+<div id="painel"></div>
+
+<div class="foot">
+  Painel QDACE® · Passo 1 (esqueleto) — organograma e navegação. Report de 4 linhas, Score, Disciplina e Premiação chegam nos próximos passos.
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   PAINEL QDACE® — Q FOOD GROUP (Parte A)
+   Passo 1: esqueleto (organograma + navegação + placeholders)
+   ══════════════════════════════════════════════════════════════════ */
+
+// ─── Organograma / pessoas (Parte A) ───
+var ORG_A = {
+  ceo:     { id:'adilson', nome:'Adilson Salles', funcao:'CEO / Fundador', emoji:'👑' },
+  gerente: { id:'rodrigo', nome:'Rodrigo', funcao:'Gerente Geral · Comercial & Operações', emoji:'🧭',
+             missao:'Executar o planejamento estratégico, integrar as áreas e consolidar os reports para o CEO.' },
+  responsaveis: [
+    { id:'gustavo', nome:'Gustavo', funcao:'Financeiro / RH / DP',            emoji:'💰', missao:'Transformar faturamento em lucro e caixa.' },
+    { id:'maiko',   nome:'Maiko',   funcao:'Logística & Estoque',             emoji:'🚚', missao:'Entregar melhor gastando menos.' },
+    { id:'barbara', nome:'Bárbara', funcao:'Marketing & Growth / E-commerce', emoji:'📣', missao:'Transformar Marketing em faturamento e lucro.' },
+    { id:'cris',    nome:'Cristina',funcao:'Compras',                         emoji:'🛒', missao:'Comprar melhor para vender melhor.' },
+    { id:'celio',   nome:'Célio',   funcao:'Administrativo',                  emoji:'📋', missao:'Dar suporte administrativo para acelerar Financeiro, Compras e Operações.' }
+  ],
+  linhaFrente: [
+    { id:'jhonatan', nome:'Jhonatan', funcao:'Estoque (execução)', emoji:'📦', kpis:'Organização · FIFO/FEFO · Produtividade · Qualidade da separação · Recebimento' },
+    { id:'eduardo',  nome:'Eduardo',  funcao:'Faturamento',        emoji:'🧾', kpis:'Tempo de faturamento · Zero erros · Zero cancelamentos · Produtividade · Conferência fiscal' }
+  ]
+};
+
+// Painel mínimo cobrado por setor (doc A.8) — usado como referência no painel do CEO
+var PAINEL_MINIMO = {
+  rodrigo: 'Faturamento · Margem · Despesas · ROI · Execução das prioridades',
+  gustavo: 'Caixa · DRE · Inadimplência · Pagamentos · DP/RH',
+  maiko:   'Acuracidade · Notas por carro · Cubagem · Rotas · Avarias · Rupturas',
+  barbara: 'ROI · ROAS · CAC · Conversão · Campanhas · Vendas geradas',
+  cris:    'Curva ABC · 80/20 · Ruptura · Margem · Verbas · Fornecedores',
+  celio:   'Notas · OC · Documentos · Apoio a compras · DP/RH · Dados confiáveis'
+};
+
+// As 5 Perguntas de Segunda-feira (doc A.9)
+var PERGUNTAS_SEGUNDA = [
+  'Quais metas da sua área foram atingidas na última semana?',
+  'Quais ralos você fechou? (perdas e desperdícios eliminados)',
+  'Quais torneiras você abriu? (novas vendas, parcerias, oportunidades)',
+  'Quais problemas você identificou e resolveu?',
+  'Do que você precisa das outras áreas para acelerar os resultados?'
+];
+
+// Modelo do report diário (doc A.4)
+var REPORT_4_LINHAS = [
+  ['Resultado de ontem', 'Número, fato e desvio.'],
+  ['Plano de hoje', 'Prioridade, responsável e prazo.'],
+  ['Risco ou bloqueio', 'O que impede o resultado.'],
+  ['Ação corretiva', 'O que será feito até o próximo report.']
+];
+
+// ─── util ───
+function el(id){ return document.getElementById(id); }
+function hoje(){
+  var d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function hojeBR(){
+  var p = hoje().split('-'); return p[2]+'/'+p[1]+'/'+p[0];
+}
+
+// ─── Organograma ───
+function renderOrg(){
+  var R = ORG_A;
+  var resp = R.responsaveis.map(function(r){
+    return '<div class="org-node"><div class="n">'+r.emoji+' '+r.nome+'</div><div class="f">'+r.funcao+'</div></div>';
+  }).join('');
+  var front = R.linhaFrente.map(function(r){
+    return '<div class="org-node front"><div class="n">'+r.emoji+' '+r.nome+'</div><div class="f">'+r.funcao+'</div></div>';
+  }).join('');
+  el('org').innerHTML =
+    '<div class="org-row"><div class="org-node ceo"><div class="n">'+R.ceo.emoji+' '+R.ceo.nome+'</div><div class="f">'+R.ceo.funcao+'</div></div></div>'+
+    '<div class="org-conn">│</div>'+
+    '<div class="org-row"><div class="org-node ger"><div class="n">'+R.gerente.emoji+' '+R.gerente.nome+'</div><div class="f">'+R.gerente.funcao+'</div></div></div>'+
+    '<div class="org-lbl">Responsáveis (reportam ao Rodrigo)</div>'+
+    '<div class="org-row">'+resp+'</div>'+
+    '<div class="org-lbl">Linha de frente · execução</div>'+
+    '<div class="org-row">'+front+'</div>';
+}
+
+// ─── Navegação ───
+var VIEW_ATUAL = 'ceo';
+function renderNav(){
+  var btns = [];
+  btns.push('<button class="ceo" data-view="ceo">👑 Painel do CEO</button>');
+  btns.push('<button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button>');
+  ORG_A.responsaveis.forEach(function(r){
+    btns.push('<button data-view="'+r.id+'">'+r.emoji+' '+r.nome+'</button>');
+  });
+  btns.push('<button data-view="frente">📦 Linha de Frente</button>');
+  el('nav').innerHTML = btns.join('');
+  Array.prototype.forEach.call(el('nav').querySelectorAll('button'), function(b){
+    b.addEventListener('click', function(){ irPara(b.getAttribute('data-view')); });
+  });
+}
+function irPara(view){
+  VIEW_ATUAL = view;
+  Array.prototype.forEach.call(el('nav').querySelectorAll('button'), function(b){
+    b.classList.toggle('active', b.getAttribute('data-view')===view);
+  });
+  renderPainel(view);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+// ─── Placeholder padrão das peças que chegam nos próximos passos ───
+function placeholder(tag, titulo, txt){
+  return '<div class="placeholder"><span class="tag">'+tag+'</span>'+
+         '<div class="ct">'+titulo+'</div><p>'+txt+'</p></div>';
+}
+
+// ─── Painéis ───
+function renderPainel(view){
+  if(view==='ceo')      return painelCEO();
+  if(view==='rodrigo')  return painelRodrigo();
+  if(view==='frente')   return painelFrente();
+  var r = ORG_A.responsaveis.filter(function(x){return x.id===view;})[0];
+  if(r) return painelResponsavel(r);
+  painelCEO();
+}
+
+function painelResponsavel(r){
+  el('painel').innerHTML =
+    '<div class="card">'+
+      '<div class="hero">'+
+        '<div class="emoji">'+r.emoji+'</div>'+
+        '<div style="flex:1;min-width:220px">'+
+          '<div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+r.nome+'</div>'+
+          '<div style="font-size:.8rem;color:var(--mu)">'+r.funcao+'</div>'+
+          '<div class="missao">"'+r.missao+'"</div>'+
+        '</div>'+
+        '<div style="text-align:right"><div class="org-lbl" style="margin-bottom:6px">Report de hoje</div>'+
+          '<span class="chip-status chip-na">● não entregue</span></div>'+
+      '</div>'+
+      '<div class="rota-nota">Painel mínimo cobrado: '+(PAINEL_MINIMO[r.id]||'—')+'</div>'+
+    '</div>'+
+    '<div class="grid2">'+
+      placeholder('Passo 2', '📝 Report diário — 4 linhas', 'Resultado de ontem · Plano de hoje · Risco/bloqueio · Ação corretiva. Formulário e envio ao Sheets entram aqui.')+
+      placeholder('Passo 3', '🎯 Score QDACE® (100 pts)', '70 pts indicadores · 20 pts Fechar Ralos · 10 pts Cultura. Cálculo e faixa Bronze→Diamante entram aqui.')+
+      placeholder('Passo 4', '✅ Disciplina de Execução', '7 entregas obrigatórias com peso que desconta do score (dashboard, reunião, relatório, inventário, plano, feedback, KPIs).')+
+      placeholder('Passo 5', '🏆 Premiação trimestral', 'Faixa do trimestre + trava de caixa (bônus só com metas globais atingidas).')+
+    '</div>';
+}
+
+function painelFrente(){
+  var linhas = ORG_A.linhaFrente.map(function(r){
+    return '<div class="card"><div class="hero"><div class="emoji">'+r.emoji+'</div>'+
+      '<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.05rem;margin-bottom:2px">'+r.nome+'</div>'+
+      '<div style="font-size:.8rem;color:var(--mu)">'+r.funcao+'</div>'+
+      '<div class="rota-nota" style="border:none;padding:0;margin-top:8px">KPIs: '+r.kpis+'</div></div>'+
+      '<div style="text-align:right"><span class="chip-status chip-na">● não entregue</span></div></div></div>';
+  }).join('');
+  el('painel').innerHTML =
+    '<div class="sec">Linha de Frente — Time de Execução</div>'+linhas+
+    placeholder('Passo 2+', '📝 Reporte da execução', 'Jhonatan e Eduardo sustentam a operação. O formato de reporte e os KPIs de execução são detalhados nos próximos passos.');
+}
+
+function painelRodrigo(){
+  var linhas = ORG_A.responsaveis.map(function(r){
+    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td>'+
+      '<td><span class="chip-status chip-na">● não entregue</span></td><td style="color:var(--mu2);font-size:.76rem">'+(PAINEL_MINIMO[r.id]||'—')+'</td></tr>';
+  }).join('');
+  var report = REPORT_4_LINHAS.map(function(l,i){
+    return '<li><strong>'+(i+1)+'. '+l[0]+'</strong> — '+l[1]+'</li>';
+  }).join('');
+  var perguntas = PERGUNTAS_SEGUNDA.map(function(p,i){ return '<li>'+(i+1)+'. '+p+'</li>'; }).join('');
+  el('painel').innerHTML =
+    '<div class="card"><div class="sec">Consolidação diária · Rodrigo → CEO</div>'+
+      '<p style="font-size:.82rem;color:var(--mu);margin-bottom:14px">Rodrigo cobra, confere e organiza os reports até 08:00 antes de entregar a visão executiva ao Adilson. Exceções que vão direto ao CEO: urgência crítica, risco financeiro alto ou decisão estratégica do próprio CEO.</p>'+
+      '<table class="st"><thead><tr><th>Responsável</th><th>Área</th><th>Report de hoje</th><th>Painel mínimo</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+      '<div class="rota-nota">O status "entregue / não entregue" e a consolidação automática entram no Passo 5.</div>'+
+    '</div>'+
+    '<div class="grid2">'+
+      '<div class="card"><div class="ct">📝 Modelo do report diário</div><ul class="lst">'+report+'</ul></div>'+
+      '<div class="card"><div class="ct">🗓️ As 5 Perguntas de Segunda</div><ul class="lst">'+perguntas+'</ul></div>'+
+    '</div>';
+}
+
+function painelCEO(){
+  var setores = Object.keys(PAINEL_MINIMO).map(function(k){
+    var nome = k.charAt(0).toUpperCase()+k.slice(1);
+    return '<tr><td><strong>'+nome+'</strong></td><td style="color:var(--mu)">'+PAINEL_MINIMO[k]+'</td></tr>';
+  }).join('');
+  el('painel').innerHTML =
+    '<div class="card"><div class="sec">Painel do CEO — visão geral</div>'+
+      '<p style="font-size:.82rem;color:var(--mu);margin-bottom:8px">Adilson recebe a visão consolidada pelo Rodrigo e decide prioridades. A cobrança é feita <strong>por resultado, não por tarefa</strong>.</p>'+
+      '<blockquote style="font-size:.86rem;color:var(--tx);font-style:italic;border-left:3px solid var(--gold);padding:4px 0 4px 14px;margin:10px 0">Vamos fechar os ralos, abrir as torneiras e construir o melhor 2º semestre da nossa história.</blockquote>'+
+    '</div>'+
+    '<div class="card"><div class="ct">📊 Painel de Cobrança — mínimo por setor</div>'+
+      '<table class="st"><thead><tr><th>Setor</th><th>O que é cobrado</th></tr></thead><tbody>'+setores+'</tbody></table>'+
+      '<div class="rota-nota">Os números reais de cada setor e o Score QDACE® consolidado entram nos Passos 3 e 5.</div>'+
+    '</div>'+
+    '<div class="grid2">'+
+      placeholder('Passo 3', '🎯 Score QDACE® do Grupo', 'Média ponderada dos scores das áreas (70 KPIs / 20 Ralos / 10 Cultura).')+
+      placeholder('Passo 5', '🏆 Premiação & Trava de Caixa', 'Bônus trimestral só é liberado se o Grupo bater faturamento, margem e geração de caixa.')+
+    '</div>';
+}
+
+// ─── init ───
+(function initPainel(){
+  el('badge-hoje').textContent = hojeBR();
+  renderOrg();
+  renderNav();
+  irPara('ceo');
+})();
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MOTOR DE SINCRONIZAÇÃO — reaproveitado do Index_Checkpoint (v5)
+     Colado sem alteração. Fica inerte até religarmos os "salvar"
+     nos próximos passos (os hooks usam typeof === 'function').
+     ══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  // URL do Web App publicado no Apps Script
+  const QFOOD_SYNC_URL = 'https://script.google.com/macros/s/AKfycby9Cb9RhP4BsPqd5_c1Z47-mZQdZx9K2ToOkBdNsZZKZgvdgHP4rAkQDaUm07oHbZIL/exec';
+
+  // Token — DEVE ser idêntico ao SHARED_SECRET no Code.gs do Apps Script
+  const QFOOD_SYNC_TOKEN = 'qfood-rs-2026-xK9pL3mQ7vN2bT8';
+
+  // Fila de retry no localStorage
+  const QFOOD_FILA_KEY = 'qfood_chk_sync_fila';
+
+  // Mapa: gestor_id → área (espelha a aba GESTORES)
+  const GESTOR_AREA = {
+    gustavo: 'Financeiro & RH',
+    celio:   'Administrativo',
+    cris:    'Compras',
+    maiko:   'Logística',
+    barbara: 'Marketing',
+    mariana: 'Mercearia Liberdade',
+    elizeu:  'Cozinha'
+  };
+
+  // Prefixos por gestor (mesma convenção da planilha)
+  const PREFIXO_POR_GESTOR = {
+    gustavo: 'g_',  celio: 'c_',  cris: 'cr_',
+    maiko: 'mk_',   barbara: 'b_', mariana: 'mr_', elizeu: 'el_'
+  };
+
+  // Campos de meta (não recebem prefixo)
+  const CAMPOS_META = new Set([
+    'salvo_em','data','data_iso','hora','gestor_id','gestor_nome','area',
+    'periodo_iso','periodo_label','mes','score','observacao'
+  ]);
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Helpers de data
+  // ─────────────────────────────────────────────────────────────────
+  function brToIso(dataBR){
+    if(!dataBR) return '';
+    var p = dataBR.split('/');
+    if(p.length !== 3) return '';
+    return p[2]+'-'+p[1]+'-'+p[0];
+  }
+
+  function semanaIsoDeData(dataBR){
+    // recebe DD/MM/AAAA, devolve a segunda-feira da semana em ISO
+    var iso = brToIso(dataBR);
+    if(!iso) return '';
+    var d = new Date(iso+'T00:00:00');
+    var diaSem = d.getDay()===0 ? 6 : d.getDay()-1;
+    d.setDate(d.getDate() - diaSem);
+    return d.getFullYear()+'-'+
+      String(d.getMonth()+1).padStart(2,'0')+'-'+
+      String(d.getDate()).padStart(2,'0');
+  }
+
+  function semanaLabel(periodoIso){
+    if(!periodoIso) return '';
+    var d = new Date(periodoIso+'T00:00:00');
+    var fim = new Date(d); fim.setDate(d.getDate()+6);
+    var f = function(x){
+      return String(x.getDate()).padStart(2,'0')+'/'+
+        String(x.getMonth()+1).padStart(2,'0');
+    };
+    return 'Semana '+f(d)+' a '+f(fim)+'/'+d.getFullYear();
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Aplica prefixo nos campos do gestor (g_fat, b_leads_gerados, etc)
+  // ─────────────────────────────────────────────────────────────────
+  function prefixar(dado, gestorId){
+    var pre = PREFIXO_POR_GESTOR[gestorId];
+    if(!pre) return dado;
+    var saida = {};
+    Object.keys(dado).forEach(function(k){
+      if(CAMPOS_META.has(k)) saida[k] = dado[k];
+      else saida[pre+k] = dado[k];
+    });
+    return saida;
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Monta payload para cada tipo de aba
+  // ─────────────────────────────────────────────────────────────────
+  function montarDiario(gestorId, dadoLocal){
+    var dataBR = dadoLocal.data;
+    var base = {
+      gestor_id: gestorId,
+      area: GESTOR_AREA[gestorId] || '',
+      data: dataBR,
+      data_iso: brToIso(dataBR),
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date().toISOString()
+    };
+    // Copia todos os campos do dado original
+    Object.keys(dadoLocal).forEach(function(k){
+      if(['data','hora','ts','salvo_em'].indexOf(k) < 0) base[k] = dadoLocal[k];
+    });
+    return prefixar(base, gestorId);
+  }
+
+  function montarSemanalEstr(gestorId, dadoLocal, periodoIso){
+    var iso = periodoIso || dadoLocal.periodo_iso || '';
+    var base = {
+      gestor_id: gestorId,
+      area: GESTOR_AREA[gestorId] || '',
+      periodo_iso: iso,
+      periodo_label: semanaLabel(iso),
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date().toISOString()
+    };
+    Object.keys(dadoLocal).forEach(function(k){
+      if(['hora','ts','data','salvo_em'].indexOf(k) < 0) base[k] = dadoLocal[k];
+    });
+    return prefixar(base, gestorId);
+  }
+
+  function montarMensal(gestorId, dadoLocal){
+    var base = {
+      gestor_id: gestorId,
+      area: GESTOR_AREA[gestorId] || '',
+      mes: dadoLocal.mes || '',
+      data: dadoLocal.data || '',
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date().toISOString()
+    };
+    Object.keys(dadoLocal).forEach(function(k){
+      if(['mes','data','hora','ts','salvo_em'].indexOf(k) < 0) base[k] = dadoLocal[k];
+    });
+    return prefixar(base, gestorId);
+  }
+
+  function montarObsCeo(gestorId, dadoLocal, periodoIso){
+    return {
+      gestor_id: gestorId,
+      gestor_nome: '', // o Apps Script enriquece
+      area: GESTOR_AREA[gestorId] || '',
+      periodo_iso: periodoIso,
+      periodo_label: semanaLabel(periodoIso),
+      hora: dadoLocal.hora || '',
+      salvo_em: dadoLocal.salvo_em || new Date(dadoLocal.ts || Date.now()).toISOString(),
+      observacao: dadoLocal.txt || ''
+    };
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Fila de retry
+  // ─────────────────────────────────────────────────────────────────
+  function filaLer(){
+    try{ return JSON.parse(localStorage.getItem(QFOOD_FILA_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
+  function filaSalvar(arr){
+    try{ localStorage.setItem(QFOOD_FILA_KEY, JSON.stringify(arr)); }catch(e){}
+  }
+  function filaAdd(item){
+    var f = filaLer();
+    f.push(item);
+    filaSalvar(f);
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // POST com retry
+  // ─────────────────────────────────────────────────────────────────
+  function enviar(aba, dado){
+    if(!QFOOD_SYNC_URL || QFOOD_SYNC_URL.indexOf('COLE_AQUI') >= 0){
+      console.warn('[QFood Sync] URL do Web App não configurada — pulando envio');
+      return;
+    }
+
+    var payload = { token: QFOOD_SYNC_TOKEN, aba: aba, dado: dado };
+    // text/plain evita preflight CORS
+    fetch(QFOOD_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(resp){
+      if(resp.ok){
+        console.log('[QFood Sync] '+aba+' '+resp.acao+' (gestor: '+resp.gestor+')');
+      } else {
+        console.error('[QFood Sync] erro:', resp.erro);
+        filaAdd({ aba: aba, dado: dado, ts: Date.now() });
+      }
+    })
+    .catch(function(err){
+      console.warn('[QFood Sync] sem conexão — guardado na fila:', err.message);
+      filaAdd({ aba: aba, dado: dado, ts: Date.now() });
+    });
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Processa fila de retry (chamado no carregamento e a cada 60s)
+  // ─────────────────────────────────────────────────────────────────
+  function processarFila(){
+    var fila = filaLer();
+    if(fila.length === 0) return;
+    if(!navigator.onLine) return;
+    console.log('[QFood Sync] processando fila ('+fila.length+' itens pendentes)');
+    // Limpa a fila e re-tenta cada item
+    filaSalvar([]);
+    fila.forEach(function(item){ enviar(item.aba, item.dado); });
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // API PÚBLICA — chamadas pelos hooks
+  // ─────────────────────────────────────────────────────────────────
+  window.QFoodSync = {
+    diario: function(gestorId, dadoLocal){
+      try{ enviar('DIARIO', montarDiario(gestorId, dadoLocal)); }
+      catch(e){ console.error('[QFood Sync] diario falhou:', e); }
+    },
+    semanalEstr: function(gestorId, dadoLocal, periodoIso){
+      try{ enviar('SEMANAL', montarSemanalEstr(gestorId, dadoLocal, periodoIso)); }
+      catch(e){ console.error('[QFood Sync] semanal falhou:', e); }
+    },
+    mensal: function(gestorId, dadoLocal){
+      try{ enviar('MENSAL', montarMensal(gestorId, dadoLocal)); }
+      catch(e){ console.error('[QFood Sync] mensal falhou:', e); }
+    },
+    obsCeo: function(gestorId, dadoLocal, periodoIso){
+      try{ enviar('OBSERVACOES_CEO', montarObsCeo(gestorId, dadoLocal, periodoIso)); }
+      catch(e){ console.error('[QFood Sync] obsCeo falhou:', e); }
+    },
+    meta: function(gestorId, cfg){
+      // Sincroniza configuração de meta por dia da semana para Mariana/Elizeu
+      // Modelo NOVO: valores absolutos (R$ para Mariana, volume para Elizeu)
+      try{
+        var v = cfg.valores || {};
+        var payload = {
+          gestor_id: gestorId,
+          area: GESTOR_AREA[gestorId] || '',
+          mes: cfg.mes,
+          meta_total: cfg.meta_total,
+          tipo: cfg.tipo || '',
+          valor_seg: v.seg||0, valor_ter: v.ter||0, valor_qua: v.qua||0,
+          valor_qui: v.qui||0, valor_sex: v.sex||0, valor_sab: v.sab||0, valor_dom: v.dom||0,
+          salvo_em: cfg.salvo_em
+        };
+        enviar('META_PONDERADA', payload);
+      } catch(e){ console.error('[QFood Sync] meta falhou:', e); }
+    },
+    metaQFood: function(gestorId, mes, kpi, valor){
+      // Sincroniza meta de KPI individual para os 5 gestores Q Food
+      // Aba: METAS — chave: gestor_id + mes_ref + kpi_id
+      try{
+        var payload = {
+          gestor_id: gestorId,
+          area: GESTOR_AREA[gestorId] || '',
+          mes_ref: mes,
+          kpi_id: kpi.id,
+          kpi_nome: kpi.nome,
+          unidade: kpi.unidade || '',
+          sentido: kpi.sentido || '',
+          meta_valor: valor,
+          padrao: kpi.padrao,
+          campo_diario: kpi.campoDiario || '',
+          salvo_em: new Date().toISOString()
+        };
+        enviar('METAS', payload);
+      } catch(e){ console.error('[QFood Sync] metaQFood falhou:', e); }
+    },
+    // ─────────────────────────────────────────────────────────────
+    // LEITURA DA NUVEM — busca um dia específico do gestor na planilha
+    // Retorna uma Promise com o objeto "desprefixado" (formato local)
+    // ou null se não houver registro na nuvem.
+    // ─────────────────────────────────────────────────────────────
+    fetchDia: function(gestorId, iso){
+      return new Promise(function(resolve){
+        if(!QFOOD_SYNC_URL || QFOOD_SYNC_URL.indexOf('COLE_AQUI') >= 0){ resolve(null); return; }
+        if(!navigator.onLine){ resolve(null); return; }
+        var url = QFOOD_SYNC_URL + '?aba=DIARIO&gestor=' + encodeURIComponent(gestorId) +
+                  '&de=' + iso + '&ate=' + iso;
+        fetch(url, { method:'GET' })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          if(!resp || !resp.ok || !resp.registros || resp.registros.length === 0){ resolve(null); return; }
+          // ⚠️ Backend pode ignorar o filtro de data e retornar TODOS os registros do gestor.
+          // ⚠️ data_iso pode vir como timestamp ('2026-06-04T03:00:00.000Z') em vez de string curta.
+          // Solução: filtrar do lado do cliente comparando só o prefixo YYYY-MM-DD.
+          var alvoPrefix = iso; // "2026-06-04"
+          var doDia = resp.registros.filter(function(r){
+            var di = (r.data_iso || r.data || '').toString();
+            return di.substring(0, 10) === alvoPrefix;
+          });
+          if(doDia.length === 0){ resolve(null); return; }
+          // Entre os registros do dia, pega o mais recente por salvo_em
+          var reg = doDia.reduce(function(maisNovo, r){
+            if(!maisNovo) return r;
+            var a = new Date(r.salvo_em||0).getTime();
+            var b = new Date(maisNovo.salvo_em||0).getTime();
+            return a >= b ? r : maisNovo;
+          }, null);
+          if(!reg){ resolve(null); return; }
+          // Normaliza data_iso para o formato curto (evita reescrever lixo no localStorage)
+          reg.data_iso = alvoPrefix;
+          // Desprefixar: mr_faturamento -> faturamento, g_fat -> fat, etc.
+          var pre = PREFIXO_POR_GESTOR[gestorId];
+          var saida = {};
+          Object.keys(reg).forEach(function(k){
+            var val = reg[k];
+            if(val === '' || val === null || val === undefined) return;
+            if(pre && k.indexOf(pre) === 0){
+              saida[k.substring(pre.length)] = val;
+            } else {
+              saida[k] = val; // meta (data, hora, salvo_em, etc.)
+            }
+          });
+          resolve(saida);
+        })
+        .catch(function(){ resolve(null); });
+      });
+    }
+  };
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // HOOKS — interceptam as funções existentes do Index sem reescrevê-las
+  // ─────────────────────────────────────────────────────────────────
+  function instalarHooks(){
+
+    // ─── DIÁRIO Gustavo (chkSalvarDiario) ───
+    if(typeof window.chkSalvarDiario === 'function'){
+      var _origGus = window.chkSalvarDiario;
+      window.chkSalvarDiario = function(){
+        _origGus.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-gustavo-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var dataBR = iso.split('-').reverse().join('/');
+          var chave = 'qfood_chk_gustavo_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario('gustavo', dado);
+        }catch(e){ console.error('[hook gustavo diario]', e); }
+      };
+    }
+
+    // ─── DIÁRIO Célio (chkCSalvarDiario) ───
+    if(typeof window.chkCSalvarDiario === 'function'){
+      var _origCel = window.chkCSalvarDiario;
+      window.chkCSalvarDiario = function(){
+        _origCel.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-celio-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var chave = 'qfood_chk_celio_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario('celio', dado);
+        }catch(e){ console.error('[hook celio diario]', e); }
+      };
+    }
+
+    // ─── DIÁRIO Cristina (chkCrSalvarDiario) ───
+    if(typeof window.chkCrSalvarDiario === 'function'){
+      var _origCris = window.chkCrSalvarDiario;
+      window.chkCrSalvarDiario = function(){
+        _origCris.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-cris-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var chave = 'qfood_chk_cris_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario('cris', dado);
+        }catch(e){ console.error('[hook cris diario]', e); }
+      };
+    }
+
+    // ─── DIÁRIO completoGen (Maiko/Bárbara/Mariana/Elizeu) ───
+    if(typeof window.chkSalvarDiarioGen === 'function'){
+      var _origGen = window.chkSalvarDiarioGen;
+      window.chkSalvarDiarioGen = function(gestorId){
+        _origGen.apply(this, arguments);
+        try{
+          var inp = document.getElementById('chk-'+gestorId+'-d-data');
+          var iso = (inp && inp.value) || '';
+          if(!iso) return;
+          var chave = 'qfood_chk_'+gestorId+'_diario_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.diario(gestorId, dado);
+        }catch(e){ console.error('[hook gen diario]', e); }
+      };
+    }
+
+    // ─── SEMANAL completoGen ───
+    if(typeof window.chkSalvarSemanalGen === 'function'){
+      var _origSem = window.chkSalvarSemanalGen;
+      window.chkSalvarSemanalGen = function(gestorId){
+        _origSem.apply(this, arguments);
+        try{
+          // chkSalvarSemanalGen calcula o iso da semana atual internamente
+          var hoje = new Date();
+          var diaSem = hoje.getDay()===0 ? 6 : hoje.getDay()-1;
+          var seg = new Date(hoje); seg.setDate(hoje.getDate()-diaSem);
+          var iso = seg.getFullYear()+'-'+
+            String(seg.getMonth()+1).padStart(2,'0')+'-'+
+            String(seg.getDate()).padStart(2,'0');
+          var chave = 'qfood_chk_'+gestorId+'_semanal_form_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.semanalEstr(gestorId, dado, iso);
+        }catch(e){ console.error('[hook gen semanal]', e); }
+      };
+    }
+
+    // ─── SEMANAL Cristina (chkCrSalvarSemanalForm) ───
+    if(typeof window.chkCrSalvarSemanalForm === 'function'){
+      var _origCrSem = window.chkCrSalvarSemanalForm;
+      window.chkCrSalvarSemanalForm = function(){
+        _origCrSem.apply(this, arguments);
+        try{
+          var hoje = new Date();
+          var diaSem = hoje.getDay()===0 ? 6 : hoje.getDay()-1;
+          var seg = new Date(hoje); seg.setDate(hoje.getDate()-diaSem);
+          var iso = seg.getFullYear()+'-'+
+            String(seg.getMonth()+1).padStart(2,'0')+'-'+
+            String(seg.getDate()).padStart(2,'0');
+          var chave = 'qfood_chk_cris_semanal_form_'+iso;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.semanalEstr('cris', dado, iso);
+        }catch(e){ console.error('[hook cris semanal]', e); }
+      };
+    }
+
+    // ─── MENSAIS — Gustavo, Célio, Cristina ───
+    ['SalvarMensal','CSalvarMensal','CrSalvarMensal'].forEach(function(fnName){
+      var gestor = fnName === 'SalvarMensal' ? 'gustavo'
+                 : fnName === 'CSalvarMensal' ? 'celio' : 'cris';
+      var realName = 'chk' + fnName;
+      if(typeof window[realName] === 'function'){
+        var _orig = window[realName];
+        window[realName] = function(){
+          _orig.apply(this, arguments);
+          try{
+            // O Index usa selects diferentes:
+            var sel;
+            if(gestor === 'gustavo')      sel = document.getElementById('chk-m-mes');
+            else if(gestor === 'celio')   sel = document.getElementById('chk-c-m-mes');
+            else                          sel = document.getElementById('chk-cr-m-mes');
+            var mes = sel ? sel.value : '';
+            if(!mes) return;
+            var chave = 'qfood_chk_'+gestor+'_mensal_'+mes;
+            var dado = JSON.parse(localStorage.getItem(chave)||'null');
+            if(dado) window.QFoodSync.mensal(gestor, dado);
+          }catch(e){ console.error('[hook '+gestor+' mensal]', e); }
+        };
+      }
+    });
+
+    // ─── MENSAIS completoGen (chkSalvarMensalGen) ───
+    if(typeof window.chkSalvarMensalGen === 'function'){
+      var _origGenM = window.chkSalvarMensalGen;
+      window.chkSalvarMensalGen = function(gestorId){
+        _origGenM.apply(this, arguments);
+        try{
+          var sel = document.getElementById('chk-'+gestorId+'-m-mes');
+          var mes = sel ? sel.value : '';
+          if(!mes) return;
+          var chave = 'qfood_chk_'+gestorId+'_mensal_'+mes;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.mensal(gestorId, dado);
+        }catch(e){ console.error('[hook gen mensal]', e); }
+      };
+    }
+
+    // ─── OBSERVAÇÃO CEO (chkSalvarObsSem) ───
+    if(typeof window.chkSalvarObsSem === 'function'){
+      var _origObs = window.chkSalvarObsSem;
+      window.chkSalvarObsSem = function(gestor, isoIni){
+        _origObs.apply(this, arguments);
+        try{
+          var chave = 'qfood_chk_'+gestor+'_semanal_'+isoIni;
+          var dado = JSON.parse(localStorage.getItem(chave)||'null');
+          if(dado) window.QFoodSync.obsCeo(gestor, dado, isoIni);
+        }catch(e){ console.error('[hook obs ceo]', e); }
+      };
+    }
+
+    // ─── LEITURA NUVEM — Gustavo/Célio/Cristina (após carregar do local) ───
+    var _syncEmCurso = {};
+    function hookCarregar(fnName, gestorId){
+      if(typeof window[fnName] === 'function'){
+        var _orig = window[fnName];
+        window[fnName] = function(){
+          _orig.apply(this, arguments);
+          // Trava anti-loop: se o recarregamento veio da própria sincronização, não busca de novo
+          if(_syncEmCurso[gestorId]) return;
+          try{
+            var inp = document.getElementById('chk-'+gestorId+'-d-data');
+            var iso = (inp && inp.value) || (typeof chkToday==='function'?chkToday():'');
+            if(iso && window.chkSincronizarDiaDaNuvem){
+              window.chkSincronizarDiaDaNuvem(gestorId, iso, function(){
+                _syncEmCurso[gestorId] = true;
+                try{ _orig.apply(window, []); } finally { _syncEmCurso[gestorId] = false; }
+              });
+            }
+          }catch(e){ console.error('[hook carregar '+gestorId+']', e); }
+        };
+      }
+    }
+    hookCarregar('chkCarregarDiario',   'gustavo');
+    hookCarregar('chkCCarregarDiario',  'celio');
+    hookCarregar('chkCrCarregarDiario', 'cris');
+
+    console.log('[QFood Sync] hooks instalados ✓');
+  }
+
+
+  // ─────────────────────────────────────────────────────────────────
+  // Inicialização
+  // ─────────────────────────────────────────────────────────────────
+  function init(){
+    instalarHooks();
+    // Tenta processar fila ao carregar e a cada 60s
+    processarFila();
+    setInterval(processarFila, 60000);
+    // Também tenta quando o navegador volta a ficar online
+    window.addEventListener('online', processarFila);
+  }
+
+  // Aguarda o DOM e as funções do Index estarem definidas
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      // pequeno delay para garantir que as funções principais já foram declaradas
+      setTimeout(init, 500);
+    });
+  } else {
+    setTimeout(init, 500);
+  }
+
+})();
+</script>
+
+</body>
+</html>
