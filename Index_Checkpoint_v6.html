@@ -458,10 +458,10 @@ function premBodyHTML(id,ano,tri){ var m=trimestreMedia(id,ano,tri); if(m==null)
 
 /* ── Lucro Compartilhado (Parte B) ── */
 function recalcLucro(id){
-  var pos=0; LUCRO_SOMA.forEach(function(it){ var e=el('lu-'+id+'-'+it.id); var q=e?parseInt(e.value)||0:0; pos+=q*it.p; });
-  var neg=0; LUCRO_TIRA.forEach(function(it){ var e=el('lu-'+id+'-'+it.id); var q=e?parseInt(e.value)||0:0; neg+=q*it.p; });
-  var total=100+pos-neg;
-  setTxt('lu-'+id+'-pos','+'+pos); setTxt('lu-'+id+'-neg','−'+neg); setTxt('lu-'+id+'-total',total);
+  var pos=0; LUCRO_SOMA.forEach(function(it){ var e=el('lu-'+id+'-'+it.id); if(!e) return; var raw=parseInt(e.value); var n=isNaN(raw)?0:raw; var c=Math.max(0,Math.min(it.p,n)); if(!isNaN(raw)&&c!==raw) e.value=c; pos+=c; });
+  var neg=0; LUCRO_TIRA.forEach(function(it){ var e=el('lu-'+id+'-'+it.id); if(!e) return; var raw=parseInt(e.value); var n=isNaN(raw)?0:raw; var c=Math.max(-it.p,Math.min(0,n)); if(!isNaN(raw)&&c!==raw) e.value=c; neg+=c; });
+  var total=100+pos+neg;
+  setTxt('lu-'+id+'-pos','+'+pos); setTxt('lu-'+id+'-neg',''+neg); setTxt('lu-'+id+'-total',total);
   var apto=total>=90; var b=el('lu-'+id+'-apto'); if(b){ b.textContent=apto?'✓ apto (≥90)':'abaixo de 90'; b.style.color=apto?'var(--ok)':'var(--red)'; }
   var tt=el('lu-'+id+'-total'); if(tt) tt.style.color=total>=90?'var(--ok)':total>=70?'var(--warn)':'var(--red)';
   return {total:total,pos:pos,neg:neg,apto:apto};
@@ -475,7 +475,7 @@ function salvarLucro(id){ var tri=el('lu-'+id+'-tri').value; var r=recalcLucro(i
   setTxt('lu-'+id+'-msg','✓ pontos salvos ('+tri+')'); }
 function renderScoreCardB(r){
   var tri=triAtual(); var s=loadLucro(r.id,anoAtual(),tri)||{q:{}};
-  function itemHTML(it,cls){ var v=(s.q&&s.q[it.id]!=null)?s.q[it.id]:0; return '<div class="lu-item '+cls+'"><span>'+it.label+'</span><span class="p">'+(cls==='pos'?'+':'−')+it.p+'</span><input type="number" min="0" step="1" id="lu-'+r.id+'-'+it.id+'" value="'+v+'" oninput="recalcLucro(\''+r.id+'\')"></div>'; }
+  function itemHTML(it,cls){ var v=(s.q&&s.q[it.id]!=null)?s.q[it.id]:0; var mn=cls==='pos'?0:(-it.p); var mx=cls==='pos'?it.p:0; return '<div class="lu-item '+cls+'"><span>'+it.label+'</span><span class="p">'+(cls==='pos'?'+':'−')+it.p+'</span><input type="number" min="'+mn+'" max="'+mx+'" step="1" id="lu-'+r.id+'-'+it.id+'" value="'+v+'" oninput="recalcLucro(\''+r.id+'\')"></div>'; }
   var grupos={}; LUCRO_SOMA.forEach(function(it){ (grupos[it.g]=grupos[it.g]||[]).push(it); });
   var posHTML=Object.keys(grupos).map(function(g){ return '<div class="lu-grp"><div class="h">'+g+'</div><div class="lu-items">'+grupos[g].map(function(it){return itemHTML(it,'pos');}).join('')+'</div></div>'; }).join('');
   var negHTML='<div class="lu-items">'+LUCRO_TIRA.map(function(it){return itemHTML(it,'neg');}).join('')+'</div>';
