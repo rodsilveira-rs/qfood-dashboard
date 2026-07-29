@@ -50,14 +50,16 @@ a{color:inherit;text-decoration:none;}
 .org-frente{font-family:var(--fh);font-size:.8rem;font-weight:800;letter-spacing:.5px;color:var(--tx);margin-top:6px;}
 .org-frente.a{color:var(--pur);}
 .org-frente.b{color:var(--teal);}
-.nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;border-bottom:2px solid var(--br);padding-bottom:0;align-items:flex-end;}
-.nav button{padding:9px 16px;cursor:pointer;border-radius:9px 9px 0 0;font-size:.82rem;font-weight:600;background:var(--s2);color:var(--mu);border:1px solid var(--br);border-bottom:none;margin-bottom:-2px;transition:all .15s;font-family:inherit;display:flex;align-items:center;gap:7px;}
+.nav{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+.nav-group{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:9px 12px;}
+.nav-lbl{font-size:.66rem;text-transform:uppercase;letter-spacing:1px;font-weight:800;padding:2px 10px 2px 2px;margin-right:2px;border-right:1px solid var(--br);}
+.nav-lbl.a{color:var(--pur);}
+.nav-lbl.b{color:var(--teal);}
+.nav button{padding:8px 14px;cursor:pointer;border-radius:9px;font-size:.82rem;font-weight:600;background:var(--s2);color:var(--mu);border:1px solid var(--br);transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:7px;}
 .nav button:hover{background:var(--s3);color:var(--tx);}
-.nav button.active{background:var(--sf);color:var(--tx);border-color:var(--b2);border-bottom:2px solid var(--sf);}
-.nav button.ceo.active{color:var(--gold);}
-.nav button.ger.active{color:var(--pur);}
-.nav button.b.active{color:var(--teal);}
-.nav-sep{padding:6px 6px 8px;font-size:.66rem;text-transform:uppercase;letter-spacing:1px;color:var(--mu2);font-weight:700;align-self:center;}
+.nav button.active{background:var(--pur);color:#fff;border-color:var(--pur);}
+.nav button.ceo.active{background:var(--gold);color:#0a0a0c;border-color:var(--gold);}
+.nav button.b.active{background:var(--teal);color:#0a0a0c;border-color:var(--teal);}
 .hero{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;}
 .hero .emoji{font-size:2rem;line-height:1;}
 .hero .missao{font-size:.88rem;color:var(--mu);margin-top:4px;font-style:italic;}
@@ -403,6 +405,8 @@ function loadLoja(ano,tri){ try{ return JSON.parse(localStorage.getItem(lojaKey(
 /* ── Score QDACE (Parte A) ── */
 function atinKPI(k,raw){ if(raw===''||raw==null) return null; var real=parseFloat(String(raw).replace(',','.')); if(isNaN(real)) return null; var meta=k.meta; if(k.dir==='maior'){ if(meta<=0) return real>0?100:0; return Math.min(100,real/meta*100);} if(meta<=0) return real<=0?100:0; return real<=meta?100:Math.min(100,meta/real*100); }
 function faixaQDACE(t){ if(t>=100) return {nome:'Diamante',cor:'#22d3ee'}; if(t>=90) return {nome:'Ouro',cor:'#e8c268'}; if(t>=80) return {nome:'Prata',cor:'#c3ccd8'}; if(t>=70) return {nome:'Bronze',cor:'#cf8a4a'}; return {nome:'Abaixo',cor:'#e63329'}; }
+var FAIXA_ICONE={Diamante:'💎',Ouro:'🥇',Prata:'🥈',Bronze:'🥉','Superação':'🏆',Abaixo:'🔴'};
+function faixaIco(n){ return (FAIXA_ICONE[n]||'')+' '+n; }
 function recalcScore(id){
   var kpis=KPIS_AREA[id]||[]; var soma=0,n=0;
   kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id); var raw=inp?inp.value.trim():''; var at=atinKPI(k,raw);
@@ -413,7 +417,7 @@ function recalcScore(id){
   var desc=0; DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); if(cb&&!cb.checked) desc+=e.peso; });
   var total=Math.max(0,Math.round(kpiBlock+ralos+cult-desc));
   setTxt('q-'+id+'-bk-kpi',kpiBlock.toFixed(1)); setTxt('q-'+id+'-bk-ralos',ralos); setTxt('q-'+id+'-bk-cult',cult); setTxt('q-'+id+'-bk-disc',desc); setTxt('q-'+id+'-total',total);
-  var f=faixaQDACE(total),fb=el('q-'+id+'-faixa'); if(fb){fb.textContent=f.nome;fb.style.color=f.cor;fb.style.borderColor=f.cor;}
+  var f=faixaQDACE(total),fb=el('q-'+id+'-faixa'); if(fb){fb.textContent=faixaIco(f.nome);fb.style.color=f.cor;fb.style.borderColor=f.cor;}
   return {total:total,faixa:f.nome,desc:desc};
 }
 function scoreTrocarMes(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var s=loadScore(id,mes)||{};
@@ -450,7 +454,7 @@ function premBodyHTML(id,ano,tri){ var m=trimestreMedia(id,ano,tri); if(m==null)
   var f=faixaQDACE(m),bonus=BONUS_FAIXA[f.nome]||'—',trava=loadTrava(ano,tri),lib=travaLiberada(trava);
   var faltam=TRAVA_METAS.filter(function(x){ return !(trava&&trava[x[0]]); }).map(function(x){return x[1];});
   var st=(f.nome==='Abaixo')?'<span style="color:var(--red);font-weight:700">Sem faixa — abaixo de 70</span>':lib?'<span style="color:var(--ok);font-weight:700">✓ liberado pela trava de caixa</span>':'<span style="color:var(--warn);font-weight:700">bloqueado — faltam: '+(faltam.join(', ')||'—')+'</span>';
-  return '<div class="score-total" style="border:none;padding:0;margin:0 0 4px"><div><div class="org-lbl" style="margin:0 0 2px">Score do trimestre</div><span class="big">'+m+'</span><span style="color:var(--mu);font-weight:700"> / 100</span></div><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+f.nome+'</span><div><div class="org-lbl" style="margin:0 0 2px">Bônus</div><strong style="font-size:1.05rem">'+bonus+'</strong><span style="color:var(--mu);font-size:.78rem"> / trimestre</span></div></div><div class="rota-nota">Status: '+st+'<br>Teto anual: 8 salários. Trava de caixa definida pelo CEO.</div>'; }
+  return '<div class="score-total" style="border:none;padding:0;margin:0 0 4px"><div><div class="org-lbl" style="margin:0 0 2px">Score do trimestre</div><span class="big">'+m+'</span><span style="color:var(--mu);font-weight:700"> / 100</span></div><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+faixaIco(f.nome)+'</span><div><div class="org-lbl" style="margin:0 0 2px">Bônus</div><strong style="font-size:1.05rem">'+bonus+'</strong><span style="color:var(--mu);font-size:.78rem"> / trimestre</span></div></div><div class="rota-nota">Status: '+st+'<br>Teto anual: 8 salários. Trava de caixa definida pelo CEO.</div>'; }
 
 /* ── Lucro Compartilhado (Parte B) ── */
 function recalcLucro(id){
@@ -480,7 +484,7 @@ function renderScoreCardB(r){
     '<div class="subsec">O que soma</div>'+posHTML+
     '<div class="subsec">O que tira</div>'+negHTML+
     '<div class="score-total"><div><div class="org-lbl" style="margin:0 0 2px">Pontos do trimestre</div><span class="big" id="lu-'+r.id+'-total">100</span></div><span class="bk">Base 100 · soma <b id="lu-'+r.id+'-pos">+0</b> · tira <b id="lu-'+r.id+'-neg">−0</b></span><span style="font-weight:700;font-size:.84rem" id="lu-'+r.id+'-apto">✓ apto (≥90)</span><span style="flex:1"></span><button class="btn-save" onclick="salvarLucro(\''+r.id+'\')">💾 Salvar pontos</button><span class="rep-msg" id="lu-'+r.id+'-msg"></span></div>'+
-    '<div class="rota-nota">Para receber: <strong>≥90 pontos</strong> individuais <strong>E</strong> a loja bater faturamento, EBITDA, NPS, Google e auditoria (definidos no Painel do CEO). Faixa/prêmio da loja: Bronze 0,25 · Prata 0,50 · Ouro 0,75 · Diamante 1 salário.</div></div>';
+    '<div class="rota-nota">Para receber: <strong>≥90 pontos</strong> individuais <strong>E</strong> a loja bater faturamento, EBITDA, NPS, Google e auditoria (definidos no Painel do CEO). Faixa/prêmio da loja: 🥉 Bronze 0,25 · 🥈 Prata 0,50 · 🥇 Ouro 0,75 · 💎 Diamante 1 salário.</div></div>';
 }
 
 /* ── Organograma ── */
@@ -522,10 +526,10 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharDeta
 /* ── Navegação ── */
 var VIEW_ATUAL='ceo';
 function renderNav(){
-  var b=[]; b.push('<button class="ceo" data-view="ceo">👑 Painel do CEO</button>'); b.push('<button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button>');
-  b.push('<span class="nav-sep">Q Food</span>'); ORG_A.responsaveis.forEach(function(r){ b.push('<button data-view="'+r.id+'">'+r.emoji+' '+r.nome+'</button>'); });
-  b.push('<span class="nav-sep">Mercearia · Gogui</span>'); pessoasParteB().forEach(function(p){ b.push('<button class="b" data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'); });
-  el('nav').innerHTML=b.join('');
+  var g1='<div class="nav-group"><button class="ceo" data-view="ceo">👑 Painel do CEO</button><button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button></div>';
+  var g2='<div class="nav-group"><span class="nav-lbl a">Q Food</span>'+ORG_A.responsaveis.map(function(r){ return '<button data-view="'+r.id+'">'+r.emoji+' '+r.nome+'</button>'; }).join('')+'</div>';
+  var g3='<div class="nav-group"><span class="nav-lbl b">Mercearia · Gogui</span>'+pessoasParteB().map(function(p){ return '<button class="b" data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'; }).join('')+'</div>';
+  el('nav').innerHTML=g1+g2+g3;
   Array.prototype.forEach.call(el('nav').querySelectorAll('button'),function(x){ x.addEventListener('click',function(){ irPara(x.getAttribute('data-view'),true); }); });
 }
 function irPara(view,doScroll){
@@ -571,7 +575,7 @@ function painelPessoa(p){
 function painelRodrigo(){
   var iso=hoje(),mes=mesAtual();
   var linhas=ORG_A.responsaveis.map(function(r){ var e=reportEntregue(r.id,iso),sc=loadScore(r.id,mes);
-    var fc=sc?'<span class="faixa" style="color:'+faixaQDACE(sc.total).cor+';border-color:'+faixaQDACE(sc.total).cor+'">'+sc.faixa+' · '+sc.total+'</span>':'<span style="color:var(--mu)">—</span>';
+    var fc=sc?'<span class="faixa" style="color:'+faixaQDACE(sc.total).cor+';border-color:'+faixaQDACE(sc.total).cor+'">'+faixaIco(sc.faixa)+' · '+sc.total+'</span>':'<span style="color:var(--mu)">—</span>';
     return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td>'+statusInlineHTML(e)+'</td><td>'+fc+'</td><td><button style="all:unset;cursor:pointer;color:var(--pur);font-size:.8rem;text-decoration:underline" onclick="irPara(\''+r.id+'\', true)">abrir →</button></td></tr>'; }).join('');
   var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length,tot=ORG_A.responsaveis.length;
   var report=REPORT_CAMPOS.map(function(c){ return '<li><strong>'+c.label+'</strong> — '+c.hint+'</li>'; }).join('');
@@ -605,14 +609,14 @@ function painelCEO(){
   var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length,tot=ORG_A.responsaveis.length;
   var scoreRows=ORG_A.responsaveis.map(function(r){ var sc=loadScore(r.id,mes); if(!sc) return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td><td style="color:var(--mu)">— sem score</td></tr>';
     var f=faixaQDACE(sc.total),dt=(sc.desconto>0)?' <span style="color:var(--red);font-size:.76rem">(−'+sc.desconto+' disc.)</span>':'';
-    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td><td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+sc.faixa+' · '+sc.total+'/100</span>'+dt+'</td></tr>'; }).join('');
+    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td><td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+faixaIco(sc.faixa)+' · '+sc.total+'/100</span>'+dt+'</td></tr>'; }).join('');
   var cs=ORG_A.responsaveis.map(function(r){ return loadScore(r.id,mes); }).filter(function(x){return x;});
   var media=cs.length?Math.round(cs.reduce(function(a,s){return a+s.total;},0)/cs.length):null; var mf=media!=null?faixaQDACE(media):null;
   var trava=loadTrava(ano,CEO_TRI)||{}; var tc=TRAVA_METAS.map(function(m,i){ return '<label><input type="checkbox" id="trava-'+i+'"'+(trava[m[0]]?' checked':'')+'> '+m[1]+'</label>'; }).join('');
   var tlib=travaLiberada(trava); var ts=tlib?'<span style="color:var(--ok);font-weight:700">✓ metas globais atingidas</span>':'<span style="color:var(--warn);font-weight:700">bloqueado até bater todas as metas</span>';
   var premRows=ORG_A.responsaveis.map(function(r){ var m=trimestreMedia(r.id,ano,CEO_TRI); if(m==null) return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">—</td><td style="color:var(--mu)">sem score</td></tr>';
     var f=faixaQDACE(m),bo=BONUS_FAIXA[f.nome],li=(f.nome!=='Abaixo'&&tlib),st=(f.nome==='Abaixo')?'<span style="color:var(--red)">sem faixa</span>':li?'<span style="color:var(--ok)">liberado</span>':'<span style="color:var(--warn)">bloqueado</span>';
-    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+f.nome+' · '+m+'</span></td><td>'+bo+' <span style="color:var(--mu);font-size:.78rem">('+st+')</span></td></tr>'; }).join('');
+    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+faixaIco(f.nome)+' · '+m+'</span></td><td>'+bo+' <span style="color:var(--mu);font-size:.78rem">('+st+')</span></td></tr>'; }).join('');
   // Loja Parte B
   var loja=loadLoja(ano,CEO_TRI)||{cond:[]}; var lf=lojaFaixaCalc(loja.faturamento||0,loja.ebitda||0);
   var condChecks=LOJA_CONDICOES.map(function(c,i){ return '<label><input type="checkbox" id="loja-c-'+i+'"'+((loja.cond&&loja.cond[i])?' checked':'')+'> '+c+'</label>'; }).join('');
@@ -622,12 +626,12 @@ function painelCEO(){
     var recebe=(apto&&condOk&&lf); var st=(pts==null)?'<span style="color:var(--mu)">sem pontos</span>':(recebe?'<span style="color:var(--ok)">recebe '+(lf?lf.premio:'')+'</span>':(apto?'<span style="color:var(--warn)">apto — aguarda loja</span>':'<span style="color:var(--red)">abaixo de 90</span>'));
     return '<tr><td>'+p.emoji+' <strong>'+p.nome+'</strong></td><td>'+(pts!=null?pts+' pts':'—')+'</td><td>'+st+'</td></tr>'; }).join('');
   el('painel').innerHTML=
-    '<div class="card"><div class="sec">Painel do CEO — visão geral</div><p style="font-size:.84rem;color:var(--mu);margin-bottom:8px">Adilson recebe a visão consolidada pelo Rodrigo e decide prioridades. A cobrança é <strong>por resultado, não por tarefa</strong>.</p><p style="font-size:.88rem;margin-bottom:8px">Q Food — reports de hoje: <span class="kpi-big" style="color:'+(eg===tot?'var(--ok)':'var(--warn)')+'">'+eg+'/'+tot+'</span>'+(media!=null?' &nbsp;·&nbsp; Score médio ('+mes+'): <span class="faixa" style="color:'+mf.cor+';border-color:'+mf.cor+'">'+mf.nome+' · '+media+'/100</span>':'')+'</p><blockquote style="font-size:.88rem;color:var(--tx);font-style:italic;border-left:3px solid var(--gold);padding:4px 0 4px 14px;margin:10px 0">Vamos fechar os ralos, abrir as torneiras e construir o melhor 2º semestre da nossa história.</blockquote></div>'+
-    '<div class="card"><div class="ct">🎯 Score QDACE® por área (Q Food) — '+mes+'</div><table class="st"><thead><tr><th>Área</th><th>Função</th><th>Faixa · Score</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="rota-nota">Diamante ≥100 · Ouro 90–99 · Prata 80–89 · Bronze 70–79 · Abaixo &lt;70.</div></div>'+
+    '<div class="card"><div class="sec">Painel do CEO — visão geral</div><p style="font-size:.84rem;color:var(--mu);margin-bottom:8px">Adilson recebe a visão consolidada pelo Rodrigo e decide prioridades. A cobrança é <strong>por resultado, não por tarefa</strong>.</p><p style="font-size:.88rem;margin-bottom:8px">Q Food — reports de hoje: <span class="kpi-big" style="color:'+(eg===tot?'var(--ok)':'var(--warn)')+'">'+eg+'/'+tot+'</span>'+(media!=null?' &nbsp;·&nbsp; Score médio ('+mes+'): <span class="faixa" style="color:'+mf.cor+';border-color:'+mf.cor+'">'+faixaIco(mf.nome)+' · '+media+'/100</span>':'')+'</p><blockquote style="font-size:.88rem;color:var(--tx);font-style:italic;border-left:3px solid var(--gold);padding:4px 0 4px 14px;margin:10px 0">Vamos fechar os ralos, abrir as torneiras e construir o melhor 2º semestre da nossa história.</blockquote></div>'+
+    '<div class="card"><div class="ct">🎯 Score QDACE® por área (Q Food) — '+mes+'</div><table class="st"><thead><tr><th>Área</th><th>Função</th><th>Faixa · Score</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="rota-nota">💎 Diamante ≥100 · 🥇 Ouro 90–99 · 🥈 Prata 80–89 · 🥉 Bronze 70–79 · 🔴 Abaixo &lt;70.</div></div>'+
     '<div class="card"><div class="sec">🔒 Trava de Caixa (Q Food) — '+CEO_TRI+' / '+ano+'</div><div class="rep-head"><label>Trimestre</label><select id="ceo-tri" onchange="ceoTriMudar()">'+quarterOptions(CEO_TRI)+'</select></div><div class="cult">'+tc+'</div><div class="rep-actions" style="margin-top:12px"><button class="btn-save" onclick="travaSalvar()">💾 Salvar trava</button><span style="font-size:.82rem">'+ts+'</span></div></div>'+
-    '<div class="card"><div class="ct">🏆 Premiação por área (Q Food) — '+CEO_TRI+' / '+ano+'</div><table class="st"><thead><tr><th>Área</th><th>Faixa · Score do trimestre</th><th>Bônus</th></tr></thead><tbody>'+premRows+'</tbody></table><div class="rota-nota">Bônus: Diamante 2 · Ouro 1,5 · Prata 1 · Bronze 0,5 salário / trimestre (teto 8/ano).</div></div>'+
+    '<div class="card"><div class="ct">🏆 Premiação por área (Q Food) — '+CEO_TRI+' / '+ano+'</div><table class="st"><thead><tr><th>Área</th><th>Faixa · Score do trimestre</th><th>Bônus</th></tr></thead><tbody>'+premRows+'</tbody></table><div class="rota-nota">Bônus: 💎 Diamante 2 · 🥇 Ouro 1,5 · 🥈 Prata 1 · 🥉 Bronze 0,5 salário / trimestre (teto 8/ano).</div></div>'+
     '<div class="card"><div class="sec" style="color:var(--teal)">🍽️ Loja — Mercearia/Gogui · '+CEO_TRI+' / '+ano+'</div><div class="rep-head"><label>Faturamento trimestral (R$)</label><input type="number" id="loja-fat" value="'+(loja.faturamento||'')+'" step="1000"><label>EBITDA (%)</label><input type="number" id="loja-eb" value="'+(loja.ebitda||'')+'" step="0.1"></div><div class="subsec">Condições da loja</div><div class="cult">'+condChecks+'</div><div class="rep-actions" style="margin-top:12px"><button class="btn-save" style="background:var(--teal)" onclick="lojaSalvar()">💾 Salvar loja</button><span style="font-size:.84rem">Faixa da loja: '+lfHTML+(condOk?' <span style="color:var(--ok)">· condições OK</span>':' <span style="color:var(--warn)">· condições pendentes</span>')+'</span></div>'+
-      '<div class="subsec">Elegibilidade da equipe (≥90 pts + loja)</div><table class="st"><thead><tr><th>Gestor</th><th>Pontos do trimestre</th><th>Status</th></tr></thead><tbody>'+pbRows+'</tbody></table><div class="rota-nota">Tiers: Bronze R$1,7M/30% · Prata R$1,8M/31% · Ouro R$1,9M/32% · Diamante R$2,0M/33% · Superação R$2,1M/34%.</div></div>'+
+      '<div class="subsec">Elegibilidade da equipe (≥90 pts + loja)</div><table class="st"><thead><tr><th>Gestor</th><th>Pontos do trimestre</th><th>Status</th></tr></thead><tbody>'+pbRows+'</tbody></table><div class="rota-nota">Tiers: 🥉 Bronze R$1,7M/30% · 🥈 Prata R$1,8M/31% · 🥇 Ouro R$1,9M/32% · 💎 Diamante R$2,0M/33% · 🏆 Superação R$2,1M/34%.</div></div>'+
     '<div class="card"><div class="ct">📊 Painel de Cobrança — mínimo por setor (Q Food)</div><table class="st"><thead><tr><th>Setor</th><th>O que é cobrado</th></tr></thead><tbody>'+Object.keys(PAINEL_MINIMO).map(function(k){ var n=k.charAt(0).toUpperCase()+k.slice(1); return '<tr><td><strong>'+n+'</strong></td><td style="color:var(--mu)">'+PAINEL_MINIMO[k]+'</td></tr>'; }).join('')+'</tbody></table></div>';
 }
 
