@@ -631,19 +631,24 @@ function renderPainel(view){ if(view==='ceo') return painelCEO(); if(view==='rod
 function renderReportForm(r){
   var iso=ontem(); var d=loadReport(r.id,iso)||{};
   var campos=REPORT_CAMPOS.map(function(c){ return '<div class="rep-field"><label>'+c.label+'</label><div class="hint">'+c.hint+'</div><textarea id="rep-'+r.id+'-'+c.id+'" placeholder="'+c.hint+'">'+esc(d['rep_'+c.id])+'</textarea></div>'; }).join('');
-  var nota=SYNC_IDS[r.id]?'Salva no aparelho e envia ao Google Sheets.':'Salva no aparelho (coluna no Sheets no próximo passo).';
+  var nota='Salva no aparelho e envia ao Google Sheets.';
   return '<div class="card"><div class="sec">📝 Report diário — 4 linhas</div><div class="rep-head"><label>Data</label><input type="date" id="rep-'+r.id+'-data" value="'+iso+'" onchange="reportTrocarData(\''+r.id+'\')"><span id="rep-'+r.id+'-status"></span></div>'+campos+'<div class="rep-actions"><button class="btn-save" onclick="salvarReport(\''+r.id+'\')">💾 Salvar report</button><span id="rep-'+r.id+'-msg" class="rep-msg"></span></div><div class="rota-nota">'+nota+'</div></div>';
 }
 function statusInlineHTML(e){ return e?'<span class="chip-status chip-ok">● entregue</span>':'<span class="chip-status chip-na">● não entregue</span>'; }
 function atualizarStatusInline(id,iso){ var e=el('rep-'+id+'-status'); if(e) e.innerHTML=statusInlineHTML(reportEntregue(id,iso)); }
 function reportTrocarData(id){ var iso=el('rep-'+id+'-data').value||hoje(); var d=loadReport(id,iso)||{}; REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); if(e) e.value=d['rep_'+c.id]||''; }); atualizarStatusInline(id,iso); setTxt('rep-'+id+'-msg',''); }
-function salvarReport(id){ var r=findPessoa(id); if(!r) return; var iso=el('rep-'+id+'-data').value||hoje();
-  var dado={gestor_id:id,gestor_nome:r.nome,area:r.funcao,frente:r.frente||'',data_iso:iso,data:isoBR(iso),hora:agoraHora(),salvo_em:new Date().toISOString()};
+function salvarReport(id){
+  var r = findPessoa(id); if(!r) return;
+  var iso = el('rep-'+id+'-data').value||ontem();
+  var dado = { gestor_id:id, gestor_nome:r.nome, area:r.funcao, frente:r.frente||'', data_iso:iso, data:isoBR(iso), hora:agoraHora(), salvo_em:new Date().toISOString() };
   REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); dado['rep_'+c.id]=e?e.value.trim():''; });
-  try{ localStorage.setItem(reportKey(id,iso),JSON.stringify(dado)); }catch(e){}
-  var env=false; try{ if(window.QFoodSync&&window.QFoodSync.diario&&SYNC_IDS[id]){ window.QFoodSync.diario(id,dado); env=true; } }catch(e){}
-  setTxt('rep-'+id+'-msg',env?'✓ salvo e enviado ao Sheets':'✓ salvo no aparelho'); atualizarStatusInline(id,iso);
-  var hs=el('hero-status-'+id); if(hs&&iso===ontem()) hs.innerHTML=statusInlineHTML(true); }
+  try{ localStorage.setItem(reportKey(id, iso), JSON.stringify(dado)); }catch(e){}
+  var enviado=false;
+  try{ enviarSheet('DIARIO', { gestor_id:id, gestor_nome:r.nome, area:r.funcao, data_iso:iso, data:isoBR(iso), hora:agoraHora(), rep_result:dado.rep_result, rep_plano:dado.rep_plano, rep_risco:dado.rep_risco, rep_acao:dado.rep_acao, salvo_em:dado.salvo_em }); enviado=true; }catch(e){ console.error('[report sync]', e); }
+  setTxt('rep-'+id+'-msg', enviado ? '✓ salvo e enviado ao Sheets' : '✓ salvo no aparelho');
+  atualizarStatusInline(id, iso);
+  var hs=el('hero-status-'+id); if(hs && iso===ontem()) hs.innerHTML=statusInlineHTML(true);
+}
 function painelPessoa(p){
   var ent=reportEntregue(p.id,ontem());
   var badges=(p.comite?' <span class="tag-comite">Comitê Executivo</span>':'')+(p.frente==='B'?' <span class="tag-b">Mercearia · Gogui</span>':'');
