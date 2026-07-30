@@ -442,6 +442,16 @@ function loadReport(id,iso){ try{ return JSON.parse(localStorage.getItem(reportK
 function reportEntregue(id,iso){ var d=loadReport(id,iso); return !!(d&&(d.rep_result||d.rep_plano||d.rep_risco||d.rep_acao)); }
 function scoreKey(id,mes){ return 'qfood_chk_'+id+'_qdace_'+mes; }
 function loadScore(id,mes){ try{ return JSON.parse(localStorage.getItem(scoreKey(id,mes))||'null'); }catch(e){ return null; } }
+var CKP_SYNC_URL   = 'COLE_AQUI_A_MESMA_URL_QUE_ESTA_NO_QFOOD_SYNC_URL/exec';
+var CKP_SYNC_TOKEN = 'qfood-rs-2026-xK9pL3mQ7vN2bT8';
+function enviarSheet(aba, dado){
+  try{
+    fetch(CKP_SYNC_URL, { method:'POST', body: JSON.stringify({ token: CKP_SYNC_TOKEN, aba: aba, dado: dado }) })
+      .then(function(r){ return r.text(); })
+      .then(function(t){ try{ console.log('[sync '+aba+']', t); }catch(e){} })
+      .catch(function(e){ try{ console.warn('[sync '+aba+']', e); }catch(_){} });
+  }catch(e){}
+}
 function travaKey(ano,tri){ return 'qfood_chk_trava_'+ano+'_'+tri; }
 function loadTrava(ano,tri){ try{ return JSON.parse(localStorage.getItem(travaKey(ano,tri))||'null'); }catch(e){ return null; } }
 function travaLiberada(t){ if(!t) return false; return TRAVA_METAS.every(function(m){ return !!t[m[0]]; }); }
@@ -489,6 +499,7 @@ function salvarScore(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var r=re
   var disciplina=DISCIPLINA_ENTREGAS.map(function(e,i){ var cb=el('q-'+id+'-disc-'+i); return cb?cb.checked:true; });
   var ri=el('q-'+id+'-ralos');
   try{ localStorage.setItem(scoreKey(id,mes),JSON.stringify({mes:mes,kpis:kpis,ralos:ri?ri.value:'',cultura:cultura,disciplina:disciplina,desconto:r.desc,total:r.total,faixa:r.faixa,salvo_em:new Date().toISOString()})); }catch(e){}
+  try{ enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, detalhe_json:JSON.stringify({kpis:kpis,cultura:cultura,disciplina:disciplina}), salvo_em:new Date().toISOString() }); }catch(e){}
   setTxt('q-'+id+'-msg','✓ score salvo ('+mes+')'); }
 function renderScoreCard(r){
   var mes=mesAtual(); var s=loadScore(r.id,mes)||{}; var kpis=KPIS_AREA[r.id]||[];
@@ -671,11 +682,13 @@ function copiarConsolidado(){ var t=el('cons-msg'); if(!t) return; if(!t.value) 
 
 var CEO_TRI=triAtual();
 function ceoTriMudar(){ CEO_TRI=el('ceo-tri').value; painelCEO(); }
-function travaSalvar(){ var o={}; TRAVA_METAS.forEach(function(m,i){ var cb=el('trava-'+i); o[m[0]]=cb?cb.checked:false; }); try{ localStorage.setItem(travaKey(anoAtual(),CEO_TRI),JSON.stringify(o)); }catch(e){} painelCEO(); }
+function travaSalvar(){ var o={}; TRAVA_METAS.forEach(function(m,i){ var cb=el('trava-'+i); o[m[0]]=cb?cb.checked:false; }); try{ localStorage.setItem(travaKey(anoAtual(),CEO_TRI),JSON.stringify(o)); }catch(e){} try{ enviarSheet('TRAVA_CAIXA', { ano:anoAtual(), tri:CEO_TRI, faturamento:!!o.faturamento, margem:!!o.margem, ebitda:!!o.ebitda, caixa:!!o.caixa, roi:!!o.roi, salvo_em:new Date().toISOString() }); }catch(e){} painelCEO(); }
 function lojaFaixaCalc(fat,eb){ var r=null; LUCRO_FAIXAS_LOJA.forEach(function(t){ if(fat>=t.fat&&eb>=t.ebitda) r=t; }); return r; }
 function lojaSalvar(){ var fat=parseFloat((el('loja-fat').value||'0').replace(/\./g,'').replace(',','.'))||0; var eb=parseFloat((el('loja-eb').value||'0').replace(',','.'))||0;
   var cond=LOJA_CONDICOES.map(function(c,i){ var cb=el('loja-c-'+i); return cb?cb.checked:false; });
-  try{ localStorage.setItem(lojaKey(anoAtual(),CEO_TRI),JSON.stringify({faturamento:fat,ebitda:eb,cond:cond,salvo_em:new Date().toISOString()})); }catch(e){} painelCEO(); }
+  try{ localStorage.setItem(lojaKey(anoAtual(),CEO_TRI),JSON.stringify({faturamento:fat,ebitda:eb,cond:cond,salvo_em:new Date().toISOString()})); }catch(e){}
+  try{ var _lf=lojaFaixaCalc(fat,eb); enviarSheet('LOJA', { ano:anoAtual(), tri:CEO_TRI, faturamento:fat, ebitda:eb, cond_faturamento:!!cond[0], cond_ebitda:!!cond[1], cond_nps:!!cond[2], cond_google:!!cond[3], cond_cmv:!!cond[4], cond_auditoria:!!cond[5], faixa:_lf?_lf.faixa:'', salvo_em:new Date().toISOString() }); }catch(e){}
+  painelCEO(); }
 function painelCEO(){
   var iso=ontem(),mes=mesAtual(),ano=anoAtual();
   var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length,tot=ORG_A.responsaveis.length;
