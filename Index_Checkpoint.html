@@ -196,8 +196,8 @@ var ORG_A = {
     { id:'celio',   nome:'Célio',   funcao:'Administrativo',                  emoji:'📋', frente:'A', missao:'Dar suporte administrativo para acelerar Financeiro, Compras e Operações.' }
   ],
   linhaFrente: [
-    { id:'jhonatan', nome:'Jhonatan', funcao:'Estoque (execução)', emoji:'📦' },
-    { id:'eduardo',  nome:'Eduardo',  funcao:'Faturamento',        emoji:'🧾' }
+    { id:'jhonatan', nome:'Jhonatan', funcao:'Estoque (execução)', emoji:'📦', frente:'A', semPremio:true, missao:'Executar com excelência os processos do estoque.' },
+    { id:'eduardo',  nome:'Eduardo',  funcao:'Faturamento',        emoji:'🧾', frente:'A', semPremio:true, missao:'Faturamento rápido, correto e sem retrabalho.' }
   ]
 };
 var COMITE_EXTRA = [
@@ -216,7 +216,7 @@ var ORG_B = {
   setores: ['Cozinha','Bar','Salão','Mercearia','Estoque','Delivery','Gogui Korean BBQ']
 };
 function pessoasParteB(){ return [].concat(COMITE_EXTRA, ORG_B.supervisao, [ORG_B.gerenteUnidade], ORG_B.tecnicas); }
-function todasPessoas(){ return [].concat(ORG_A.responsaveis, pessoasParteB()); }
+function todasPessoas(){ return [].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB()); }
 function findPessoa(id){ return todasPessoas().filter(function(p){ return p.id===id; })[0]; }
 function todosLideres(){ return [CEO, GERENTE].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB()); }
 function findLider(id){ return todosLideres().filter(function(p){ return p.id===id; })[0]; }
@@ -301,6 +301,20 @@ var KPIS_AREA = {
     { id:'perdas_ap',   label:'Perdas registradas × apuradas',     meta:100, dir:'maior', metaLabel:'100%' },
     { id:'divergencia', label:'Divergência de recebimento (controle)', meta:100, dir:'maior', metaLabel:'100%' },
     { id:'tempo_nota',  label:'Tempo de entrada da nota',          meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  jhonatan: [
+    { id:'organizacao',   label:'Organização do estoque',   meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'fifo',          label:'FIFO / FEFO',              meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'produtividade', label:'Produtividade',            meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'separacao',     label:'Qualidade da separação',   meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'recebimento',   label:'Recebimento e separação',  meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  eduardo: [
+    { id:'tempo_fat',     label:'Tempo de faturamento',       meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'zero_erros',    label:'Zero erros',                 meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'zero_canc',     label:'Zero cancelamentos internos',meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'produtividade', label:'Produtividade',              meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'conf_fiscal',   label:'Conferência fiscal',         meta:100, dir:'maior', metaLabel:'100%' }
   ]
 };
 var CULTURA_ITENS = ['Disciplina','POPs','Trabalho em equipe','Feedback','Atitude'];
@@ -475,7 +489,36 @@ function metaKey(id){ return 'qfood_chk_metas_'+id; }
 function loadMetasOverlay(id){ try{ return JSON.parse(localStorage.getItem(metaKey(id))||'{}')||{}; }catch(e){ return {}; } }
 function metaEf(id,k){ var o=loadMetasOverlay(id); return (o&&o[k.id]!=null&&o[k.id]!=='')?parseFloat(o[k.id]):k.meta; }
 function salvarMeta(id,kpiId,val){ var o=loadMetasOverlay(id); o[kpiId]=val; try{ localStorage.setItem(metaKey(id),JSON.stringify(o)); }catch(e){} }
-function editarMeta(id,kpiId,elm){ if(!ehAdmin()) return; salvarMeta(id,kpiId,elm.value); recalcScore(id); }
+/* ── Controle de acesso: cada gestor vê o seu (supervisores veem subordinados) ── */
+var CHK_EMAIL_TO_GESTOR = {
+  'gustavo@qfoodcompany.com.br':'gustavo',
+  'celio@qfoodcompany.com.br':'celio',
+  'compras@qfoodcompany.com.br':'cris',
+  'maiko@qfoodcompany.com.br':'maiko',
+  'barbara@qfoodcompany.com.br':'barbara',
+  'tairine@mercearialiberdade.com.br':'tairine',
+  'marques@mercearialiberdade.com.br':'marques',
+  'leorick@mercearialiberdade.com.br':'leorick',
+  'mariana@mercearialiberdade.com.br':'mariana',
+  'elizeu@mercearialiberdade.com.br':'elizeu',
+  'matheus@mercearialiberdade.com.br':'matheus',
+  'jonathas@qfoodcompany.com.br':'jhonatan'
+  /* Eduardo sem login no UUSR — só Maiko/admin veem. Se ganhar login: 'email':'eduardo' */
+};
+var SUPERVISAO = {
+  maiko:   ['jhonatan','eduardo'],
+  marques: ['matheus','mariana'],
+  tairine: ['leorick','elizeu']
+};
+function gestoresPermitidos(){
+  if(ehAdmin()) return null; /* admin OU sem sessão (dev) = todos */
+  var email=((window.CURRENT_USER||{}).email||'').toLowerCase();
+  var meu=CHK_EMAIL_TO_GESTOR[email];
+  if(!meu) return [];
+  return [meu].concat(SUPERVISAO[meu]||[]);
+}
+function podeVer(id){ var p=gestoresPermitidos(); return p===null || p.indexOf(id)>=0; }
+function primeiraView(){ if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
 function recalcScore(id){
   var kpis=KPIS_AREA[id]||[]; var soma=0,n=0;
   kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id); var raw=inp?inp.value.trim():''; var at=atinKPI({id:k.id,dir:k.dir,meta:metaEf(id,k)},raw);
@@ -610,10 +653,15 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') fecharDeta
 /* ── Navegação ── */
 var VIEW_ATUAL='ceo';
 function renderNav(){
-  var g1='<div class="nav-group"><button class="ceo" data-view="ceo">👑 Painel do CEO</button><button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button></div>';
-  var g2='<div class="nav-group"><span class="nav-lbl a">Q Food</span>'+ORG_A.responsaveis.map(function(r){ return '<button data-view="'+r.id+'">'+r.emoji+' '+r.nome+'</button>'; }).join('')+'</div>';
-  var g3='<div class="nav-group"><span class="nav-lbl b">Mercearia · Gogui</span>'+pessoasParteB().map(function(p){ return '<button class="b" data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'; }).join('')+'</div>';
-  el('nav').innerHTML=g1+g2+g3;
+  var perm=gestoresPermitidos(); var adm=ehAdmin();
+  function podeP(p){ return perm===null || perm.indexOf(p.id)>=0; }
+  var btns=[];
+  if(adm){ btns.push('<div class="nav-group"><button class="ceo" data-view="ceo">👑 Painel do CEO</button><button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button></div>'); }
+  var qf=ORG_A.responsaveis.concat(ORG_A.linhaFrente).filter(podeP);
+  if(qf.length){ btns.push('<div class="nav-group"><span class="nav-lbl a">Q Food</span>'+qf.map(function(p){ return '<button data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'; }).join('')+'</div>'); }
+  var bp=pessoasParteB().filter(podeP);
+  if(bp.length){ btns.push('<div class="nav-group"><span class="nav-lbl b">Mercearia · Gogui</span>'+bp.map(function(p){ return '<button class="b" data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'; }).join('')+'</div>'); }
+  el('nav').innerHTML=btns.join('');
   Array.prototype.forEach.call(el('nav').querySelectorAll('button'),function(x){ x.addEventListener('click',function(){ irPara(x.getAttribute('data-view'),true); }); });
 }
 function irPara(view,doScroll){
@@ -627,7 +675,13 @@ function irPara(view,doScroll){
 function placeholder(tag,titulo,txt){ return '<div style="border:1px dashed var(--b2);border-radius:10px;padding:16px 18px"><div class="ct">'+titulo+'</div><p style="font-size:.84rem;color:var(--mu)">'+txt+'</p></div>'; }
 
 /* ── Painéis ── */
-function renderPainel(view){ if(view==='ceo') return painelCEO(); if(view==='rodrigo') return painelRodrigo(); var p=findPessoa(view); if(p) return painelPessoa(p); painelCEO(); }
+function renderPainel(view){
+  var perm=gestoresPermitidos(); var adm=ehAdmin();
+  if(!adm && (!perm || perm.length===0)){ el('painel').innerHTML='<div class="card"><div class="ct">Sem acesso</div><p style="color:var(--mu)">Seu usuário não está vinculado a nenhum painel do Checkpoint. Fale com o administrador.</p></div>'; return; }
+  if(view==='ceo'||view==='rodrigo'){ if(!adm) view=perm[0]; }
+  else if(!podeVer(view)){ view = adm?'ceo':perm[0]; }
+  if(view==='ceo') return painelCEO(); if(view==='rodrigo') return painelRodrigo(); var p=findPessoa(view); if(p) return painelPessoa(p); painelCEO();
+}
 function renderReportForm(r){
   var iso=ontem(); var d=loadReport(r.id,iso)||{};
   var campos=REPORT_CAMPOS.map(function(c){ return '<div class="rep-field"><label>'+c.label+'</label><div class="hint">'+c.hint+'</div><textarea id="rep-'+r.id+'-'+c.id+'" placeholder="'+c.hint+'">'+esc(d['rep_'+c.id])+'</textarea></div>'; }).join('');
@@ -653,13 +707,13 @@ function painelPessoa(p){
   var ent=reportEntregue(p.id,ontem());
   var badges=(p.comite?' <span class="tag-comite">Comitê Executivo</span>':'')+(p.frente==='B'?' <span class="tag-b">Mercearia · Gogui</span>':'');
   var nota=PAINEL_MINIMO[p.id]?('Painel mínimo cobrado: '+PAINEL_MINIMO[p.id]):(p.frente==='B'?'Frente: Mercearia Liberdade • Gogui (Restaurantes)':'');
-  var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.frente==='B'?renderPremiacaoB(p):renderPremiacaoCard(p))):'';
+  var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.semPremio?'':(p.frente==='B'?renderPremiacaoB(p):renderPremiacaoCard(p)))):'';
   el('painel').innerHTML=
     '<div class="card"><div class="hero"><div class="emoji">'+p.emoji+'</div><div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+statusInlineHTML(ent)+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
     renderReportForm(p)+extra;
   atualizarStatusInline(p.id,ontem());
-  if(KPIS_AREA[p.id]){ recalcScore(p.id); if(p.frente==='B') premBAtualizar(p.id); else premAtualizar(p.id); }
+  if(KPIS_AREA[p.id]){ recalcScore(p.id); if(!p.semPremio){ if(p.frente==='B') premBAtualizar(p.id); else premAtualizar(p.id); } }
 }
 function painelRodrigo(){
   var iso=ontem(),mes=mesAtual();
@@ -726,7 +780,7 @@ function painelCEO(){
     '<div class="card"><div class="ct">📊 Painel de Cobrança — mínimo por setor (Q Food)</div><table class="st"><thead><tr><th>Setor</th><th>O que é cobrado</th></tr></thead><tbody>'+Object.keys(PAINEL_MINIMO).map(function(k){ var n=k.charAt(0).toUpperCase()+k.slice(1); return '<tr><td><strong>'+n+'</strong></td><td style="color:var(--mu)">'+PAINEL_MINIMO[k]+'</td></tr>'; }).join('')+'</tbody></table></div>';
 }
 
-(function init(){ el('badge-hoje').textContent=isoBR(hoje()); renderOrg(); renderNav(); irPara('ceo',false); })();
+(function init(){ el('badge-hoje').textContent=isoBR(hoje()); renderOrg(); renderNav(); irPara(primeiraView(),false); })();
 </script>
 
 <script>
