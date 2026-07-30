@@ -480,7 +480,7 @@ function recalcScore(id){
   kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id); var raw=inp?inp.value.trim():''; var at=atinKPI({id:k.id,dir:k.dir,meta:metaEf(id,k)},raw);
     if(at==null){ if(cell){cell.textContent='—';cell.style.color='var(--mu2)';} } else { soma+=at;n++; if(cell){cell.textContent=Math.round(at)+'%';cell.style.color=at>=90?'var(--ok)':at>=50?'var(--warn)':'var(--red)';} } });
   var kpiBlock=n?(soma/n)/100*70:0;
-  var ri=el('q-'+id+'-ralos'); var ralos=ri?Math.max(0,Math.min(20,parseFloat(ri.value)||0)):0;
+  var ri=el('q-'+id+'-ralos'); var ralos=(ri && ri.value.trim()!=='')?20:0;
   var cult=0; CULTURA_ITENS.forEach(function(c,i){ var cb=el('q-'+id+'-cult-'+i); if(cb&&cb.checked) cult+=2; });
   var desc=0; DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); if(cb&&!cb.checked) desc+=e.peso; });
   var total=Math.max(0,Math.round(kpiBlock+ralos+cult-desc));
@@ -499,7 +499,7 @@ function salvarScore(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var r=re
   var disciplina=DISCIPLINA_ENTREGAS.map(function(e,i){ var cb=el('q-'+id+'-disc-'+i); return cb?cb.checked:true; });
   var ri=el('q-'+id+'-ralos');
   try{ localStorage.setItem(scoreKey(id,mes),JSON.stringify({mes:mes,kpis:kpis,ralos:ri?ri.value:'',cultura:cultura,disciplina:disciplina,desconto:r.desc,total:r.total,faixa:r.faixa,salvo_em:new Date().toISOString()})); }catch(e){}
-  try{ enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, detalhe_json:JSON.stringify({kpis:kpis,cultura:cultura,disciplina:disciplina}), salvo_em:new Date().toISOString() }); }catch(e){}
+  try{ enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, detalhe_json:JSON.stringify({kpis:kpis,cultura:cultura,disciplina:disciplina,ralos_solucao:(el('q-'+id+'-ralos')?el('q-'+id+'-ralos').value:'')}), salvo_em:new Date().toISOString() }); }catch(e){}
   setTxt('q-'+id+'-msg','✓ score salvo ('+mes+')'); }
 function renderScoreCard(r){
   var mes=mesAtual(); var s=loadScore(r.id,mes)||{}; var kpis=KPIS_AREA[r.id]||[];
@@ -513,7 +513,7 @@ function renderScoreCard(r){
   return '<div class="card"><div class="sec">🎯 Score QDACE® — 100 pontos</div>'+
     '<div class="rep-head"><label>Mês</label><input type="month" id="q-'+r.id+'-mes" value="'+mes+'" onchange="scoreTrocarMes(\''+r.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">70 KPIs · 20 Ralos · 10 Cultura · − Disciplina</span>'+(adm?' <span style="font-size:.72rem;color:var(--cyan)">✏️ metas editáveis (admin)</span>':'')+'</div>'+
     '<div class="subsec">Indicadores da área — 70 pts</div><table class="sc"><thead><tr><th>KPI</th><th>Meta</th><th>Realizado</th><th style="text-align:right">Atingimento</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-    '<div class="subsec">Fechar os Ralos — 20 pts</div><div class="ralos-row"><label style="font-size:.84rem;color:var(--mu)">Pontos (0–20):</label><input type="number" min="0" max="20" step="1" id="q-'+r.id+'-ralos" value="'+ralos+'" oninput="recalcScore(\''+r.id+'\')"><span style="font-size:.78rem;color:var(--mu2)">redução comprovada de custos e perdas</span></div>'+
+    '<div class="subsec">Fechar os Ralos — 20 pts</div><div style="margin-bottom:6px;font-size:.78rem;color:var(--mu2)">Descreva a solução criada no período que reduziu custo/perda. <strong>Preenchido = 20 pts.</strong></div><textarea id="q-'+r.id+'-ralos" placeholder="Ex.: renegociei o frete e economizei R$ 8k/mês; troquei o fornecedor X e reduzi avarias..." oninput="recalcScore(\''+r.id+'\')" style="width:100%;min-height:58px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 11px;color:var(--tx);font-family:inherit;font-size:.85rem;resize:vertical;outline:none">'+ralos+'</textarea>'+
     '<div class="subsec">Cultura — 10 pts (2 cada)</div><div class="cult">'+cult+'</div>'+
     '<div class="subsec">Disciplina de Execução — descontos</div><div class="cult disc">'+disc+'</div><div style="font-size:.78rem;color:var(--mu);margin-top:6px">Marcado = entregue. <strong>Desmarque o que faltou</strong> — cada falta desconta o peso.</div>'+
     '<div class="score-total"><div><div class="org-lbl" style="margin:0 0 2px">Score do mês</div><span class="big" id="q-'+r.id+'-total">0</span><span style="color:var(--mu);font-weight:700"> / 100</span></div><span class="faixa" id="q-'+r.id+'-faixa">—</span><span class="bk">KPIs <b id="q-'+r.id+'-bk-kpi">0</b>/70 · Ralos <b id="q-'+r.id+'-bk-ralos">0</b>/20 · Cultura <b id="q-'+r.id+'-bk-cult">0</b>/10 · <span style="color:var(--red)">− Disc <b id="q-'+r.id+'-bk-disc">0</b></span></span><span style="flex:1"></span><button class="btn-save" onclick="salvarScore(\''+r.id+'\')">💾 Salvar score</button><span class="rep-msg" id="q-'+r.id+'-msg"></span></div></div>';
