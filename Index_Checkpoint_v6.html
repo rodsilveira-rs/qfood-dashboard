@@ -258,6 +258,49 @@ var KPIS_AREA = {
     { id:'verba',             label:'Verba captada',          meta:30000, dir:'maior', metaLabel:'R$ 30k/mês' },
     { id:'bonif_trocas',      label:'Bonificações + trocas',  meta:15000, dir:'maior', metaLabel:'R$ 15k' },
     { id:'fornecedores_novos',label:'Fornecedores novos',     meta:2,     dir:'maior', metaLabel:'2/mês' }
+  ],
+  tairine: [
+    { id:'fichas',      label:'Conformidade das fichas técnicas', meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'foodcost',    label:'Food cost / CMV',                   meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'reclam_prod', label:'Reclamações de produto (controle)', meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'rendimento',  label:'Rendimento por lote',               meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'seguranca',   label:'Segurança dos alimentos',           meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  marques: [
+    { id:'checklists',  label:'Conformidade dos checklists',       meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'nps_google',  label:'NPS / Google',                      meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'reclamacoes', label:'Reclamações (controle)',            meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'tempo_atend', label:'Tempo de atendimento',              meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'planos',      label:'Planos de ação concluídos',         meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'clima',       label:'Clima e disciplina operacional',    meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  leorick: [
+    { id:'sensorial',   label:'Padrão sensorial dos pratos',       meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'rend_porcao', label:'Rendimento e porção',               meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'retrabalho',  label:'Retrabalho e devolução (controle)', meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'tempo_prep',  label:'Tempo de preparo',                  meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'teste_tec',   label:'Aprovação em teste técnico',        meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  mariana: [
+    { id:'venda_canal', label:'Venda por canal',                   meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'ticket',      label:'Ticket médio',                      meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'tempo_atend', label:'Tempo de atendimento',              meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'abertura',    label:'Conformidade de abertura/fechamento', meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'satisfacao',  label:'Satisfação do cliente (NPS)',       meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  elizeu: [
+    { id:'prod_real',   label:'Produção planejada × realizada',    meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'rend_lote',   label:'Rendimento por lote',               meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'perda_op',    label:'Perda operacional (controle)',      meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'tempo_prep',  label:'Tempo de preparo',                  meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'fichas',      label:'Conformidade das fichas',           meta:100, dir:'maior', metaLabel:'100%' }
+  ],
+  matheus: [
+    { id:'acuracidade', label:'Acuracidade do estoque',            meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'rupturas',    label:'Rupturas e vencimentos (controle)', meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'perdas_ap',   label:'Perdas registradas × apuradas',     meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'divergencia', label:'Divergência de recebimento (controle)', meta:100, dir:'maior', metaLabel:'100%' },
+    { id:'tempo_nota',  label:'Tempo de entrada da nota',          meta:100, dir:'maior', metaLabel:'100%' }
   ]
 };
 var CULTURA_ITENS = ['Disciplina','POPs','Trabalho em equipe','Feedback','Atitude'];
@@ -413,9 +456,18 @@ function atinKPI(k,raw){ if(raw===''||raw==null) return null; var real=parseFloa
 function faixaQDACE(t){ if(t>=100) return {nome:'Diamante',cor:'#22d3ee'}; if(t>=90) return {nome:'Ouro',cor:'#e8c268'}; if(t>=80) return {nome:'Prata',cor:'#c3ccd8'}; if(t>=70) return {nome:'Bronze',cor:'#cf8a4a'}; return {nome:'Abaixo',cor:'#e63329'}; }
 var FAIXA_ICONE={Diamante:'💎',Ouro:'🥇',Prata:'🥈',Bronze:'🥉','Superação':'🏆',Abaixo:'🔴'};
 function faixaIco(n){ return (FAIXA_ICONE[n]||'')+' '+n; }
+/* ── Sessão / admin: metas editáveis só por admin ── */
+var CHK_ADMIN_EMAILS = ['rodrigo@qfoodcompany.com.br','rodrigo.silveira@qfoodcompany.com.br','adilson@qfoodcompany.com.br'];
+(function(){ try{ var s=JSON.parse(localStorage.getItem('qfood_session')||'null'); if(s&&s.email){ window.CURRENT_USER={email:s.email,nome:s.nome,role:s.role}; window.__NOSESS=false; } else { window.__NOSESS=true; } }catch(e){ window.__NOSESS=true; } })();
+function ehAdmin(){ if(window.__NOSESS) return true; var u=window.CURRENT_USER||{}; return CHK_ADMIN_EMAILS.indexOf((u.email||'').toLowerCase())>=0; }
+function metaKey(id){ return 'qfood_chk_metas_'+id; }
+function loadMetasOverlay(id){ try{ return JSON.parse(localStorage.getItem(metaKey(id))||'{}')||{}; }catch(e){ return {}; } }
+function metaEf(id,k){ var o=loadMetasOverlay(id); return (o&&o[k.id]!=null&&o[k.id]!=='')?parseFloat(o[k.id]):k.meta; }
+function salvarMeta(id,kpiId,val){ var o=loadMetasOverlay(id); o[kpiId]=val; try{ localStorage.setItem(metaKey(id),JSON.stringify(o)); }catch(e){} }
+function editarMeta(id,kpiId,elm){ if(!ehAdmin()) return; salvarMeta(id,kpiId,elm.value); recalcScore(id); }
 function recalcScore(id){
   var kpis=KPIS_AREA[id]||[]; var soma=0,n=0;
-  kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id); var raw=inp?inp.value.trim():''; var at=atinKPI(k,raw);
+  kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id); var raw=inp?inp.value.trim():''; var at=atinKPI({id:k.id,dir:k.dir,meta:metaEf(id,k)},raw);
     if(at==null){ if(cell){cell.textContent='—';cell.style.color='var(--mu2)';} } else { soma+=at;n++; if(cell){cell.textContent=Math.round(at)+'%';cell.style.color=at>=90?'var(--ok)':at>=50?'var(--warn)':'var(--red)';} } });
   var kpiBlock=n?(soma/n)/100*70:0;
   var ri=el('q-'+id+'-ralos'); var ralos=ri?Math.max(0,Math.min(20,parseFloat(ri.value)||0)):0;
@@ -440,13 +492,15 @@ function salvarScore(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var r=re
   setTxt('q-'+id+'-msg','✓ score salvo ('+mes+')'); }
 function renderScoreCard(r){
   var mes=mesAtual(); var s=loadScore(r.id,mes)||{}; var kpis=KPIS_AREA[r.id]||[];
-  var rows=kpis.map(function(k){ var v=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:''; var a=k.dir==='maior'?'≥':'≤';
-    return '<tr><td>'+k.label+'</td><td style="color:var(--mu)">'+a+' '+k.metaLabel+'</td><td><input type="number" step="any" id="q-'+r.id+'-'+k.id+'" value="'+esc(v)+'" oninput="recalcScore(\''+r.id+'\')"></td><td class="at" id="q-'+r.id+'-at-'+k.id+'">—</td></tr>'; }).join('');
+  var adm=ehAdmin(); var mo=loadMetasOverlay(r.id);
+  var rows=kpis.map(function(k){ var v=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:''; var a=k.dir==='maior'?'≥':'≤'; var mv=metaEf(r.id,k); var hasOv=(mo&&mo[k.id]!=null&&mo[k.id]!=='');
+    var metaCell=adm?('<input type="number" step="any" id="qm-'+r.id+'-'+k.id+'" value="'+mv+'" onchange="editarMeta(\''+r.id+'\',\''+k.id+'\',this)" title="Editar meta (admin)" style="width:88px;background:var(--s2);border:1px solid var(--cyan);border-radius:6px;padding:4px 7px;color:var(--tx);font-family:inherit;font-size:.82rem;outline:none">'):('<span style="color:var(--mu)">'+a+' '+(hasOv?mv:k.metaLabel)+'</span>');
+    return '<tr><td>'+k.label+'</td><td>'+metaCell+'</td><td><input type="number" step="any" id="q-'+r.id+'-'+k.id+'" value="'+esc(v)+'" oninput="recalcScore(\''+r.id+'\')"></td><td class="at" id="q-'+r.id+'-at-'+k.id+'">—</td></tr>'; }).join('');
   var cult=CULTURA_ITENS.map(function(c,i){ var ck=(s.cultura&&s.cultura[i])?' checked':''; return '<label><input type="checkbox" id="q-'+r.id+'-cult-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> '+c+'</label>'; }).join('');
   var disc=DISCIPLINA_ENTREGAS.map(function(e,i){ var ck=(s.disciplina&&s.disciplina[i]!=null)?(s.disciplina[i]?' checked':''):' checked'; return '<label><input type="checkbox" id="q-'+r.id+'-disc-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> <span>'+e.nome+'</span> <span class="peso">−'+e.peso+'</span></label>'; }).join('');
   var ralos=(s.ralos!=null)?esc(s.ralos):'';
   return '<div class="card"><div class="sec">🎯 Score QDACE® — 100 pontos</div>'+
-    '<div class="rep-head"><label>Mês</label><input type="month" id="q-'+r.id+'-mes" value="'+mes+'" onchange="scoreTrocarMes(\''+r.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">70 KPIs · 20 Ralos · 10 Cultura · − Disciplina</span></div>'+
+    '<div class="rep-head"><label>Mês</label><input type="month" id="q-'+r.id+'-mes" value="'+mes+'" onchange="scoreTrocarMes(\''+r.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">70 KPIs · 20 Ralos · 10 Cultura · − Disciplina</span>'+(adm?' <span style="font-size:.72rem;color:var(--cyan)">✏️ metas editáveis (admin)</span>':'')+'</div>'+
     '<div class="subsec">Indicadores da área — 70 pts</div><table class="sc"><thead><tr><th>KPI</th><th>Meta</th><th>Realizado</th><th style="text-align:right">Atingimento</th></tr></thead><tbody>'+rows+'</tbody></table>'+
     '<div class="subsec">Fechar os Ralos — 20 pts</div><div class="ralos-row"><label style="font-size:.84rem;color:var(--mu)">Pontos (0–20):</label><input type="number" min="0" max="20" step="1" id="q-'+r.id+'-ralos" value="'+ralos+'" oninput="recalcScore(\''+r.id+'\')"><span style="font-size:.78rem;color:var(--mu2)">redução comprovada de custos e perdas</span></div>'+
     '<div class="subsec">Cultura — 10 pts (2 cada)</div><div class="cult">'+cult+'</div>'+
@@ -494,20 +548,17 @@ function salvarLucro(id){
   try{ localStorage.setItem(lucroKeyM(id,mes),JSON.stringify({mes:mes,checks:checks,delta:r.deltaMes,salvo_em:new Date().toISOString()})); }catch(e){}
   setTxt('lu-'+id+'-msg','✓ mês salvo ('+mes+') · trimestre '+r.total); recalcLucro(id);
 }
-function renderScoreCardB(r){
-  var mes=mesAtual(); var s=loadLucroM(r.id,mes)||{checks:{}};
-  function itemHTML(it,cls){ var ck=(s.checks&&s.checks[it.id])?' checked':''; return '<label class="lu-chk '+cls+'"><input type="checkbox" id="lu-'+r.id+'-'+it.id+'"'+ck+' onchange="recalcLucro(\''+r.id+'\')"> <span>'+it.label+'</span><span class="p">'+(cls==='pos'?'+':'−')+it.p+'</span></label>'; }
-  var grupos={}; LUCRO_SOMA.forEach(function(it){ (grupos[it.g]=grupos[it.g]||[]).push(it); });
-  var posHTML=Object.keys(grupos).map(function(g){ return '<div class="lu-grp"><div class="h">'+g+'</div><div class="lu-items">'+grupos[g].map(function(it){return itemHTML(it,'pos');}).join('')+'</div></div>'; }).join('');
-  var negHTML='<div class="lu-items">'+LUCRO_TIRA.map(function(it){return itemHTML(it,'neg');}).join('')+'</div>';
-  return '<div class="card"><div class="sec">🎯 Score — Missão Lucro Compartilhado (100 base / trimestre)</div>'+
-    '<div class="rep-head"><label>Mês</label><input type="month" id="lu-'+r.id+'-mes" value="'+mes+'" onchange="lucroTrocarMes(\''+r.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">marque o que aconteceu no mês · o trimestre acumula automático</span></div>'+
-    '<div class="subsec">O que soma</div>'+posHTML+
-    '<div class="subsec">O que tira</div>'+negHTML+
-    '<div class="score-total"><div><div class="org-lbl" style="margin:0 0 2px">Trimestre acumulado</div><span class="big" id="lu-'+r.id+'-total">100</span></div><span class="bk">Mês: soma <b id="lu-'+r.id+'-pos">+0</b> · tira <b id="lu-'+r.id+'-neg">−0</b> · delta <b id="lu-'+r.id+'-mesdelta">+0</b></span><span style="font-weight:700;font-size:.84rem" id="lu-'+r.id+'-apto">✓ apto (≥90)</span><span style="flex:1"></span><button class="btn-save" onclick="salvarLucro(\''+r.id+'\')">💾 Salvar mês</button><span class="rep-msg" id="lu-'+r.id+'-msg"></span></div>'+
-    '<div class="rota-nota">Base 100 no trimestre. Cada mês soma/subtrai. Para receber: <strong>≥90 pontos</strong> no trimestre <strong>E</strong> a loja bater as metas (Painel do CEO). Faixa/prêmio: 🥉 Bronze 0,25 · 🥈 Prata 0,50 · 🥇 Ouro 0,75 · 💎 Diamante 1 salário.</div></div>';
+function renderPremiacaoB(r){ return '<div class="card"><div class="sec" style="color:var(--teal)">🏆 Premiação — Lucro Compartilhado</div><div class="rep-head"><label>Trimestre</label><select id="premb-'+r.id+'-tri" onchange="premBAtualizar(\''+r.id+'\')">'+quarterOptions(triAtual())+'</select><span style="font-size:.76rem;color:var(--mu2)">média do Score dos meses · precisa ≥90 + loja</span></div><div id="premb-'+r.id+'-body"></div></div>'; }
+function premBAtualizar(id){ var tri=el('premb-'+id+'-tri').value; el('premb-'+id+'-body').innerHTML=premBBodyHTML(id,anoAtual(),tri); }
+function premBBodyHTML(id,ano,tri){
+  var m=trimestreMedia(id,ano,tri);
+  if(m==null) return '<p style="color:var(--mu)">Sem Score salvo nos meses deste trimestre.</p>';
+  var loja=loadLoja(ano,tri); var lf=loja?lojaFaixaCalc(loja.faturamento||0,loja.ebitda||0):null;
+  var condOk=loja&&loja.cond&&LOJA_CONDICOES.every(function(c,i){return loja.cond[i];});
+  var apto=m>=90; var premio=lf?lf.premio:'—';
+  var st=!apto?'<span style="color:var(--red);font-weight:700">abaixo de 90 — não elegível</span>':(condOk&&lf)?'<span style="color:var(--ok);font-weight:700">✓ recebe '+premio+'</span>':'<span style="color:var(--warn);font-weight:700">apto (≥90) — aguardando resultado da loja</span>';
+  return '<div class="score-total" style="border:none;padding:0;margin:0 0 4px"><div><div class="org-lbl" style="margin:0 0 2px">Score do trimestre</div><span class="big" style="color:'+(apto?'var(--ok)':'var(--red)')+'">'+m+'</span><span style="color:var(--mu);font-weight:700"> / 100</span></div><div><div class="org-lbl" style="margin:0 0 2px">Prêmio (loja)</div><strong style="font-size:1.05rem">'+premio+'</strong></div></div><div class="rota-nota">Status: '+st+'<br>Regra: <strong>≥90 pontos</strong> individuais <strong>E</strong> a loja bater faturamento/EBITDA/NPS/Google/auditoria (Painel do CEO). Faixa/prêmio da loja: 🥉 Bronze 0,25 · 🥈 Prata 0,50 · 🥇 Ouro 0,75 · 💎 Diamante 1 salário.</div>';
 }
-
 /* ── Organograma ── */
 function nodeHTML(p,cls){ return '<div class="org-node '+(cls||'')+'" id="org-node-'+p.id+'" onclick="abrirDetalhe(\''+p.id+'\')" title="Ver rotina, KPIs e interfaces"><div class="n">'+p.emoji+' '+p.nome+'</div><div class="f">'+p.funcao+'</div></div>'; }
 function renderOrg(){
@@ -585,13 +636,13 @@ function painelPessoa(p){
   var ent=reportEntregue(p.id,ontem());
   var badges=(p.comite?' <span class="tag-comite">Comitê Executivo</span>':'')+(p.frente==='B'?' <span class="tag-b">Mercearia · Gogui</span>':'');
   var nota=PAINEL_MINIMO[p.id]?('Painel mínimo cobrado: '+PAINEL_MINIMO[p.id]):(p.frente==='B'?'Frente: Mercearia Liberdade • Gogui (Restaurantes)':'');
-  var extra=(p.frente==='B')?renderScoreCardB(p):(KPIS_AREA[p.id]?(renderScoreCard(p)+renderPremiacaoCard(p)):'');
+  var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.frente==='B'?renderPremiacaoB(p):renderPremiacaoCard(p))):'';
   el('painel').innerHTML=
     '<div class="card"><div class="hero"><div class="emoji">'+p.emoji+'</div><div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+statusInlineHTML(ent)+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
     renderReportForm(p)+extra;
   atualizarStatusInline(p.id,ontem());
-  if(p.frente==='B') recalcLucro(p.id); else if(KPIS_AREA[p.id]){ recalcScore(p.id); premAtualizar(p.id); }
+  if(KPIS_AREA[p.id]){ recalcScore(p.id); if(p.frente==='B') premBAtualizar(p.id); else premAtualizar(p.id); }
 }
 function painelRodrigo(){
   var iso=ontem(),mes=mesAtual();
@@ -643,9 +694,9 @@ function painelCEO(){
   var condChecks=LOJA_CONDICOES.map(function(c,i){ return '<label><input type="checkbox" id="loja-c-'+i+'"'+((loja.cond&&loja.cond[i])?' checked':'')+'> '+c+'</label>'; }).join('');
   var condOk=loja.cond&&LOJA_CONDICOES.every(function(c,i){return loja.cond[i];});
   var lfHTML=lf?('<span class="faixa" style="color:var(--teal);border-color:var(--teal)">'+lf.faixa+' · '+lf.premio+'</span>'):'<span style="color:var(--mu)">abaixo do Bronze</span>';
-  var pbRows=pessoasParteB().map(function(p){ var _mm=quarterById(CEO_TRI).meses; var _tem=_mm.some(function(x){return loadLucroM(p.id,ano+'-'+x);}); var pts=_tem?lucroTriTotal(p.id,ano,CEO_TRI):null; var apto=(pts!=null&&pts>=90);
-    var recebe=(apto&&condOk&&lf); var st=(pts==null)?'<span style="color:var(--mu)">sem pontos</span>':(recebe?'<span style="color:var(--ok)">recebe '+(lf?lf.premio:'')+'</span>':(apto?'<span style="color:var(--warn)">apto — aguarda loja</span>':'<span style="color:var(--red)">abaixo de 90</span>'));
-    return '<tr><td>'+p.emoji+' <strong>'+p.nome+'</strong></td><td>'+(pts!=null?pts+' pts':'—')+'</td><td>'+st+'</td></tr>'; }).join('');
+  var pbRows=pessoasParteB().map(function(p){ var pts=trimestreMedia(p.id,ano,CEO_TRI); var apto=(pts!=null&&pts>=90);
+    var recebe=(apto&&condOk&&lf); var st=(pts==null)?'<span style="color:var(--mu)">sem score</span>':(recebe?'<span style="color:var(--ok)">recebe '+(lf?lf.premio:'')+'</span>':(apto?'<span style="color:var(--warn)">apto — aguarda loja</span>':'<span style="color:var(--red)">abaixo de 90</span>'));
+    return '<tr><td>'+p.emoji+' <strong>'+p.nome+'</strong></td><td>'+(pts!=null?pts+'/100':'—')+'</td><td>'+st+'</td></tr>'; }).join('');
   el('painel').innerHTML=
     '<div class="card"><div class="sec">Painel do CEO — visão geral</div><p style="font-size:.84rem;color:var(--mu);margin-bottom:8px">Adilson recebe a visão consolidada pelo Rodrigo e decide prioridades. A cobrança é <strong>por resultado, não por tarefa</strong>.</p><p style="font-size:.88rem;margin-bottom:8px">Q Food — reports do dia: <span class="kpi-big" style="color:'+(eg===tot?'var(--ok)':'var(--warn)')+'">'+eg+'/'+tot+'</span>'+(media!=null?' &nbsp;·&nbsp; Score médio ('+mes+'): <span class="faixa" style="color:'+mf.cor+';border-color:'+mf.cor+'">'+faixaIco(mf.nome)+' · '+media+'/100</span>':'')+'</p><blockquote style="font-size:.88rem;color:var(--tx);font-style:italic;border-left:3px solid var(--gold);padding:4px 0 4px 14px;margin:10px 0">Vamos fechar os ralos, abrir as torneiras e construir o melhor 2º semestre da nossa história.</blockquote></div>'+
     '<div class="card"><div class="ct">🎯 Score QDACE® por área (Q Food) — '+mes+'</div><table class="st"><thead><tr><th>Área</th><th>Função</th><th>Faixa · Score</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="rota-nota">💎 Diamante ≥100 · 🥇 Ouro 90–99 · 🥈 Prata 80–89 · 🥉 Bronze 70–79 · 🔴 Abaixo &lt;70.</div></div>'+
