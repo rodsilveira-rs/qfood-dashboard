@@ -309,7 +309,9 @@ var EMAIL_TO_VENDEDOR = {
   "claudia@qfoodcompany.com.br": {nome:"Claudia", sigla:"CG"},
   "camila@qfoodcompany.com.br":  {nome:"Camila",  sigla:"CC"},
   "kenyo@qfoodcompany.com.br":   {nome:"Kenyo",   sigla:"KE"},
-  "deane@qfoodcompany.com.br":   {nome:"Deane",   sigla:"DE"}
+  "deane@qfoodcompany.com.br":   {nome:"Deane",   sigla:"DE"},
+  "aparecida@qfoodcompany.com.br": {nome:"Aparecida (Food Service)", sigla:"AV", cards:["Aparecida (Food Service)","Aparecida (Varejo)"]},
+  "neucilene@qfoodcompany.com.br": {nome:"Neucilene (Food Service)", sigla:"NO", cards:["Neucilene (Food Service)","Neucilene (Varejo)"]}
 };
 
 // Guarda de sessão: define CURRENT_USER global
@@ -351,6 +353,7 @@ var CURRENT_USER = null;
     role: isAdmin ? "admin" : (isVendedor ? "vendedor" : "gestor"),
     nome: isVendedor ? vendInfo.nome : sess.nome,
     sigla: isVendedor ? vendInfo.sigla : (sess.sigla || ""),
+    cards: (isVendedor && vendInfo.cards) ? vendInfo.cards : null,
     isAdmin: isAdmin,
     isVendedor: isVendedor
   };
@@ -836,19 +839,42 @@ function trocarSubAba(qual){
 
   if(qual === "mes"){
     if(isAdmin) renderRemTeamGrid();
-    else        renderRemCard(CURRENT_USER ? CURRENT_USER.nome : "");
+    else        renderVendedorMulti(renderRemCard);
   } else if(qual === "acumulado"){
     if(isAdmin) renderAcumuladoTime();
-    else        renderAcumuladoVendedor(CURRENT_USER ? CURRENT_USER.nome : "");
+    else        renderVendedorMulti(renderAcumuladoVendedor);
   } else if(qual === "comparativo"){
     if(isAdmin) renderComparativoAdmin();
-    else        renderComparativoVendedor(CURRENT_USER ? CURRENT_USER.nome : "");
+    else        renderVendedorMulti(renderComparativoVendedor);
   } else if(qual === "evolucao"){
     if(isAdmin) renderEvolucaoAdmin();
-    else        renderEvolucaoVendedor(CURRENT_USER ? CURRENT_USER.nome : "");
+    else        renderVendedorMulti(renderEvolucaoVendedor);
   }
 }
+// Lista de fichas que o usuário logado deve ver.
+// Vendedores multi-canal (Aparecida, Neucilene) têm 2; os demais, 1.
+function getCardsDoUsuario(){
+  if(!CURRENT_USER) return [];
+  if(CURRENT_USER.cards && CURRENT_USER.cards.length) return CURRENT_USER.cards;
+  return CURRENT_USER.nome ? [CURRENT_USER.nome] : [];
+}
 
+// Renderiza uma OU várias fichas do vendedor logado na mesma sub-aba.
+// Se for 1 só, comporta-se igual antes. Se for multi-canal, empilha as fichas.
+function renderVendedorMulti(renderFn){
+  var cards = getCardsDoUsuario();
+  var cont = document.getElementById("rem-conteudo");
+  if(!cont) return;
+  if(cards.length <= 1){ renderFn(cards[0] || ""); return; }
+  var partes = [];
+  cards.forEach(function(nm){
+    renderFn(nm);                 // cada render escreve em #rem-conteudo
+    partes.push(cont.innerHTML);  // captura o HTML gerado
+  });
+  cont.innerHTML = partes.map(function(html, i){
+    return '<div style="margin-bottom:'+(i < partes.length-1 ? '26px' : '0')+'">'+html+'</div>';
+  }).join('');
+}
 // Helper: normaliza string (remove acentos + lowercase + trim) para comparar nomes de coluna
 function _norm(s){
   return String(s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
