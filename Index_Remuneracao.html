@@ -886,6 +886,7 @@ function getRemData(nome){
         meta_fat: parseBR(_getCol(row, "Meta Faturamento", "Meta\nFaturamento", "meta_fat", "meta") || "0"),
         pct_fat: parseBR(_getCol(row, "% Fat vs Meta", "% Fat\nvs Meta") || "0"),
         margem: parseBR(_getCol(row, "Margem %", "Margem\n%", "Margem", "margem") || "0"),
+        markup: parseBR(_getCol(row, "Markup %", "Markup\n%", "Markup", "markup") || "0"),
         posit_pct: parseBR(_getCol(row, "Positivação %", "Positivação\n%", "Positivacao %", "posit_pct", "positivacao") || "0"),
         novos: parseInt(String(_getCol(row, "Novos Clientes", "Novos\nClientes", "novos") || "0").replace(/[^0-9]/g,""))||0,
         trocas_pct: parseBR(_getCol(row, "Trocas %", "Trocas\n%", "trocas_pct", "trocas") || "0"),
@@ -916,6 +917,7 @@ function getRemData(nome){
     meta_fat:dm?dm.meta:0,
     pct_fat:0,
     margem:0,
+    markup:0,
     posit_pct:0,
     novos:0,
     trocas_pct:0,
@@ -937,8 +939,62 @@ var PERFIL_VENDEDOR = {
   Lucas:  "PJ", Vera: "PJ", Eder: "PJ", Kenyo: "PJ", Eliane: "PJ",
   Dayane: "CLT", Roberta: "CLT",
   Claudia: "KA-PJ",
-  Deane:   "DEANE"
+  Deane:   "DEANE",
+  // Aparecida e Neucilene atuam em 2 canais (Food Service + Varejo)
+  "Aparecida (Food Service)": "PJ-FS",
+  "Neucilene (Food Service)": "PJ-FS",
+  "Aparecida (Varejo)":       "PJ-KA",
+  "Neucilene (Varejo)":       "PJ-KA"
 };
+
+// ════════════════════════════════════════════════════════════════════
+// FOTOS DOS VENDEDORES (pasta: vendedores/NOME.SOBRENOME.webp)
+// Mapeia o nome exibido → arquivo de foto. Aparecida e Neucilene usam
+// a mesma foto em ambos os canais (FS + Varejo).
+// ════════════════════════════════════════════════════════════════════
+var FOTO_VENDEDOR = {
+  "Lucas":                    "vendedores/LUCAS.BRITES.webp",
+  "Vera":                     "vendedores/VERA.SILVA.webp",
+  "Dayane":                   "vendedores/DAYANE.NASCIMENTO.webp",
+  "Eliane":                   "vendedores/ELIANE.MOREIRA.webp",
+  "Eder":                     "vendedores/EDERSON.BARCELOS.webp",
+  "Claudia":                  "vendedores/CLAUDIA.GOMES.webp",
+  "Roberta":                  "vendedores/ROBERTA.ROSETTI.webp",
+  "Deane":                    "vendedores/DEANE.TREVINE.webp",
+  "Aparecida (Food Service)": "vendedores/APARECIDA.VINHAL.webp",
+  "Aparecida (Varejo)":       "vendedores/APARECIDA.VINHAL.webp",
+  "Neucilene (Food Service)": "vendedores/NEUCILENE.OLIVEIRA.webp",
+  "Neucilene (Varejo)":       "vendedores/NEUCILENE.OLIVEIRA.webp"
+};
+
+// Renderiza avatar do vendedor: se tiver foto no mapa, mostra a foto;
+// senão, mostra círculo colorido com as iniciais (fallback tradicional).
+// Se a foto der 404, o onerror substitui pelo círculo com iniciais.
+// Uso: renderAvatarVendedor("Lucas", { size: 64, siglaFallback: "LB", corFallback: "avLB" })
+function renderAvatarVendedor(nome, opts){
+  opts = opts || {};
+  var size = opts.size || 48;
+  var sigla = opts.siglaFallback || (nome.substring(0,2).toUpperCase());
+  var corClasse = opts.corFallback || "avLB";
+  var fontSize = opts.fontSize || Math.round(size * 0.35);
+  var fotoUrl = FOTO_VENDEDOR[nome];
+  var idFallback = "avfb_" + Math.random().toString(36).substring(2,10);
+
+  if(fotoUrl){
+    // Foto + fallback embutido (se der 404, mostra div com iniciais)
+    return ''+
+      '<div style="position:relative;width:'+size+'px;height:'+size+'px;border-radius:50%;overflow:hidden;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.08)">'+
+        '<img src="'+fotoUrl+'" alt="'+nome+'" loading="lazy" '+
+             'style="width:100%;height:100%;object-fit:cover;object-position:center top;display:block" '+
+             'onerror="this.style.display=\'none\';var f=document.getElementById(\''+idFallback+'\');if(f)f.style.display=\'flex\';">'+
+        '<div id="'+idFallback+'" class="mav2 '+corClasse+'" style="display:none;position:absolute;inset:0;width:100%;height:100%;border-radius:50%;align-items:center;justify-content:center;font-family:var(--fh);font-size:'+fontSize+'px;font-weight:800">'+sigla+'</div>'+
+      '</div>';
+  }
+
+  // Sem foto no mapa → avatar com iniciais direto
+  return '<div class="mav2 '+corClasse+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:'+fontSize+'px;font-weight:800;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.08)">'+sigla+'</div>';
+}
+
 
 // Metas individuais de OVER META (R$ de faturamento)
 // PDF: bater meta + margem >= 30% => R$ 2.000
@@ -992,6 +1048,22 @@ var REGRAS_TXT = {
     marg:  "<19% = 0% · 19-24% = 0,60% · 25-29% = 1,35% · ≥30% = 3,00%",
     posit: "—",
     novos: "<10 abert. = R$ 0 · 10-19 = R$ 20/abert. · 20+ = R$ 30/abert. (mín. R$ 300/pedido)"
+  },
+  "PJ-FS": {
+    // Aparecida / Neucilene — canal Food Service
+    fat:   "Comissão progressiva por Markup",
+    marg:  "Markup até 14,99% = 0,5% · Markup ≥ 15% = Markup ÷ 10 (ex: Markup 20% = 2,0%)",
+    posit: "Não afeta o cálculo neste perfil — reservado",
+    trocas:"Se trocas > 2% do faturamento → penalidade de -1pp no total",
+    novos: "R$ 1.500 a cada bloco de 20 novos clientes elegíveis (1º pedido + recompra ≥ R$ 1.000 em 60 dias)"
+  },
+  "PJ-KA": {
+    // Aparecida / Neucilene — canal Varejo (Key Account)
+    fat:   "Faturamento até R$ 200K = 3% · 200-300K = 4% · 300-400K = 5% · acima de R$ 500K = 6%",
+    marg:  "Não afeta o cálculo neste perfil — reservado",
+    posit: "Não afeta o cálculo neste perfil — reservado",
+    trocas:"Se trocas > 2% do faturamento → penalidade de -1pp no total",
+    novos: "R$ 1.500 a cada bloco de 20 novos clientes elegíveis (1º pedido + recompra ≥ R$ 1.000 em 60 dias)"
   }
 };
 
@@ -1103,6 +1175,147 @@ function calcRemuneracao(d){
       regra: regras.posit,
       tipoMetrica: "posit",
       valorMetrica: d.posit_pct
+    });
+  } else if(perfil === "PJ-FS"){
+    // ═══════════════════════════════════════════════════════════════
+    // APARECIDA / NEUCILENE — Canal Food Service
+    // Comissão progressiva baseada no MARKUP:
+    //   < 15% → 0,5% fixo
+    //   ≥ 15% → Markup ÷ 10 (ex: markup 20% = 2,0%; markup 45% = 4,5%)
+    // Penalidade: se Trocas > 2% → -1pp do total (aplicado no pós-processamento)
+    // Prêmio Novos: R$ 1.500 a cada bloco de 20 novos clientes elegíveis
+    // Positivação NÃO afeta — card fica "dormindo" (gateOnly + descritivo)
+    // ═══════════════════════════════════════════════════════════════
+    var markup = d.markup || 0;
+    var pctFS = 0;
+    if(markup < 15) pctFS = 0.5;
+    else            pctFS = markup / 10;
+
+    pilares.push({
+      nome:"Faturamento",
+      pct: 0, // não paga sozinho — é o pilar de contexto
+      desc: "Faturamento realizado no canal Food Service",
+      ok: fat > 0,
+      base: fat, valor: 0,
+      regra: "Base para aplicação da comissão progressiva por Markup",
+      tipoMetrica: "fat",
+      valorMetrica: pctFat,
+      gateOnly: true // não paga, mas indica que o canal existe
+    });
+    pilares.push({
+      nome:"Markup",
+      pct: pctFS,
+      desc: markup < 15
+        ? "Markup "+formatPct(markup)+" (< 15%) → comissão fixa 0,50%"
+        : "Markup "+formatPct(markup)+" → comissão de "+formatPct(pctFS)+" (Markup ÷ 10)",
+      ok: pctFS > 0 && fat > 0,
+      base: fat, valor: fat*(pctFS/100),
+      regra: regras.marg,
+      tipoMetrica: "markup",
+      valorMetrica: markup
+    });
+    // Positivação "dormindo"
+    pilares.push({
+      nome:"Positivação",
+      pct: 0,
+      desc: "Positivação "+formatPct(d.posit_pct)+" — não afeta o cálculo neste perfil",
+      ok: false,
+      base: 0, valor: 0,
+      regra: regras.posit,
+      tipoMetrica: "posit",
+      valorMetrica: d.posit_pct,
+      gateOnly: true,
+      dormindo: true
+    });
+    // Novos Clientes (R$ fixo — R$ 1.500 por bloco de 20)
+    var p4rFS = d.p4_novos;
+    pilares.push({
+      nome:"Novos Clientes",
+      pct: 0,
+      desc: p4rFS>0
+        ? d.novos+" cliente(s) elegível(is) → R$ "+formatNum(p4rFS)+" ("+Math.floor(p4rFS/1500)+" bloco(s) de 20)"
+        : (d.novos>0
+            ? d.novos+" cliente(s) elegível(is) — precisa completar bloco de 20"
+            : "Sem novos clientes elegíveis"),
+      ok: p4rFS>0,
+      base: 0, valor: p4rFS,
+      tipo:"reais",
+      regra: regras.novos,
+      tipoMetrica: "novos",
+      valorMetrica: d.novos
+    });
+  } else if(perfil === "PJ-KA"){
+    // ═══════════════════════════════════════════════════════════════
+    // APARECIDA / NEUCILENE — Canal Varejo (Key Account)
+    // Comissão progressiva por faixa de FATURAMENTO:
+    //   ≤ 200K → 3,0%
+    //   200-300K → 4,0%
+    //   300-400K → 5,0%
+    //   400-500K → 5,0% (mesma faixa anterior — indefinido no contrato)
+    //   > 500K → 6,0%
+    // Penalidade: se Trocas > 2% → -1pp (aplicado no pós-processamento)
+    // Margem e Positivação NÃO afetam — cards "dormindo"
+    // Novos: R$ 1.500 a cada bloco de 20
+    // ═══════════════════════════════════════════════════════════════
+    var pctKA = 0;
+    if     (fat <= 200000) pctKA = 3;
+    else if(fat <= 300000) pctKA = 4;
+    else if(fat <= 400000) pctKA = 5;
+    else if(fat <= 500000) pctKA = 5;
+    else                   pctKA = 6;
+
+    pilares.push({
+      nome:"Faturamento",
+      pct: pctKA,
+      desc: "Faturamento "+fv(fat)+" → faixa de comissão "+formatPct(pctKA),
+      ok: pctKA > 0 && fat > 0,
+      base: fat, valor: fat*(pctKA/100),
+      regra: regras.fat,
+      tipoMetrica: "fat",
+      valorMetrica: pctFat
+    });
+    // Margem "dormindo"
+    pilares.push({
+      nome:"Margem Média",
+      pct: 0,
+      desc: "Margem "+formatPct(d.margem)+" — não afeta o cálculo neste perfil",
+      ok: false,
+      base: 0, valor: 0,
+      regra: regras.marg,
+      tipoMetrica: "marg",
+      valorMetrica: d.margem,
+      gateOnly: true,
+      dormindo: true
+    });
+    // Positivação "dormindo"
+    pilares.push({
+      nome:"Positivação",
+      pct: 0,
+      desc: "Positivação "+formatPct(d.posit_pct)+" — não afeta o cálculo neste perfil",
+      ok: false,
+      base: 0, valor: 0,
+      regra: regras.posit,
+      tipoMetrica: "posit",
+      valorMetrica: d.posit_pct,
+      gateOnly: true,
+      dormindo: true
+    });
+    // Novos Clientes
+    var p4rKA = d.p4_novos;
+    pilares.push({
+      nome:"Novos Clientes",
+      pct: 0,
+      desc: p4rKA>0
+        ? d.novos+" cliente(s) elegível(is) → R$ "+formatNum(p4rKA)+" ("+Math.floor(p4rKA/1500)+" bloco(s) de 20)"
+        : (d.novos>0
+            ? d.novos+" cliente(s) elegível(is) — precisa completar bloco de 20"
+            : "Sem novos clientes elegíveis"),
+      ok: p4rKA>0,
+      base: 0, valor: p4rKA,
+      tipo:"reais",
+      regra: regras.novos,
+      tipoMetrica: "novos",
+      valorMetrica: d.novos
     });
   } else {
     // PJ ou CLT — leitura direta dos pilares calculados pela planilha
@@ -1342,6 +1555,16 @@ function calcRemuneracao(d){
 
   // Total = soma dos pilares (sempre em R$, ja que mistura % e R$ fixo)
   var totalPilares = pilares.reduce(function(a,p){ return a + (p.valor||0); }, 0);
+
+  // ── PENALIDADE DE TROCAS (PJ-FS e PJ-KA) ──
+  // Se trocas > 2%, reduz 1 ponto percentual do total sobre faturamento
+  // Se premio_sheet já vem da planilha, ela já aplicou a penalidade — não mexemos.
+  var penalidadeTrocas = 0;
+  if((perfil === "PJ-FS" || perfil === "PJ-KA") && d.trocas_pct > 2 && d.premio_sheet <= 0){
+    penalidadeTrocas = fat * 0.01; // -1pp × faturamento
+    totalPilares = Math.max(0, totalPilares - penalidadeTrocas);
+  }
+
   // Cross-check: se planilha tem premio_sheet, usa ele como verdade
   var premioFinal = d.premio_sheet>0 ? d.premio_sheet : totalPilares;
   // Soma bonus
@@ -1412,8 +1635,11 @@ function calcRemuneracao(d){
 
     // Determina status
     var limiar = QUASE_LA[p.tipoMetrica] || 0;
-    var distancia = p.barra.falta;
-    if(p.contaminado){
+    var distancia = p.barra ? p.barra.falta : 0;
+    if(p.dormindo){
+      // Pilar "dormindo" — não afeta o cálculo (ex: Positivação nos perfis PJ-FS/PJ-KA)
+      p.status = "gray";
+    } else if(p.contaminado){
       // Pilar com dado contaminado na planilha — neutro (azul)
       p.status = "blue";
     } else if(p.gateOnly){
@@ -1427,8 +1653,10 @@ function calcRemuneracao(d){
       p.status = "red";
     }
     // Cor do status
-    p.cor = COR_STATUS[p.status];
-    if(p.contaminado){
+    p.cor = COR_STATUS[p.status] || COR_STATUS.red;
+    if(p.dormindo){
+      p.badge = { txt:"Não afeta", icon:"—" };
+    } else if(p.contaminado){
       p.badge = { txt:"Verificar", icon:"!" };
     } else if(p.gateOnly){
       p.badge = p.ok ? { txt:"Liberado", icon:"✓" } : { txt:"Não liberado", icon:"○" };
@@ -1456,6 +1684,19 @@ function formatPct(v){
   // Se for inteiro, sem decimais
   if(Math.abs(v - Math.round(v)) < 0.01) return Math.round(v)+"%";
   return v.toFixed(2).replace(".",",")+"%";
+}
+
+// Mostra o perfil de forma humanizada no badge
+function labelPerfil(perfil){
+  var map = {
+    "PJ":    "PJ",
+    "CLT":   "CLT",
+    "KA-PJ": "KA-PJ",
+    "DEANE": "PJ",       // Deane é PJ com regra especial
+    "PJ-FS": "PJ · Food Service",
+    "PJ-KA": "PJ · Varejo"
+  };
+  return map[perfil] || perfil;
 }
 function formatNum(v){
   return Math.abs(parseFloat(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1566,7 +1807,8 @@ var COR_STATUS = {
   green:  { primaria:"#10b981", bg:"rgba(16,185,129,0.08)", bd:"rgba(16,185,129,0.25)", barra:"#10b981" },
   yellow: { primaria:"#f59e0b", bg:"rgba(245,158,11,0.08)", bd:"rgba(245,158,11,0.28)", barra:"#f59e0b" },
   red:    { primaria:"#e63329", bg:"rgba(230,51,41,0.06)",  bd:"rgba(230,51,41,0.22)",  barra:"#e63329" },
-  blue:   { primaria:"#3b82f6", bg:"rgba(59,130,246,0.06)", bd:"rgba(59,130,246,0.22)", barra:"#3b82f6" }
+  blue:   { primaria:"#3b82f6", bg:"rgba(59,130,246,0.06)", bd:"rgba(59,130,246,0.22)", barra:"#3b82f6" },
+  gray:   { primaria:"#94a3b8", bg:"rgba(148,163,184,0.05)",bd:"rgba(148,163,184,0.18)",barra:"#94a3b8" }
 };
 
 // Texto e ícone do badge de status
@@ -1574,7 +1816,8 @@ var BADGE_INFO = {
   green:  { txt:"Atingido",     icon:"✓" },
   yellow: { txt:"Quase lá",     icon:"⚡" },
   red:    { txt:"Não atingiu",  icon:"○" },
-  blue:   { txt:"Bônus",        icon:"★" }
+  blue:   { txt:"Bônus",        icon:"★" },
+  gray:   { txt:"Não afeta",    icon:"—" }
 };
 
 // Calcula barra de progresso entre faixa atual e proxima
@@ -1671,6 +1914,7 @@ function renderPilarHTML(p, opts){
   // Contexto da métrica
   var ctxLabel = "";
   if(p.tipoMetrica==="marg")       ctxLabel = "Margem atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong>";
+  else if(p.tipoMetrica==="markup") ctxLabel = "Markup atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong>";
   else if(p.tipoMetrica==="posit") ctxLabel = "Positivação atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong>";
   else if(p.tipoMetrica==="fat")   ctxLabel = "Faturamento atual: <strong style=\"color:var(--tx)\">"+formatPct(p.valorMetrica)+"</strong> da meta";
   else if(p.tipoMetrica==="novos") ctxLabel = "Aberturas no mês: <strong style=\"color:var(--tx)\">"+(p.valorMetrica||0)+"</strong>";
@@ -1738,6 +1982,7 @@ function renderOportunidadesHTML(r, d){
     if(p.status === "green") return;
     if(p.contaminado) return;
     if(p.gateOnly && p.ok) return;
+    if(p.dormindo) return; // pilar dormindo não vira oportunidade
     if(!p.barra || p.barra.maxAtingido) return;
 
     var ganhoExtra = 0;
@@ -1771,6 +2016,34 @@ function renderOportunidadesHTML(r, d){
         var faltaPP = (p.barra && p.barra.falta) ? p.barra.falta : 0;
         faltaTxt = "Suba a margem em "+faltaPP.toFixed(1).replace(".",",")+" ponto(s) (atingir "+(d.margem+faltaPP).toFixed(0)+"%)";
         ganhoExtra = fat * (deltaPct/100);
+      }
+    }
+    else if(tipo === "markup"){
+      // PJ-FS — comissão = markup/10 (a partir de 15%)
+      // Sugestão: subir para a próxima faixa "cheia" (+1pp ou +5pp)
+      var mk = d.markup || 0;
+      var pctAtualMk = p.pct || 0;
+      if(mk < 15){
+        // Está na comissão fixa 0,5% — passando de 15% ganha markup/10
+        var deltaMk = 15 - mk;
+        var proxComissao = 15/10; // 1,5%
+        var deltaComMk = proxComissao - pctAtualMk;
+        if(deltaComMk > 0){
+          faltaTxt = "Suba o Markup em "+deltaMk.toFixed(1).replace(".",",")+" ponto(s) para bater 15% (comissão passa de 0,5% para 1,5%)";
+          ganhoExtra = fat * (deltaComMk/100);
+        }
+      } else {
+        // Já está acima de 15% — sugere subir +5pp (por exemplo)
+        var proxAlvo = Math.ceil(mk/5)*5 + 5;
+        if(proxAlvo > mk){
+          var deltaMk2 = proxAlvo - mk;
+          var proxCom = proxAlvo/10;
+          var deltaCom = proxCom - pctAtualMk;
+          if(deltaCom > 0){
+            faltaTxt = "Suba o Markup em "+deltaMk2.toFixed(1).replace(".",",")+" ponto(s) (atingir "+proxAlvo+"%) — comissão passa para "+formatPct(proxCom);
+            ganhoExtra = fat * (deltaCom/100);
+          }
+        }
       }
     }
     else if(tipo === "posit"){
@@ -1823,7 +2096,7 @@ function renderOportunidadesHTML(r, d){
         nome: p.nome,
         faltaTxt: faltaTxt,
         ganhoExtra: ganhoExtra,
-        icon: tipo==="fat"?"💰":tipo==="marg"?"📈":tipo==="posit"?"🎯":tipo==="novos"?"🤝":tipo==="trocas"?"📦":"⚡"
+        icon: tipo==="fat"?"💰":tipo==="marg"?"📈":tipo==="markup"?"🚀":tipo==="posit"?"🎯":tipo==="novos"?"🤝":tipo==="trocas"?"📦":"⚡"
       });
     }
   });
@@ -1940,14 +2213,14 @@ function renderRemCardCompleto(nome, opts){
   var headerHTML =
     '<div style="display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid rgba(255,255,255,0.08)">'+
       // Avatar maior e com leve glow
-      '<div class="mav2 '+av+'" style="width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--fh);font-size:1.15rem;font-weight:700;letter-spacing:0.02em;flex-shrink:0;box-shadow:0 0 0 1px rgba(255,255,255,0.08)">'+siglaDisp+'</div>'+
+      renderAvatarVendedor(nome, { size: 64, siglaFallback: siglaDisp, corFallback: av, fontSize: 18 })+
       // Bloco central: nome + perfil + subtitulo
       '<div style="min-width:0">'+
         '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+
           // NOME — hierarquia maxima, letter-spacing leve negativo (bom para fontes grandes)
           '<div style="font-family:var(--fh);font-size:2rem;font-weight:700;color:var(--tx);letter-spacing:-0.015em;line-height:1.1">'+nome+'</div>'+
           // Tag de perfil
-          '<span style="font-family:var(--fh);font-size:0.62rem;font-weight:700;color:var(--mu);background:var(--s2);padding:5px 12px;border-radius:99px;text-transform:uppercase;letter-spacing:0.08em;border:1px solid var(--br)">'+r.perfil+'</span>'+
+          '<span style="font-family:var(--fh);font-size:0.62rem;font-weight:700;color:var(--mu);background:var(--s2);padding:5px 12px;border-radius:99px;text-transform:uppercase;letter-spacing:0.08em;border:1px solid var(--br)">'+labelPerfil(r.perfil)+'</span>'+
         '</div>'+
         // Subtitulo arejado
         '<div style="font-size:0.85rem;color:var(--mu);margin-top:8px;letter-spacing:0.005em;font-weight:400">Remuneração variável <span style="opacity:0.4;margin:0 6px">·</span> '+(d.mes||new Date().toLocaleDateString("pt-BR",{month:"long",year:"numeric"}))+'</div>'+
@@ -2073,10 +2346,10 @@ function renderMiniCard(nome){
         'onmouseout="this.style.borderColor=\'var(--br)\';this.style.transform=\'translateY(0)\';this.style.boxShadow=\'none\'">'+
       // Header: avatar + nome + perfil
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
-        '<div class="mav2 '+av+'" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0">'+siglaDisp+'</div>'+
+        renderAvatarVendedor(nome, { size: 42, siglaFallback: siglaDisp, corFallback: av, fontSize: 13 })+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-family:var(--fh);font-size:1rem;font-weight:800;color:var(--tx);letter-spacing:-0.015em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+nome+'</div>'+
-          '<div style="font-size:0.6rem;color:var(--mu);font-weight:600;letter-spacing:0.3px;text-transform:uppercase;margin-top:2px">'+r.perfil+'</div>'+
+          '<div style="font-size:0.6rem;color:var(--mu);font-weight:600;letter-spacing:0.3px;text-transform:uppercase;margin-top:2px">'+labelPerfil(r.perfil)+'</div>'+
         '</div>'+
       '</div>'+
       // Prêmio principal
@@ -2154,7 +2427,7 @@ function fecharModalRem(){
 function renderRemTeamGrid(){
   var card = document.getElementById('rem-conteudo') || document.getElementById('rem-card');
   if(!card) return;
-  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Deane"];
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Deane","Aparecida (Food Service)","Neucilene (Food Service)","Aparecida (Varejo)","Neucilene (Varejo)"];
 
   // KPIs do time (no mês selecionado)
   var totalTime = 0;
@@ -2219,7 +2492,7 @@ function renderAcumuladoVendedor(nome){
   cont.innerHTML =
     '<div style="background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:24px;margin-bottom:18px">'+
       '<div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">'+
-        '<div class="mav2 '+av+'" style="width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800">'+sigla+'</div>'+
+        renderAvatarVendedor(nome, { size: 52, siglaFallback: sigla, corFallback: av, fontSize: 16 })+
         '<div>'+
           '<div style="font-family:var(--fh);font-size:1.3rem;font-weight:800;color:var(--tx);letter-spacing:-0.02em">'+nome+'</div>'+
           '<div style="font-size:0.78rem;color:var(--mu);margin-top:2px">Acumulado em '+ano+' · '+ac.meses+' '+(ac.meses===1?'mês fechado':'meses fechados')+'</div>'+
@@ -2240,7 +2513,7 @@ function renderAcumuladoTime(){
   var cont = document.getElementById("rem-conteudo");
   if(!cont) return;
   var ano = new Date().getFullYear();
-  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Kenyo","Deane"];
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Kenyo","Deane","Aparecida (Food Service)","Neucilene (Food Service)","Aparecida (Varejo)","Neucilene (Varejo)"];
 
   // Calcula acumulado de cada um e ordena por prêmio
   var ranking = vendores.map(function(n){
@@ -2268,7 +2541,7 @@ function renderAcumuladoTime(){
         'onmouseover="this.style.borderColor=\'var(--b2)\'" onmouseout="this.style.borderColor=\'var(--br)\'">'+
         '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">'+
           '<div style="font-family:var(--fh);font-size:1.4rem;font-weight:800;color:'+corPos+';width:36px;text-align:center">'+medalha+'</div>'+
-          '<div class="mav2 '+av+'" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800">'+sigla+'</div>'+
+            renderAvatarVendedor(n, { size: 38, siglaFallback: sigla, corFallback: av, fontSize: 12 })+
           '<div style="flex:1;min-width:0">'+
             '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+n+'</div>'+
             '<div style="font-size:0.65rem;color:var(--mu)">'+ac.meses+' '+(ac.meses===1?'mês':'meses')+' · média '+fv(medio)+'</div>'+
@@ -2363,7 +2636,7 @@ function renderComparativoAdmin(){
   var cont = document.getElementById("rem-conteudo");
   if(!cont) return;
   var meses = HISTORICO_REMUNERACAO.slice();
-  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Kenyo","Deane"];
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Kenyo","Deane","Aparecida (Food Service)","Neucilene (Food Service)","Aparecida (Varejo)","Neucilene (Varejo)"];
 
   if(meses.length === 0){
     cont.innerHTML = '<div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:40px;text-align:center;color:var(--mu)">Nenhum mês no histórico ainda.</div>';
@@ -2442,7 +2715,7 @@ function renderEvolucaoVendedor(nome){
 function renderEvolucaoAdmin(){
   var cont = document.getElementById("rem-conteudo");
   if(!cont) return;
-  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Kenyo","Deane"];
+  var vendores = ["Lucas","Vera","Dayane","Eliane","Eder","Claudia","Roberta","Kenyo","Deane","Aparecida (Food Service)","Neucilene (Food Service)","Aparecida (Varejo)","Neucilene (Varejo)"];
 
   var graficos = vendores.map(function(n){
     return ''+
@@ -2545,7 +2818,7 @@ function renderGraficoMensal(nome, opts){
 
   var headerCard = compact
     ? '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'+
-        '<div class="mav2 '+av+'" style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800">'+sigla+'</div>'+
+        renderAvatarVendedor(nome, { size: 32, siglaFallback: sigla, corFallback: av, fontSize: 10 })+
         '<div style="flex:1;min-width:0">'+
           '<div style="font-family:var(--fh);font-size:0.95rem;font-weight:700">'+nome+'</div>'+
           '<div style="font-size:0.65rem;color:var(--mu)">Total: <strong style="color:#10b981">'+fv(totalAno)+'</strong></div>'+
@@ -2553,7 +2826,7 @@ function renderGraficoMensal(nome, opts){
       '</div>'
     : '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">'+
         '<div style="display:flex;align-items:center;gap:12px">'+
-          '<div class="mav2 '+av+'" style="width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">'+sigla+'</div>'+
+          renderAvatarVendedor(nome, { size: 42, siglaFallback: sigla, corFallback: av, fontSize: 13 })+
           '<div>'+
             '<div style="font-family:var(--fh);font-size:1.1rem;font-weight:800">'+nome+'</div>'+
             '<div style="font-size:0.7rem;color:var(--mu)">Últimos '+pontos.length+' meses</div>'+
