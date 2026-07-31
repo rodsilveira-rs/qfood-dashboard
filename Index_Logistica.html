@@ -2661,7 +2661,10 @@ function logShowTab(tab){
 // ════════════════════════════════════════════════════════════════
 
 var UDEV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=543400305&single=true&output=csv";
-var ENT_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739535201&single=true&output=csv";
+// REGISTRO — dados a partir de 01/06/2026 (gid=1739535201)
+var ENT_URL_REGISTRO="https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739535201&single=true&output=csv";
+// REGISTRO2 — arquivo histórico (anterior a 01/06/2026, gid=1739874153)
+var ENT_URL_REGISTRO2="https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739874153&single=true&output=csv";
 
 // ════════════════════════════════════════════════════════════════
 // VARIAVEIS GLOBAIS — Entregas e Devolucoes
@@ -2792,14 +2795,23 @@ async function initEntregas(){
   console.log("[ENT] Iniciando carregamento de Entregas...");
   var t0 = Date.now();
   try{
-    var r=await fetch(ENT_URL+"&t="+Date.now());
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    console.log("[ENT] Fetch OK em", Date.now()-t0, "ms. Baixando CSV...");
-    var txt=await r.text();
-    console.log("[ENT] CSV baixado:", (txt.length/1024).toFixed(1), "KB em", Date.now()-t0, "ms. Parseando...");
-    if(txt.trim().startsWith("<")) throw new Error("Planilha não publicada como CSV.");
-    entAllRows=csv(txt);
-    console.log("[ENT] Parse completo:", entAllRows.length, "linhas em", Date.now()-t0, "ms");
+    // Baixa REGISTRO + REGISTRO2 em paralelo (mais rápido que sequencial)
+    var ts = Date.now();
+    var [r1, r2] = await Promise.all([
+      fetch(ENT_URL_REGISTRO + "&t=" + ts),
+      fetch(ENT_URL_REGISTRO2 + "&t=" + ts)
+    ]);
+    if(!r1.ok) throw new Error("HTTP REGISTRO "+r1.status);
+    if(!r2.ok) throw new Error("HTTP REGISTRO2 "+r2.status);
+    console.log("[ENT] Fetch OK em", Date.now()-t0, "ms. Baixando CSVs...");
+    var [txt1, txt2] = await Promise.all([r1.text(), r2.text()]);
+    console.log("[ENT] CSVs baixados:", ((txt1.length+txt2.length)/1024).toFixed(1), "KB em", Date.now()-t0, "ms. Parseando...");
+    if(txt1.trim().startsWith("<")) throw new Error("REGISTRO não publicada como CSV.");
+    if(txt2.trim().startsWith("<")) throw new Error("REGISTRO2 não publicada como CSV.");
+    var rows1 = csv(txt1);
+    var rows2 = csv(txt2);
+    entAllRows = rows1.concat(rows2);
+    console.log("[ENT] Parse completo:", entAllRows.length, "linhas totais ("+rows1.length+" REGISTRO + "+rows2.length+" REGISTRO2) em", Date.now()-t0, "ms");
     entLoaded=true;
     entPopulateMotoristas();
     entSetDefaultDates();
