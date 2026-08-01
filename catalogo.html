@@ -392,22 +392,24 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
 .ph{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .ph img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 
-/* ===== MENU LATERAL / PAINEIS ===== */
-.wrap{display:flex;gap:20px;align-items:flex-start}
-.sidebar{position:sticky;top:64px;flex-shrink:0;width:210px;display:flex;flex-direction:column;gap:6px;background:var(--branco);border:1px solid var(--linha);border-radius:14px;padding:10px;z-index:20}
-.side-item{display:flex;align-items:center;gap:12px;width:100%;background:transparent;border:none;border-radius:10px;padding:12px 14px;font-size:14.5px;font-weight:700;color:var(--grafite);cursor:pointer;text-align:left;transition:.15s;font-family:inherit}
-.side-item .si-ic{font-size:20px;flex-shrink:0;width:24px;text-align:center}
-.side-item:hover{background:#f1f1f3}
-.side-item.active{background:var(--vermelho);color:#fff}
-.conteudo{flex:1;min-width:0}
-.tabpane[hidden]{display:none}
-@media(max-width:820px){
-  .wrap{gap:10px;padding:14px 10px}
-  .sidebar{width:58px;top:56px;padding:8px 6px;gap:4px}
-  .side-item{justify-content:center;padding:12px 4px;gap:0}
-  .side-item .si-tx{display:none}
-  .side-item .si-ic{width:auto}
-}
+/* ===== MEGA-MENU (categorias inteligentes) ===== */
+.mega{display:flex;flex-wrap:wrap;gap:4px;padding:6px 0 4px;margin:2px 0 16px;border-bottom:1px solid var(--linha)}
+.mseg{background:transparent;border:none;font-family:inherit;font-weight:700;font-size:14px;color:var(--grafite);padding:8px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.mseg i{font-style:normal;font-size:10px;opacity:.55}
+.mseg:hover{background:#f1f1f3}
+.mseg.on{background:var(--sc,var(--vermelho));color:#fff}
+.mseg.todos.on{background:var(--vermelho)}
+.mseg-wrap{position:relative}
+.mdrop{position:absolute;top:calc(100% + 4px);left:0;z-index:70;background:#fff;border:1px solid var(--linha);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.16);padding:12px;min-width:250px;max-width:88vw;display:none}
+.mseg-wrap.open .mdrop{display:block}
+@media(hover:hover){.mseg-wrap:hover .mdrop{display:block}}
+.mdrop-h{font-weight:800;font-size:12.5px;color:var(--vermelho);padding:4px 8px 8px;cursor:pointer;border-bottom:1px solid var(--linha);margin-bottom:6px}
+.mdrop-cols{display:grid;grid-template-columns:1fr;gap:2px;max-height:56vh;overflow:auto}
+@media(min-width:820px){.mdrop-cols{grid-template-columns:1fr 1fr;min-width:430px}}
+.mdrop-cols a{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:7px 9px;border-radius:8px;font-size:13.5px;cursor:pointer;color:var(--grafite);text-decoration:none}
+.mdrop-cols a:hover{background:#f1f1f3}
+.mdrop-cols a.on{background:var(--vermelho);color:#fff}
+.mdrop-cols a b{font-weight:700;opacity:.55;font-size:12px}
 </style>
 </head>
 <body>
@@ -423,52 +425,39 @@ button{font-family:inherit;cursor:pointer;border:none}input{font-family:inherit}
   </header>
 
 <div class="wrap">
-  <aside class="sidebar" id="sidebar">
-    <button class="side-item active" data-p="catalogo" onclick="mostrarPainel('catalogo',this)"><span class="si-ic">🛍️</span><span class="si-tx">Catálogo</span></button>
-    <button class="side-item" data-p="ofertas" onclick="mostrarPainel('ofertas',this)"><span class="si-ic">🔥</span><span class="si-tx">Ofertas</span></button>
-    <button class="side-item" data-p="mais" onclick="mostrarPainel('mais',this)"><span class="si-ic">⭐</span><span class="si-tx">Mais vendidos</span></button>
-    <button class="side-item" data-p="videos" onclick="mostrarPainel('videos',this)"><span class="si-ic">🎬</span><span class="si-tx">Vídeos &amp; Datas</span></button>
-  </aside>
-  <main class="conteudo">
-      <div class="brand-card">
+  <div class="cal-banner" onclick="abrirCalendario()"><div class="cal-ico"><svg viewBox="0 0 48 48" width="54" height="54" fill="none"><rect x="4" y="10" width="40" height="34" rx="5" fill="#fff" stroke="currentColor" stroke-width="2.5"/><path d="M4 16a6 6 0 0 1 6-6h28a6 6 0 0 1 6 6v2H4z" fill="currentColor"/><line x1="15" y1="5" x2="15" y2="13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><line x1="33" y1="5" x2="33" y2="13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><text x="24" y="39" font-size="17" font-weight="800" fill="currentColor" text-anchor="middle" font-family="Arial,sans-serif">31</text></svg></div><div class="cal-bt"><b>Calendário de Eventos</b><small>Planeje-se: as datas que mais aquecem suas vendas 📈</small></div><span class="cal-arrow">›</span></div>
+<div class="cal-prox" id="calProx" onclick="abrirCalendario()"></div>
+<div class="cal-ov" id="calOv" onclick="if(event.target===this)fecharCalendario()"><div class="cal-modal"><div class="cal-head"><h2>📅 Calendário de Eventos</h2><button class="x" onclick="fecharCalendario()">×</button></div><div class="cal-sub">Antecipe seus pedidos e não deixe para cima da hora.</div><div class="cal-body" id="calBody"></div></div></div>
+<div class="brand-card">
       <div class="brand-av" id="brandAv">·</div>
       <div class="brand-info">
         <div class="brand-tag">Especialistas em insumos de <b>alta qualidade</b> para o seu Restaurante, Pizzaria, Hambúrgueria, Sorveteria e culinária Oriental.</div>
         </div>
       <a class="brand-iglg" href="https://www.instagram.com/qfoodcompany/" target="_blank" rel="noopener" title="Siga no Instagram"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="6"/><circle cx="12" cy="12" r="4.5"/><circle cx="17.6" cy="6.4" r="1.3" fill="currentColor" stroke="none"/></svg><span>@qfoodcompany</span></a>
     </div>
-      <div class="cal-ov" id="calOv" onclick="if(event.target===this)fecharCalendario()"><div class="cal-modal"><div class="cal-head"><h2>📅 Calendário de Eventos</h2><button class="x" onclick="fecharCalendario()">×</button></div><div class="cal-sub">Antecipe seus pedidos e não deixe para cima da hora.</div><div class="cal-body" id="calBody"></div></div></div>
-      <div class="vplay-ov" id="vidOv" onclick="if(event.target===this)fecharVideos()"><div class="vplay-modal"><div class="vplay-head"><b class="vplay-tit"></b><button class="vplay-x" onclick="fecharVideos()">×</button></div><div class="vplay-body"><iframe class="vplay-frame" allow="autoplay" allowfullscreen src=""></iframe></div><div class="vplay-nav"><button class="vnav-prev" onclick="vidPrev()">‹ Anterior</button><span class="vplay-count"></span><button class="vnav-next" onclick="vidNext()">Próximo ›</button></div><div class="vplay-grid"></div></div></div>
-      <section class="empty" id="empty">
+  <section class="videos" id="videosSec"></section>
+  <div class="vplay-ov" id="vidOv" onclick="if(event.target===this)fecharVideos()"><div class="vplay-modal"><div class="vplay-head"><b class="vplay-tit"></b><button class="vplay-x" onclick="fecharVideos()">×</button></div><div class="vplay-body"><iframe class="vplay-frame" allow="autoplay" allowfullscreen src=""></iframe></div><div class="vplay-nav"><button class="vnav-prev" onclick="vidPrev()">‹ Anterior</button><span class="vplay-count"></span><button class="vnav-next" onclick="vidNext()">Próximo ›</button></div><div class="vplay-grid"></div></div></div>
+  <section class="empty" id="empty">
     <h1>Comece pelo <em>CNPJ</em> do cliente</h1>
     <p>O sistema identifica se o PDV está ativo, o que ele já compra e — se for oriental — a cesta ideal que ainda falta.</p>
     <div class="cta-cat">Digite o CNPJ do PDV e dê Buscar — ou <button onclick="abrirCatalogo()">explore o catálogo completo</button></div>
   </section>
-    <section class="cliente" id="cliente">
-      <div class="status-card" id="statusCard"></div>
-      <section class="tabpane" id="p-catalogo">
-        <div class="cat-busca">
+
+  <section class="cliente" id="cliente">
+    <div class="status-card" id="statusCard"></div>
+    <div class="magic-grid" id="magicGrid"></div>
+    <div class="cat-busca">
       <div class="find"><span>🔍</span><input id="find" placeholder="Buscar por nome ou código…" onkeydown="if(event.key==='Enter')onFind()"></div><button class="find-btn" onclick="onFind()">Buscar</button>
     </div>
-        <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
-        <div class="cats-nav"><button class="cats-arrow" onclick="scrollCats(-1)">‹</button><div class="cats" id="cats"></div><button class="cats-arrow" onclick="scrollCats(1)">›</button></div>
-        <div class="grid-prod" id="gridProd"></div>
-        <button class="mais" id="btnMais" style="display:none" onclick="verMais()">Ver mais produtos</button>
-      </section>
-      <section class="tabpane" id="p-ofertas" hidden>
-        <div class="secao-titulo"><h2>promoções da <span class="ac">semana</span></h2><div class="rule red"></div></div>
-        <div class="promo-rail" id="promoRail"></div>
-      </section>
-      <section class="tabpane" id="p-mais" hidden>
-        <div class="magic-grid" id="magicGrid"></div>
-      </section>
-      <section class="tabpane" id="p-videos" hidden>
-        <div class="cal-banner" onclick="abrirCalendario()"><div class="cal-ico"><svg viewBox="0 0 48 48" width="54" height="54" fill="none"><rect x="4" y="10" width="40" height="34" rx="5" fill="#fff" stroke="currentColor" stroke-width="2.5"/><path d="M4 16a6 6 0 0 1 6-6h28a6 6 0 0 1 6 6v2H4z" fill="currentColor"/><line x1="15" y1="5" x2="15" y2="13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><line x1="33" y1="5" x2="33" y2="13" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><text x="24" y="39" font-size="17" font-weight="800" fill="currentColor" text-anchor="middle" font-family="Arial,sans-serif">31</text></svg></div><div class="cal-bt"><b>Calendário de Eventos</b><small>Planeje-se: as datas que mais aquecem suas vendas 📈</small></div><span class="cal-arrow">›</span></div>
-        <div class="cal-prox" id="calProx" onclick="abrirCalendario()"></div>
-        <section class="videos" id="videosSec"></section>
-      </section>
-    </section>
-  </main>
+
+    <div class="secao-titulo"><h2>promoções da <span class="ac">semana</span></h2><div class="rule red"></div></div>
+    <div class="promo-rail" id="promoRail"></div>
+
+    <div class="secao-titulo"><h2>catálogo</h2><div class="rule"></div></div>
+    <nav class="mega" id="mega"></nav>
+    <div class="grid-prod" id="gridProd"></div>
+    <button class="mais" id="btnMais" style="display:none" onclick="verMais()">Ver mais produtos</button>
+  </section>
 </div>
 
 <div class="overlay" id="overlay" onclick="if(event.target===this)fecharSheet()"><div class="sheet" id="sheet"></div></div>
@@ -507,7 +496,16 @@ let PROMOS = [
 ];
 const ORDEM_CAT = ["Algas","Arroz","Arrozes","Shoyu","Saquês","Saquê","Molhos","Molhos e Temperos","Temperos","Maionese e Furikake","Furikake","Farinhas","Grãos","Massas","Conservas","Resfriados e Congelados","Congelados","Sorvetes","Peixaria","Queijos","Plant-Based","Azeites e Óleos","Sobremesas","Sucos","Sucos e Chás","Utensílios","Embalagens","Higiene e Limpeza"];
 
-let byCod={}; function indexar(){ byCod={}; CATALOGO.forEach(p=>byCod[p.cod]=p); }
+/* ===== CLASSIFICADOR INTELIGENTE (por nome do produto) ===== */
+var SEG_ORDER=["ORIENTAL","QUEIJOS & FRIOS","HAMBÚRGUER & PLANT-BASED","SOBREMESAS & SORVETES","BEBIDAS","EMPÓRIO","EMBALAGENS","UTENSÍLIOS","HIGIENE & LIMPEZA"];
+var SEG_META={"ORIENTAL":{ic:"🍣",cor:"#111114"},"QUEIJOS & FRIOS":{ic:"🧀",cor:"#C77800"},"HAMBÚRGUER & PLANT-BASED":{ic:"🍔",cor:"#8A5A00"},"SOBREMESAS & SORVETES":{ic:"🍰",cor:"#D6336C"},"BEBIDAS":{ic:"🥤",cor:"#2C7BE5"},"EMPÓRIO":{ic:"🫙",cor:"#2E9E5B"},"EMBALAGENS":{ic:"📦",cor:"#6b7280"},"UTENSÍLIOS":{ic:"🔪",cor:"#0d9488"},"HIGIENE & LIMPEZA":{ic:"🧼",cor:"#7c3aed"}};
+var SEG_RULES=[["ORIENTAL", "Algas & Nori", ["alga", "nori", "wakame", "kombu", "dashi"]], ["ORIENTAL", "Hashi & Utensílios de Sushi", ["hashi", "esteira p/sushi", "clip no hashi"]], ["ORIENTAL", "Wasabi & Gengibre", ["wasabi", "gengibre"]], ["ORIENTAL", "Panko & Tempurá", ["panko", "tempura", "tempurá"]], ["ORIENTAL", "Massas Orientais", ["yakissoba", "yakisoba", "udon", "bifum", "mifum", "harussame", "papel de arroz", "rolinho primavera", "macarrao de arroz", "macarrao de feijao", "macarrao mifum", "macarrao udon", "yakissolba"]], ["ORIENTAL", "Guioza, Nikuman & Bao", ["guioza", "gyoza", "nikuman", "bao lanche", "bao mini", "massa fina p/guioza", "massa p/guioza", "massa rolinho"]], ["ORIENTAL", "Edamame & Tofu", ["edamame", "tofu"]], ["ORIENTAL", "Furikake & Ajinomoto", ["furikake", "ajinomoto", "glutamato"]], ["ORIENTAL", "Shoyu", ["shoyu", "shouyu"]], ["ORIENTAL", "Tarê, Teriyaki & Molhos Orientais", ["tare", "tarê", "teriyaki", "tonkatsu", "molho de ostra", "misso", "missô", "gochujang", "molho de peixe nampla", "oleo de gergelim", "sweet chili", "sweet chilli", "molho de laranja kikkoman"]], ["ORIENTAL", "Tempero p/ Sushi & Vinagre", ["tempero para sushi", "tempero p/ sushi", "vinagre de arroz"]], ["ORIENTAL", "Saquê & Mirin", ["saque", "saquê", "sake", "mirin"]], ["ORIENTAL", "Soju", ["soju"]], ["ORIENTAL", "Arroz Japonês", ["arroz mirokumai", "arroz junmai", "arroz minami", "arroz takumi", "arroz "]], ["ORIENTAL", "Kani, Salmão & Peixaria", ["kani", "salmao", "salmão", "polvo", "camarao", "camarão", "peixe fresco"]], ["ORIENTAL", "Gergelim", ["gergelim"]], ["ORIENTAL", "Chá Verde & Sucos Orientais", ["cha verde", "chá verde", " yai", "yaí"]], ["ORIENTAL", "Maionese Japonesa", ["maionese japonesa", "kewpie"]], ["QUEIJOS & FRIOS", "Queijos & Requeijão", ["queijo", "cream cheese", "requeijao", "requeijão", "catupiry", "mussarela", "muzzarella", "gorgonzola", "brie", "parmesao", "provolone", "burrata", "polenguinho", "cheddar", "gruyere"]], ["HAMBÚRGUER & PLANT-BASED", "Plant-Based", ["fazenda futuro", "plant-based", "plant based", "burger", "almondega", "carne moida", "franguito", "kibe", "linguica congelada fazenda", "atum fazenda"]], ["SOBREMESAS & SORVETES", "Sobremesas", ["petit gateau", "gateau", "brownie", "torta holandesa", "pudim", "sobremesa"]], ["SOBREMESAS & SORVETES", "Sorvetes", ["melona", "sorvete", "samanco"]], ["BEBIDAS", "Sucos", ["suco", "jal ", "uvajal", "uva integral"]], ["EMPÓRIO", "Azeites & Óleos", ["azeite", "oleo", "óleo"]], ["EMPÓRIO", "Conservas", ["azeitona", "alcaparra", "pepino", "cogumelo", "conserva"]], ["EMPÓRIO", "Geleias", ["geleia"]], ["EMPÓRIO", "Molhos & Temperos", ["ketchup", "mostarda", "aji sal", "flor de sal", "sal churrasco"]], ["EMPÓRIO", "Farinhas & Panificação", ["farinha", "tempura alfa"]], ["EMBALAGENS", "Embalagens", ["emb.", "embalagem", "boat", "combinado", "poke", "grama decorativa", "baran", "descartav"]], ["UTENSÍLIOS", "Facas & Corte", ["faca", "pedra p/amolar", "pedra de amolar", "benriner", "ralador", "fatiador", "mandolin"]], ["UTENSÍLIOS", "Utensílios de Cozinha", ["macarico", "maçarico", "moedor", "volcano", "tojiro", "mesh", "teia"]], ["HIGIENE & LIMPEZA", "Álcool & Sanitização", ["alcool", "álcool", "sanitiz", "desinfetante"]], ["HIGIENE & LIMPEZA", "Detergentes & Desengordurantes", ["detergente", "detergin", "desengordurante"]], ["HIGIENE & LIMPEZA", "Panos & Papel", ["pano ", "papel toalha", "toalha de papel", "bobina"]], ["HIGIENE & LIMPEZA", "Sabonetes", ["sabonete"]], ["HIGIENE & LIMPEZA", "Sacos de Lixo", ["saco de lixo"]], ["HIGIENE & LIMPEZA", "Descartáveis", ["touca descartav", "touca descartável"]]];
+function _norm(t){return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ");}
+function classificarNome(nome){var n=_norm(nome);for(var i=0;i<SEG_RULES.length;i++){var r=SEG_RULES[i],kw=r[2];for(var k=0;k<kw.length;k++){if(n.indexOf(_norm(kw[k]))>=0)return{seg:r[0],sub:r[1]};}}return{seg:"",sub:""};}
+var SEGTREE={},MEGA=[],segAtivo="",subAtivo="";
+function construirSegTree(){SEGTREE={};CATALOGO.forEach(function(p){if(p._seg){if(!SEGTREE[p._seg])SEGTREE[p._seg]={};SEGTREE[p._seg][p._sub]=(SEGTREE[p._seg][p._sub]||0)+1;}});}
+document.addEventListener("click",function(e){if(!e.target||!e.target.closest||!e.target.closest(".mseg-wrap"))fecharDrops();});
+let byCod={}; function indexar(){ byCod={}; CATALOGO.forEach(function(p){byCod[p.cod]=p;var _r=classificarNome(p.nome);p._seg=_r.seg;p._sub=_r.sub;}); construirSegTree(); }
 indexar();
 let clienteAtual=null, catAtiva="Todos", carrinho={}, limite=5, termo="";
 
@@ -590,10 +588,8 @@ async function buscar(){
     clienteAtual = r.resultado;
     renderCliente();
     renderHistorico(d);
-    mostrarPainel('mais');
   }catch(e){ toast("Falha de conexão com o backend"); console.error(e); }
 }
-function mostrarPainel(p,btn){var emp=document.getElementById('empty');if(emp)emp.style.display='none';var cli=document.getElementById('cliente');if(cli&&!cli.classList.contains('show')){cli.classList.add('show');try{if(typeof clienteAtual==='undefined'||!clienteAtual){renderPromos();renderCats();renderGrid();}}catch(e){}}var ids={catalogo:'p-catalogo',ofertas:'p-ofertas',mais:'p-mais',videos:'p-videos'};Object.keys(ids).forEach(function(k){var el=document.getElementById(ids[k]);if(el)el.hidden=(k!==p);});var its=document.querySelectorAll('.side-item');for(var i=0;i<its.length;i++){its[i].classList.toggle('active',its[i].getAttribute('data-p')===p);}try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}}
 function abrirCatalogo(){
   clienteAtual=null;
   document.getElementById("empty").style.display="none";
@@ -601,7 +597,6 @@ function abrirCatalogo(){
   document.getElementById("statusCard").innerHTML="";
   document.getElementById("magicGrid").style.display="none";
   renderPromos(); renderCats(); renderGrid();
-  mostrarPainel('catalogo');
 }
 
 /* ---------- RENDER painel cliente (shape do backend) ---------- */
@@ -713,18 +708,17 @@ function scrollCats(dir){ const el=document.getElementById('cats'); if(el) el.sc
 function renderPromos(){
   document.getElementById("promoRail").innerHTML=PROMOS.map(p=>`<div class="promo-card"><span class="selo">${p.selo||"Oferta"}</span><div class="img">${p.cod&&imgFor(p.cod)?`<img src="${imgFor(p.cod)}" style="max-width:100%;max-height:120px;object-fit:contain">`:"imagem do produto"}</div><div class="corpo"><div class="prod">${p.prod}</div><div class="precos">${(p.de&&p.de!=="—")?`<span class="de">R$ ${p.de}</span>`:""}<span class="por">${String(p.por).startsWith("sob")?"":"R$ "}${p.por}${String(p.por).startsWith("sob")?"":'<small> /un</small>'}</span></div>${p.economia?`<div class="economia">Economia de R$ ${p.economia}</div>`:""}<div class="val">${p.val||""}</div><button class="add-promo" onclick="addPromo('${String(p.prod).replace(/'/g,"")}')">+ Adicionar à seleção</button></div></div>`).join("");
 }
-function renderCats(){
-  const all=[{n:"Todos",c:CATALOGO.length}].concat(CATS.map(c=>({n:c,c:CATALOGO.filter(p=>p.cat===c).length})));
-  document.getElementById("cats").innerHTML=all.map(o=>`<button class="cat-chip ${o.n===catAtiva?'on':''}" onclick="setCat('${String(o.n).replace(/'/g,"")}')">${o.n}<b>${o.c}</b></button>`).join("");
-}
+function renderCats(){var mega=document.getElementById("mega");if(!mega)return;var segs=SEG_ORDER.filter(function(s){return SEGTREE[s];});Object.keys(SEGTREE).forEach(function(s){if(segs.indexOf(s)<0)segs.push(s);});MEGA=segs.map(function(s){var subs=Object.keys(SEGTREE[s]).sort(function(a,b){return SEGTREE[s][b]-SEGTREE[s][a];}).map(function(sub){return{name:sub,count:SEGTREE[s][sub]};});var meta=SEG_META[s]||{ic:"•",cor:"#444"};return{seg:s,ic:meta.ic,cor:meta.cor,subs:subs};});var todos=(!segAtivo&&!subAtivo&&catAtiva==="Todos")?" on":"";var h='<button class="mseg todos'+todos+'" onclick="verTodos()">Todos</button>';h+=MEGA.map(function(m,i){var on=(segAtivo===m.seg||(subAtivo&&m.subs.some(function(x){return x.name===subAtivo;})))?" on":"";var cols=m.subs.map(function(x,j){var son=(subAtivo===x.name)?' class="on"':'';return '<a'+son+' onclick="abrirSub('+i+','+j+')">'+x.name+' <b>'+x.count+'</b></a>';}).join("");return '<div class="mseg-wrap"><button class="mseg'+on+'" style="--sc:'+m.cor+'" onclick="toggleSeg(this,event)">'+m.ic+' '+m.seg+' <i>▾</i></button><div class="mdrop"><div class="mdrop-h" onclick="abrirSeg('+i+')">Ver tudo · '+m.seg+'</div><div class="mdrop-cols">'+cols+'</div></div></div>';}).join("");mega.innerHTML=h;}
+function _limparFiltro(){termo="";var f=document.getElementById("find");if(f)f.value="";catAtiva="Todos";limite=5;}
+function verTodos(){segAtivo="";subAtivo="";_limparFiltro();fecharDrops();renderCats();renderGrid();_scrollGrid();}
+function abrirSeg(i){var m=MEGA[i];if(!m)return;segAtivo=m.seg;subAtivo="";_limparFiltro();fecharDrops();renderCats();renderGrid();_scrollGrid();}
+function abrirSub(i,j){var m=MEGA[i];if(!m||!m.subs[j])return;segAtivo=m.seg;subAtivo=m.subs[j].name;_limparFiltro();fecharDrops();renderCats();renderGrid();_scrollGrid();}
+function toggleSeg(btn,ev){if(ev)ev.stopPropagation();var w=btn.parentNode,op=w.classList.contains("open");fecharDrops();if(!op)w.classList.add("open");}
+function fecharDrops(){var a=document.querySelectorAll(".mseg-wrap.open");for(var i=0;i<a.length;i++)a[i].classList.remove("open");}
+function _scrollGrid(){var g=document.getElementById("gridProd");if(g){var y=g.getBoundingClientRect().top+window.pageYOffset-90;window.scrollTo({top:y,behavior:"smooth"});}}
 function setCat(c){catAtiva=c;limite=5;document.getElementById("find").value="";termo="";renderCats();renderGrid()}
 function onFind(){termo=document.getElementById("find").value.toLowerCase().trim();limite=5;renderGrid();if(termo){setTimeout(function(){var g=document.getElementById("gridProd");if(g)g.scrollIntoView({behavior:"smooth",block:"start"});},60);}}
-function filtrados(){
-  let list=CATALOGO;
-  if(catAtiva!=="Todos"&&!termo) list=list.filter(p=>p.cat===catAtiva);
-  if(termo) list=list.filter(p=>(p.nome||"").toLowerCase().includes(termo)||(p.cod||"").includes(termo));
-  return list;
-}
+function filtrados(){let list=CATALOGO;if(termo)return list.filter(p=>(p.nome||"").toLowerCase().includes(termo)||(p.cod||"").includes(termo));if(subAtivo)return list.filter(p=>p._sub===subAtivo);if(segAtivo)return list.filter(p=>p._seg===segAtivo);if(catAtiva!=="Todos")list=list.filter(p=>p.cat===catAtiva);return list;}
 function renderGrid(){
   const list=filtrados(), vis=list.slice(0,limite), g=document.getElementById("gridProd");
   g.innerHTML = vis.length?vis.map(p=>{
