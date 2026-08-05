@@ -402,7 +402,7 @@ var HISTORICO_REMUNERACAO = [
       { nome:"Eder",                     faturamento:209578.22, meta_fat:300000.00, pct_fat:70,  margem:29, markup:41, posit_pct:67, novos:1, trocas_pct:0,    p1_fat:1.00, p2_marg:0,    p3_posit:0,    p4_novos:0, total_pct:1.00, premio_sheet:2095.78, tipo:"PJ",    over_meta:0, meta_global:0 },
       { nome:"Roberta",                  faturamento:24158.68,  meta_fat:10000.00,  pct_fat:242, margem:33, markup:50, posit_pct:65, novos:3, trocas_pct:0,    p1_fat:0,    p2_marg:0.50, p3_posit:0,    p4_novos:0, total_pct:0.50, premio_sheet:120.79,  tipo:"CLT",   over_meta:0, meta_global:0 },
       { nome:"Kenyo",                    faturamento:0,         meta_fat:0,         pct_fat:0,   margem:0,  markup:0,  posit_pct:0,  novos:0, trocas_pct:0,    p1_fat:1.00, p2_marg:0,    p3_posit:0,    p4_novos:0, total_pct:1.00, premio_sheet:0,       tipo:"PJ",    over_meta:0, meta_global:0 },
-      { nome:"Claudia",                  faturamento:168906.62, meta_fat:240000.00, pct_fat:70,  margem:42, markup:75, posit_pct:84, novos:1, trocas_pct:6.73, p1_fat:0.75, p2_marg:0,    p3_posit:0,    p4_novos:0, total_pct:0.75, premio_sheet:0,       tipo:"KA-PJ", over_meta:0, meta_global:0 },
+      { nome:"Claudia",                  faturamento:168906.62, meta_fat:240000.00, pct_fat:70,  margem:42, markup:75, posit_pct:84, novos:1, trocas_pct:6.73, p1_fat:0.75, p2_marg:0,    p3_posit:0,    p4_novos:0, total_pct:0.75, premio_sheet:1266.80, tipo:"KA-PJ", over_meta:0, meta_global:0 },
       { nome:"Deane",                    faturamento:46205.72,  meta_fat:60000.00,  pct_fat:77,  margem:23, markup:29, posit_pct:31, novos:1, trocas_pct:0,    p1_fat:0,    p2_marg:0.60, p3_posit:0,    p4_novos:0, total_pct:0.60, premio_sheet:277.23,  tipo:"PJ",    over_meta:0, meta_global:0 },
       { nome:"Aparecida (Food Service)", faturamento:13931.91,  meta_fat:0,         pct_fat:0,   margem:37, markup:60, posit_pct:7,  novos:0, trocas_pct:0,    p1_fat:0,    p2_marg:0,    p3_posit:0,    p4_novos:0, total_pct:6.00, premio_sheet:835.91,  tipo:"PJ-FS", over_meta:0, meta_global:0 },
       { nome:"Neucilene (Food Service)", faturamento:836.80,    meta_fat:0,         pct_fat:0,   margem:35, markup:56, posit_pct:1,  novos:0, trocas_pct:0,    p1_fat:0,    p2_marg:0,    p3_posit:0,    p4_novos:0, total_pct:5.60, premio_sheet:46.86,   tipo:"PJ-FS", over_meta:0, meta_global:0 },
@@ -1164,7 +1164,7 @@ function calcRemuneracao(d){
     // Claudia — 4 pilares (Fat, Margem≥45%, Trocas, Positivacao)
     var p1raw = d.p1_fat;
     var p1Contam = !(p1raw>=0 && p1raw<=5);
-    var p1 = (p1Contam || d.trocas_pct>5) ? 0 : p1raw;
+    var p1 = p1Contam ? 0 : p1raw;
     pilares.push({
       nome:"Faturamento",
       pct: p1,
@@ -1179,7 +1179,7 @@ function calcRemuneracao(d){
     });
     var p2raw = d.p2_marg;
     var p2Contam = !(p2raw>=0 && p2raw<=5);
-    var p2 = (p2Contam || d.trocas_pct>5) ? 0 : p2raw;
+    var p2 = (p2Contam || d.trocas_pct>=5) ? 0 : p2raw;
     pilares.push({
       nome:"Margem ≥ 45%",
       pct: p2,
@@ -1209,7 +1209,7 @@ function calcRemuneracao(d){
     });
     var p3raw = d.p3_posit;
     var p3Contam = !(p3raw>=0 && p3raw<=5);
-    var p3 = (p3Contam || d.trocas_pct>5) ? 0 : p3raw;
+    var p3 = (p3Contam || d.trocas_pct>=5) ? 0 : p3raw;
     pilares.push({
       nome:"Positivação ≥ 80%",
       pct: p3,
@@ -2202,10 +2202,10 @@ function renderRemCardCompleto(nome, opts){
   // Aviso de trocas — banner didático no topo do card
   var avisoHTML = "";
   var _tr = d.trocas_pct || 0, _avCor = "", _avTit = "", _avTxt = "";
-  if(r.perfil === "KA-PJ" && _tr > 5){
-    _avCor = "#e63329";
-    _avTit = "⛔ Prêmio zerado por trocas acima de 5%";
-    _avTxt = "Trocas/avarias em " + formatPct(_tr) + " (limite 5%). Pela regra do canal, zera toda a remuneração variável do mês.";
+  if(r.perfil === "KA-PJ" && _tr >= 5){
+    _avCor = "#f59e0b";
+    _avTit = "⚠️ Comissão reduzida por trocas de 5% ou mais";
+    _avTxt = "Trocas/avarias em " + formatPct(_tr) + " (limite 5%). Pela regra do canal, o prêmio cai para 0,75% fixo sobre o faturamento — margem, positivação e trocas não contam.";
   } else if((r.perfil === "PJ-FS" || r.perfil === "PJ-KA") && _tr > 2){
     _avCor = "#f59e0b";
     _avTit = "⚠️ Penalidade por trocas acima de 2%";
