@@ -63,6 +63,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .menu-btn.mb-cklt{border-top:3px solid #2f7d5b;}
 .menu-btn.mb-ecom{border-top:3px solid #ffd60a;}
 .menu-btn.mb-fac{border-top:3px solid #f0883e;}
+.menu-btn.mb-ori{border-top:3px solid #94a3b8;}
 /* Aura — feixes de luz cruzando a tela (atrás dos cards e do login) */
 .aura{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;}
 .aura::before,.aura::after{content:"";position:absolute;top:-60%;height:220%;left:-40%;
@@ -241,6 +242,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
       <div class="mb-sub">Reativação de clientes parados<br>Motivos &middot; NPS &middot; Histórico</div>
     </a>
 
+    <a href="Index_Orientacoes.html" class="menu-btn mb-ori" id="mbtn-operacoes" style="display:none">
+      <div class="mb-icon">🧭</div>
+      <div class="mb-title">Orientações</div>
+      <div class="mb-sub">Governança QDACE® &middot; Organograma<br>Rituais &middot; Metas &middot; Kit de Gestão</div>
+    </a>
+
   </div>
 
   <div class="menu-bar">
@@ -286,9 +293,12 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
             Comercial, Remuneração, Financeiro, Financeiro ML,
             Financeiro Prime, Financeiro Sushi Trip,
             Logistica, Compras, Checkpoint, Tarefas,
-            CRM, CRM_Sigla, Recebe_Leads
+            CRM, CRM_Sigla, Recebe_Leads, Operações
    Células: 'X' = acesso / 'X Apenas o seu nome' = filtrado / vazio = sem acesso
    CRM_Sigla: '*'=admin, 'LEAD'=Bárbara, 'NOME.SOBRENOME'=vendedor
+   Operações: qualquer valor não vazio ('X','gestor','coordenador') = acesso
+              ao card Orientações. O valor bruto fica salvo em
+              CURRENT_USER.opNivel para uso futuro (filtros por nível).
    ============================================================ */
 
 var UUSR_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv";
@@ -321,7 +331,8 @@ var CARD_MAP = {
   "crm":                  "CRM",
   "trocas":               "Trocas",
   "nps":                  "NPS",
-  "inativos":             "ATENDIMENTO INATIVOS"
+  "inativos":             "ATENDIMENTO INATIVOS",
+  "operacoes":            "Operações"
 };
 
 // Mapeamento das siglas DINAMICO → nome curto exibido no modal CRM
@@ -390,11 +401,16 @@ function buildUsersFromCSV(csvText){
   var iSigla  = colIdx("sigla");
   var iCrmSig = colIdx("CRM_Sigla");
   var iRecLea = colIdx("Recebe_Leads");
+  var iOper   = colIdx("Operações");
   if(iEmail < 0 || iSenha < 0 || iPerfil < 0) throw new Error("Colunas obrigatórias ausentes");
 
   // Cache dos índices das colunas de card
+  // "operacoes" fica de fora do loop genérico: ao contrário das demais
+  // colunas (que só aceitam 'X'), essa coluna usa 'X'/'gestor'/'coordenador'
+  // para indicar o nível do usuário — qualquer valor não vazio dá acesso.
   var cardIdx = {};
   Object.keys(CARD_MAP).forEach(function(k){
+    if(k === "operacoes") return;
     cardIdx[k] = colIdx(CARD_MAP[k]);
   });
 
@@ -413,6 +429,10 @@ function buildUsersFromCSV(csvText){
       if(v === "x" || v.indexOf("x") === 0) abas.push(k);
     });
 
+    // Operações: qualquer valor não vazio ('X','gestor','coordenador') = acesso
+    var opNivel = iOper >= 0 ? (row[iOper] || "").trim() : "";
+    if(opNivel) abas.push("operacoes");
+
     out[email] = {
       pwd:         (row[iSenha]  || "").trim(),
       role:        (row[iPerfil] || "").trim() || "gestor",
@@ -420,6 +440,7 @@ function buildUsersFromCSV(csvText){
       sigla:       iSigla  >= 0 ? (row[iSigla]  || "").trim() : "",
       crmSigla:    iCrmSig >= 0 ? (row[iCrmSig] || "").trim() : "",
       recebeLeads: iRecLea >= 0 ? ((row[iRecLea] || "").trim().toUpperCase() === "SIM") : false,
+      opNivel:     opNivel,
       abas:        abas.join(",")
     };
   }
@@ -495,13 +516,13 @@ function doLogin(){
     localStorage.setItem("qfood_session", JSON.stringify({
       email:email, role:u.role, nome:u.nome, sigla:u.sigla,
       crmSigla:u.crmSigla||"", recebeLeads:!!u.recebeLeads,
-      abas:u.abas, ts:Date.now()
+      opNivel:u.opNivel||"", abas:u.abas, ts:Date.now()
     }));
 
     CURRENT_USER = {
       email:email, role:u.role, nome:u.nome, sigla:u.sigla,
       crmSigla:u.crmSigla||"", recebeLeads:!!u.recebeLeads,
-      abas:u.abas
+      opNivel:u.opNivel||"", abas:u.abas
     };
     showMenu();
   });
@@ -520,6 +541,7 @@ function checkSession(){
         sigla:       u.sigla,
         crmSigla:    u.crmSigla||"",
         recebeLeads: !!u.recebeLeads,
+        opNivel:     u.opNivel||"",
         abas:        u.abas || ""
       };
       // Re-hidrata a sessão com abas atualizadas (importante após deploy de novos cards)
@@ -529,6 +551,7 @@ function checkSession(){
       sess.sigla       = u.sigla;
       sess.crmSigla    = u.crmSigla||"";
       sess.recebeLeads = !!u.recebeLeads;
+      sess.opNivel     = u.opNivel||"";
       localStorage.setItem("qfood_session", JSON.stringify(sess));
     } else {
       // USERS ainda não carregou ou o email sumiu da planilha — usa snapshot da sessão
@@ -539,6 +562,7 @@ function checkSession(){
         sigla:       sess.sigla,
         crmSigla:    sess.crmSigla||"",
         recebeLeads: !!sess.recebeLeads,
+        opNivel:     sess.opNivel||"",
         abas:        sess.abas || ""
       };
     }
@@ -570,7 +594,7 @@ function applyUserAccess(){
   var abas = (CURRENT_USER.abas || "").split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
 
   // Cards não-financeiro (não-CRM)
-  ["comercial","ecommerce","remuneracao","trocas","logistica","compras","checkpoint","checklist","tarefas","nps","inativos","planejamento","facilities"].forEach(function(id){
+  ["comercial","ecommerce","remuneracao","trocas","logistica","compras","checkpoint","checklist","tarefas","nps","inativos","planejamento","facilities","operacoes"].forEach(function(id){
     var el = document.getElementById("mbtn-" + id);
     if(!el) return;
     el.style.display = abas.indexOf(id) >= 0 ? "flex" : "none";
@@ -754,7 +778,7 @@ function reloadUsers(){
         CURRENT_USER = {
           email:sess.email, role:u.role, nome:u.nome, sigla:u.sigla,
           crmSigla:u.crmSigla||"", recebeLeads:!!u.recebeLeads,
-          abas:u.abas
+          opNivel:u.opNivel||"", abas:u.abas
         };
         // Atualiza sessão
         sess.abas        = u.abas;
@@ -763,6 +787,7 @@ function reloadUsers(){
         sess.sigla       = u.sigla;
         sess.crmSigla    = u.crmSigla||"";
         sess.recebeLeads = !!u.recebeLeads;
+        sess.opNivel     = u.opNivel||"";
         localStorage.setItem("qfood_session", JSON.stringify(sess));
       }
     }
