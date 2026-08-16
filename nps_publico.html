@@ -25,6 +25,7 @@
   --ok:#1f8c3f;
   --warn:#b8860b;
   --danger:#d1352b;
+  --yellow:#f2b705;
   --r:16px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -71,21 +72,11 @@ h1 .accent{color:var(--red)}
 .btn-row{display:flex;gap:12px;margin-top:22px}
 .btn-row .btn{flex:1}
 
-/* NPS 0-10 */
-.nps-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:24px 0}
-.nps-btn{aspect-ratio:1;border-radius:12px;font-weight:800;font-size:19px;
-  background:var(--bg-soft);border:2px solid var(--line);color:var(--text);
-  display:grid;place-items:center;min-height:52px;transition:all .15s}
-.nps-btn.selected{color:#fff;transform:scale(1.05);border-color:transparent}
-.nps-btn[data-cat="detrator"].selected{background:var(--danger)}
-.nps-btn[data-cat="neutro"].selected{background:var(--warn)}
-.nps-btn[data-cat="promotor"].selected{background:var(--ok)}
-.nps-legend{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
 
 /* ESTRELAS */
 .stars{display:flex;justify-content:center;gap:10px;margin:28px 0 8px}
 .star{font-size:44px;color:var(--line);transition:transform .15s, color .15s;line-height:1}
-.star.filled{color:var(--gold);transform:scale(1.08)}
+.star.filled{transform:scale(1.08)}
 .star-label{text-align:center;font-size:15px;color:var(--muted);min-height:20px;margin-bottom:18px}
 
 .field{margin-top:18px}
@@ -179,14 +170,14 @@ h1 .accent{color:var(--red)}
     </div>
 
     <!-- STEP 1: NPS -->
-    <div class="step" id="step-1">
+    <div class="step" id="step-1" data-pilar="nps">
       <div class="eyebrow">Pergunta 1 de 9</div>
-      <h1>De 0 a 10, o quanto você recomendaria a Q Food a outro negócio?</h1>
-      <div class="nps-grid" id="nps-grid"></div>
-      <div class="nps-legend"><span>Não recomendaria</span><span>Recomendaria muito</span></div>
+      <h1>De 1 a 5 estrelas, o quanto você recomendaria a Q Food a outro negócio?</h1>
+      <div class="stars" data-stars="nps"></div>
+      <div class="star-label" data-star-label="nps">Toque nas estrelas</div>
       <div class="btn-row">
         <button class="btn btn-ghost" data-back>Voltar</button>
-        <button class="btn btn-primary" id="btn-next-1" disabled>Continuar</button>
+        <button class="btn btn-primary" data-next="2" disabled data-req="nps">Continuar</button>
       </div>
     </div>
 
@@ -363,8 +354,7 @@ var CONVITE = null;
 var TIMESTAMP_INICIO = null;
 
 var RESPOSTAS = {
-  nps: null,
-  estrelas: { comercial:0, logistica:0, qualidade:0, financeiro:0, mix:0 },
+  estrelas: { nps:0, comercial:0, logistica:0, qualidade:0, financeiro:0, mix:0 },
   comentarios: { comercial:"", logistica:"", qualidade:"", financeiro:"", mix:"" },
   problema30d: null,
   indicariaHoje: null,
@@ -372,6 +362,36 @@ var RESPOSTAS = {
 };
 
 var STAR_LABELS = ["", "Muito ruim", "Ruim", "Regular", "Bom", "Excelente"];
+
+function starColorForValue(val){
+  if (val <= 2) return "var(--danger)";  // 1-2 estrelas: vermelho
+  if (val === 3) return "var(--yellow)"; // 3 estrelas: amarelo
+  if (val === 4) return "var(--ok)";     // 4 estrelas: verde
+  if (val === 5) return "var(--gold)";   // 5 estrelas: dourado
+  return "var(--line)";
+}
+
+function starToNpsScore(val){
+  // Converte 1-5 estrelas pro range 0-10 que o backend usa pra categorizar
+  // (Detrator/Neutro/Promotor) — sem precisar mexer no Code.gs
+  var map = { 1:0, 2:3, 3:7, 4:9, 5:10 };
+  return map[val] !== undefined ? map[val] : 0;
+}
+
+function starColorForValue(val){
+  if (val <= 2) return "var(--danger)";  // 1-2 estrelas: vermelho
+  if (val === 3) return "var(--yellow)"; // 3 estrelas: amarelo
+  if (val === 4) return "var(--ok)";     // 4 estrelas: verde
+  if (val === 5) return "var(--gold)";   // 5 estrelas: dourado
+  return "var(--line)";
+}
+
+function starToNpsScore(val){
+  // Converte 1-5 estrelas pro range 0-10 que o backend usa pra categorizar
+  // (Detrator/Neutro/Promotor) — sem precisar mexer no Code.gs
+  var map = { 1:0, 2:3, 3:7, 4:9, 5:10 };
+  return map[val] !== undefined ? map[val] : 0;
+}
 
 /* ═══════ HELPERS ═══════ */
 function $(id){ return document.getElementById(id); }
@@ -444,25 +464,6 @@ function montarTelaInicial(){
 }
 
 /* ═══════ STEP 1: NPS ═══════ */
-function renderNpsGrid(){
-  var grid = $("nps-grid");
-  grid.innerHTML = "";
-  for (var i = 0; i <= 10; i++){
-    var b = document.createElement("button");
-    b.className = "nps-btn";
-    b.type = "button";
-    b.textContent = i;
-    b.dataset.value = i;
-    b.dataset.cat = i <= 6 ? "detrator" : (i <= 8 ? "neutro" : "promotor");
-    b.addEventListener("click", function(){
-      qsa(".nps-btn", grid).forEach(function(x){ x.classList.remove("selected"); });
-      this.classList.add("selected");
-      RESPOSTAS.nps = Number(this.dataset.value);
-      $("btn-next-1").disabled = false;
-    });
-    grid.appendChild(b);
-  }
-}
 
 /* ═══════ ESTRELAS (pilares) ═══════ */
 function renderStars(pilar){
@@ -486,8 +487,11 @@ function renderStars(pilar){
 
 function atualizarEstrelas(pilar, val){
   var wrap = qs('[data-stars="' + pilar + '"]');
+  var cor = starColorForValue(val);
   qsa(".star", wrap).forEach(function(s){
-    s.classList.toggle("filled", Number(s.dataset.value) <= val);
+    var ativa = Number(s.dataset.value) <= val;
+    s.classList.toggle("filled", ativa);
+    s.style.color = ativa ? cor : "var(--line)";
   });
   var label = qs('[data-star-label="' + pilar + '"]');
   if (label) label.textContent = STAR_LABELS[val] || "Toque nas estrelas";
@@ -505,8 +509,6 @@ function configurarNavegacao(){
     TIMESTAMP_INICIO = new Date().toISOString();
     irParaStep(1);
   });
-
-  $("btn-next-1").addEventListener("click", function(){ irParaStep(2); });
 
   qsa("[data-next]").forEach(function(btn){
     btn.addEventListener("click", function(){
@@ -571,7 +573,7 @@ function enviarAvaliacao(){
   $("progress-wrap").style.display = "none";
 
   var avaliacao = {
-    nps_score: RESPOSTAS.nps,
+    nps_score: starToNpsScore(RESPOSTAS.estrelas.nps),
     nota_comercial: RESPOSTAS.estrelas.comercial,
     nota_logistica: RESPOSTAS.estrelas.logistica,
     nota_qualidade: RESPOSTAS.estrelas.qualidade,
@@ -632,8 +634,7 @@ function mostrarCupom(resultado){
 
 /* ═══════ BOOT ═══════ */
 document.addEventListener("DOMContentLoaded", function(){
-  renderNpsGrid();
-  ["comercial","logistica","qualidade","financeiro","mix"].forEach(renderStars);
+  ["nps","comercial","logistica","qualidade","financeiro","mix"].forEach(renderStars);
   configurarNavegacao();
   carregarConvite();
 });
