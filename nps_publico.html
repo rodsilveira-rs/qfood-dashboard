@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#0a0a0a">
+<title>Avaliação Q Food Company</title>
+<style>
+/* ============================================================
+   Q Food Company — nps_publico.html
+   Form público de avaliação (link enviado via WhatsApp)
+   Visual: clean, branco, fontes grandes, mobile-first
+   Header e footer pretos (logo)
+   ============================================================ */
+:root{
+  --black:#0a0a0a;
+  --white:#ffffff;
+  --text:#1a1a1a;
+  --muted:#6b6b6b;
+  --line:#e4e4e7;
+  --bg-soft:#f7f7f8;
+  --red:#c41e3a;
+  --red-2:#e23b56;
+  --gold:#c79a5b;
+  --ok:#1f8c3f;
+  --warn:#b8860b;
+  --danger:#d1352b;
+  --r:16px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--white);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  min-height:100vh}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+textarea{font-family:inherit}
+
+.page{display:flex;flex-direction:column;min-height:100vh}
+
+/* HEADER PRETO */
+.hdr{background:var(--black);padding:22px 20px;display:flex;justify-content:center;align-items:center}
+.hdr img{height:44px;width:auto;display:block}
+
+/* PROGRESSO */
+.progress-wrap{padding:14px 20px 0;max-width:640px;margin:0 auto;width:100%}
+.progress-track{height:6px;background:var(--line);border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--red-2));
+  border-radius:999px;transition:width .35s ease}
+.progress-label{font-size:13px;color:var(--muted);margin-top:8px;text-align:center}
+
+/* MAIN */
+.main{flex:1;padding:24px 20px 40px;max-width:640px;margin:0 auto;width:100%;
+  display:flex;flex-direction:column;justify-content:center}
+
+.step{display:none;animation:fadein .25s ease}
+.step.active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+.eyebrow{font-size:14px;font-weight:700;color:var(--red);text-transform:uppercase;
+  letter-spacing:.6px;margin:0 0 10px}
+h1{font-size:26px;line-height:1.3;font-weight:800;margin:0 0 10px;color:var(--text)}
+h1 .accent{color:var(--red)}
+.subtitle{font-size:17px;line-height:1.5;color:var(--muted);margin:0 0 28px}
+
+/* BOTÃO PRIMÁRIO */
+.btn{display:block;width:100%;padding:18px 20px;border-radius:14px;font-size:18px;
+  font-weight:700;text-align:center;transition:transform .15s, opacity .15s}
+.btn-primary{background:var(--black);color:var(--white)}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{opacity:.35;pointer-events:none}
+.btn-ghost{background:var(--bg-soft);color:var(--text);margin-top:12px;font-size:16px;padding:14px}
+.btn-row{display:flex;gap:12px;margin-top:22px}
+.btn-row .btn{flex:1}
+
+/* NPS 0-10 */
+.nps-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:24px 0}
+.nps-btn{aspect-ratio:1;border-radius:12px;font-weight:800;font-size:19px;
+  background:var(--bg-soft);border:2px solid var(--line);color:var(--text);
+  display:grid;place-items:center;min-height:52px;transition:all .15s}
+.nps-btn.selected{color:#fff;transform:scale(1.05);border-color:transparent}
+.nps-btn[data-cat="detrator"].selected{background:var(--danger)}
+.nps-btn[data-cat="neutro"].selected{background:var(--warn)}
+.nps-btn[data-cat="promotor"].selected{background:var(--ok)}
+.nps-legend{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:6px}
+
+/* ESTRELAS */
+.stars{display:flex;justify-content:center;gap:10px;margin:28px 0 8px}
+.star{font-size:44px;color:var(--line);transition:transform .15s, color .15s;line-height:1}
+.star.filled{color:var(--gold);transform:scale(1.08)}
+.star-label{text-align:center;font-size:15px;color:var(--muted);min-height:20px;margin-bottom:18px}
+
+.field{margin-top:18px}
+.field label{display:block;font-size:14px;font-weight:600;color:var(--muted);margin-bottom:8px}
+.field textarea{width:100%;padding:14px;background:var(--bg-soft);border:1px solid var(--line);
+  border-radius:12px;color:var(--text);font-size:16px;min-height:96px;resize:vertical}
+.field textarea:focus{outline:none;border-color:var(--red)}
+.optional-tag{font-weight:400;color:var(--muted);font-size:13px}
+
+/* RADIO GRANDE */
+.opt-list{display:flex;flex-direction:column;gap:12px;margin-top:22px}
+.opt{padding:18px 18px;border-radius:14px;border:2px solid var(--line);background:var(--white);
+  font-size:17px;font-weight:600;text-align:left;transition:all .15s;display:flex;align-items:center;gap:12px}
+.opt .dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;
+  display:grid;place-items:center;transition:all .15s}
+.opt .dot::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--white);
+  transform:scale(0);transition:transform .15s}
+.opt.selected{border-color:var(--red);background:rgba(196,30,58,.05)}
+.opt.selected .dot{background:var(--red);border-color:var(--red)}
+.opt.selected .dot::after{background:#fff;transform:scale(1)}
+
+/* CARD IDENTIFICAÇÃO */
+.id-card{background:var(--bg-soft);border-radius:14px;padding:20px;margin-top:22px}
+.id-card .name{font-size:19px;font-weight:800;color:var(--text)}
+.id-card .meta{font-size:14px;color:var(--muted);margin-top:4px}
+
+/* LOADING / ERRO */
+.state-center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:40px 24px}
+.spinner{width:38px;height:38px;border-radius:50%;border:3px solid var(--line);
+  border-top-color:var(--red);animation:spin .8s linear infinite;margin-bottom:18px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state-title{font-size:19px;font-weight:800;margin:0 0 8px}
+.state-text{font-size:15px;color:var(--muted);max-width:320px;line-height:1.5}
+
+/* CUPOM FINAL */
+.cupom-box{background:var(--black);color:#fff;border-radius:18px;padding:28px 22px;text-align:center;margin:26px 0}
+.cupom-box .pct{font-size:44px;font-weight:900;color:var(--gold)}
+.cupom-box .desc{font-size:15px;color:#c9c9c9;margin-top:2px}
+.cupom-box .code{font-size:26px;font-weight:800;letter-spacing:2px;background:rgba(255,255,255,.1);
+  border-radius:10px;padding:14px;margin-top:18px}
+.cupom-box .valid{font-size:13px;color:#c9c9c9;margin-top:14px}
+
+/* FOOTER PRETO */
+.ftr{background:var(--black);color:#8f8f8f;text-align:center;padding:22px 20px;font-size:12.5px;line-height:1.6}
+.ftr strong{color:#fff}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hdr">
+    <img src="assets/qfood-logo.png" alt="Q Food Company">
+  </div>
+
+  <div class="progress-wrap" id="progress-wrap" style="display:none">
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress-label" id="progress-label"></div>
+  </div>
+
+  <div class="main" id="main">
+
+    <!-- LOADING -->
+    <div class="state-center" id="state-loading">
+      <div class="spinner"></div>
+      <div class="state-title">Carregando sua avaliação...</div>
+    </div>
+
+    <!-- ERRO / TOKEN INVÁLIDO -->
+    <div class="state-center" id="state-erro" style="display:none">
+      <div class="state-title">Não encontramos este link</div>
+      <div class="state-text" id="state-erro-texto">O link pode ter expirado ou estar incorreto. Fale com quem te enviou o link da Q Food Company.</div>
+    </div>
+
+    <!-- JÁ RESPONDIDO -->
+    <div class="state-center" id="state-ja-respondido" style="display:none">
+      <div class="state-title">Você já respondeu 🙌</div>
+      <div class="state-text">Esta avaliação já foi enviada anteriormente. Muito obrigado pela participação!</div>
+    </div>
+
+    <!-- STEP 0: BOAS-VINDAS -->
+    <div class="step" id="step-0">
+      <div class="eyebrow">Convite exclusivo</div>
+      <h1>Sua opinião vale <span class="accent">5% de desconto</span> na próxima compra</h1>
+      <p class="subtitle">São só algumas perguntas rápidas — leva cerca de 2 minutos. Ao final, você recebe um código de desconto na hora.</p>
+      <div class="id-card">
+        <div class="name" id="id-nome">—</div>
+        <div class="meta" id="id-meta">—</div>
+      </div>
+      <button class="btn btn-primary" style="margin-top:24px" id="btn-comecar">Começar avaliação</button>
+    </div>
+
+    <!-- STEP 1: NPS -->
+    <div class="step" id="step-1">
+      <div class="eyebrow">Pergunta 1 de 9</div>
+      <h1>De 0 a 10, o quanto você recomendaria a Q Food a outro negócio?</h1>
+      <div class="nps-grid" id="nps-grid"></div>
+      <div class="nps-legend"><span>Não recomendaria</span><span>Recomendaria muito</span></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" id="btn-next-1" disabled>Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: PILAR COMERCIAL -->
+    <div class="step" id="step-2" data-pilar="comercial">
+      <div class="eyebrow">Pergunta 2 de 9</div>
+      <h1>Como você avalia o <span class="accent">atendimento do vendedor</span>?</h1>
+      <p class="subtitle">Proatividade, frequência de visitas, atenção às suas necessidades.</p>
+      <div class="stars" data-stars="comercial"></div>
+      <div class="star-label" data-star-label="comercial">Toque nas estrelas</div>
+      <div class="field">
+        <label>Quer contar mais alguma coisa? <span class="optional-tag">(opcional)</span></label>
+        <textarea data-comment="comercial" placeholder="Escreva aqui..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="3" disabled data-req="comercial">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: PILAR LOGÍSTICA -->
+    <div class="step" id="step-3" data-pilar="logistica">
+      <div class="eyebrow">Pergunta 3 de 9</div>
+      <h1>Como você avalia a <span class="accent">logística e entrega</span>?</h1>
+      <p class="subtitle">Prazo, condição da carga, educação do motorista.</p>
+      <div class="stars" data-stars="logistica"></div>
+      <div class="star-label" data-star-label="logistica">Toque nas estrelas</div>
+      <div class="field">
+        <label>Quer contar mais alguma coisa? <span class="optional-tag">(opcional)</span></label>
+        <textarea data-comment="logistica" placeholder="Escreva aqui..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="4" disabled data-req="logistica">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: PILAR QUALIDADE -->
+    <div class="step" id="step-4" data-pilar="qualidade">
+      <div class="eyebrow">Pergunta 4 de 9</div>
+      <h1>Como você avalia a <span class="accent">qualidade e validade</span> dos produtos?</h1>
+      <div class="stars" data-stars="qualidade"></div>
+      <div class="star-label" data-star-label="qualidade">Toque nas estrelas</div>
+      <div class="field">
+        <label>Quer contar mais alguma coisa? <span class="optional-tag">(opcional)</span></label>
+        <textarea data-comment="qualidade" placeholder="Escreva aqui..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="5" disabled data-req="qualidade">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: PILAR FINANCEIRO -->
+    <div class="step" id="step-5" data-pilar="financeiro">
+      <div class="eyebrow">Pergunta 5 de 9</div>
+      <h1>Como você avalia o <span class="accent">financeiro e faturamento</span>?</h1>
+      <p class="subtitle">Clareza de boletos, prazos, atendimento financeiro.</p>
+      <div class="stars" data-stars="financeiro"></div>
+      <div class="star-label" data-star-label="financeiro">Toque nas estrelas</div>
+      <div class="field">
+        <label>Quer contar mais alguma coisa? <span class="optional-tag">(opcional)</span></label>
+        <textarea data-comment="financeiro" placeholder="Escreva aqui..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="6" disabled data-req="financeiro">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 6: PILAR MIX -->
+    <div class="step" id="step-6" data-pilar="mix">
+      <div class="eyebrow">Pergunta 6 de 9</div>
+      <h1>Como você avalia o <span class="accent">mix de produtos</span> que oferecemos?</h1>
+      <div class="stars" data-stars="mix"></div>
+      <div class="star-label" data-star-label="mix">Toque nas estrelas</div>
+      <div class="field">
+        <label>Quer contar mais alguma coisa? <span class="optional-tag">(opcional)</span></label>
+        <textarea data-comment="mix" placeholder="Escreva aqui..."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="7" disabled data-req="mix">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 7: PROBLEMA 30 DIAS -->
+    <div class="step" id="step-7">
+      <div class="eyebrow">Pergunta 7 de 9</div>
+      <h1>Nos últimos 30 dias, você teve algum problema com a gente?</h1>
+      <div class="opt-list" id="opt-problema">
+        <button class="opt" data-value="Sem problema"><span class="dot"></span>Sem problema</button>
+        <button class="opt" data-value="Pedido-Entrega"><span class="dot"></span>Pedido ou entrega</button>
+        <button class="opt" data-value="Financeiro"><span class="dot"></span>Financeiro</button>
+        <button class="opt" data-value="Atendimento"><span class="dot"></span>Atendimento</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="8" disabled id="btn-next-7">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 8: RETENÇÃO -->
+    <div class="step" id="step-8">
+      <div class="eyebrow">Pergunta 8 de 9</div>
+      <h1>Você indicaria a Q Food hoje para outro negócio?</h1>
+      <div class="opt-list" id="opt-indicaria">
+        <button class="opt" data-value="Sim"><span class="dot"></span>Sim</button>
+        <button class="opt" data-value="Talvez"><span class="dot"></span>Talvez</button>
+        <button class="opt" data-value="Não"><span class="dot"></span>Não</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" data-next="9" disabled id="btn-next-8">Continuar</button>
+      </div>
+    </div>
+
+    <!-- STEP 9: ABERTA + ENVIO -->
+    <div class="step" id="step-9">
+      <div class="eyebrow">Última pergunta</div>
+      <h1>O que falta para sermos seu fornecedor número 1?</h1>
+      <div class="field" style="margin-top:6px">
+        <label>Sua resposta <span class="optional-tag">(opcional)</span></label>
+        <textarea id="texto-aberto" placeholder="Escreva aqui..." style="min-height:120px"></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" data-back>Voltar</button>
+        <button class="btn btn-primary" id="btn-enviar">Enviar avaliação</button>
+      </div>
+    </div>
+
+    <!-- ENVIANDO -->
+    <div class="state-center" id="state-enviando" style="display:none">
+      <div class="spinner"></div>
+      <div class="state-title">Enviando sua avaliação...</div>
+    </div>
+
+    <!-- ERRO NO ENVIO -->
+    <div class="state-center" id="state-erro-envio" style="display:none">
+      <div class="state-title">Não conseguimos enviar</div>
+      <div class="state-text" id="state-erro-envio-texto">Verifique sua internet e tente novamente.</div>
+      <button class="btn btn-primary" style="margin-top:20px;max-width:280px" id="btn-tentar-novamente">Tentar novamente</button>
+    </div>
+
+    <!-- STEP FINAL: CUPOM -->
+    <div class="step" id="step-final">
+      <div class="eyebrow">Obrigado! 🎉</div>
+      <h1>Sua avaliação foi enviada com sucesso</h1>
+      <p class="subtitle">Aqui está seu desconto. Guarde este código e informe ao vendedor na sua próxima compra.</p>
+      <div class="cupom-box">
+        <div class="pct" id="cupom-pct">5% OFF</div>
+        <div class="desc">na sua próxima compra</div>
+        <div class="code" id="cupom-code">—</div>
+        <div class="valid" id="cupom-valid">Válido até —</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ftr">
+    <strong>Q Food Company</strong><br>
+    Qualidade feita para o seu negócio
+  </div>
+
+</div>
+
+<script>
+/* ═══════ CONFIG ═══════ */
+var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec";
+
+var STEPS_TOTAL = 9; // não conta boas-vindas nem tela final
+var TOKEN = null;
+var CONVITE = null;
+var TIMESTAMP_INICIO = null;
+
+var RESPOSTAS = {
+  nps: null,
+  estrelas: { comercial:0, logistica:0, qualidade:0, financeiro:0, mix:0 },
+  comentarios: { comercial:"", logistica:"", qualidade:"", financeiro:"", mix:"" },
+  problema30d: null,
+  indicariaHoje: null,
+  textoAberto: ""
+};
+
+var STAR_LABELS = ["", "Muito ruim", "Ruim", "Regular", "Bom", "Excelente"];
+
+/* ═══════ HELPERS ═══════ */
+function $(id){ return document.getElementById(id); }
+function qs(sel, root){ return (root||document).querySelector(sel); }
+function qsa(sel, root){ return Array.prototype.slice.call((root||document).querySelectorAll(sel)); }
+
+function showOnly(id){
+  qsa(".step").forEach(function(s){ s.classList.remove("active"); });
+  var el = $(id);
+  if (el) el.classList.add("active");
+}
+
+function setProgress(stepIndex){
+  var wrap = $("progress-wrap");
+  if (stepIndex <= 0 || stepIndex > STEPS_TOTAL){
+    wrap.style.display = "none";
+    return;
+  }
+  wrap.style.display = "block";
+  var pct = Math.round((stepIndex / STEPS_TOTAL) * 100);
+  $("progress-fill").style.width = pct + "%";
+  $("progress-label").textContent = "Pergunta " + stepIndex + " de " + STEPS_TOTAL;
+}
+
+/* ═══════ CARREGAR CONVITE ═══════ */
+function getTokenFromUrl(){
+  var params = new URLSearchParams(window.location.search);
+  return params.get("t") || params.get("token") || "";
+}
+
+function carregarConvite(){
+  TOKEN = getTokenFromUrl();
+  if (!TOKEN){
+    $("state-loading").style.display = "none";
+    $("state-erro").style.display = "flex";
+    return;
+  }
+
+  var url = APPS_SCRIPT_URL + "?modulo=nps&action=consultarConvite&token=" + encodeURIComponent(TOKEN);
+  fetch(url)
+    .then(function(r){ return r.json(); })
+    .then(function(resp){
+      $("state-loading").style.display = "none";
+      if (!resp.ok || !resp.convite){
+        $("state-erro-texto").textContent = resp.error || "Link inválido.";
+        $("state-erro").style.display = "flex";
+        return;
+      }
+      CONVITE = resp.convite;
+      if (CONVITE.status === "RESPONDIDO"){
+        $("state-ja-respondido").style.display = "flex";
+        return;
+      }
+      montarTelaInicial();
+    })
+    .catch(function(){
+      $("state-loading").style.display = "none";
+      $("state-erro-texto").textContent = "Sem conexão. Verifique sua internet e tente abrir o link novamente.";
+      $("state-erro").style.display = "flex";
+    });
+}
+
+function montarTelaInicial(){
+  $("id-nome").textContent = CONVITE.nomeFantasia || CONVITE.razaoSocial || "Cliente Q Food";
+  var metaParts = [];
+  if (CONVITE.segmento) metaParts.push(CONVITE.segmento);
+  $("id-meta").textContent = metaParts.length ? metaParts.join(" · ") : "Avaliação Q Food Company";
+  showOnly("step-0");
+  setProgress(0);
+}
+
+/* ═══════ STEP 1: NPS ═══════ */
+function renderNpsGrid(){
+  var grid = $("nps-grid");
+  grid.innerHTML = "";
+  for (var i = 0; i <= 10; i++){
+    var b = document.createElement("button");
+    b.className = "nps-btn";
+    b.type = "button";
+    b.textContent = i;
+    b.dataset.value = i;
+    b.dataset.cat = i <= 6 ? "detrator" : (i <= 8 ? "neutro" : "promotor");
+    b.addEventListener("click", function(){
+      qsa(".nps-btn", grid).forEach(function(x){ x.classList.remove("selected"); });
+      this.classList.add("selected");
+      RESPOSTAS.nps = Number(this.dataset.value);
+      $("btn-next-1").disabled = false;
+    });
+    grid.appendChild(b);
+  }
+}
+
+/* ═══════ ESTRELAS (pilares) ═══════ */
+function renderStars(pilar){
+  var wrap = qs('[data-stars="' + pilar + '"]');
+  wrap.innerHTML = "";
+  for (var i = 1; i <= 5; i++){
+    var s = document.createElement("span");
+    s.className = "star";
+    s.textContent = "★";
+    s.dataset.value = i;
+    s.addEventListener("click", function(){
+      var val = Number(this.dataset.value);
+      RESPOSTAS.estrelas[pilar] = val;
+      atualizarEstrelas(pilar, val);
+      var btn = qs('[data-req="' + pilar + '"]');
+      if (btn) btn.disabled = false;
+    });
+    wrap.appendChild(s);
+  }
+}
+
+function atualizarEstrelas(pilar, val){
+  var wrap = qs('[data-stars="' + pilar + '"]');
+  qsa(".star", wrap).forEach(function(s){
+    s.classList.toggle("filled", Number(s.dataset.value) <= val);
+  });
+  var label = qs('[data-star-label="' + pilar + '"]');
+  if (label) label.textContent = STAR_LABELS[val] || "Toque nas estrelas";
+}
+
+/* ═══════ NAVEGAÇÃO ═══════ */
+function irParaStep(n){
+  showOnly("step-" + n);
+  setProgress(n);
+  window.scrollTo(0,0);
+}
+
+function configurarNavegacao(){
+  $("btn-comecar").addEventListener("click", function(){
+    TIMESTAMP_INICIO = new Date().toISOString();
+    irParaStep(1);
+  });
+
+  $("btn-next-1").addEventListener("click", function(){ irParaStep(2); });
+
+  qsa("[data-next]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var pilarStep = this.closest(".step");
+      var pilar = pilarStep ? pilarStep.dataset.pilar : null;
+      if (pilar){
+        var ta = qs('[data-comment="' + pilar + '"]', pilarStep);
+        RESPOSTAS.comentarios[pilar] = ta ? ta.value.trim() : "";
+      }
+      irParaStep(this.dataset.next);
+    });
+  });
+
+  qsa("[data-back]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var atual = qs(".step.active");
+      var idx = parseInt(atual.id.replace("step-", ""), 10);
+      if (isNaN(idx)) return;
+      if (idx <= 1){ irParaStep(0); return; }
+      irParaStep(idx - 1);
+    });
+  });
+
+  // Step 7 — problema 30 dias
+  qsa("#opt-problema .opt").forEach(function(b){
+    b.addEventListener("click", function(){
+      qsa("#opt-problema .opt").forEach(function(x){ x.classList.remove("selected"); });
+      this.classList.add("selected");
+      RESPOSTAS.problema30d = this.dataset.value;
+      $("btn-next-7").disabled = false;
+    });
+  });
+
+  // Step 8 — indicaria hoje
+  qsa("#opt-indicaria .opt").forEach(function(b){
+    b.addEventListener("click", function(){
+      qsa("#opt-indicaria .opt").forEach(function(x){ x.classList.remove("selected"); });
+      this.classList.add("selected");
+      RESPOSTAS.indicariaHoje = this.dataset.value;
+      $("btn-next-8").disabled = false;
+    });
+  });
+
+  $("btn-enviar").addEventListener("click", function(){
+    RESPOSTAS.textoAberto = $("texto-aberto").value.trim();
+    enviarAvaliacao();
+  });
+
+  $("btn-tentar-novamente").addEventListener("click", function(){
+    enviarAvaliacao();
+  });
+}
+
+/* ═══════ ENVIO ═══════ */
+function hojeIso(){
+  var d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+
+function enviarAvaliacao(){
+  showOnly("state-enviando");
+  $("progress-wrap").style.display = "none";
+
+  var avaliacao = {
+    nps_score: RESPOSTAS.nps,
+    nota_comercial: RESPOSTAS.estrelas.comercial,
+    nota_logistica: RESPOSTAS.estrelas.logistica,
+    nota_qualidade: RESPOSTAS.estrelas.qualidade,
+    nota_financeiro: RESPOSTAS.estrelas.financeiro,
+    nota_mix: RESPOSTAS.estrelas.mix,
+    obs_comercial: RESPOSTAS.comentarios.comercial,
+    observacao_motorista: RESPOSTAS.comentarios.logistica,
+    obs_qualidade: RESPOSTAS.comentarios.qualidade,
+    obs_financeiro: RESPOSTAS.comentarios.financeiro,
+    obs_mix: RESPOSTAS.comentarios.mix,
+    problema_30d: RESPOSTAS.problema30d,
+    indicaria_hoje: RESPOSTAS.indicariaHoje,
+    texto_aberto: RESPOSTAS.textoAberto,
+    data_visita: hojeIso(),
+    timestamp_inicio: TIMESTAMP_INICIO
+  };
+
+  var body = JSON.stringify({
+    action: "responderPublico",
+    payload: { token: TOKEN, avaliacao: avaliacao }
+  });
+
+  fetch(APPS_SCRIPT_URL + "?modulo=nps", {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: body
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(resp){
+    if (!resp.ok){
+      $("state-erro-envio-texto").textContent = resp.error || "Tente novamente em instantes.";
+      showOnly("state-erro-envio");
+      return;
+    }
+    mostrarCupom(resp.resultado);
+  })
+  .catch(function(){
+    $("state-erro-envio-texto").textContent = "Verifique sua internet e tente novamente.";
+    showOnly("state-erro-envio");
+  });
+}
+
+function formatarDataBr(iso){
+  try {
+    var d = new Date(iso);
+    return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + "/" + d.getFullYear();
+  } catch(e){ return ""; }
+}
+
+function mostrarCupom(resultado){
+  $("cupom-pct").textContent = (resultado.percentualDesconto || 5) + "% OFF";
+  $("cupom-code").textContent = resultado.codigoCupom || "—";
+  $("cupom-valid").textContent = "Válido até " + formatarDataBr(resultado.validadeCupom);
+  showOnly("step-final");
+  $("progress-wrap").style.display = "none";
+  window.scrollTo(0,0);
+}
+
+/* ═══════ BOOT ═══════ */
+document.addEventListener("DOMContentLoaded", function(){
+  renderNpsGrid();
+  ["comercial","logistica","qualidade","financeiro","mix"].forEach(renderStars);
+  configurarNavegacao();
+  carregarConvite();
+});
+</script>
+</body>
+</html>
