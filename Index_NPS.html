@@ -342,6 +342,7 @@ input,select,textarea{font-family:inherit;font-size:inherit}
 <nav class="toggle-wrap">
   <button class="tog-btn active" id="tab-form" onclick="trocarAba('form')">📝 Nova Avaliação</button>
   <button class="tog-btn" id="tab-dash" onclick="trocarAba('dash')">📈 Dashboard</button>
+  <button class="tog-btn" id="tab-convites" onclick="trocarAba('convites')">🎟️ Convites</button>
 </nav>
 
 <!-- PENDENTES -->
@@ -603,6 +604,73 @@ input,select,textarea{font-family:inherit;font-size:inherit}
   </div>
 </main>
 
+<!-- TELA: CONVITES -->
+<main class="wrap" id="screen-convites" style="display:none">
+
+  <div class="kpi-grid" id="conv-kpi-grid"></div>
+
+  <div class="card" id="cv-card-gerar">
+    <h3><span class="num">+</span> Gerar novo convite</h3>
+    <p class="q">Busque o CNPJ do cliente, confirme o WhatsApp e gere o link com cupom de desconto.</p>
+
+    <div class="field">
+      <label>CNPJ do Cliente <span class="req">*</span></label>
+      <input type="text" id="cv-cnpj" placeholder="00.000.000/0000-00" inputmode="numeric" maxlength="18">
+      <div class="hint" id="cv-cnpj-hint">Digite 14 dígitos</div>
+    </div>
+
+    <div class="field" id="cv-info-cliente" style="display:none">
+      <label>Cliente encontrado</label>
+      <div class="tel-inline show" style="margin-top:0">
+        <div style="width:100%">
+          <strong id="cv-nome-fantasia"></strong>
+          <div id="cv-meta" style="font-size:12px;color:var(--txt-dim);margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>WhatsApp do Cliente <span class="req">*</span></label>
+      <input type="text" id="cv-whatsapp" placeholder="(27) 99999-9999" inputmode="tel">
+      <div class="hint">Confirme ou ajuste antes de gerar</div>
+    </div>
+
+    <div class="field" id="cv-historico-wrap" style="display:none">
+      <label>Convites anteriores deste CNPJ</label>
+      <div id="cv-historico-list"></div>
+    </div>
+
+    <button class="btn-primary" id="cv-btn-gerar" style="margin-top:8px" disabled>🎟️ Gerar convite e link</button>
+  </div>
+
+  <div class="card" id="cv-resultado-card" style="display:none">
+    <h3><span class="num">✓</span> Convite gerado</h3>
+    <div class="field">
+      <label>Link para enviar</label>
+      <input type="text" id="cv-link-gerado" readonly onclick="this.select()">
+    </div>
+    <div class="actions">
+      <a class="btn-primary" id="cv-btn-whatsapp" target="_blank" style="text-decoration:none;text-align:center;display:block">📱 Abrir WhatsApp e enviar</a>
+      <button class="btn-secondary" onclick="document.getElementById('cv-resultado-card').style.display='none'">Fechar</button>
+    </div>
+    <div class="hint" style="margin-top:10px">Lembre de anexar a imagem promocional na conversa antes de enviar.</div>
+  </div>
+
+  <div class="section">
+    <h2>📋 Acompanhamento de Convites</h2>
+    <div class="dash-filters">
+      <select id="cv-filtro-status">
+        <option value="">Todos os status</option>
+        <option value="PENDENTE">Pendente</option>
+        <option value="RESPONDIDO">Respondido</option>
+      </select>
+      <button class="refresh" onclick="carregarConvites(true)">🔄 Atualizar</button>
+    </div>
+    <div id="cv-lista"></div>
+  </div>
+
+</main>
+
 <div id="toast"></div>
 <div class="modal-bg" id="modal-detalhes" onclick="if(event.target===this)fecharModal()">
   <div class="modal">
@@ -675,7 +743,8 @@ var CONFIG = {
     UNPS:          "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1742739926&single=true&output=csv",
     BASE_PDV:      "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1880583941&single=true&output=csv",
     UUSR:          "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1823026381&single=true&output=csv",
-    CRM_CONTATOS:  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=188575172&single=true&output=csv"
+    CRM_CONTATOS:  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=188575172&single=true&output=csv",
+    UNPS_CONVITES: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1620894669&single=true&output=csv"
   },
   BASE_PDV: {
     // Mapeamento DEFINITIVO baseado na planilha real (validado em 15/05/2026)
@@ -702,7 +771,7 @@ var CONFIG = {
     COL_OBSERVACAO:          7    // H
   },
   PESOS: { comercial:0.25, logistica:0.30, qualidade:0.20, financeiro:0.15, mix:0.10 },
-  CACHE_TTL: { BASE_PDV: 15*60*1000, UNPS: 60*1000, UUSR: 15*60*1000, CRM_CONTATOS: 10*60*1000 },
+  CACHE_TTL: { BASE_PDV: 15*60*1000, UNPS: 60*1000, UUSR: 15*60*1000, CRM_CONTATOS: 10*60*1000, UNPS_CONVITES: 60*1000 },
   SESSION_KEY: "qfood_session",
   DRAFT_KEY:   "nps_draft_v1",
   QUEUE_KEY:   "nps_queue_v1",
@@ -712,7 +781,8 @@ var CONFIG = {
     "celio@qfoodcompany.com.br","barbara@qfoodcompany.com.br",
     "camila@qfoodcompany.com.br"
   ],
-  ADMIN_EMAILS: ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"]
+  ADMIN_EMAILS: ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"],
+  CONV_EDITORES: ["roberta@qfoodcompany.com.br","rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"]
 };
 
 var SESSION = null;
@@ -2009,12 +2079,17 @@ function trocarTabScript(qual){
 function trocarAba(qual){
   document.getElementById("screen-form").style.display = qual === "form" ? "block" : "none";
   document.getElementById("screen-dash").style.display = qual === "dash" ? "block" : "none";
+  document.getElementById("screen-convites").style.display = qual === "convites" ? "block" : "none";
   document.getElementById("tab-form").classList.toggle("active", qual==="form");
   document.getElementById("tab-dash").classList.toggle("active", qual==="dash");
+  document.getElementById("tab-convites").classList.toggle("active", qual==="convites");
   window.scrollTo({top:0, behavior:"smooth"});
   if (qual === "dash"){
     if (CURRENT_DATA.length === 0) recarregarDashboard(false);
     else renderDashboard();
+  }
+  if (qual === "convites"){
+    carregarConvites(false);
   }
 }
 
@@ -2030,6 +2105,307 @@ function atualizarStatusRede(){
   var el = document.getElementById("net-status");
   if (navigator.onLine){ el.textContent = "✓ Online"; el.className = "hdr-status ok"; }
   else { el.textContent = "⚠ Offline"; el.className = "hdr-status off"; }
+}
+
+/* ═══════ 13B. CONVITES (link público + cupom) ═══════ */
+var CONVITES_DATA = [];
+var CONV_CLIENTE_ENCONTRADO = null;
+var cvDebounceTimer = null;
+
+function podeGerarConvite(){
+  var email = (SESSION && SESSION.email ? SESSION.email : "").toLowerCase();
+  return CONFIG.CONV_EDITORES.indexOf(email) >= 0;
+}
+
+function initTabConvites(){
+  var cardGerar = document.getElementById("cv-card-gerar");
+  if (cardGerar) cardGerar.style.display = podeGerarConvite() ? "block" : "none";
+
+  var cnpjInp = document.getElementById("cv-cnpj");
+  if (cnpjInp){
+    cnpjInp.addEventListener("input", function(){
+      this.value = aplicarMascaraCnpj(this.value);
+      buscarClienteConvite(this.value);
+    });
+  }
+  var waInp = document.getElementById("cv-whatsapp");
+  if (waInp) waInp.addEventListener("input", atualizarBotaoGerarConvite);
+
+  var btnGerar = document.getElementById("cv-btn-gerar");
+  if (btnGerar) btnGerar.addEventListener("click", gerarNovoConvite);
+
+  var filtro = document.getElementById("cv-filtro-status");
+  if (filtro) filtro.addEventListener("change", renderListaConvites);
+}
+
+function atualizarBotaoGerarConvite(){
+  var btn = document.getElementById("cv-btn-gerar");
+  if (!btn) return;
+  var wa = somenteDigitos(document.getElementById("cv-whatsapp").value);
+  btn.disabled = !(CONV_CLIENTE_ENCONTRADO && wa.length >= 10);
+}
+
+function resolverVendedorPorNomeBase(vendedorRaw){
+  if (!vendedorRaw || !VENDEDORES || !VENDEDORES.length) return null;
+  var vNorm = normalizarNome(vendedorRaw);
+  for (var i = 0; i < VENDEDORES.length; i++){
+    var v = VENDEDORES[i];
+    var nomeNorm = normalizarNome(v.nome);
+    if (nomeNorm === vNorm || v.sigla.toLowerCase() === String(vendedorRaw).toLowerCase() ||
+        (nomeNorm.length > 2 && vNorm.indexOf(nomeNorm) >= 0) ||
+        (vNorm.length > 2 && nomeNorm.indexOf(vNorm) >= 0)){
+      return v;
+    }
+  }
+  return null;
+}
+
+function buscarClienteConvite(cnpjFormatado){
+  if (cvDebounceTimer) clearTimeout(cvDebounceTimer);
+  cvDebounceTimer = setTimeout(function(){
+    var cnpj = somenteDigitos(cnpjFormatado);
+    var hint = document.getElementById("cv-cnpj-hint");
+    var infoBox = document.getElementById("cv-info-cliente");
+    CONV_CLIENTE_ENCONTRADO = null;
+    infoBox.style.display = "none";
+    document.getElementById("cv-historico-wrap").style.display = "none";
+    atualizarBotaoGerarConvite();
+
+    if (cnpj.length !== 14){ hint.textContent = "Digite 14 dígitos"; hint.className = "hint"; return; }
+    if (!BASE_PDV_INDEX){ hint.textContent = "Aguardando BASE_PDV…"; hint.className = "hint warn"; return; }
+
+    var contato = resolverContato(cnpj);
+    if (!contato.encontrouEmBase){
+      hint.textContent = "⚠️ CNPJ não encontrado na BASE_PDV";
+      hint.className = "hint warn";
+      return;
+    }
+    hint.innerHTML = "✓ Cliente encontrado";
+    hint.className = "hint ok";
+
+    var vendResolvido = resolverVendedorPorNomeBase(contato.vendedor);
+
+    CONV_CLIENTE_ENCONTRADO = {
+      cnpjDigits: cnpj,
+      fantasia: contato.fantasia,
+      razao: contato.razao,
+      segmento: contato.segmento,
+      vendedorSigla: vendResolvido ? vendResolvido.sigla : "",
+      vendedorNome: vendResolvido ? vendResolvido.nome : contato.vendedor
+    };
+
+    document.getElementById("cv-nome-fantasia").textContent = contato.fantasia || contato.razao || "Cliente";
+    var metaParts = [];
+    if (contato.segmento) metaParts.push(contato.segmento);
+    if (CONV_CLIENTE_ENCONTRADO.vendedorNome) metaParts.push("Vendedor: " + CONV_CLIENTE_ENCONTRADO.vendedorNome);
+    document.getElementById("cv-meta").textContent = metaParts.join(" · ");
+    infoBox.style.display = "block";
+
+    if (contato.whatsapp) document.getElementById("cv-whatsapp").value = contato.whatsapp;
+    atualizarBotaoGerarConvite();
+
+    carregarHistoricoConviteCnpj(cnpj);
+  }, 300);
+}
+
+function carregarHistoricoConviteCnpj(cnpj){
+  var url = CONFIG.WEBAPP_URL + "?modulo=nps&action=historicoConvites&autorEmail=" +
+            encodeURIComponent(SESSION.email) + "&cnpj=" + encodeURIComponent(cnpj);
+  fetch(url).then(function(r){ return r.json(); }).then(function(resp){
+    var wrap = document.getElementById("cv-historico-wrap");
+    var list = document.getElementById("cv-historico-list");
+    if (!resp.ok || !resp.convites || !resp.convites.length){ wrap.style.display = "none"; return; }
+    wrap.style.display = "block";
+    list.innerHTML = resp.convites.map(function(c){
+      return '<div class="list-comment"><div class="meta"><span>' + formatDataBr(parseData(c.dataGeracao)) +
+             '</span><span>' + (c.status === "RESPONDIDO" ? "✓ Respondido" : "Pendente") + '</span></div></div>';
+    }).join("");
+  }).catch(function(){ document.getElementById("cv-historico-wrap").style.display = "none"; });
+}
+
+function gerarNovoConvite(){
+  if (!CONV_CLIENTE_ENCONTRADO){ toast("Busque um CNPJ válido primeiro", "warn"); return; }
+  var waRaw = document.getElementById("cv-whatsapp").value.trim();
+  if (somenteDigitos(waRaw).length < 10){ toast("Informe um WhatsApp válido", "warn"); return; }
+
+  var btn = document.getElementById("cv-btn-gerar");
+  btn.disabled = true; btn.textContent = "Gerando…";
+
+  var payload = {
+    autorEmail: SESSION.email,
+    cnpj: CONV_CLIENTE_ENCONTRADO.cnpjDigits,
+    nomeFantasia: CONV_CLIENTE_ENCONTRADO.fantasia,
+    razaoSocial: CONV_CLIENTE_ENCONTRADO.razao,
+    segmento: CONV_CLIENTE_ENCONTRADO.segmento,
+    vendedorSigla: CONV_CLIENTE_ENCONTRADO.vendedorSigla,
+    vendedorNome: CONV_CLIENTE_ENCONTRADO.vendedorNome,
+    whatsapp: waRaw
+  };
+
+  postWebApp({action:"gerarConvite", payload:payload}, function(resp){
+    btn.disabled = false; btn.textContent = "🎟️ Gerar convite e link";
+    mostrarConviteGerado(resp.convite, waRaw);
+    carregarConvites(true);
+    toast("Convite gerado com sucesso", "success");
+  }, function(err){
+    btn.disabled = false; btn.textContent = "🎟️ Gerar convite e link";
+    toast("Erro ao gerar: " + err.message, "error");
+  });
+}
+
+function mostrarConviteGerado(convite, waRaw){
+  document.getElementById("cv-resultado-card").style.display = "block";
+  document.getElementById("cv-link-gerado").value = convite.link;
+  var msg = "Oi! Preparamos uma avaliação rápida (2 min) da Q Food pra você — e ao final você ganha 5% de desconto na próxima compra: " + convite.link;
+  var waDigits = somenteDigitos(waRaw);
+  var waFull = waDigits.length <= 11 ? "55" + waDigits : waDigits;
+  document.getElementById("cv-btn-whatsapp").href = "https://wa.me/" + waFull + "?text=" + encodeURIComponent(msg);
+  document.getElementById("cv-resultado-card").scrollIntoView({behavior:"smooth", block:"center"});
+}
+
+function carregarConvites(force){
+  if (force) sessionStorage.removeItem(CONFIG.CACHE_PREFIX + "unps_convites");
+  fetchCsv(CONFIG.CSV.UNPS_CONVITES, "unps_convites", CONFIG.CACHE_TTL.UNPS_CONVITES, function(rows){
+    CONVITES_DATA = parseConvitesRows(rows);
+    renderKpisConvites();
+    if (CURRENT_DATA.length === 0){
+      carregarDashboardData(false, renderListaConvites);
+    } else {
+      renderListaConvites();
+    }
+  }, function(){
+    CONVITES_DATA = [];
+    renderKpisConvites();
+    renderListaConvites();
+    toast("Erro ao carregar convites", "error");
+  });
+}
+
+function parseConvitesRows(rows){
+  if (!rows || rows.length < 2) return [];
+  var hdr = rows[0].map(function(h){ return String(h||"").trim(); });
+  var cols = ["Token","CNPJ","Nome_Fantasia","Razao_Social","Segmento","Potencial_ABC","Vendedor_Sigla",
+    "Vendedor_Nome","WhatsApp","Gerado_Por","Data_Geracao","Status","Data_Resposta","Codigo_Cupom",
+    "Validade_Cupom","Repassado_Vendedor","Data_Repasse","Cupom_Usado","Data_Uso","ID_Avaliacao_UNPS"];
+  var idx = {};
+  cols.forEach(function(c){ idx[c] = idxByName(hdr, c); });
+  var out = [];
+  for (var r = 1; r < rows.length; r++){
+    var row = rows[r]; if (!row || !row[idx.Token]) continue;
+    out.push({
+      token: row[idx.Token],
+      cnpj: somenteDigitos(row[idx.CNPJ]),
+      nomeFantasia: row[idx.Nome_Fantasia],
+      razaoSocial: row[idx.Razao_Social],
+      segmento: row[idx.Segmento],
+      vendedorSigla: row[idx.Vendedor_Sigla],
+      vendedorNome: row[idx.Vendedor_Nome],
+      whatsapp: row[idx.WhatsApp],
+      geradoPor: row[idx.Gerado_Por],
+      dataGeracao: row[idx.Data_Geracao],
+      status: (row[idx.Status]||"").toUpperCase(),
+      dataResposta: row[idx.Data_Resposta],
+      codigoCupom: row[idx.Codigo_Cupom],
+      validadeCupom: row[idx.Validade_Cupom],
+      repassadoVendedor: (row[idx.Repassado_Vendedor]||"").toUpperCase(),
+      dataRepasse: row[idx.Data_Repasse],
+      cupomUsado: (row[idx.Cupom_Usado]||"").toUpperCase(),
+      dataUso: row[idx.Data_Uso],
+      idAvaliacaoUnps: row[idx.ID_Avaliacao_UNPS]
+    });
+  }
+  out.sort(function(a,b){ return String(b.dataGeracao).localeCompare(String(a.dataGeracao)); });
+  return out;
+}
+
+function cupomEstaAtivo(c){
+  if (c.status !== "RESPONDIDO" || c.cupomUsado === "SIM") return false;
+  if (!c.validadeCupom) return true;
+  var v = parseData(c.validadeCupom);
+  return !v || v.getTime() >= Date.now();
+}
+
+function kpiHtml(label, value, cls){
+  return '<div class="kpi ' + (cls||"") + '"><div class="kpi-label">' + label + '</div><div class="kpi-value">' + value + '</div></div>';
+}
+
+function renderKpisConvites(){
+  var el = document.getElementById("conv-kpi-grid");
+  if (!el) return;
+  var total = CONVITES_DATA.length;
+  var respondidos = CONVITES_DATA.filter(function(c){ return c.status === "RESPONDIDO"; }).length;
+  var pct = total ? Math.round(respondidos / total * 100) : 0;
+  var cupomAtivos = CONVITES_DATA.filter(cupomEstaAtivo).length;
+  var cupomUsados = CONVITES_DATA.filter(function(c){ return c.cupomUsado === "SIM"; }).length;
+  el.innerHTML =
+    kpiHtml("Selecionados", total, "") +
+    kpiHtml("Respondidos", respondidos, "green") +
+    kpiHtml("% Conversão", pct + "%", pct >= 50 ? "green" : (pct >= 25 ? "yellow" : "red")) +
+    kpiHtml("Cupons Ativos", cupomAtivos, "gold") +
+    kpiHtml("Cupons Usados", cupomUsados, "");
+}
+
+function buscarComentarioPorId(id){
+  if (!id || !CURRENT_DATA || !CURRENT_DATA.length) return "";
+  var found = CURRENT_DATA.filter(function(d){ return d.id === id; })[0];
+  return found ? (found.textoAberto || "") : "";
+}
+
+function renderListaConvites(){
+  var wrap = document.getElementById("cv-lista");
+  if (!wrap) return;
+  var filtro = document.getElementById("cv-filtro-status").value;
+  var podeGerir = podeGerarConvite();
+  var lista = CONVITES_DATA.filter(function(c){ return !filtro || c.status === filtro; });
+  if (!lista.length){ wrap.innerHTML = '<div class="empty">Nenhum convite encontrado.</div>'; return; }
+
+  wrap.innerHTML = lista.map(function(c){
+    var badgeClass = c.status === "RESPONDIDO" ? "green" : "yellow";
+    var badgeTxt = c.status === "RESPONDIDO" ? "Respondido" : "Pendente";
+    var comentario = buscarComentarioPorId(c.idAvaliacaoUnps);
+    var html = '<div class="risk-card" style="border-color:var(--line)">';
+    html += '<h4>' + escapeHtml(c.nomeFantasia || c.razaoSocial || "Cliente") +
+            ' <span class="tag ' + badgeClass + '">' + badgeTxt + '</span></h4>';
+    html += '<div class="meta">Gerado em ' + formatDataBr(parseData(c.dataGeracao)) +
+            ' · ' + escapeHtml(c.vendedorNome || c.vendedorSigla || "—") + '</div>';
+    if (c.status === "RESPONDIDO"){
+      html += '<div class="notas"><span>🎟️ ' + escapeHtml(c.codigoCupom || "—") + '</span>' +
+              '<span>Válido até ' + formatDataBr(parseData(c.validadeCupom)) + '</span></div>';
+      if (comentario) html += '<div class="quote">"' + escapeHtml(comentario) + '"</div>';
+    }
+    if (podeGerir){
+      html += '<div class="btns">';
+      if (c.status === "RESPONDIDO" && c.repassadoVendedor !== "SIM"){
+        html += '<button onclick="marcarRepasseConvite(\'' + c.token + '\')">📋 Repassei pro vendedor</button>';
+      } else if (c.repassadoVendedor === "SIM"){
+        html += '<span class="tag green">✓ Repassado</span>';
+      }
+      if (c.status === "RESPONDIDO" && c.cupomUsado !== "SIM"){
+        html += '<button onclick="marcarUsoConvite(\'' + c.token + '\')">✅ Marcar cupom usado</button>';
+      } else if (c.cupomUsado === "SIM"){
+        html += '<span class="tag gold">✓ Cupom usado</span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    return html;
+  }).join("");
+}
+
+function marcarRepasseConvite(token){
+  if (!window.confirm("Confirma que já repassou o código do cupom pro vendedor?")) return;
+  postWebApp({action:"marcarRepasse", payload:{autorEmail:SESSION.email, token:token}}, function(){
+    toast("Marcado como repassado", "success");
+    carregarConvites(true);
+  }, function(err){ toast("Erro: " + err.message, "error"); });
+}
+
+function marcarUsoConvite(token){
+  if (!window.confirm("Confirma que o cliente já usou este cupom?")) return;
+  postWebApp({action:"marcarUso", payload:{autorEmail:SESSION.email, token:token}}, function(){
+    toast("Cupom marcado como usado", "success");
+    carregarConvites(true);
+  }, function(err){ toast("Erro: " + err.message, "error"); });
 }
 
 /* ═══════ 14. UTILS ═══════ */
@@ -2214,6 +2590,7 @@ document.addEventListener("DOMContentLoaded", function(){
     // Carrega BASE_PDV e vendedores em paralelo
     carregarBasePdv(function(){});
     carregarVendedores();
+    initTabConvites();
     checarDraft();
     atualizarBadgePendentes();
     atualizarStatusRede();
