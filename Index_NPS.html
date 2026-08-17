@@ -2372,17 +2372,23 @@ function renderListaConvites(){
               '<span>Válido até ' + formatDataBr(parseData(c.validadeCupom)) + '</span></div>';
       if (comentario) html += '<div class="quote">"' + escapeHtml(comentario) + '"</div>';
     }
-    if (podeGerir){
+    if (podeGerir && c.status === "RESPONDIDO"){
+      var faltaRepasse = c.repassadoVendedor !== "SIM";
+      var faltaUso = c.cupomUsado !== "SIM";
       html += '<div class="btns">';
-      if (c.status === "RESPONDIDO" && c.repassadoVendedor !== "SIM"){
-        html += '<button onclick="marcarRepasseConvite(\'' + c.token + '\')">📋 Repassei pro vendedor</button>';
-      } else if (c.repassadoVendedor === "SIM"){
-        html += '<span class="tag green">✓ Repassado</span>';
-      }
-      if (c.status === "RESPONDIDO" && c.cupomUsado !== "SIM"){
-        html += '<button onclick="marcarUsoConvite(\'' + c.token + '\')">✅ Marcar cupom usado</button>';
-      } else if (c.cupomUsado === "SIM"){
-        html += '<span class="tag gold">✓ Cupom usado</span>';
+      if (faltaRepasse && faltaUso){
+        html += '<button onclick="copiarEValidarConvite(\'' + c.token + '\',\'' + c.codigoCupom + '\',\'' + c.validadeCupom + '\')">📋 Copiar código e validar</button>';
+      } else {
+        if (faltaRepasse){
+          html += '<button onclick="marcarRepasseConvite(\'' + c.token + '\')">📋 Repassei pro vendedor</button>';
+        } else {
+          html += '<span class="tag green">✓ Repassado</span>';
+        }
+        if (faltaUso){
+          html += '<button onclick="marcarUsoConvite(\'' + c.token + '\')">✅ Marcar cupom usado</button>';
+        } else {
+          html += '<span class="tag gold">✓ Cupom usado</span>';
+        }
       }
       html += '</div>';
     }
@@ -2405,6 +2411,42 @@ function marcarUsoConvite(token){
     toast("Cupom marcado como usado", "success");
     carregarConvites(true);
   }, function(err){ toast("Erro: " + err.message, "error"); });
+}
+
+function copiarTexto(texto){
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(texto);
+  }
+  var ta = document.createElement("textarea");
+  ta.value = texto;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand("copy"); } catch(e){}
+  document.body.removeChild(ta);
+  return Promise.resolve();
+}
+
+function confirmarRepasseEUso(token){
+  postWebApp({action:"marcarRepasse", payload:{autorEmail:SESSION.email, token:token}}, function(){
+    postWebApp({action:"marcarUso", payload:{autorEmail:SESSION.email, token:token}}, function(){
+      toast("Repasse e uso confirmados", "success");
+      carregarConvites(true);
+    }, function(err){ toast("Repassado, mas erro ao marcar uso: " + err.message, "error"); carregarConvites(true); });
+  }, function(err){ toast("Erro: " + err.message, "error"); });
+}
+
+function copiarEValidarConvite(token, codigo, validade){
+  if (!window.confirm("Confirma que vai repassar o código \"" + codigo + "\" e que o cupom já foi usado?")) return;
+  var texto = codigo + " - Válido até " + formatDataBr(parseData(validade));
+  copiarTexto(texto).then(function(){
+    toast("Código copiado!", "success");
+    confirmarRepasseEUso(token);
+  }, function(){
+    toast("Não copiou automaticamente — copie manualmente: " + texto, "warn");
+    confirmarRepasseEUso(token);
+  });
 }
 
 /* ═══════ 14. UTILS ═══════ */
