@@ -501,11 +501,34 @@ function agrFetchCsv(url){
 function agrMapRota(row){
   return { id: Number(row.ID)||row.ID, rota: row.ROTA, cidade: row.CIDADE, valor: Number(row.VALOR)||0, ativo: row.ATIVO };
 }
+function agrParseValorBR(v){
+  if(v === null || v === undefined || v === '') return 0;
+  if(typeof v === 'number') return v;
+  var s = String(v).trim();
+  // formato BR: "1.300,00" -> remove separador de milhar, troca vírgula por ponto
+  if(s.indexOf(',') >= 0){ s = s.replace(/\./g,'').replace(',', '.'); }
+  var n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+var AGR_MESES_PT = {'jan':'01','fev':'02','mar':'03','abr':'04','mai':'05','jun':'06','jul':'07','ago':'08','set':'09','out':'10','nov':'11','dez':'12'};
+function agrNormalizarDataISO(v){
+  if(!v) return '';
+  var s = String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10); // já é ISO
+  var br = s.match(/^(\d{1,2})\/([a-zçéã]{3})\.?$/i); // "31/jul." (sem ano)
+  if(br){
+    var mes = AGR_MESES_PT[br[2].toLowerCase()];
+    if(mes) return new Date().getFullYear() + '-' + mes + '-' + br[1].padStart(2,'0');
+  }
+  var brFull = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // "31/07/2026"
+  if(brFull) return brFull[3] + '-' + brFull[2].padStart(2,'0') + '-' + brFull[1].padStart(2,'0');
+  return s; // não reconheceu — devolve como veio
+}
 function agrMapLancamento(row){
   return {
-    id: row.ID, data: row.DATA, semana: row.SEMANA, motorista: row.MOTORISTA,
+    id: row.ID, data: agrNormalizarDataISO(row.DATA), semana: row.SEMANA, motorista: row.MOTORISTA,
     microrregiao: row.MICRORREGIAO, tipo: row.TIPO, rotaId: row.ROTA_ID || null,
-    nfs: Number(row.NFS)||0, devolucoes: Number(row.DEVOLUCOES)||0, valor: Number(row.VALOR)||0,
+    nfs: Number(row.NFS)||0, devolucoes: Number(row.DEVOLUCOES)||0, valor: agrParseValorBR(row.VALOR),
     obs: row.OBS||'', status: row.STATUS||'RASCUNHO',
     lancadoPor: row.LANCADO_POR, lancadoEm: row.LANCADO_EM, enviadoEm: row.ENVIADO_EM,
     validadoPor: row.VALIDADO_POR, validadoEm: row.VALIDADO_EM,
