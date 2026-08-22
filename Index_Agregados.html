@@ -361,6 +361,18 @@ tbody tr:hover td{background:var(--s2);}
   </div>
 
   <div class="cwrap">
+    <div class="ctitle">Participação por tipo (mês atual)</div>
+    <div style="position:relative;max-width:340px;margin:0 auto">
+      <canvas id="chart-tipo-donut" height="340"></canvas>
+      <div id="donut-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
+        <div style="font-size:0.62rem;color:var(--mu);letter-spacing:0.5px;text-transform:uppercase">Total do mês</div>
+        <div id="donut-center-val" style="font-family:var(--fh);font-size:1.15rem;font-weight:700">—</div>
+      </div>
+    </div>
+    <div id="donut-legend" style="display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;margin-top:16px;font-size:0.76rem;color:var(--mu)"></div>
+  </div>
+
+  <div class="cwrap">
     <div class="ctitle">Custo por motorista (mês atual)</div>
     <canvas id="chart-motorista" height="90"></canvas>
   </div>
@@ -1135,6 +1147,11 @@ function agrRenderKpis(){
   var byRegiao = {};
   considerados.forEach(function(r){ byRegiao[r.microrregiao] = (byRegiao[r.microrregiao]||0)+r.valor; });
 
+  // ── Donut "Participação por tipo" (estilo relatório ILOS) ──
+  var byTipo = {};
+  considerados.forEach(function(r){ byTipo[r.tipo] = (byTipo[r.tipo]||0)+r.valor; });
+  agrRenderDonutTipo(byTipo, totalMesAtual);
+
   var ctxM = document.getElementById('chart-motorista').getContext('2d');
   if(agrChartMotorista) agrChartMotorista.destroy();
   agrChartMotorista = new Chart(ctxM, {
@@ -1148,6 +1165,59 @@ function agrRenderKpis(){
     type:'bar',
     data:{ labels:Object.keys(byRegiao), datasets:[{ data:Object.values(byRegiao), backgroundColor:'#36cfa0', borderRadius:6 }] },
     options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{color:'#8fa0c0'}, grid:{color:'rgba(255,255,255,.06)'} }, x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} } } }
+  });
+}
+
+// ── Plugin: escreve o % dentro de cada fatia do anel ──
+var agrDonutPercentPlugin = {
+  id: 'agrDonutPercent',
+  afterDatasetsDraw: function(chart){
+    var ctx = chart.ctx;
+    var meta = chart.getDatasetMeta(0);
+    var data = chart.data.datasets[0].data;
+    var total = data.reduce(function(a,b){return a+b;},0);
+    if(!total) return;
+    ctx.save();
+    ctx.font = '700 12px DM Sans, sans-serif';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    meta.data.forEach(function(arc, i){
+      var pct = data[i] / total * 100;
+      if(pct < 4) return; // fatia pequena demais pra caber o texto
+      var pos = arc.tooltipPosition();
+      ctx.fillText(Math.round(pct) + '%', pos.x, pos.y);
+    });
+    ctx.restore();
+  }
+};
+var agrChartTipoDonut = null;
+var AGR_DONUT_CORES = ['#ff4d4f','#a07cf6','#4d8ef5','#36cfa0','#ffaa2b','#22d3ee','#8fa0c0'];
+function agrRenderDonutTipo(byTipo, totalGeral){
+  var labels = Object.keys(byTipo);
+  var valores = Object.values(byTipo);
+  document.getElementById('donut-center-val').textContent = agrFmtMoeda(totalGeral);
+
+  var legend = document.getElementById('donut-legend');
+  legend.innerHTML = labels.map(function(l,i){
+    var pct = totalGeral ? Math.round(byTipo[l]/totalGeral*100) : 0;
+    return '<span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:50%;background:'+AGR_DONUT_CORES[i%AGR_DONUT_CORES.length]+';display:inline-block"></i>'+l+' — '+pct+'%</span>';
+  }).join('');
+
+  var ctx = document.getElementById('chart-tipo-donut').getContext('2d');
+  if(agrChartTipoDonut) agrChartTipoDonut.destroy();
+  if(!labels.length){ return; }
+  agrChartTipoDonut = new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: labels, datasets: [{ data: valores, backgroundColor: AGR_DONUT_CORES, borderColor: '#242938', borderWidth: 3 }] },
+    options: {
+      cutout: '68%',
+      plugins: {
+        legend: { display:false },
+        tooltip: { callbacks: { label: function(ctx){ return ctx.label + ': ' + agrFmtMoeda(ctx.parsed); } } }
+      }
+    },
+    plugins: [agrDonutPercentPlugin]
   });
 }
 
