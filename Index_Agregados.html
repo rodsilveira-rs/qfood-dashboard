@@ -55,9 +55,16 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .kpi.w{border-color:var(--warn);}.kpi.w .val{color:var(--warn);}
 .kpi.b{border-color:var(--blue);}.kpi.b .val{color:var(--blue);}
 .kpi.p{border-color:var(--pur);}.kpi.p .val{color:var(--pur);}
+.kpi.cyan{border-color:var(--cyan);}.kpi.cyan .val{color:var(--cyan);}
 
 .cwrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:24px;}
 .cwrap .ctitle{font-family:var(--fh);font-size:0.78rem;font-weight:600;margin-bottom:16px;color:var(--tx);}
+.kpi-chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+.kpi-chart-sub{font-size:0.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;text-align:center;font-weight:600;}
+.donut-center-abs{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;}
+.donut-center-lbl{font-size:0.6rem;color:var(--mu);letter-spacing:0.5px;text-transform:uppercase;}
+.donut-center-num{font-family:var(--fh);font-size:1.05rem;font-weight:700;}
+@media(max-width:640px){.kpi-chart-row{grid-template-columns:1fr;}}
 
 /* ---- FORM ---- */
 .card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:22px;margin-bottom:22px;}
@@ -135,8 +142,12 @@ tbody tr:hover td{background:var(--s2);}
 @media print{
   .hdr,.tabs,.ftr,.filtros,.btnrow,.actions,#tab-relatorio .rep-actions{display:none!important;}
   body{background:#fff;color:#000;}
-  .card,.twrap{border-color:#ccc;background:#fff;}
+  .card,.twrap,.cwrap,.kpi{border-color:#ccc;background:#fff;}
   td,th{color:#000;border-color:#ccc;}
+  .val,.ctitle,.lbl,.sub{color:#000!important;}
+  #kpi-print-header{display:block!important;text-align:center;margin-bottom:20px;}
+  #kpi-print-header h2{font-size:1.3rem;margin-bottom:4px;color:#000;}
+  #kpi-print-header p{font-size:0.85rem;color:#555;}
 }
 @media(max-width:900px){.frow{grid-template-columns:repeat(2,1fr);}.kpis{grid-template-columns:repeat(2,1fr);}.cfg-grid{grid-template-columns:1fr;}}
 @media(max-width:560px){.frow{grid-template-columns:1fr;}.kpis{grid-template-columns:1fr;}}
@@ -366,6 +377,11 @@ tbody tr:hover td{background:var(--s2);}
       </select>
     </div>
     <button class="btn btn-primary" onclick="agrRenderKpis()" style="height:38px">Aplicar período</button>
+    <button class="btn btn-ghost" onclick="agrExportarPdfKpis()" style="height:38px">📄 Exportar PDF</button>
+  </div>
+  <div id="kpi-print-header" style="display:none">
+    <h2 style="font-family:var(--fh)">Relatório de KPIs — Agregados</h2>
+    <p id="kpi-print-sub"></p>
   </div>
   <div id="kpi-alerta"></div>
   <div class="kpis">
@@ -373,15 +389,32 @@ tbody tr:hover td{background:var(--s2);}
     <div class="kpi w"><div class="lbl">Aguardando validação</div><div class="val" id="kpi-aguardando">—</div><div class="sub">valor pendente de análise</div></div>
     <div class="kpi g"><div class="lbl">Aprovado a pagar</div><div class="val" id="kpi-aprovado">—</div><div class="sub">liberado para o Gustavo</div></div>
     <div class="kpi b"><div class="lbl">Custo médio / NF</div><div class="val" id="kpi-custo-nf">—</div><div class="sub">valor pago ÷ NFs entregues</div></div>
+    <div class="kpi cyan"><div class="lbl">Volume entregue</div><div class="val" id="kpi-volume">—</div><div class="sub">dados da Logística (REGISTRO)</div></div>
+    <div class="kpi cyan"><div class="lbl">Ocupação média das rotas</div><div class="val" id="kpi-ocupacao">—</div><div class="sub">Saída de Carros · quando lançada</div></div>
   </div>
 
   <div class="cwrap">
     <div class="ctitle">Participação por tipo (no período)</div>
-    <div style="position:relative;max-width:340px;margin:0 auto">
-      <canvas id="chart-tipo-donut" height="340"></canvas>
-      <div id="donut-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
-        <div style="font-size:0.62rem;color:var(--mu);letter-spacing:0.5px;text-transform:uppercase">Total do mês</div>
-        <div id="donut-center-val" style="font-family:var(--fh);font-size:1.15rem;font-weight:700">—</div>
+    <div class="kpi-chart-row">
+      <div>
+        <div class="kpi-chart-sub">Em R$</div>
+        <div style="position:relative;max-width:280px;margin:0 auto">
+          <canvas id="chart-tipo-donut-valor" height="280"></canvas>
+          <div class="donut-center-abs">
+            <div class="donut-center-lbl">Total do período</div>
+            <div id="donut-center-val" class="donut-center-num">—</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="kpi-chart-sub">Em %</div>
+        <div style="position:relative;max-width:280px;margin:0 auto">
+          <canvas id="chart-tipo-donut-pct" height="280"></canvas>
+          <div class="donut-center-abs">
+            <div class="donut-center-lbl">Participação</div>
+            <div class="donut-center-num">100%</div>
+          </div>
+        </div>
       </div>
     </div>
     <div id="donut-legend" style="display:flex;flex-wrap:wrap;gap:8px 18px;justify-content:center;margin-top:16px;font-size:0.76rem;color:var(--mu)"></div>
@@ -389,11 +422,29 @@ tbody tr:hover td{background:var(--s2);}
 
   <div class="cwrap">
     <div class="ctitle">Custo por motorista (no período)</div>
-    <canvas id="chart-motorista" height="90"></canvas>
+    <div class="kpi-chart-row">
+      <div>
+        <div class="kpi-chart-sub">Em R$</div>
+        <canvas id="chart-motorista-valor" height="90"></canvas>
+      </div>
+      <div>
+        <div class="kpi-chart-sub">Em %</div>
+        <canvas id="chart-motorista-pct" height="90"></canvas>
+      </div>
+    </div>
   </div>
   <div class="cwrap">
     <div class="ctitle">Custo por microrregião / rota (no período)</div>
-    <canvas id="chart-regiao" height="90"></canvas>
+    <div class="kpi-chart-row">
+      <div>
+        <div class="kpi-chart-sub">Em R$</div>
+        <canvas id="chart-regiao-valor" height="90"></canvas>
+      </div>
+      <div>
+        <div class="kpi-chart-sub">Em %</div>
+        <canvas id="chart-regiao-pct" height="90"></canvas>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1173,6 +1224,90 @@ function agrKpiAtalho(v){
   document.getElementById('kpi-ate').value = iso(ate);
   agrRenderKpis();
 }
+var SAI_URL_AGR = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=950734094&single=true&output=csv";
+var agrLogisticaIndexCache = null;
+
+function agrOcupTxtToPct(txt){
+  var s = String(txt||'').toLowerCase();
+  if(!s) return null;
+  if(s.indexOf('até 50')>-1 || s.indexOf('ate 50')>-1) return 40;
+  if(s.indexOf('50')>-1 && s.indexOf('60')>-1) return 55;
+  if(s.indexOf('60')>-1 && s.indexOf('90')>-1) return 75;
+  if(s.indexOf('acima de 90')>-1 || s.indexOf('mais de 90')>-1 || s.indexOf('100')>-1) return 95;
+  if(s.indexOf('90')>-1) return 90;
+  var m = s.match(/(\d+)/);
+  return m ? parseInt(m[1]) : null;
+}
+
+function agrCarregarLogisticaExtra(){
+  if(agrLogisticaIndexCache) return Promise.resolve(agrLogisticaIndexCache);
+  var ts = Date.now();
+  return Promise.all([
+    agrCarregarEntregas(),
+    fetch(SAI_URL_AGR + '&t=' + ts).then(function(r){ return r.text(); }).then(agrCsvParse)
+  ]).then(function(res){
+    var registro = res[0], saida = res[1];
+    var idx = {};
+    registro.forEach(function(r){
+      var dISO = agrParseDataBR(r['Data Registro']);
+      var mot = (r['Motorista']||'').trim().toUpperCase();
+      if(!dISO || !mot) return;
+      var key = dISO+'|'+mot;
+      if(!idx[key]) idx[key] = {volume:0, ocupacaoPct:null};
+      var vol = Number(String(r['Volume']||'0').replace(',','.')) || 0;
+      idx[key].volume += vol;
+    });
+    saida.forEach(function(r){
+      var dRaw = r['DATA SAIDA'] || r['DATA'] || '';
+      var m = String(dRaw).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if(!m) return;
+      var dISO = m[3]+'-'+m[2].padStart(2,'0')+'-'+m[1].padStart(2,'0');
+      var mot = (r['MOTORISTA']||'').trim().toUpperCase();
+      if(!mot) return;
+      var key = dISO+'|'+mot;
+      var pct = agrOcupTxtToPct(r['OCUPACAO']||r['OCUPAÇÃO']||'');
+      if(!idx[key]) idx[key] = {volume:0, ocupacaoPct:null};
+      if(pct !== null) idx[key].ocupacaoPct = pct;
+    });
+    agrLogisticaIndexCache = idx;
+    return idx;
+  });
+}
+
+function agrRenderKpiLogistica(de, ate){
+  var elVol = document.getElementById('kpi-volume');
+  var elOcup = document.getElementById('kpi-ocupacao');
+  if(!elVol || !elOcup) return;
+  elVol.textContent = '...';
+  elOcup.textContent = '...';
+
+  var relevantes = AGR.lancamentos.filter(function(r){
+    return (r.status==='APROVADO' || r.status==='PAGO') && r.data>=de && r.data<=ate;
+  });
+
+  agrCarregarLogisticaExtra().then(function(idx){
+    var volumeTotal = 0;
+    var ocupacoes = [];
+    var vistos = {};
+    relevantes.forEach(function(r){
+      var mot = String(r.motorista||'').trim().toUpperCase();
+      var key = r.data+'|'+mot;
+      if(vistos[key]) return;
+      vistos[key] = true;
+      var dados = idx[key];
+      if(dados){
+        volumeTotal += dados.volume;
+        if(dados.ocupacaoPct !== null) ocupacoes.push(dados.ocupacaoPct);
+      }
+    });
+    elVol.textContent = volumeTotal ? volumeTotal.toLocaleString('pt-BR') : '—';
+    elOcup.textContent = ocupacoes.length ? Math.round(ocupacoes.reduce(function(a,b){return a+b;},0)/ocupacoes.length) + '%' : 'Sem dado';
+  }).catch(function(e){
+    elVol.textContent = '—';
+    elOcup.textContent = '—';
+    console.warn('Erro ao carregar dados da Logística:', e.message);
+  });
+}
 function agrRenderKpis(){
   var deEl = document.getElementById('kpi-de');
   var ateEl = document.getElementById('kpi-ate');
@@ -1207,6 +1342,7 @@ function agrRenderKpis(){
   document.getElementById('kpi-aguardando').textContent = agrFmtMoeda(aguardando.reduce(function(s,r){return s+r.valor;},0));
   document.getElementById('kpi-aprovado').textContent = agrFmtMoeda(aprovado.reduce(function(s,r){return s+r.valor;},0));
   document.getElementById('kpi-custo-nf').textContent = totalNFs>0 ? agrFmtMoeda(totalMesAtual/totalNFs) : '—';
+  agrRenderKpiLogistica(de, ate);
 
   // Alerta de pendências antigas
   var agora = Date.now();
@@ -1225,27 +1361,13 @@ function agrRenderKpis(){
   var byRegiao = {};
   considerados.forEach(function(r){ byRegiao[r.microrregiao] = (byRegiao[r.microrregiao]||0)+r.valor; });
 
-  // ── Donut "Participação por tipo" (estilo relatório ILOS) ──
+  // ── Gráficos por tipo, motorista e região — sempre em par (R$ e %) ──
   var byTipo = {};
   considerados.forEach(function(r){ byTipo[r.tipo] = (byTipo[r.tipo]||0)+r.valor; });
   agrRenderDonutTipo(byTipo, totalMesAtual);
-
-  var ctxM = document.getElementById('chart-motorista').getContext('2d');
-  if(agrChartMotorista) agrChartMotorista.destroy();
-  agrChartMotorista = new Chart(ctxM, {
-    type:'bar',
-    data:{ labels:Object.keys(byMotorista), datasets:[{ data:Object.values(byMotorista), backgroundColor:'#a07cf6', borderRadius:6 }] },
-    options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{color:'#8fa0c0'}, grid:{color:'rgba(255,255,255,.06)'} }, x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} } } }
-  });
-  var ctxR = document.getElementById('chart-regiao').getContext('2d');
-  if(agrChartRegiao) agrChartRegiao.destroy();
-  agrChartRegiao = new Chart(ctxR, {
-    type:'bar',
-    data:{ labels:Object.keys(byRegiao), datasets:[{ data:Object.values(byRegiao), backgroundColor:'#36cfa0', borderRadius:6 }] },
-    options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{color:'#8fa0c0'}, grid:{color:'rgba(255,255,255,.06)'} }, x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} } } }
-  });
+  agrRenderParDinheiroPct('motorista', byMotorista);
+  agrRenderParDinheiroPct('regiao', byRegiao);
 }
-
 // ── Plugin: escreve o % dentro de cada fatia do anel ──
 var agrDonutPercentPlugin = {
   id: 'agrDonutPercent',
@@ -1262,40 +1384,66 @@ var agrDonutPercentPlugin = {
     ctx.textBaseline = 'middle';
     meta.data.forEach(function(arc, i){
       var pct = data[i] / total * 100;
-      if(pct < 4) return; // fatia pequena demais pra caber o texto
+      if(pct < 4) return;
       var pos = arc.tooltipPosition();
       ctx.fillText(Math.round(pct) + '%', pos.x, pos.y);
     });
     ctx.restore();
   }
 };
-var agrChartTipoDonut = null;
+var agrChartTipoDonutValor = null, agrChartTipoDonutPct = null;
 var AGR_DONUT_CORES = ['#ff4d4f','#a07cf6','#4d8ef5','#36cfa0','#ffaa2b','#22d3ee','#8fa0c0'];
 function agrRenderDonutTipo(byTipo, totalGeral){
   var labels = Object.keys(byTipo);
   var valores = Object.values(byTipo);
+  var pcts = valores.map(function(v){ return totalGeral ? Math.round(v/totalGeral*100) : 0; });
   document.getElementById('donut-center-val').textContent = agrFmtMoeda(totalGeral);
-
   var legend = document.getElementById('donut-legend');
   legend.innerHTML = labels.map(function(l,i){
-    var pct = totalGeral ? Math.round(byTipo[l]/totalGeral*100) : 0;
-    return '<span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:50%;background:'+AGR_DONUT_CORES[i%AGR_DONUT_CORES.length]+';display:inline-block"></i>'+l+' — '+pct+'%</span>';
+    return '<span style="display:flex;align-items:center;gap:6px"><i style="width:9px;height:9px;border-radius:50%;background:'+AGR_DONUT_CORES[i%AGR_DONUT_CORES.length]+';display:inline-block"></i>'+l+' — '+pcts[i]+'%</span>';
   }).join('');
-
-  var ctx = document.getElementById('chart-tipo-donut').getContext('2d');
-  if(agrChartTipoDonut) agrChartTipoDonut.destroy();
+  if(agrChartTipoDonutValor) agrChartTipoDonutValor.destroy();
+  if(agrChartTipoDonutPct) agrChartTipoDonutPct.destroy();
   if(!labels.length){ return; }
-  agrChartTipoDonut = new Chart(ctx, {
+  var ctxV = document.getElementById('chart-tipo-donut-valor').getContext('2d');
+  agrChartTipoDonutValor = new Chart(ctxV, {
     type: 'doughnut',
     data: { labels: labels, datasets: [{ data: valores, backgroundColor: AGR_DONUT_CORES, borderColor: '#242938', borderWidth: 3 }] },
-    options: {
-      cutout: '68%',
-      plugins: {
-        legend: { display:false },
-        tooltip: { callbacks: { label: function(ctx){ return ctx.label + ': ' + agrFmtMoeda(ctx.parsed); } } }
-      }
-    },
+    options: { cutout: '68%', plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return ctx.label+': '+agrFmtMoeda(ctx.parsed); } } } } },
     plugins: [agrDonutPercentPlugin]
+  });
+  var ctxP = document.getElementById('chart-tipo-donut-pct').getContext('2d');
+  agrChartTipoDonutPct = new Chart(ctxP, {
+    type: 'doughnut',
+    data: { labels: labels, datasets: [{ data: pcts, backgroundColor: AGR_DONUT_CORES, borderColor: '#242938', borderWidth: 3 }] },
+    options: { cutout: '68%', plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return ctx.label+': '+ctx.parsed+'%'; } } } } },
+    plugins: [agrDonutPercentPlugin]
+  });
+}
+function agrRenderParDinheiroPct(chave, dados){
+  var labels = Object.keys(dados);
+  var valores = Object.values(dados);
+  var total = valores.reduce(function(a,b){return a+b;},0);
+  var pcts = valores.map(function(v){ return total ? Math.round(v/total*100) : 0; });
+  var cor = chave==='motorista' ? '#a07cf6' : '#36cfa0';
+  if(!window.agrChartsPar) window.agrChartsPar = {};
+  ['valor','pct'].forEach(function(modo){
+    var el = document.getElementById('chart-'+chave+'-'+modo);
+    if(!el) return;
+    var chartKey = chave+'-'+modo;
+    if(window.agrChartsPar[chartKey]) window.agrChartsPar[chartKey].destroy();
+    var dadosGrafico = modo==='valor' ? valores : pcts;
+    window.agrChartsPar[chartKey] = new Chart(el.getContext('2d'), {
+      type:'bar',
+      data:{ labels:labels, datasets:[{ data:dadosGrafico, backgroundColor:cor, borderRadius:6 }] },
+      options:{
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return modo==='valor' ? agrFmtMoeda(ctx.parsed.y) : ctx.parsed.y+'%'; } } } },
+        scales:{
+          y:{ ticks:{color:'#8fa0c0', callback: modo==='pct' ? function(v){return v+'%';} : undefined}, grid:{color:'rgba(255,255,255,.06)'} },
+          x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} }
+        }
+      }
+    });
   });
 }
 
@@ -1334,3 +1482,12 @@ function agrAtualizarDados(){
 </script>
 </body>
 </html>
+function agrExportarPdfKpis(){
+  var de = document.getElementById('kpi-de').value;
+  var ate = document.getElementById('kpi-ate').value;
+  var sub = 'Período: ' + (de?agrFmtData(de):'—') + ' a ' + (ate?agrFmtData(ate):'—') +
+            ' · Gerado por ' + CURRENT_USER.nome + ' em ' + new Date().toLocaleString('pt-BR');
+  document.getElementById('kpi-print-sub').textContent = sub;
+  document.title = 'Relatorio_KPIs_Agregados_' + (de||'periodo');
+  window.print();
+}
