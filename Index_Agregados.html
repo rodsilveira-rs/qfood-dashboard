@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Agregados - Q Food Company</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;scroll-behavior:smooth;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;}
+
+/* ---- HEADER ---- */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:100;gap:16px;}
+.hdr-l{display:flex;align-items:center;gap:14px;}
+.logo{height:44px;object-fit:contain;}
+.hdr-c h1{font-family:var(--fh);font-size:1.15rem;font-weight:700;}
+.hdr-c p{font-size:0.72rem;color:var(--mu);margin-top:2px;}
+.hdr-r{display:flex;align-items:center;gap:10px;}
+.dbadge{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 14px;text-align:right;min-width:150px;}
+.dbadge strong{display:block;font-family:var(--fh);font-size:0.9rem;}
+.dbadge span{font-size:0.68rem;color:var(--mu);}
+.hdr-btn{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;padding:8px 12px;font-size:0.75rem;cursor:pointer;text-decoration:none;}
+.hdr-btn:hover{color:var(--tx);border-color:var(--b2);}
+
+/* ---- TABS ---- */
+.tabs{display:flex;gap:2px;padding:0 28px;background:var(--sf);border-bottom:1px solid var(--br);overflow-x:auto;}
+.tab{padding:13px 20px;font-size:0.84rem;font-weight:500;color:var(--mu);cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;white-space:nowrap;}
+.tab:hover{color:var(--tx);}
+.tab.active{color:var(--tx);border-bottom-color:#a07cf6;font-weight:600;}
+
+/* ---- MAIN ---- */
+.page{display:none;padding:28px;max-width:1180px;margin:0 auto;}
+.page.active{display:block;}
+
+.sec{font-family:var(--fh);font-size:0.7rem;font-weight:700;letter-spacing:1.6px;text-transform:uppercase;color:var(--mu);margin-bottom:12px;display:flex;align-items:center;gap:10px;margin-top:8px;}
+.sec::after{content:'';flex:1;height:1px;background:var(--br);}
+
+/* ---- KPI GRID ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+.kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:16px 18px;}
+.kpi .lbl{font-size:0.74rem;color:var(--mu);margin-bottom:8px;letter-spacing:0.3px;}
+.kpi .val{font-family:var(--fh);font-size:1.5rem;font-weight:700;line-height:1;}
+.kpi .sub{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.kpi.r{border-color:var(--red);}.kpi.r .val{color:var(--red);}
+.kpi.g{border-color:var(--ok);}.kpi.g .val{color:var(--ok);}
+.kpi.w{border-color:var(--warn);}.kpi.w .val{color:var(--warn);}
+.kpi.b{border-color:var(--blue);}.kpi.b .val{color:var(--blue);}
+.kpi.p{border-color:var(--pur);}.kpi.p .val{color:var(--pur);}
+
+.cwrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px;margin-bottom:24px;}
+.cwrap .ctitle{font-family:var(--fh);font-size:0.78rem;font-weight:600;margin-bottom:16px;color:var(--tx);}
+
+/* ---- FORM ---- */
+.card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:22px;margin-bottom:22px;}
+.frow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
+.frow.f2{grid-template-columns:repeat(2,1fr);}
+.frow.f3{grid-template-columns:repeat(3,1fr);}
+.fld label{display:block;font-size:0.68rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;font-weight:600;}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:9px 11px;color:var(--tx);font-size:0.85rem;font-family:var(--fb);outline:none;}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:#a07cf6;}
+.fld-add{display:flex;gap:6px;}
+.fld-add select{flex:1;}
+.btn-mini{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:8px;width:34px;flex-shrink:0;cursor:pointer;font-size:0.9rem;}
+.btn-mini:hover{color:var(--tx);border-color:#a07cf6;}
+.btnrow{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+.btn{border:none;border-radius:9px;padding:10px 18px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--fb);transition:opacity .15s;}
+.btn:hover{opacity:0.85;}
+.btn:disabled{opacity:0.4;cursor:not-allowed;}
+.btn-primary{background:#a07cf6;color:#fff;}
+.btn-ok{background:var(--ok);color:#0b241c;}
+.btn-warn{background:var(--warn);color:#2a1a00;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-ghost{background:var(--s2);color:var(--tx);border:1px solid var(--br);}
+
+/* ---- TABLE ---- */
+.twrap{background:var(--sf);border:1px solid var(--br);border-radius:12px;overflow:hidden;margin-bottom:24px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:720px;}
+th{font-size:0.68rem;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:0.6px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--br);white-space:nowrap;}
+td{padding:10px 12px;font-size:0.82rem;border-bottom:1px solid var(--br);vertical-align:middle;white-space:nowrap;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:var(--s2);}
+.tnum{text-align:right;font-family:var(--fh);}
+.tac{text-align:center;}
+.empty-row td{text-align:center;color:var(--mu);padding:26px;font-size:0.82rem;}
+
+/* status pills */
+.st{display:inline-block;font-size:0.62rem;padding:3px 9px;border-radius:20px;font-weight:600;letter-spacing:0.3px;text-transform:uppercase;}
+.st-rasc{background:rgba(143,160,192,0.18);color:#8fa0c0;}
+.st-aval{background:rgba(255,170,43,0.18);color:#ffaa2b;}
+.st-aprov{background:rgba(54,207,160,0.18);color:#36cfa0;}
+.st-repr{background:rgba(255,77,79,0.18);color:#ff7875;}
+.st-pago{background:rgba(77,142,245,0.18);color:#74a9ff;}
+
+.actions{display:flex;gap:6px;justify-content:flex-end;}
+.act-btn{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:6px;padding:5px 9px;font-size:0.72rem;cursor:pointer;}
+.act-btn:hover{color:var(--tx);border-color:var(--b2);}
+.act-btn.ok{color:#36cfa0;border-color:rgba(54,207,160,.4);}
+.act-btn.red{color:#ff7875;border-color:rgba(255,77,79,.4);}
+
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:end;}
+.filtros .fld{min-width:160px;}
+
+/* ---- CONFIG LIST ---- */
+.cfg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.cfg-box{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:18px;}
+.cfg-box h3{font-family:var(--fh);font-size:0.82rem;margin-bottom:12px;}
+.cfg-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--br);font-size:0.82rem;}
+.cfg-item:last-child{border-bottom:none;}
+.cfg-item button{background:none;border:none;color:var(--mu);cursor:pointer;font-size:0.9rem;}
+.cfg-item button:hover{color:var(--red);}
+.cfg-add{display:flex;gap:6px;margin-top:12px;}
+.cfg-add input{flex:1;background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:0.8rem;outline:none;}
+
+/* ---- RELATÓRIO ---- */
+.rep-hdr{text-align:center;margin-bottom:18px;}
+.rep-hdr h2{font-family:var(--fh);font-size:1.1rem;letter-spacing:0.5px;}
+.rep-hdr p{font-size:0.78rem;color:var(--mu);margin-top:4px;}
+.rep-tot-row td{font-weight:700;background:var(--s2);}
+.rep-foot{display:flex;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid var(--br);font-size:0.78rem;color:var(--mu);}
+.rep-foot strong{color:var(--tx);display:block;font-family:var(--fh);font-size:0.85rem;}
+
+.badge-alert{background:rgba(255,77,79,0.12);border:1px solid rgba(255,77,79,0.35);color:#ff7875;border-radius:10px;padding:12px 16px;font-size:0.8rem;margin-bottom:18px;}
+
+.ftr{text-align:center;font-size:0.68rem;color:var(--mu2);padding:20px 28px;border-top:1px solid var(--br);}
+
+@media print{
+  .hdr,.tabs,.ftr,.filtros,.btnrow,.actions,#tab-relatorio .rep-actions{display:none!important;}
+  body{background:#fff;color:#000;}
+  .card,.twrap{border-color:#ccc;background:#fff;}
+  td,th{color:#000;border-color:#ccc;}
+}
+@media(max-width:900px){.frow{grid-template-columns:repeat(2,1fr);}.kpis{grid-template-columns:repeat(2,1fr);}.cfg-grid{grid-template-columns:1fr;}}
+@media(max-width:560px){.frow{grid-template-columns:1fr;}.kpis{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <img src="logo.png" class="logo" alt="Q Food" onerror="this.style.display='none'">
+    <div class="hdr-c">
+      <h1>🧾 Agregados</h1>
+      <p>Controle de pagamentos de motoristas agregados</p>
+    </div>
+  </div>
+  <div class="hdr-r">
+    <div class="dbadge">
+      <strong id="user-name">—</strong>
+      <span id="user-role">—</span>
+    </div>
+    <button class="hdr-btn" id="btn-agr-refresh" onclick="agrAtualizarDados()">🔄 Atualizar</button>
+    <a href="Index_Menu.html" class="hdr-btn">🏠 Menu</a>
+    <button class="hdr-btn" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<div class="tabs" id="tabs-bar">
+  <div class="tab" data-tab="lancamentos" onclick="agrShowTab('lancamentos')">📋 Lançamentos</div>
+  <div class="tab" data-tab="validacao" onclick="agrShowTab('validacao')">✅ Validação</div>
+  <div class="tab" data-tab="relatorio" onclick="agrShowTab('relatorio')">📄 Relatório</div>
+  <div class="tab" data-tab="config" onclick="agrShowTab('config')">⚙️ Configurações</div>
+  <div class="tab" data-tab="kpis" onclick="agrShowTab('kpis')">📊 KPIs</div>
+</div>
+
+<!-- ============ TAB LANÇAMENTOS ============ -->
+<div class="page" id="tab-lancamentos">
+  <div class="card">
+    <div class="sec">Novo lançamento</div>
+    <input type="hidden" id="lc-edit-id">
+    <div class="frow">
+      <div class="fld">
+        <label>Data</label>
+        <input type="date" id="lc-data">
+      </div>
+      <div class="fld">
+        <label>Motorista</label>
+        <div class="fld-add">
+          <select id="lc-motorista" onchange="agrSugerirNFs()"></select>
+          <button class="btn-mini" onclick="agrCadastrarNovo('motoristas','lc-motorista')" title="Cadastrar novo motorista">+</button>
+        </div>
+      </div>
+      <div class="fld">
+        <label>Tipo</label>
+        <select id="lc-tipo" onchange="agrOnTipoChange()"></select>
+      </div>
+      <div class="fld" id="lc-rota-wrap" style="display:none">
+        <label>Rota</label>
+        <select id="lc-rota" onchange="agrOnRotaChange()"></select>
+      </div>
+      <div class="fld" id="lc-micro-wrap">
+        <label>Microrregião</label>
+        <div class="fld-add">
+          <select id="lc-micro"></select>
+          <button class="btn-mini" onclick="agrCadastrarNovo('microrregioes','lc-micro')" title="Cadastrar nova microrregião">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="frow f3">
+      <div class="fld">
+        <label>NFs entregues</label>
+        <div class="fld-add">
+          <input type="number" id="lc-nfs" min="0" placeholder="0">
+          <button class="btn-mini" onclick="agrBuscarNFsLogistica()" title="Buscar automaticamente na Logística">🔄</button>
+        </div>
+      </div>
+      <div class="fld">
+        <label>Devoluções (NF)</label>
+        <input type="number" id="lc-dev" min="0" placeholder="0">
+      </div>
+      <div class="fld">
+        <label>Valor (R$)</label>
+        <input type="number" id="lc-valor" min="0" step="0.01" placeholder="0,00">
+      </div>
+    </div>
+    <div class="frow f2">
+      <div class="fld" style="grid-column:1/-1">
+        <label>Observação</label>
+        <textarea id="lc-obs" rows="2" placeholder="Opcional"></textarea>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn btn-ghost" onclick="agrLimparForm()">Limpar</button>
+      <button class="btn btn-ghost" onclick="agrSalvar('RASCUNHO')">💾 Salvar rascunho</button>
+      <button class="btn btn-primary" onclick="agrSalvar('AGUARDANDO')">📤 Enviar para validação</button>
+    </div>
+  </div>
+
+  <div class="sec">Meus lançamentos</div>
+  <div class="filtros">
+    <div class="fld"><label>Status</label><select id="lc-filt-status" onchange="agrRenderLancamentos()">
+      <option value="">Todos</option>
+      <option value="RASCUNHO">Rascunho</option>
+      <option value="AGUARDANDO">Aguardando validação</option>
+      <option value="APROVADO">Aprovado</option>
+      <option value="REPROVADO">Reprovado</option>
+      <option value="PAGO">Pago</option>
+    </select></div>
+    <div class="fld"><label>Motorista</label><select id="lc-filt-motorista" onchange="agrRenderLancamentos()"><option value="">Todos</option></select></div>
+    <div class="fld"><label>De</label><input type="date" id="lc-filt-de" onchange="agrRenderLancamentos()"></div>
+    <div class="fld"><label>Até</label><input type="date" id="lc-filt-ate" onchange="agrRenderLancamentos()"></div>
+  </div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th>Data</th><th>Motorista</th><th>Tipo</th><th>Região/Rota</th>
+        <th class="tac">NFs</th><th class="tac">Dev.</th><th class="tnum">Valor</th>
+        <th class="tac">Status</th><th></th>
+      </tr></thead>
+      <tbody id="lc-tbody"><tr class="empty-row"><td colspan="9">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ TAB VALIDAÇÃO ============ -->
+<div class="page" id="tab-validacao">
+  <div class="sec">Aguardando validação</div>
+  <div class="twrap">
+    <table>
+      <thead><tr>
+        <th><input type="checkbox" id="val-check-all" onchange="agrToggleAll(this)"></th>
+        <th>Data</th><th>Motorista</th><th>Tipo</th><th>Região/Rota</th>
+        <th class="tac">NFs</th><th class="tnum">Valor</th><th>Lançado por</th><th></th>
+      </tr></thead>
+      <tbody id="val-tbody"><tr class="empty-row"><td colspan="9">Carregando...</td></tr></tbody>
+    </table>
+  </div>
+  <div class="btnrow">
+    <button class="btn btn-red" onclick="agrReprovarLote()">✖ Reprovar selecionados</button>
+    <button class="btn btn-ok" onclick="agrAprovarLote()">✓ Aprovar selecionados</button>
+  </div>
+
+  <div class="sec" style="margin-top:30px">Histórico recente (validados por você)</div>
+  <div class="twrap">
+    <table>
+      <thead><tr><th>Data</th><th>Motorista</th><th class="tnum">Valor</th><th class="tac">Status</th><th>Validado em</th></tr></thead>
+      <tbody id="val-hist-tbody"><tr class="empty-row"><td colspan="5">—</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ============ TAB RELATÓRIO ============ -->
+<div class="page" id="tab-relatorio">
+  <div class="filtros rep-actions">
+    <div class="fld"><label>Motorista</label><select id="rep-motorista"><option value="">Todos</option></select></div>
+    <div class="fld"><label>De</label><input type="date" id="rep-de"></div>
+    <div class="fld"><label>Até</label><input type="date" id="rep-ate"></div>
+    <div class="fld"><label>Incluir status</label>
+      <select id="rep-status">
+        <option value="APROVADO,PAGO">Aprovado + Pago</option>
+        <option value="APROVADO">Somente Aprovado</option>
+        <option value="PAGO">Somente Pago</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="agrGerarRelatorio()" style="height:38px">Gerar relatório</button>
+    <button class="btn btn-ghost" onclick="window.print()" style="height:38px">🖨️ Imprimir / PDF</button>
+    <button class="btn btn-ok" id="rep-btn-pago" style="height:38px;display:none" onclick="agrMarcarLoteComoPago()">💰 Marcar como pago</button>
+  </div>
+
+  <div id="rep-output">
+    <div class="badge-alert" style="background:rgba(160,124,246,.1);border-color:rgba(160,124,246,.3);color:#a07cf6">
+      Selecione os filtros e clique em "Gerar relatório".
+    </div>
+  </div>
+</div>
+
+<!-- ============ TAB CONFIGURAÇÕES ============ -->
+<div class="page" id="tab-config">
+  <div class="sec">Listas do formulário</div>
+  <div class="cfg-grid">
+    <div class="cfg-box">
+      <h3>🚚 Motoristas</h3>
+      <div id="cfg-motoristas"></div>
+      <div class="cfg-add"><input id="cfg-add-motoristas" placeholder="Novo motorista"><button class="btn-mini" onclick="agrCfgAdd('motoristas')">+</button></div>
+    </div>
+    <div class="cfg-box">
+      <h3>🗺️ Microrregiões</h3>
+      <div id="cfg-microrregioes"></div>
+      <div class="cfg-add"><input id="cfg-add-microrregioes" placeholder="Nova microrregião"><button class="btn-mini" onclick="agrCfgAdd('microrregioes')">+</button></div>
+    </div>
+    <div class="cfg-box">
+      <h3>🏷️ Tipos</h3>
+      <div id="cfg-tipos"></div>
+      <div class="cfg-add"><input id="cfg-add-tipos" placeholder="Novo tipo"><button class="btn-mini" onclick="agrCfgAdd('tipos')">+</button></div>
+    </div>
+  </div>
+
+  <div class="sec" style="margin-top:26px">Tabela de rotas (AGR_ROTAS)</div>
+  <div class="twrap">
+    <table>
+      <thead><tr><th>Rota</th><th>Cidade(s)</th><th class="tnum">Valor</th><th></th></tr></thead>
+      <tbody id="cfg-rotas-tbody"></tbody>
+    </table>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="frow f3">
+      <div class="fld"><label>Rota</label><input id="rota-add-nome" placeholder="Ex: VIX"></div>
+      <div class="fld"><label>Cidade(s)</label><input id="rota-add-cidade" placeholder="Ex: Vitória"></div>
+      <div class="fld"><label>Valor (R$)</label><input id="rota-add-valor" type="number" step="0.01" placeholder="0,00"></div>
+    </div>
+    <div class="btnrow"><button class="btn btn-primary" onclick="agrAddRota()">+ Adicionar rota</button></div>
+  </div>
+</div>
+
+<!-- ============ TAB KPIs ============ -->
+<div class="page" id="tab-kpis">
+  <div id="kpi-alerta"></div>
+  <div class="kpis">
+    <div class="kpi p"><div class="lbl">Total pago no mês</div><div class="val" id="kpi-pago-mes">—</div><div class="sub" id="kpi-pago-mes-var">—</div></div>
+    <div class="kpi w"><div class="lbl">Aguardando validação</div><div class="val" id="kpi-aguardando">—</div><div class="sub">valor pendente de análise</div></div>
+    <div class="kpi g"><div class="lbl">Aprovado a pagar</div><div class="val" id="kpi-aprovado">—</div><div class="sub">liberado para o Gustavo</div></div>
+    <div class="kpi b"><div class="lbl">Custo médio / NF</div><div class="val" id="kpi-custo-nf">—</div><div class="sub">valor pago ÷ NFs entregues</div></div>
+  </div>
+
+  <div class="cwrap">
+    <div class="ctitle">Custo por motorista (mês atual)</div>
+    <canvas id="chart-motorista" height="90"></canvas>
+  </div>
+  <div class="cwrap">
+    <div class="ctitle">Custo por microrregião / rota (mês atual)</div>
+    <canvas id="chart-regiao" height="90"></canvas>
+  </div>
+</div>
+
+<div class="ftr">Q Food Company &middot; Módulo Agregados &middot; © 2026</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// GUARD DE SESSÃO
+// ════════════════════════════════════════════════════════════════
+(function(){
+  var sess = localStorage.getItem("qfood_session");
+  if(!sess){ window.location.href = "Index_Menu.html"; return; }
+  try {
+    var s = JSON.parse(sess);
+    if(Date.now() - s.ts > 8*60*60*1000){
+      localStorage.removeItem("qfood_session");
+      window.location.href = "Index_Menu.html";
+      return;
+    }
+    window.CURRENT_USER = s;
+    var abas = (s.abas||"").split(",").map(function(x){return x.trim();});
+    if(abas.indexOf("agregados") < 0){
+      alert("Você não tem acesso ao módulo Agregados.");
+      window.location.href = "Index_Menu.html";
+      return;
+    }
+    document.getElementById("user-name").textContent = s.nome || "";
+    document.getElementById("user-role").textContent = s.role || "";
+  } catch(e){
+    localStorage.removeItem("qfood_session");
+    window.location.href = "Index_Menu.html";
+  }
+})();
+function logout(){ localStorage.removeItem("qfood_session"); window.location.href = "Index_Menu.html"; }
+
+// ════════════════════════════════════════════════════════════════
+// PERMISSÕES
+// ════════════════════════════════════════════════════════════════
+// Ajuste os e-mails abaixo se algum colaborador mudar de função.
+var AGR_ADMINS   = ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
+var AGR_LANCADOR = ["jonathas@qfoodcompany.com.br"];
+var AGR_PAGADOR  = ["gustavo@qfoodcompany.com.br"];
+
+var AGR_EMAIL = (CURRENT_USER.email || "").toLowerCase();
+var AGR_PERM = {
+  isAdmin:    AGR_ADMINS.indexOf(AGR_EMAIL) >= 0,
+  canLancar:  AGR_ADMINS.indexOf(AGR_EMAIL) >= 0 || AGR_LANCADOR.indexOf(AGR_EMAIL) >= 0,
+  canValidar: AGR_ADMINS.indexOf(AGR_EMAIL) >= 0,
+  canConfig:  AGR_ADMINS.indexOf(AGR_EMAIL) >= 0,
+  canMarcarPago: AGR_ADMINS.indexOf(AGR_EMAIL) >= 0 || AGR_PAGADOR.indexOf(AGR_EMAIL) >= 0
+};
+
+// ════════════════════════════════════════════════════════════════
+// BACKEND — troque AGR_BACKEND_URL pela URL do Apps Script mestre
+// (mesma URL usada em Index_Logistica.html / demais módulos) depois
+// de colar o código AGR_ no Code.gs e publicar "Nova versão".
+// Enquanto isso, o módulo funciona 100% em localStorage (modo dev),
+// então dá pra testar tudo antes de ligar o backend real.
+// ════════════════════════════════════════════════════════════════
+var AGR_BACKEND_URL = 'https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec';
+var AGR_USE_BACKEND = true; // Code.gs já publicado com os handlers AGR_ e as 3 abas criadas
+
+function agrBackendGet(action, params){
+  var qs = '?modulo=agregados&action=' + encodeURIComponent(action);
+  if(params) Object.keys(params).forEach(function(k){ qs += '&'+encodeURIComponent(k)+'='+encodeURIComponent(params[k]); });
+  qs += '&_ts=' + Date.now();
+  return fetch(AGR_BACKEND_URL + qs).then(function(r){ return r.json(); }).then(function(json){
+    if(!json.ok) throw new Error(json.error || 'Erro no backend');
+    return json.resultado || json;
+  });
+}
+function agrBackendPost(action, payload){
+  var body = new URLSearchParams();
+  body.append('action', action);
+  body.append('payload', JSON.stringify(payload || {}));
+  return fetch(AGR_BACKEND_URL + '?modulo=agregados&action=' + encodeURIComponent(action), {
+    method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: body.toString()
+  }).then(function(r){ return r.json(); }).then(function(json){
+    if(!json.ok) throw new Error(json.error || 'Erro no backend');
+    return json.resultado || json;
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// PERSISTÊNCIA — leitura via CSV publicado (rápido, cacheável),
+// gravação via backend Apps Script (AGR_BACKEND_URL, modulo=agregados).
+// Obs.: o CSV publicado do Google Sheets pode levar 1–5 min pra
+// refletir uma escrita nova — por isso, após cada gravação, o registro
+// também é aplicado otimisticamente em AGR.* pra tela atualizar na hora.
+// ════════════════════════════════════════════════════════════════
+var AGR_CSV_LANC   = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1608547636&single=true&output=csv';
+var AGR_CSV_ROTAS  = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=772643965&single=true&output=csv';
+var AGR_CSV_CONFIG = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=856684696&single=true&output=csv';
+
+function agrAtivo(v){ return String(v||'').trim().toUpperCase().indexOf('SIM') === 0; }
+
+function agrFetchCsv(url){
+  var sep = url.indexOf('?') >= 0 ? '&' : '?';
+  return fetch(url + sep + '_ts=' + Date.now()).then(function(r){
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    return r.text();
+  }).then(agrCsvParse);
+}
+
+function agrMapRota(row){
+  return { id: Number(row.ID)||row.ID, rota: row.ROTA, cidade: row.CIDADE, valor: Number(row.VALOR)||0, ativo: row.ATIVO };
+}
+function agrMapLancamento(row){
+  return {
+    id: row.ID, data: row.DATA, semana: row.SEMANA, motorista: row.MOTORISTA,
+    microrregiao: row.MICRORREGIAO, tipo: row.TIPO, rotaId: row.ROTA_ID || null,
+    nfs: Number(row.NFS)||0, devolucoes: Number(row.DEVOLUCOES)||0, valor: Number(row.VALOR)||0,
+    obs: row.OBS||'', status: row.STATUS||'RASCUNHO',
+    lancadoPor: row.LANCADO_POR, lancadoEm: row.LANCADO_EM, enviadoEm: row.ENVIADO_EM,
+    validadoPor: row.VALIDADO_POR, validadoEm: row.VALIDADO_EM,
+    motivoReprovacao: row.MOTIVO_REPROVACAO, pagoPor: row.PAGO_POR, pagoEm: row.PAGO_EM
+  };
+}
+
+var AGR = { rotas: [], config: {motoristas:[], microrregioes:[], tipos:[]}, lancamentos: [] };
+
+function agrCarregarTudo(){
+  return Promise.all([
+    agrFetchCsv(AGR_CSV_ROTAS),
+    agrFetchCsv(AGR_CSV_CONFIG),
+    agrFetchCsv(AGR_CSV_LANC)
+  ]).then(function(res){
+    AGR.rotas = res[0].filter(function(r){ return agrAtivo(r.ATIVO); }).map(agrMapRota);
+    var cfg = {motoristas:[], microrregioes:[], tipos:[]};
+    res[1].filter(function(r){ return agrAtivo(r.ATIVO); }).forEach(function(r){
+      var t = String(r.TIPO_LISTA).toUpperCase();
+      if(t==='MOTORISTA') cfg.motoristas.push(r.VALOR);
+      if(t==='MICRORREGIAO') cfg.microrregioes.push(r.VALOR);
+      if(t==='TIPO') cfg.tipos.push(r.VALOR);
+    });
+    AGR.config = cfg;
+    AGR.lancamentos = res[2].map(agrMapLancamento);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════════════════════
+function agrFmtMoeda(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function agrFmtData(iso){ if(!iso) return '—'; var p=iso.split('-'); return p.length===3 ? p[2]+'/'+p[1]+'/'+p[0] : iso; }
+function agrUid(){ return 'L' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function agrDiaSemana(iso){
+  if(!iso) return '';
+  var d = new Date(iso+'T00:00:00');
+  var dias=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+  return dias[d.getDay()]||'';
+}
+function agrStatusPill(st){
+  var map = {
+    RASCUNHO:  ['st-rasc','Rascunho'],
+    AGUARDANDO:['st-aval','Aguardando validação'],
+    APROVADO:  ['st-aprov','Aprovado'],
+    REPROVADO: ['st-repr','Reprovado'],
+    PAGO:      ['st-pago','Pago']
+  };
+  var m = map[st] || ['st-rasc', st];
+  return '<span class="st '+m[0]+'">'+m[1]+'</span>';
+}
+
+// ════════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════════
+function agrShowTab(id){
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab===id); });
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='lancamentos') agrRenderLancamentos();
+  if(id==='validacao') agrRenderValidacao();
+  if(id==='config') agrRenderConfig();
+  if(id==='kpis') agrRenderKpis();
+}
+
+function agrAplicarPermissoes(){
+  document.querySelector('.tab[data-tab="lancamentos"]').style.display = AGR_PERM.canLancar ? '' : 'none';
+  document.querySelector('.tab[data-tab="validacao"]').style.display   = AGR_PERM.canValidar ? '' : 'none';
+  document.querySelector('.tab[data-tab="config"]').style.display      = AGR_PERM.canConfig ? '' : 'none';
+  document.getElementById('rep-btn-pago').style.display = AGR_PERM.canMarcarPago ? '' : 'none';
+  var first = AGR_PERM.canLancar ? 'lancamentos' : (AGR_PERM.canValidar ? 'validacao' : 'relatorio');
+  agrShowTab(first);
+}
+
+// ════════════════════════════════════════════════════════════════
+// SELECTS DINÂMICOS
+// ════════════════════════════════════════════════════════════════
+function agrFillSelect(el, values, placeholder){
+  el.innerHTML = '';
+  if(placeholder){
+    var o = document.createElement('option'); o.value=''; o.textContent = placeholder;
+    el.appendChild(o);
+  }
+  values.forEach(function(v){
+    var o = document.createElement('option'); o.value=v; o.textContent=v;
+    el.appendChild(o);
+  });
+}
+function agrFillRotaSelect(el){
+  el.innerHTML = '<option value="">Selecione a rota...</option>';
+  AGR.rotas.forEach(function(r){
+    var o = document.createElement('option');
+    o.value = r.id;
+    o.textContent = r.rota + ' — ' + r.cidade + ' — ' + agrFmtMoeda(r.valor);
+    el.appendChild(o);
+  });
+}
+function agrInitSelects(){
+  agrFillSelect(document.getElementById('lc-motorista'), AGR.config.motoristas, 'Selecione...');
+  agrFillSelect(document.getElementById('lc-tipo'), AGR.config.tipos, 'Selecione...');
+  agrFillSelect(document.getElementById('lc-micro'), AGR.config.microrregioes, 'Selecione...');
+  agrFillRotaSelect(document.getElementById('lc-rota'));
+  agrFillSelect(document.getElementById('lc-filt-motorista'), AGR.config.motoristas, 'Todos');
+  agrFillSelect(document.getElementById('rep-motorista'), AGR.config.motoristas, 'Todos');
+}
+function agrOnTipoChange(){
+  var tipo = document.getElementById('lc-tipo').value;
+  var isRota = tipo === 'Rota';
+  document.getElementById('lc-rota-wrap').style.display = isRota ? '' : 'none';
+  document.getElementById('lc-micro-wrap').style.display = isRota ? 'none' : '';
+  if(!isRota) document.getElementById('lc-valor').value = '';
+}
+function agrOnRotaChange(){
+  var id = document.getElementById('lc-rota').value;
+  var r = AGR.rotas.find(function(x){ return String(x.id)===String(id); });
+  document.getElementById('lc-valor').value = r ? r.valor : '';
+}
+var AGR_TIPO_LISTA_SHEET = {motoristas:'MOTORISTA', microrregioes:'MICRORREGIAO', tipos:'TIPO'};
+
+function agrCadastrarNovo(lista, selectId){
+  var v = prompt('Novo valor para "'+lista+'":');
+  if(!v) return;
+  v = v.trim();
+  if(!v) return;
+  if(AGR.config[lista].indexOf(v) === -1){
+    AGR.config[lista].push(v); // aplica na hora na tela
+    agrInitSelects();
+    document.getElementById(selectId).value = v;
+    if(AGR_USE_BACKEND){
+      agrBackendPost('addConfig', {tipoLista: AGR_TIPO_LISTA_SHEET[lista], valor: v}).catch(function(e){
+        alert('Cadastrado na tela, mas não consegui salvar na planilha agora: ' + e.message + '\nTente de novo em alguns instantes.');
+      });
+    }
+  } else {
+    document.getElementById(selectId).value = v;
+  }
+  if(selectId==='lc-motorista') agrSugerirNFs();
+}
+
+// ════════════════════════════════════════════════════════════════
+// AUTOMAÇÃO — busca nº de NFs entregues na Logística (REGISTRO/REGISTRO2)
+// ════════════════════════════════════════════════════════════════
+var ENT_URL_REGISTRO  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739535201&single=true&output=csv";
+var ENT_URL_REGISTRO2 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTsSav7u0RfyP9UYPtMq4t-qCYJRC4n5BOkh_1zJNH7GvLcj78pvIro23vRBCGDII9y-svN1S2xff4b/pub?gid=1739874153&single=true&output=csv";
+var agrEntregasCache = null;
+
+function agrCsvParse(txt){
+  txt = txt.replace(/\r\n/g,"\n").replace(/\r/g,"\n").trim();
+  var rows=[],cur=[],f="",inQ=false;
+  for(var i=0;i<txt.length;i++){
+    var c=txt[i], n=txt[i+1];
+    if(inQ){ if(c==='"'){ if(n==='"'){f+='"';i++;} else inQ=false; } else f+=c; }
+    else { if(c==='"') inQ=true; else if(c===','){cur.push(f);f="";} else if(c==='\n'){cur.push(f);rows.push(cur);cur=[];f="";} else f+=c; }
+  }
+  if(f.length>0||cur.length>0){cur.push(f);rows.push(cur);}
+  if(!rows.length) return [];
+  var hdr = rows[0].map(function(h){return String(h).trim();});
+  return rows.slice(1).map(function(r){ var o={}; hdr.forEach(function(h,i){o[h]=(r[i]!==undefined)?String(r[i]).trim():"";}); return o; })
+    .filter(function(r){return Object.values(r).some(function(v){return v!=="";});});
+}
+function agrParseDataBR(v){
+  var m = String(v||'').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  return m[3]+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');
+}
+function agrCarregarEntregas(){
+  if(agrEntregasCache) return Promise.resolve(agrEntregasCache);
+  var ts = Date.now();
+  return Promise.all([
+    fetch(ENT_URL_REGISTRO+"&t="+ts).then(function(r){return r.text();}),
+    fetch(ENT_URL_REGISTRO2+"&t="+ts).then(function(r){return r.text();})
+  ]).then(function(res){
+    agrEntregasCache = agrCsvParse(res[0]).concat(agrCsvParse(res[1]));
+    return agrEntregasCache;
+  });
+}
+function agrSugerirNFs(){ /* placeholder: recalcula quando a data também estiver preenchida */ }
+function agrBuscarNFsLogistica(){
+  var motorista = document.getElementById('lc-motorista').value;
+  var dataIso   = document.getElementById('lc-data').value;
+  if(!motorista || !dataIso){ alert('Selecione o motorista e a data primeiro.'); return; }
+  var btn = event.target;
+  btn.textContent = '…';
+  agrCarregarEntregas().then(function(rows){
+    var count = rows.filter(function(r){
+      var rd = agrParseDataBR(r['Data Registro']);
+      var mot = (r['Motorista']||'').trim().toUpperCase();
+      return rd === dataIso && mot === motorista.toUpperCase();
+    }).length;
+    document.getElementById('lc-nfs').value = count;
+    btn.textContent = '🔄';
+    if(count === 0) alert('Nenhuma NF encontrada na Logística para esse motorista/data. Confira ou preencha manualmente.');
+  }).catch(function(e){
+    btn.textContent = '🔄';
+    alert('Não foi possível consultar a Logística agora: ' + e.message);
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// CRUD LANÇAMENTOS
+// ════════════════════════════════════════════════════════════════
+function agrLimparForm(){
+  document.getElementById('lc-edit-id').value = '';
+  document.getElementById('lc-data').value = '';
+  document.getElementById('lc-motorista').value = '';
+  document.getElementById('lc-tipo').value = '';
+  document.getElementById('lc-rota').value = '';
+  document.getElementById('lc-micro').value = '';
+  document.getElementById('lc-nfs').value = '';
+  document.getElementById('lc-dev').value = '';
+  document.getElementById('lc-valor').value = '';
+  document.getElementById('lc-obs').value = '';
+  agrOnTipoChange();
+}
+function agrPayloadLancamento(rec){
+  return {
+    ID: rec.id, DATA: rec.data, SEMANA: rec.semana, MOTORISTA: rec.motorista,
+    MICRORREGIAO: rec.microrregiao, TIPO: rec.tipo, ROTA_ID: rec.rotaId || '',
+    NFS: rec.nfs, DEVOLUCOES: rec.devolucoes, VALOR: rec.valor, OBS: rec.obs,
+    STATUS: rec.status, LANCADO_POR: rec.lancadoPor, LANCADO_EM: rec.lancadoEm,
+    ENVIADO_EM: rec.enviadoEm || ''
+  };
+}
+function agrSalvar(statusAlvo){
+  var id       = document.getElementById('lc-edit-id').value;
+  var data     = document.getElementById('lc-data').value;
+  var motorista= document.getElementById('lc-motorista').value;
+  var tipo     = document.getElementById('lc-tipo').value;
+  var isRota   = tipo === 'Rota';
+  var rotaId   = isRota ? document.getElementById('lc-rota').value : '';
+  var micro    = isRota ? '' : document.getElementById('lc-micro').value;
+  var nfs      = document.getElementById('lc-nfs').value;
+  var dev      = document.getElementById('lc-dev').value;
+  var valor    = document.getElementById('lc-valor').value;
+  var obs      = document.getElementById('lc-obs').value;
+
+  if(!data || !motorista || !tipo || (isRota && !rotaId) || (!isRota && !micro) || !valor){
+    alert('Preencha data, motorista, tipo, região/rota e valor.');
+    return;
+  }
+
+  var existente = id ? AGR.lancamentos.find(function(x){return x.id===id;}) : null;
+  var isNovo = !existente;
+  var rec = existente || {
+    id: agrUid(),
+    lancadoPor: CURRENT_USER.nome,
+    lancadoEm: new Date().toISOString()
+  };
+  rec.data = data;
+  rec.semana = agrDiaSemana(data);
+  rec.motorista = motorista;
+  rec.tipo = tipo;
+  rec.rotaId = rotaId || null;
+  rec.microrregiao = isRota ? (AGR.rotas.find(function(r){return String(r.id)===String(rotaId);})||{}).rota || '' : micro;
+  rec.nfs = Number(nfs)||0;
+  rec.devolucoes = Number(dev)||0;
+  rec.valor = Number(valor)||0;
+  rec.obs = obs;
+  rec.status = statusAlvo;
+  if(statusAlvo==='AGUARDANDO'){ rec.enviadoEm = new Date().toISOString(); }
+
+  if(isNovo) AGR.lancamentos.push(rec);
+  agrLimparForm();
+  agrRenderLancamentos();
+
+  if(AGR_USE_BACKEND){
+    var acao = isNovo ? 'criarLancamento' : 'editarLancamento';
+    agrBackendPost(acao, agrPayloadLancamento(rec)).catch(function(e){
+      alert('Salvo na tela, mas não consegui gravar na planilha agora: ' + e.message + '\nSe persistir, avise o Rodrigo.');
+    });
+  }
+}
+function agrEditarLancamento(id){
+  var r = AGR.lancamentos.find(function(x){return x.id===id;});
+  if(!r) return;
+  document.getElementById('lc-edit-id').value = r.id;
+  document.getElementById('lc-data').value = r.data;
+  document.getElementById('lc-motorista').value = r.motorista;
+  document.getElementById('lc-tipo').value = r.tipo;
+  agrOnTipoChange();
+  if(r.tipo==='Rota'){ document.getElementById('lc-rota').value = r.rotaId||''; }
+  else { document.getElementById('lc-micro').value = r.microrregiao||''; }
+  document.getElementById('lc-nfs').value = r.nfs;
+  document.getElementById('lc-dev').value = r.devolucoes;
+  document.getElementById('lc-valor').value = r.valor;
+  document.getElementById('lc-obs').value = r.obs||'';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function agrExcluirLancamento(id){
+  if(!confirm('Excluir este lançamento (rascunho)?')) return;
+  AGR.lancamentos = AGR.lancamentos.filter(function(x){return x.id!==id;});
+  agrRenderLancamentos();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('excluirLancamento', {ID:id}).catch(function(e){
+      alert('Removido da tela, mas não consegui excluir na planilha agora: ' + e.message + '\n(Você pode apagar a linha manualmente na aba AGR_LANCAMENTOS se precisar.)');
+    });
+  }
+}
+function agrEnviarValidacao(id){
+  var r = AGR.lancamentos.find(function(x){return x.id===id;});
+  if(!r) return;
+  r.status = 'AGUARDANDO';
+  r.enviadoEm = new Date().toISOString();
+  agrRenderLancamentos();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('enviarValidacao', {ID:id}).catch(function(e){
+      alert('Atualizado na tela, mas não consegui gravar na planilha agora: ' + e.message);
+    });
+  }
+}
+
+function agrRenderLancamentos(){
+  var status = document.getElementById('lc-filt-status').value;
+  var motorista = document.getElementById('lc-filt-motorista').value;
+  var de = document.getElementById('lc-filt-de').value;
+  var ate = document.getElementById('lc-filt-ate').value;
+
+  var meus = AGR_PERM.isAdmin ? AGR.lancamentos : AGR.lancamentos.filter(function(r){ return r.lancadoPor === CURRENT_USER.nome; });
+  var rows = meus.filter(function(r){
+    if(status && r.status!==status) return false;
+    if(motorista && r.motorista!==motorista) return false;
+    if(de && r.data < de) return false;
+    if(ate && r.data > ate) return false;
+    return true;
+  }).sort(function(a,b){ return b.data.localeCompare(a.data); });
+
+  var tb = document.getElementById('lc-tbody');
+  if(!rows.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Nenhum lançamento encontrado.</td></tr>'; return; }
+  tb.innerHTML = rows.map(function(r){
+    var acoes = '';
+    if(r.status==='RASCUNHO' || r.status==='REPROVADO'){
+      acoes += '<button class="act-btn" onclick="agrEditarLancamento(\''+r.id+'\')">✏️</button>';
+      acoes += '<button class="act-btn ok" onclick="agrEnviarValidacao(\''+r.id+'\')">📤</button>';
+      acoes += '<button class="act-btn red" onclick="agrExcluirLancamento(\''+r.id+'\')">🗑️</button>';
+    }
+    var motivo = r.status==='REPROVADO' && r.motivoReprovacao ? '<div style="font-size:.68rem;color:#ff7875;margin-top:2px">Motivo: '+r.motivoReprovacao+'</div>' : '';
+    return '<tr>'+
+      '<td>'+agrFmtData(r.data)+'</td>'+
+      '<td>'+r.motorista+motivo+'</td>'+
+      '<td>'+r.tipo+'</td>'+
+      '<td>'+r.microrregiao+'</td>'+
+      '<td class="tac">'+r.nfs+'</td>'+
+      '<td class="tac">'+r.devolucoes+'</td>'+
+      '<td class="tnum">'+agrFmtMoeda(r.valor)+'</td>'+
+      '<td class="tac">'+agrStatusPill(r.status)+'</td>'+
+      '<td><div class="actions">'+acoes+'</div></td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════════
+// VALIDAÇÃO (Rodrigo / Adilson)
+// ════════════════════════════════════════════════════════════════
+function agrRenderValidacao(){
+  var pend = AGR.lancamentos.filter(function(r){ return r.status==='AGUARDANDO'; })
+    .sort(function(a,b){ return a.data.localeCompare(b.data); });
+  var tb = document.getElementById('val-tbody');
+  if(!pend.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Nenhum lançamento aguardando validação. 🎉</td></tr>'; }
+  else {
+    tb.innerHTML = pend.map(function(r){
+      return '<tr>'+
+        '<td><input type="checkbox" class="val-check" value="'+r.id+'"></td>'+
+        '<td>'+agrFmtData(r.data)+'</td>'+
+        '<td>'+r.motorista+'</td>'+
+        '<td>'+r.tipo+'</td>'+
+        '<td>'+r.microrregiao+'</td>'+
+        '<td class="tac">'+r.nfs+'</td>'+
+        '<td class="tnum"><input type="number" step="0.01" value="'+r.valor+'" style="width:90px;background:var(--bg);border:1px solid var(--br);border-radius:6px;color:var(--tx);padding:4px 6px;text-align:right" onchange="agrAjustarValor(\''+r.id+'\',this.value)"></td>'+
+        '<td>'+r.lancadoPor+'</td>'+
+        '<td><div class="actions">'+
+          '<button class="act-btn ok" onclick="agrAprovar(\''+r.id+'\')">✓</button>'+
+          '<button class="act-btn red" onclick="agrReprovar(\''+r.id+'\')">✖</button>'+
+        '</div></td>'+
+      '</tr>';
+    }).join('');
+  }
+
+  var hist = AGR.lancamentos.filter(function(r){ return (r.status==='APROVADO'||r.status==='REPROVADO'||r.status==='PAGO') && r.validadoPor===CURRENT_USER.nome; })
+    .sort(function(a,b){ return (b.validadoEm||'').localeCompare(a.validadoEm||''); }).slice(0,15);
+  var htb = document.getElementById('val-hist-tbody');
+  htb.innerHTML = hist.length ? hist.map(function(r){
+    return '<tr><td>'+agrFmtData(r.data)+'</td><td>'+r.motorista+'</td><td class="tnum">'+agrFmtMoeda(r.valor)+'</td>'+
+      '<td class="tac">'+agrStatusPill(r.status)+'</td><td>'+(r.validadoEm?new Date(r.validadoEm).toLocaleString('pt-BR'):'—')+'</td></tr>';
+  }).join('') : '<tr class="empty-row"><td colspan="5">Nenhum registro ainda.</td></tr>';
+}
+function agrAjustarValor(id, novo){
+  var r = AGR.lancamentos.find(function(x){return x.id===id;});
+  if(r) r.valor = Number(novo)||0; // aplicado na hora; vai junto no payload quando aprovar
+}
+function agrAprovar(id){
+  var r = AGR.lancamentos.find(function(x){return x.id===id;});
+  if(!r) return;
+  r.status = 'APROVADO';
+  r.validadoPor = CURRENT_USER.nome;
+  r.validadoEm = new Date().toISOString();
+  agrRenderValidacao();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('aprovar', {ID:id, validadoPor:CURRENT_USER.nome, valor:r.valor}).catch(function(e){
+      alert('Aprovado na tela, mas não consegui gravar na planilha agora: ' + e.message);
+    });
+  }
+}
+function agrReprovar(id){
+  var motivo = prompt('Motivo da reprovação (o lançamento volta para o Jonathas editar):');
+  if(motivo===null) return;
+  var r = AGR.lancamentos.find(function(x){return x.id===id;});
+  if(!r) return;
+  r.status = 'REPROVADO';
+  r.motivoReprovacao = motivo || 'Sem motivo informado';
+  r.validadoPor = CURRENT_USER.nome;
+  r.validadoEm = new Date().toISOString();
+  agrRenderValidacao();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('reprovar', {ID:id, validadoPor:CURRENT_USER.nome, motivo:r.motivoReprovacao}).catch(function(e){
+      alert('Reprovado na tela, mas não consegui gravar na planilha agora: ' + e.message);
+    });
+  }
+}
+function agrToggleAll(cb){ document.querySelectorAll('.val-check').forEach(function(c){c.checked=cb.checked;}); }
+function agrSelecionados(){ return Array.from(document.querySelectorAll('.val-check:checked')).map(function(c){return c.value;}); }
+function agrAprovarLote(){
+  var ids = agrSelecionados();
+  if(!ids.length){ alert('Selecione ao menos um lançamento.'); return; }
+  ids.forEach(agrAprovar);
+}
+function agrReprovarLote(){
+  var ids = agrSelecionados();
+  if(!ids.length){ alert('Selecione ao menos um lançamento.'); return; }
+  var motivo = prompt('Motivo da reprovação (aplicado a todos selecionados):');
+  if(motivo===null) return;
+  ids.forEach(function(id){
+    var r = AGR.lancamentos.find(function(x){return x.id===id;});
+    if(!r) return;
+    r.status='REPROVADO'; r.motivoReprovacao = motivo || 'Sem motivo informado';
+    r.validadoPor = CURRENT_USER.nome; r.validadoEm = new Date().toISOString();
+    if(AGR_USE_BACKEND){
+      agrBackendPost('reprovar', {ID:id, validadoPor:CURRENT_USER.nome, motivo:r.motivoReprovacao}).catch(function(e){
+        alert('Reprovado na tela (id '+id+'), mas não consegui gravar na planilha: ' + e.message);
+      });
+    }
+  });
+  agrRenderValidacao();
+}
+
+// ════════════════════════════════════════════════════════════════
+// RELATÓRIO
+// ════════════════════════════════════════════════════════════════
+var agrRelatorioIdsAtual = [];
+function agrGerarRelatorio(){
+  var motorista = document.getElementById('rep-motorista').value;
+  var de = document.getElementById('rep-de').value;
+  var ate = document.getElementById('rep-ate').value;
+  var statusList = document.getElementById('rep-status').value.split(',');
+
+  var rows = AGR.lancamentos.filter(function(r){
+    if(statusList.indexOf(r.status)===-1) return false;
+    if(motorista && r.motorista!==motorista) return false;
+    if(de && r.data<de) return false;
+    if(ate && r.data>ate) return false;
+    return true;
+  }).sort(function(a,b){ return a.data.localeCompare(b.data); });
+
+  agrRelatorioIdsAtual = rows.map(function(r){return r.id;});
+  var out = document.getElementById('rep-output');
+
+  if(!rows.length){
+    out.innerHTML = '<div class="badge-alert">Nenhum lançamento encontrado para os filtros selecionados.</div>';
+    return;
+  }
+
+  var totalGeral = 0, totalRota = 0;
+  var porTipo = {}, porRegiao = {};
+  rows.forEach(function(r){
+    totalGeral += r.valor;
+    if(r.tipo==='Rota') totalRota += r.valor;
+    porTipo[r.tipo] = (porTipo[r.tipo]||0) + r.valor;
+    porRegiao[r.microrregiao] = (porRegiao[r.microrregiao]||0) + r.valor;
+  });
+
+  var validadores = [...new Set(rows.map(function(r){return r.validadoPor;}).filter(Boolean))];
+  var autorizadoPor = validadores.length===1 ? validadores[0] : (validadores.length>1 ? 'Múltiplos validadores' : '—');
+  var motoristaLabel = motorista || 'Todos os motoristas';
+  var periodoLabel = (de?agrFmtData(de):'início') + ' a ' + (ate?agrFmtData(ate):'hoje');
+
+  var html = '';
+  html += '<div class="rep-hdr"><h2>RELATÓRIO DE APURAÇÃO — AGREGADOS</h2>';
+  html += '<p>Motorista: <strong style="color:var(--tx)">'+motoristaLabel+'</strong> &middot; Período: '+periodoLabel+'</p></div>';
+
+  html += '<div class="twrap"><table><thead><tr>'+
+    '<th>Data</th><th>Motorista</th><th>Tipo</th><th>Região/Rota</th>'+
+    '<th class="tac">NFs</th><th class="tac">Dev.</th><th class="tnum">Valor</th>'+
+    '</tr></thead><tbody>';
+  rows.forEach(function(r){
+    html += '<tr><td>'+agrFmtData(r.data)+' '+r.semana.slice(0,3)+'</td><td>'+r.motorista+'</td><td>'+r.tipo+'</td><td>'+r.microrregiao+'</td>'+
+      '<td class="tac">'+r.nfs+'</td><td class="tac">'+r.devolucoes+'</td><td class="tnum">'+agrFmtMoeda(r.valor)+'</td></tr>';
+  });
+  if(totalRota>0){
+    html += '<tr class="rep-tot-row"><td colspan="6">Valor Rota (subtotal)</td><td class="tnum">'+agrFmtMoeda(totalRota)+'</td></tr>';
+  }
+  html += '<tr class="rep-tot-row"><td colspan="6">TOTAL DO PERÍODO</td><td class="tnum">'+agrFmtMoeda(totalGeral)+'</td></tr>';
+  html += '</tbody></table></div>';
+
+  html += '<div class="cwrap"><div class="ctitle">Totais por tipo</div>';
+  Object.keys(porTipo).forEach(function(t){
+    html += '<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--br)"><span>'+t+'</span><strong>'+agrFmtMoeda(porTipo[t])+'</strong></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="cwrap"><div class="ctitle">Totais por região/rota</div>';
+  Object.keys(porRegiao).forEach(function(t){
+    html += '<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--br)"><span>'+t+'</span><strong>'+agrFmtMoeda(porRegiao[t])+'</strong></div>';
+  });
+  html += '</div>';
+
+  html += '<div class="rep-foot"><div>Emitido por<strong>'+CURRENT_USER.nome+' — '+new Date().toLocaleString('pt-BR')+'</strong></div>'+
+    '<div style="text-align:right">Autorizado por<strong>'+autorizadoPor+'</strong></div></div>';
+
+  out.innerHTML = html;
+}
+function agrMarcarLoteComoPago(){
+  if(!agrRelatorioIdsAtual.length){ alert('Gere o relatório primeiro.'); return; }
+  var aprovados = agrRelatorioIdsAtual.filter(function(id){
+    var r = AGR.lancamentos.find(function(x){return x.id===id;});
+    return r && r.status==='APROVADO';
+  });
+  if(!aprovados.length){ alert('Nenhum lançamento aprovado (pendente de pagamento) neste relatório.'); return; }
+  if(!confirm(aprovados.length+' lançamento(s) serão marcados como PAGO. Confirma?')) return;
+  aprovados.forEach(function(id){
+    var r = AGR.lancamentos.find(function(x){return x.id===id;});
+    r.status = 'PAGO';
+    r.pagoPor = CURRENT_USER.nome;
+    r.pagoEm = new Date().toISOString();
+    if(AGR_USE_BACKEND){
+      agrBackendPost('marcarPago', {ID:id, pagoPor:CURRENT_USER.nome}).catch(function(e){
+        alert('Marcado na tela (id '+id+'), mas não consegui gravar na planilha: ' + e.message);
+      });
+    }
+  });
+  agrGerarRelatorio();
+}
+
+// ════════════════════════════════════════════════════════════════
+// CONFIGURAÇÕES
+// ════════════════════════════════════════════════════════════════
+function agrRenderConfig(){
+  ['motoristas','microrregioes','tipos'].forEach(function(lista){
+    var box = document.getElementById('cfg-'+lista);
+    box.innerHTML = AGR.config[lista].map(function(v){
+      return '<div class="cfg-item"><span>'+v+'</span><button onclick="agrCfgRemove(\''+lista+'\',\''+v.replace(/'/g,"\\'")+'\')">✕</button></div>';
+    }).join('') || '<div style="font-size:.78rem;color:var(--mu)">Nenhum item.</div>';
+  });
+  var tb = document.getElementById('cfg-rotas-tbody');
+  tb.innerHTML = AGR.rotas.map(function(r){
+    return '<tr><td>'+r.rota+'</td><td>'+r.cidade+'</td><td class="tnum">'+agrFmtMoeda(r.valor)+'</td>'+
+      '<td><div class="actions"><button class="act-btn red" onclick="agrRemoverRota('+r.id+')">🗑️</button></div></td></tr>';
+  }).join('');
+}
+function agrCfgAdd(lista){
+  var inp = document.getElementById('cfg-add-'+lista);
+  var v = inp.value.trim();
+  if(!v) return;
+  if(AGR.config[lista].indexOf(v)===-1) AGR.config[lista].push(v);
+  inp.value = '';
+  agrRenderConfig();
+  agrInitSelects();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('addConfig', {tipoLista: AGR_TIPO_LISTA_SHEET[lista], valor: v}).catch(function(e){
+      alert('Cadastrado na tela, mas não consegui salvar na planilha agora: ' + e.message);
+    });
+  }
+}
+function agrCfgRemove(lista, valor){
+  if(!confirm('Remover "'+valor+'" da lista de '+lista+'?')) return;
+  AGR.config[lista] = AGR.config[lista].filter(function(v){return v!==valor;});
+  agrRenderConfig();
+  agrInitSelects();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('desativarConfig', {tipoLista: AGR_TIPO_LISTA_SHEET[lista], valor: valor}).catch(function(e){
+      alert('Removido da tela, mas não consegui desativar na planilha agora: ' + e.message);
+    });
+  }
+}
+function agrAddRota(){
+  var rota = document.getElementById('rota-add-nome').value.trim();
+  var cidade = document.getElementById('rota-add-cidade').value.trim();
+  var valor = Number(document.getElementById('rota-add-valor').value);
+  if(!rota || !cidade || !valor){ alert('Preencha rota, cidade e valor.'); return; }
+  var maxId = AGR.rotas.reduce(function(m,r){return Math.max(m,r.id);},0);
+  var novaRota = {id:maxId+1, rota:rota, cidade:cidade, valor:valor};
+  AGR.rotas.push(novaRota);
+  document.getElementById('rota-add-nome').value='';
+  document.getElementById('rota-add-cidade').value='';
+  document.getElementById('rota-add-valor').value='';
+  agrRenderConfig();
+  agrInitSelects();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('addRota', {rota:rota, cidade:cidade, valor:valor}).catch(function(e){
+      alert('Cadastrada na tela, mas não consegui salvar na planilha agora: ' + e.message);
+    });
+  }
+}
+function agrRemoverRota(id){
+  if(!confirm('Remover esta rota da tabela?')) return;
+  AGR.rotas = AGR.rotas.filter(function(r){return r.id!==id;});
+  agrRenderConfig();
+  agrInitSelects();
+  if(AGR_USE_BACKEND){
+    agrBackendPost('desativarRota', {ID:id}).catch(function(e){
+      alert('Removida da tela, mas não consegui desativar na planilha agora: ' + e.message);
+    });
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+// KPIs
+// ════════════════════════════════════════════════════════════════
+var agrChartMotorista = null, agrChartRegiao = null;
+function agrRenderKpis(){
+  var hoje = new Date();
+  var mesAtual = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
+  var mesAnteriorD = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+  var mesAnterior = mesAnteriorD.getFullYear()+'-'+String(mesAnteriorD.getMonth()+1).padStart(2,'0');
+
+  var pagosMesAtual = AGR.lancamentos.filter(function(r){ return r.status==='PAGO' && r.data.startsWith(mesAtual); });
+  var pagosMesAnterior = AGR.lancamentos.filter(function(r){ return r.status==='PAGO' && r.data.startsWith(mesAnterior); });
+  var totalMesAtual = pagosMesAtual.reduce(function(s,r){return s+r.valor;},0);
+  var totalMesAnterior = pagosMesAnterior.reduce(function(s,r){return s+r.valor;},0);
+  var variacao = totalMesAnterior ? ((totalMesAtual-totalMesAnterior)/totalMesAnterior*100) : 0;
+
+  var aguardando = AGR.lancamentos.filter(function(r){return r.status==='AGUARDANDO';});
+  var aprovado = AGR.lancamentos.filter(function(r){return r.status==='APROVADO';});
+  var totalNFs = pagosMesAtual.reduce(function(s,r){return s+(r.nfs||0);},0);
+
+  document.getElementById('kpi-pago-mes').textContent = agrFmtMoeda(totalMesAtual);
+  document.getElementById('kpi-pago-mes-var').textContent = totalMesAnterior ? (variacao>=0?'▲ ':'▼ ')+Math.abs(variacao).toFixed(1)+'% vs mês anterior' : 'sem histórico no mês anterior';
+  document.getElementById('kpi-aguardando').textContent = agrFmtMoeda(aguardando.reduce(function(s,r){return s+r.valor;},0));
+  document.getElementById('kpi-aprovado').textContent = agrFmtMoeda(aprovado.reduce(function(s,r){return s+r.valor;},0));
+  document.getElementById('kpi-custo-nf').textContent = totalNFs>0 ? agrFmtMoeda(totalMesAtual/totalNFs) : '—';
+
+  // Alerta de pendências antigas
+  var agora = Date.now();
+  var antigos = aguardando.filter(function(r){
+    var ts = r.enviadoEm ? new Date(r.enviadoEm).getTime() : 0;
+    return ts && (agora - ts) > 3*24*60*60*1000;
+  });
+  document.getElementById('kpi-alerta').innerHTML = antigos.length
+    ? '<div class="badge-alert">⚠️ '+antigos.length+' lançamento(s) aguardando validação há mais de 3 dias.</div>'
+    : '';
+
+  // Chart custo por motorista (mês atual, aprovado+pago)
+  var considerados = AGR.lancamentos.filter(function(r){ return (r.status==='APROVADO'||r.status==='PAGO') && r.data.startsWith(mesAtual); });
+  var byMotorista = {};
+  considerados.forEach(function(r){ byMotorista[r.motorista] = (byMotorista[r.motorista]||0)+r.valor; });
+  var byRegiao = {};
+  considerados.forEach(function(r){ byRegiao[r.microrregiao] = (byRegiao[r.microrregiao]||0)+r.valor; });
+
+  var ctxM = document.getElementById('chart-motorista').getContext('2d');
+  if(agrChartMotorista) agrChartMotorista.destroy();
+  agrChartMotorista = new Chart(ctxM, {
+    type:'bar',
+    data:{ labels:Object.keys(byMotorista), datasets:[{ data:Object.values(byMotorista), backgroundColor:'#a07cf6', borderRadius:6 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{color:'#8fa0c0'}, grid:{color:'rgba(255,255,255,.06)'} }, x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} } } }
+  });
+  var ctxR = document.getElementById('chart-regiao').getContext('2d');
+  if(agrChartRegiao) agrChartRegiao.destroy();
+  agrChartRegiao = new Chart(ctxR, {
+    type:'bar',
+    data:{ labels:Object.keys(byRegiao), datasets:[{ data:Object.values(byRegiao), backgroundColor:'#36cfa0', borderRadius:6 }] },
+    options:{ plugins:{legend:{display:false}}, scales:{ y:{ ticks:{color:'#8fa0c0'}, grid:{color:'rgba(255,255,255,.06)'} }, x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} } } }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// REFRESH MANUAL — o CSV publicado do Sheets pode levar alguns
+// minutos pra refletir uma gravação; este botão força reconsulta.
+// ════════════════════════════════════════════════════════════════
+function agrAtualizarDados(){
+  var btn = document.getElementById('btn-agr-refresh');
+  if(btn){ btn.disabled = true; btn.textContent = '🔄 Atualizando...'; }
+  agrCarregarTudo().then(function(){
+    agrInitSelects();
+    var tabAtiva = document.querySelector('.tab.active');
+    if(tabAtiva) agrShowTab(tabAtiva.dataset.tab);
+  }).catch(function(e){
+    alert('Não consegui atualizar os dados agora: ' + e.message);
+  }).finally(function(){
+    if(btn){ btn.disabled = false; btn.textContent = '🔄 Atualizar'; }
+  });
+}
+
+// ════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════
+(function agrInit(){
+  document.getElementById('lc-tbody').innerHTML = '<tr class="empty-row"><td colspan="9">Carregando dados da planilha...</td></tr>';
+  agrCarregarTudo().then(function(){
+    agrInitSelects();
+    agrOnTipoChange();
+    agrAplicarPermissoes();
+  }).catch(function(e){
+    document.getElementById('lc-tbody').innerHTML = '<tr class="empty-row"><td colspan="9">Erro ao carregar dados: '+e.message+'</td></tr>';
+    alert('Não consegui carregar os dados da planilha. Confira sua conexão e tente novamente.\n\nDetalhe: ' + e.message);
+  });
+})();
+</script>
+</body>
+</html>
