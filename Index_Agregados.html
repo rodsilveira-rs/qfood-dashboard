@@ -352,16 +352,31 @@ tbody tr:hover td{background:var(--s2);}
 
 <!-- ============ TAB KPIs ============ -->
 <div class="page" id="tab-kpis">
+  <div class="filtros">
+    <div class="fld"><label>De</label><input type="date" id="kpi-de"></div>
+    <div class="fld"><label>Até</label><input type="date" id="kpi-ate"></div>
+    <div class="fld"><label>Atalhos</label>
+      <select id="kpi-atalho" onchange="agrKpiAtalho(this.value)">
+        <option value="mes-atual">Mês atual</option>
+        <option value="mes-passado">Mês passado</option>
+        <option value="7dias">Últimos 7 dias</option>
+        <option value="30dias">Últimos 30 dias</option>
+        <option value="ano">Este ano</option>
+        <option value="custom">Personalizado</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" onclick="agrRenderKpis()" style="height:38px">Aplicar período</button>
+  </div>
   <div id="kpi-alerta"></div>
   <div class="kpis">
-    <div class="kpi p"><div class="lbl">Total pago no mês</div><div class="val" id="kpi-pago-mes">—</div><div class="sub" id="kpi-pago-mes-var">—</div></div>
+    <div class="kpi p"><div class="lbl">Total pago no período</div><div class="val" id="kpi-pago-mes">—</div><div class="sub" id="kpi-pago-mes-var">—</div></div>
     <div class="kpi w"><div class="lbl">Aguardando validação</div><div class="val" id="kpi-aguardando">—</div><div class="sub">valor pendente de análise</div></div>
     <div class="kpi g"><div class="lbl">Aprovado a pagar</div><div class="val" id="kpi-aprovado">—</div><div class="sub">liberado para o Gustavo</div></div>
     <div class="kpi b"><div class="lbl">Custo médio / NF</div><div class="val" id="kpi-custo-nf">—</div><div class="sub">valor pago ÷ NFs entregues</div></div>
   </div>
 
   <div class="cwrap">
-    <div class="ctitle">Participação por tipo (mês atual)</div>
+    <div class="ctitle">Participação por tipo (no período)</div>
     <div style="position:relative;max-width:340px;margin:0 auto">
       <canvas id="chart-tipo-donut" height="340"></canvas>
       <div id="donut-center" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">
@@ -373,11 +388,11 @@ tbody tr:hover td{background:var(--s2);}
   </div>
 
   <div class="cwrap">
-    <div class="ctitle">Custo por motorista (mês atual)</div>
+    <div class="ctitle">Custo por motorista (no período)</div>
     <canvas id="chart-motorista" height="90"></canvas>
   </div>
   <div class="cwrap">
-    <div class="ctitle">Custo por microrregião / rota (mês atual)</div>
+    <div class="ctitle">Custo por microrregião / rota (no período)</div>
     <canvas id="chart-regiao" height="90"></canvas>
   </div>
 </div>
@@ -1108,14 +1123,41 @@ function agrRemoverRota(id){
 // KPIs
 // ════════════════════════════════════════════════════════════════
 var agrChartMotorista = null, agrChartRegiao = null;
-function agrRenderKpis(){
+function agrKpiAtalho(v){
   var hoje = new Date();
-  var mesAtual = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0');
-  var mesAnteriorD = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
-  var mesAnterior = mesAnteriorD.getFullYear()+'-'+String(mesAnteriorD.getMonth()+1).padStart(2,'0');
+  var de, ate = hoje;
+  if(v==='mes-atual'){ de = new Date(hoje.getFullYear(), hoje.getMonth(), 1); }
+  else if(v==='mes-passado'){ de = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1); ate = new Date(hoje.getFullYear(), hoje.getMonth(), 0); }
+  else if(v==='7dias'){ de = new Date(hoje.getTime()-6*24*60*60*1000); }
+  else if(v==='30dias'){ de = new Date(hoje.getTime()-29*24*60*60*1000); }
+  else if(v==='ano'){ de = new Date(hoje.getFullYear(), 0, 1); }
+  else { return; } // 'custom' — deixa as datas como o usuário digitou
+  var iso = function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  document.getElementById('kpi-de').value = iso(de);
+  document.getElementById('kpi-ate').value = iso(ate);
+  agrRenderKpis();
+}
+function agrRenderKpis(){
+  var deEl = document.getElementById('kpi-de');
+  var ateEl = document.getElementById('kpi-ate');
+  if(!deEl.value || !ateEl.value){
+    var hoje = new Date();
+    deEl.value = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-01';
+    ateEl.value = hoje.getFullYear()+'-'+String(hoje.getMonth()+1).padStart(2,'0')+'-'+String(hoje.getDate()).padStart(2,'0');
+  }
+  var de = deEl.value, ate = ateEl.value;
 
-  var pagosMesAtual = AGR.lancamentos.filter(function(r){ return r.status==='PAGO' && r.data.startsWith(mesAtual); });
-  var pagosMesAnterior = AGR.lancamentos.filter(function(r){ return r.status==='PAGO' && r.data.startsWith(mesAnterior); });
+  // Período anterior de mesma duração, imediatamente antes de "de" (pra comparação de variação)
+  var msDia = 24*60*60*1000;
+  var dDe = new Date(de+'T00:00:00'), dAte = new Date(ate+'T00:00:00');
+  var duracaoDias = Math.round((dAte-dDe)/msDia) + 1;
+  var antAte = new Date(dDe.getTime() - msDia);
+  var antDe = new Date(antAte.getTime() - (duracaoDias-1)*msDia);
+  var isoFmt = function(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+  var deAnterior = isoFmt(antDe), ateAnterior = isoFmt(antAte);
+
+  var pagosMesAtual = AGR.lancamentos.filter(function(r){ return r.status==='PAGO' && r.data>=de && r.data<=ate; });
+  var pagosMesAnterior = AGR.lancamentos.filter(function(r){ return r.status==='PAGO' && r.data>=deAnterior && r.data<=ateAnterior; });
   var totalMesAtual = pagosMesAtual.reduce(function(s,r){return s+r.valor;},0);
   var totalMesAnterior = pagosMesAnterior.reduce(function(s,r){return s+r.valor;},0);
   var variacao = totalMesAnterior ? ((totalMesAtual-totalMesAnterior)/totalMesAnterior*100) : 0;
@@ -1125,7 +1167,7 @@ function agrRenderKpis(){
   var totalNFs = pagosMesAtual.reduce(function(s,r){return s+(r.nfs||0);},0);
 
   document.getElementById('kpi-pago-mes').textContent = agrFmtMoeda(totalMesAtual);
-  document.getElementById('kpi-pago-mes-var').textContent = totalMesAnterior ? (variacao>=0?'▲ ':'▼ ')+Math.abs(variacao).toFixed(1)+'% vs mês anterior' : 'sem histórico no mês anterior';
+  document.getElementById('kpi-pago-mes-var').textContent = totalMesAnterior ? (variacao>=0?'▲ ':'▼ ')+Math.abs(variacao).toFixed(1)+'% vs período anterior' : 'sem histórico no período anterior';
   document.getElementById('kpi-aguardando').textContent = agrFmtMoeda(aguardando.reduce(function(s,r){return s+r.valor;},0));
   document.getElementById('kpi-aprovado').textContent = agrFmtMoeda(aprovado.reduce(function(s,r){return s+r.valor;},0));
   document.getElementById('kpi-custo-nf').textContent = totalNFs>0 ? agrFmtMoeda(totalMesAtual/totalNFs) : '—';
@@ -1141,7 +1183,7 @@ function agrRenderKpis(){
     : '';
 
   // Chart custo por motorista (mês atual, aprovado+pago)
-  var considerados = AGR.lancamentos.filter(function(r){ return (r.status==='APROVADO'||r.status==='PAGO') && r.data.startsWith(mesAtual); });
+  var considerados = AGR.lancamentos.filter(function(r){ return (r.status==='APROVADO'||r.status==='PAGO') && r.data>=de && r.data<=ate; });
   var byMotorista = {};
   considerados.forEach(function(r){ byMotorista[r.motorista] = (byMotorista[r.motorista]||0)+r.valor; });
   var byRegiao = {};
