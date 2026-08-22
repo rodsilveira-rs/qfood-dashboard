@@ -1050,24 +1050,37 @@ function agrGerarRelatorio(){
 }
 function agrMarcarLoteComoPago(){
   if(!agrRelatorioIdsAtual.length){ alert('Gere o relatório primeiro.'); return; }
-  var aprovados = agrRelatorioIdsAtual.filter(function(id){
+  var idsUnicos = Array.from(new Set(agrRelatorioIdsAtual)); // remove repetidos
+  var aprovados = idsUnicos.filter(function(id){
     var r = AGR.lancamentos.find(function(x){return x.id===id;});
     return r && r.status==='APROVADO';
   });
   if(!aprovados.length){ alert('Nenhum lançamento aprovado (pendente de pagamento) neste relatório.'); return; }
   if(!confirm(aprovados.length+' lançamento(s) serão marcados como PAGO. Confirma?')) return;
-  aprovados.forEach(function(id){
-    var r = AGR.lancamentos.find(function(x){return x.id===id;});
-    r.status = 'PAGO';
-    r.pagoPor = CURRENT_USER.nome;
-    r.pagoEm = new Date().toISOString();
-    if(AGR_USE_BACKEND){
-      agrBackendPost('marcarPago', {ID:id, pagoPor:CURRENT_USER.nome}).catch(function(e){
-        alert('Marcado na tela (id '+id+'), mas não consegui gravar na planilha: ' + e.message);
+
+  var btn = event.target;
+  btn.disabled = true;
+  var falhas = [];
+
+  // Processa um por vez (evita sobrecarregar o Apps Script com tudo junto)
+  aprovados.reduce(function(promessa, id){
+    return promessa.then(function(){
+      var r = AGR.lancamentos.find(function(x){return x.id===id;});
+      r.status = 'PAGO';
+      r.pagoPor = CURRENT_USER.nome;
+      r.pagoEm = new Date().toISOString();
+      if(!AGR_USE_BACKEND) return;
+      return agrBackendPost('marcarPago', {ID:id, pagoPor:CURRENT_USER.nome}).catch(function(e){
+        falhas.push(id + ': ' + e.message);
       });
+    });
+  }, Promise.resolve()).then(function(){
+    btn.disabled = false;
+    agrGerarRelatorio();
+    if(falhas.length){
+      alert('Marcado na tela, mas '+falhas.length+' lançamento(s) não gravaram na planilha:\n' + falhas.slice(0,5).join('\n') + (falhas.length>5 ? '\n...' : ''));
     }
   });
-  agrGerarRelatorio();
 }
 
 // ════════════════════════════════════════════════════════════════
