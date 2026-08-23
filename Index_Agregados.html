@@ -1458,6 +1458,8 @@ function agrRenderDonutTipo(byTipo, totalGeral){
     plugins: [agrDonutPercentPlugin]
   });
 }
+function agrFmtMoedaCurta(v){ return 'R$ ' + Math.round(v).toLocaleString('pt-BR'); }
+
 var agrBarValuePlugin = {
   id: 'agrBarValue',
   afterDatasetsDraw: function(chart, args, opts){
@@ -1465,19 +1467,21 @@ var agrBarValuePlugin = {
     var meta = chart.getDatasetMeta(0);
     var data = chart.data.datasets[0].data;
     ctx.save();
-    ctx.font = '700 11px DM Sans, sans-serif';
+    ctx.font = '700 12px DM Sans, sans-serif';
     ctx.fillStyle = '#eef1f8';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     meta.data.forEach(function(bar, i){
       var texto = opts.formato === 'pct' ? data[i] + '%' : agrFmtMoeda(data[i]);
-      ctx.fillText(texto, bar.x, bar.y - 6);
+      ctx.fillText(texto, bar.x, bar.y - 8);
     });
     ctx.restore();
   }
 };
+
 function agrRenderParDinheiroPct(chave, dados){
   var labels = Object.keys(dados);
+  var labelsQuebrados = labels.map(function(l){ return l.split(' '); });
   var valores = Object.values(dados);
   var total = valores.reduce(function(a,b){return a+b;},0);
   var pcts = valores.map(function(v){ return total ? Math.round(v/total*100) : 0; });
@@ -1491,19 +1495,29 @@ function agrRenderParDinheiroPct(chave, dados){
     var chartKey = chave+'-'+modo;
     if(window.agrChartsPar[chartKey]) window.agrChartsPar[chartKey].destroy();
     var dadosGrafico = modo==='valor' ? valores : pcts;
+    var maxVal = Math.max.apply(null, dadosGrafico.concat([1]));
     window.agrChartsPar[chartKey] = new Chart(el.getContext('2d'), {
       type:'bar',
-      data:{ labels:labels, datasets:[{ data:dadosGrafico, backgroundColor:cor, borderRadius:6 }] },
+      data:{ labels:labelsQuebrados, datasets:[{ data:dadosGrafico, backgroundColor:cor, borderRadius:8, barPercentage:0.55, categoryPercentage:0.65 }] },
       options:{
-        layout:{ padding:{top:22} },
+        layout:{ padding:{top:26} },
         plugins:{
           legend:{display:false},
           tooltip:{ callbacks:{ label:function(ctx){ return modo==='valor' ? agrFmtMoeda(ctx.parsed.y) : ctx.parsed.y+'%'; } } },
           agrBarValue:{ formato: modo }
         },
         scales:{
-          y:{ display:false, grid:{display:false} },
-          x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} }
+          y:{
+            suggestedMax: maxVal*1.25,
+            ticks:{ color:'#8fa0c0', font:{size:11}, callback: modo==='pct' ? function(v){return v+'%';} : function(v){return agrFmtMoedaCurta(v);} },
+            grid:{ color:'rgba(255,255,255,.06)' },
+            border:{ display:false }
+          },
+          x:{
+            ticks:{ color:'#8fa0c0', font:{size:11,weight:'600'}, maxRotation:0, minRotation:0 },
+            grid:{ display:false },
+            border:{ display:false }
+          }
         }
       },
       plugins:[agrBarValuePlugin]
