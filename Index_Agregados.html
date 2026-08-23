@@ -76,6 +76,31 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .donut-center-num{font-family:var(--fh);font-size:1.05rem;font-weight:700;}
 @media(max-width:640px){.kpi-chart-row{grid-template-columns:1fr;}}
 
+.resumo-grid{display:grid;grid-template-columns:1.15fr 1fr;gap:24px;align-items:start;}
+.resumo-item{display:flex;align-items:center;gap:12px;padding:10px 0;}
+.resumo-item-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.resumo-item-info{flex:1;min-width:0;}
+.resumo-item-nome{font-weight:700;font-size:0.86rem;color:var(--tx);}
+.resumo-item-sub{font-size:0.72rem;color:var(--mu);margin-top:1px;}
+.resumo-item-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:5px;}
+.resumo-item-valor{font-weight:700;font-size:0.88rem;color:var(--tx);}
+.resumo-item-pct{color:#fff;font-size:0.68rem;font-weight:700;padding:2px 9px;border-radius:20px;}
+.resumo-bar{height:4px;border-radius:4px;background:var(--s2);margin:0 0 8px 50px;overflow:hidden;}
+.resumo-bar-fill{height:100%;border-radius:4px;}
+.resumo-total{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-top:8px;}
+.resumo-donut-row{display:flex;align-items:center;gap:18px;}
+.resumo-legend{flex:1;display:flex;flex-direction:column;gap:10px;min-width:0;}
+.resumo-legend-item{display:flex;align-items:center;gap:8px;font-size:0.78rem;}
+.resumo-legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.resumo-legend-nome{flex:1;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.resumo-legend-val{color:var(--tx);font-weight:600;margin-right:8px;white-space:nowrap;}
+.resumo-legend-pct{font-weight:700;min-width:32px;text-align:right;}
+.resumo-insight{display:flex;align-items:center;gap:12px;background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-top:16px;}
+.resumo-insight-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+.resumo-insight-lbl{font-size:0.7rem;color:var(--mu);}
+.resumo-insight-txt{font-size:0.82rem;color:var(--tx);}
+@media(max-width:760px){.resumo-grid{grid-template-columns:1fr;}.resumo-donut-row{flex-direction:column;}}
+
 /* ---- FORM ---- */
 .card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:22px;margin-bottom:22px;}
 .frow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
@@ -1065,6 +1090,85 @@ function agrReprovarLote(){
 // ════════════════════════════════════════════════════════════════
 // RELATÓRIO
 // ════════════════════════════════════════════════════════════════
+var AGR_ICONES_TIPO = {
+  'Diária':'🚚','Extra':'➕','Sábado':'📅','Descarga':'⬇️','Reembolso':'💵','Rota':'🗺️'
+};
+var AGR_SUB_TIPO = {
+  'Diária':'Transporte diário','Extra':'Serviços extras','Sábado':'Atendimento aos sábados',
+  'Descarga':'Serviços de descarga','Reembolso':'Reembolso de despesas','Rota':'Rota fixa contratada'
+};
+var AGR_DONUT_CORES_REGIAO = ['#36cfa0','#a07cf6','#4d8ef5','#ff4d4f','#ffaa2b','#22d3ee','#8fa0c0'];
+function agrIconeRegiao(nome){
+  var n = String(nome||'').toLowerCase();
+  if(n.indexOf('vitória')>-1 || n.indexOf('vitoria')>-1 || n.indexOf('vv')>-1) return '🗺️';
+  if(n.indexOf('norte')>-1) return '🧭';
+  if(n.indexOf('sul')>-1 || n.indexOf('litoral')>-1) return '🌊';
+  if(n.indexOf('serra')>-1) return '⛰️';
+  return '📍';
+}
+function agrBuildResumoCard(opts){
+  var labels = Object.keys(opts.dados);
+  var total = labels.reduce(function(s,l){return s+opts.dados[l];},0);
+  var itens = labels.map(function(l,i){ return {nome:l, valor:opts.dados[l], pct: total ? Math.round(opts.dados[l]/total*100) : 0, cor: opts.cores[i%opts.cores.length]}; });
+  itens.sort(function(a,b){ return b.valor - a.valor; });
+
+  var html = '<div class="cwrap"><div class="kpi-card-hdr">'+
+    '<div class="kpi-card-icon" style="background:'+opts.tituloCor+'22;color:'+opts.tituloCor+'">'+opts.tituloIcone+'</div>'+
+    '<div><div class="kpi-card-title">'+opts.titulo+'</div><div class="kpi-card-sub">'+opts.subtitulo+'</div></div>'+
+  '</div><div class="resumo-grid"><div class="resumo-list">';
+
+  itens.forEach(function(it){
+    html += '<div class="resumo-item">'+
+      '<div class="resumo-item-icon" style="background:'+it.cor+'22;color:'+it.cor+'">'+opts.iconeFn(it.nome)+'</div>'+
+      '<div class="resumo-item-info"><div class="resumo-item-nome">'+it.nome+'</div><div class="resumo-item-sub">'+opts.subFn(it.nome)+'</div></div>'+
+      '<div class="resumo-item-right"><div class="resumo-item-valor">'+agrFmtMoeda(it.valor)+'</div><div class="resumo-item-pct" style="background:'+it.cor+'">'+it.pct+'%</div></div>'+
+    '</div>'+
+    '<div class="resumo-bar"><div class="resumo-bar-fill" style="width:'+it.pct+'%;background:'+it.cor+'"></div></div>';
+  });
+
+  html += '<div class="resumo-total">'+
+    '<div class="resumo-item-icon" style="background:var(--s3);color:var(--mu)">💰</div>'+
+    '<div class="resumo-item-info"><div class="resumo-item-nome">Total geral</div></div>'+
+    '<div class="resumo-item-valor" style="color:'+opts.tituloCor+';font-size:1.05rem">'+agrFmtMoeda(total)+'</div>'+
+  '</div></div><div>';
+
+  html += '<div class="resumo-donut-row">'+
+    '<div style="position:relative;width:170px;flex-shrink:0">'+
+      '<canvas id="'+opts.canvasId+'" height="170"></canvas>'+
+      '<div class="donut-center-abs"><div class="donut-center-lbl">Total</div><div class="donut-center-num" style="font-size:.8rem">'+agrFmtMoeda(total)+'</div><div class="donut-center-lbl">100%</div></div>'+
+    '</div><div class="resumo-legend">';
+  itens.forEach(function(it){
+    html += '<div class="resumo-legend-item">'+
+      '<span class="resumo-legend-dot" style="background:'+it.cor+'"></span>'+
+      '<span class="resumo-legend-nome">'+it.nome+'</span>'+
+      '<span class="resumo-legend-val">'+agrFmtMoeda(it.valor)+'</span>'+
+      '<span class="resumo-legend-pct" style="color:'+it.cor+'">'+it.pct+'%</span>'+
+    '</div>';
+  });
+  html += '</div></div>';
+
+  var maior = itens[0];
+  html += '<div class="resumo-insight">'+
+    '<div class="resumo-insight-icon" style="background:'+maior.cor+'22;color:'+maior.cor+'">📈</div>'+
+    '<div><div class="resumo-insight-lbl">'+opts.insightLbl+'</div>'+
+    '<div class="resumo-insight-txt"><b>'+maior.nome+'</b> '+opts.insightVerbo+' <b style="color:'+maior.cor+'">'+maior.pct+'%</b> '+opts.insightFim+'</div></div>'+
+  '</div>';
+
+  html += '</div></div></div>';
+  return {html: html, itens: itens};
+}
+function agrRenderResumoDonut(canvasId, itens){
+  var el = document.getElementById(canvasId);
+  if(!el) return;
+  if(!window.agrChartsRep) window.agrChartsRep = {};
+  if(window.agrChartsRep[canvasId]) window.agrChartsRep[canvasId].destroy();
+  window.agrChartsRep[canvasId] = new Chart(el.getContext('2d'), {
+    type: 'doughnut',
+    data: { labels: itens.map(function(i){return i.nome;}), datasets: [{ data: itens.map(function(i){return i.pct;}), backgroundColor: itens.map(function(i){return i.cor;}), borderColor: '#242938', borderWidth: 3 }] },
+    options: { cutout: '68%', plugins: { legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return ctx.label+': '+ctx.parsed+'%'; } } } } },
+    plugins: [agrDonutPercentPlugin]
+  });
+}
 var agrRelatorioIdsAtual = [];
 function agrGerarRelatorio(){
   var motorista = document.getElementById('rep-motorista').value;
@@ -1120,29 +1224,30 @@ function agrGerarRelatorio(){
   html += '<tr class="rep-tot-row"><td colspan="6">TOTAL DO PERÍODO</td><td class="tnum">'+agrFmtMoeda(totalGeral)+'</td></tr>';
   html += '</tbody></table></div>';
 
-  html += '<div class="cwrap"><div class="ctitle">Totais por tipo</div><div class="kpi-chart-row">';
-  html += '<div>';
-  Object.keys(porTipo).forEach(function(t){
-    html += '<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--br)"><span>'+t+'</span><strong>'+agrFmtMoeda(porTipo[t])+'</strong></div>';
+  var cardTipo = agrBuildResumoCard({
+    tituloIcone:'🚚', tituloCor:'#ff4d4f', titulo:'Totais por tipo', subtitulo:'Resumo dos custos por tipo de serviço',
+    dados: porTipo, cores: AGR_DONUT_CORES, iconeFn: function(n){ return AGR_ICONES_TIPO[n]||'🏷️'; },
+    subFn: function(n){ return AGR_SUB_TIPO[n]||'Tipo de lançamento'; },
+    canvasId:'chart-rep-tipo-pct', insightLbl:'Maior impacto', insightVerbo:'representa', insightFim:'do total'
   });
-  html += '</div>';
-  html += '<div style="max-width:200px;margin:0 auto"><canvas id="chart-rep-tipo-pct" height="200"></canvas></div>';
-  html += '</div></div>';
+  html += cardTipo.html;
 
-  html += '<div class="cwrap"><div class="ctitle">Totais por região/rota</div><div class="kpi-chart-row">';
-  html += '<div>';
-  Object.keys(porRegiao).forEach(function(t){
-    html += '<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--br)"><span>'+t+'</span><strong>'+agrFmtMoeda(porRegiao[t])+'</strong></div>';
+  var cardRegiao = agrBuildResumoCard({
+    tituloIcone:'📍', tituloCor:'#36cfa0', titulo:'Totais por região/rota', subtitulo:'Resumo dos custos por região ou rota',
+    dados: porRegiao, cores: AGR_DONUT_CORES_REGIAO, iconeFn: agrIconeRegiao,
+    subFn: function(){ return 'Região de entrega'; },
+    canvasId:'chart-rep-regiao-pct', insightLbl:'Região principal', insightVerbo:'concentra', insightFim:'dos custos'
   });
-  html += '</div>';
-  html += '<div style="max-width:200px;margin:0 auto"><canvas id="chart-rep-regiao-pct" height="200"></canvas></div>';
-  html += '</div></div>';
+  html += cardRegiao.html;
+
+  html += '<div class="badge-alert" style="background:rgba(255,170,43,.1);border-color:rgba(255,170,43,.3);color:#ffaa2b">💡 <b>Dica:</b> use os filtros acima para analisar períodos específicos e identificar oportunidades de redução de custos.</div>';
 
   html += '<div class="rep-foot"><div>Emitido por<strong>'+CURRENT_USER.nome+' — '+new Date().toLocaleString('pt-BR')+'</strong></div>'+
     '<div style="text-align:right">Autorizado por<strong>'+autorizadoPor+'</strong></div></div>';
 
   out.innerHTML = html;
-  agrRenderRepDonuts(porTipo, porRegiao);
+  agrRenderResumoDonut('chart-rep-tipo-pct', cardTipo.itens);
+  agrRenderResumoDonut('chart-rep-regiao-pct', cardRegiao.itens);
 }
 
 function agrRenderRepDonuts(porTipo, porRegiao){
