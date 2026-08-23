@@ -1420,6 +1420,24 @@ function agrRenderDonutTipo(byTipo, totalGeral){
     plugins: [agrDonutPercentPlugin]
   });
 }
+var agrBarValuePlugin = {
+  id: 'agrBarValue',
+  afterDatasetsDraw: function(chart, args, opts){
+    var ctx = chart.ctx;
+    var meta = chart.getDatasetMeta(0);
+    var data = chart.data.datasets[0].data;
+    ctx.save();
+    ctx.font = '700 11px DM Sans, sans-serif';
+    ctx.fillStyle = '#eef1f8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    meta.data.forEach(function(bar, i){
+      var texto = opts.formato === 'pct' ? data[i] + '%' : agrFmtMoeda(data[i]);
+      ctx.fillText(texto, bar.x, bar.y - 6);
+    });
+    ctx.restore();
+  }
+};
 function agrRenderParDinheiroPct(chave, dados){
   var labels = Object.keys(dados);
   var valores = Object.values(dados);
@@ -1437,12 +1455,18 @@ function agrRenderParDinheiroPct(chave, dados){
       type:'bar',
       data:{ labels:labels, datasets:[{ data:dadosGrafico, backgroundColor:cor, borderRadius:6 }] },
       options:{
-        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(ctx){ return modo==='valor' ? agrFmtMoeda(ctx.parsed.y) : ctx.parsed.y+'%'; } } } },
+        layout:{ padding:{top:22} },
+        plugins:{
+          legend:{display:false},
+          tooltip:{ callbacks:{ label:function(ctx){ return modo==='valor' ? agrFmtMoeda(ctx.parsed.y) : ctx.parsed.y+'%'; } } },
+          agrBarValue:{ formato: modo }
+        },
         scales:{
-          y:{ ticks:{color:'#8fa0c0', callback: modo==='pct' ? function(v){return v+'%';} : undefined}, grid:{color:'rgba(255,255,255,.06)'} },
+          y:{ display:false, grid:{display:false} },
           x:{ ticks:{color:'#8fa0c0'}, grid:{display:false} }
         }
-      }
+      },
+      plugins:[agrBarValuePlugin]
     });
   });
 }
