@@ -1120,22 +1120,55 @@ function agrGerarRelatorio(){
   html += '<tr class="rep-tot-row"><td colspan="6">TOTAL DO PERÍODO</td><td class="tnum">'+agrFmtMoeda(totalGeral)+'</td></tr>';
   html += '</tbody></table></div>';
 
-  html += '<div class="cwrap"><div class="ctitle">Totais por tipo</div>';
+  html += '<div class="cwrap"><div class="ctitle">Totais por tipo</div><div class="kpi-chart-row">';
+  html += '<div>';
   Object.keys(porTipo).forEach(function(t){
     html += '<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--br)"><span>'+t+'</span><strong>'+agrFmtMoeda(porTipo[t])+'</strong></div>';
   });
   html += '</div>';
+  html += '<div style="max-width:200px;margin:0 auto"><canvas id="chart-rep-tipo-pct" height="200"></canvas></div>';
+  html += '</div></div>';
 
-  html += '<div class="cwrap"><div class="ctitle">Totais por região/rota</div>';
+  html += '<div class="cwrap"><div class="ctitle">Totais por região/rota</div><div class="kpi-chart-row">';
+  html += '<div>';
   Object.keys(porRegiao).forEach(function(t){
     html += '<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--br)"><span>'+t+'</span><strong>'+agrFmtMoeda(porRegiao[t])+'</strong></div>';
   });
   html += '</div>';
+  html += '<div style="max-width:200px;margin:0 auto"><canvas id="chart-rep-regiao-pct" height="200"></canvas></div>';
+  html += '</div></div>';
 
   html += '<div class="rep-foot"><div>Emitido por<strong>'+CURRENT_USER.nome+' — '+new Date().toLocaleString('pt-BR')+'</strong></div>'+
     '<div style="text-align:right">Autorizado por<strong>'+autorizadoPor+'</strong></div></div>';
 
   out.innerHTML = html;
+  agrRenderRepDonuts(porTipo, porRegiao);
+}
+
+function agrRenderRepDonuts(porTipo, porRegiao){
+  if(!window.agrChartsRep) window.agrChartsRep = {};
+  [['chart-rep-tipo-pct', porTipo], ['chart-rep-regiao-pct', porRegiao]].forEach(function(par){
+    var elId = par[0], dados = par[1];
+    var el = document.getElementById(elId);
+    if(!el) return;
+    if(window.agrChartsRep[elId]) window.agrChartsRep[elId].destroy();
+    var labels = Object.keys(dados);
+    var valores = Object.values(dados);
+    var total = valores.reduce(function(a,b){return a+b;},0);
+    var pcts = valores.map(function(v){ return total ? Math.round(v/total*100) : 0; });
+    window.agrChartsRep[elId] = new Chart(el.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels: labels, datasets: [{ data: pcts, backgroundColor: AGR_DONUT_CORES, borderColor: '#242938', borderWidth: 3 }] },
+      options: {
+        cutout: '62%',
+        plugins: {
+          legend: { display:true, position:'bottom', labels:{ color:'#8fa0c0', font:{size:10}, boxWidth:8, padding:8 } },
+          tooltip: { callbacks: { label: function(ctx){ return ctx.label+': '+ctx.parsed+'%'; } } }
+        }
+      },
+      plugins: [agrDonutPercentPlugin]
+    });
+  });
 }
 function agrMarcarLoteComoPago(){
   if(!agrRelatorioIdsAtual.length){ alert('Gere o relatório primeiro.'); return; }
