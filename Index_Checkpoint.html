@@ -230,97 +230,112 @@ function findLider(id){ return todosLideres().filter(function(p){ return p.id===
 var SYNC_IDS = { gustavo:1, celio:1, cris:1, maiko:1, barbara:1 };
 
 /* KPIs Parte A (Score QDACE 70/20/10) */
+/*
+ * KPIS_AREA — 14 gestores × ~5 KPIs
+ * Campo "status":
+ *   'ativo'          → KPI válido, entra no cálculo do bloco de 70 pts
+ *   'em_implantacao' → definição pendente, NÃO entra no cálculo (não pontua nem penaliza)
+ *   'suspenso'       → temporariamente fora (requer justificativa)
+ *   'nao_aplicavel'  → não se aplica a este gestor/área
+ * Regra: apenas KPIs 'ativo' entram na média do bloco de 70 pontos.
+ * Campo "dir": 'maior' = quanto maior melhor · 'menor' = quanto menor melhor
+ */
 var KPIS_AREA = {
   gustavo: [
-    { id:'inadimplencia', label:'Inadimplência total',        meta:50000, dir:'menor', metaLabel:'R$ 50k' },
-    { id:'prazo_receb',   label:'Prazo médio recebimento',    meta:35,    dir:'menor', metaLabel:'35 dias' },
-    { id:'cobranca_pct',  label:'Cobrança ativa (% inadimpl.)',meta:60,   dir:'maior', metaLabel:'60%' },
-    { id:'dp_rh_pend',    label:'Pendências DP/RH',           meta:0,     dir:'menor', metaLabel:'0' }
+    { id:'inadimplencia', label:'Inadimplência total',        meta:50000, dir:'menor', metaLabel:'R$ 50k',  status:'ativo' },
+    { id:'prazo_receb',   label:'Prazo médio recebimento',    meta:35,    dir:'menor', metaLabel:'35 dias', status:'ativo' },
+    { id:'cobranca_pct',  label:'Cobrança ativa (% inadimpl.)',meta:60,   dir:'maior', metaLabel:'60%',     status:'ativo' },
+    { id:'dp_rh_pend',    label:'Pendências DP/RH',           meta:0,     dir:'menor', metaLabel:'0',       status:'ativo' }
   ],
   celio: [
-    { id:'nfs_pendentes', label:'NFs pendentes',              meta:2,     dir:'menor', metaLabel:'2/dia' },
-    { id:'avarias_valor', label:'Avarias (R$)',               meta:5000,  dir:'menor', metaLabel:'R$ 5k/mês' },
-    { id:'avarias_qtd',   label:'Avarias (qtd)',              meta:10,    dir:'menor', metaLabel:'10/mês' },
-    { id:'ocs_dia',       label:'OCs montadas/dia',           meta:8,     dir:'maior', metaLabel:'8/dia' },
-    { id:'divergencias',  label:'Divergências',               meta:3,     dir:'menor', metaLabel:'3%' }
+    { id:'nfs_pendentes', label:'NFs pendentes',              meta:2,     dir:'menor', metaLabel:'2/dia',    status:'ativo' },
+    { id:'avarias_valor', label:'Avarias (R$)',               meta:5000,  dir:'menor', metaLabel:'R$ 5k/mês',status:'ativo' },
+    { id:'avarias_qtd',   label:'Avarias (qtd)',              meta:10,    dir:'menor', metaLabel:'10/mês',   status:'ativo' },
+    { id:'ocs_dia',       label:'OCs montadas/dia',           meta:8,     dir:'maior', metaLabel:'8/dia',    status:'ativo' },
+    { id:'divergencias',  label:'Divergências',               meta:3,     dir:'menor', metaLabel:'3%',       status:'ativo' }
   ],
   maiko: [
-    { id:'notas_carro',   label:'Notas por carro',            meta:25,    dir:'maior', metaLabel:'25' },
-    { id:'ocupacao',      label:'Ocupação dos veículos',      meta:90,    dir:'maior', metaLabel:'90%' },
-    { id:'acuracidade',   label:'Acuracidade do estoque',     meta:98,    dir:'maior', metaLabel:'98%' },
-    { id:'reentregas',    label:'Reentregas',                 meta:2,     dir:'menor', metaLabel:'2/dia' },
-    { id:'devolucoes',    label:'Devoluções',                 meta:1,     dir:'menor', metaLabel:'1/dia' }
+    { id:'notas_carro',   label:'Notas por carro',            meta:25,    dir:'maior', metaLabel:'25',    status:'ativo' },
+    { id:'ocupacao',      label:'Ocupação dos veículos',      meta:90,    dir:'maior', metaLabel:'90%',   status:'ativo' },
+    { id:'acuracidade',   label:'Acuracidade do estoque',     meta:98,    dir:'maior', metaLabel:'98%',   status:'ativo' },
+    { id:'reentregas',    label:'Reentregas',                 meta:2,     dir:'menor', metaLabel:'2/dia', status:'ativo' },
+    { id:'devolucoes',    label:'Devoluções',                 meta:1,     dir:'menor', metaLabel:'1/dia', status:'ativo' }
   ],
   barbara: [
-    { id:'roas',          label:'ROAS',                       meta:3,     dir:'maior', metaLabel:'3,0x' },
-    { id:'cac',           label:'CAC',                        meta:50,    dir:'menor', metaLabel:'R$ 50' },
-    { id:'conversao',     label:'Conversão e-commerce',       meta:2.5,   dir:'maior', metaLabel:'2,5%' },
-    { id:'leads',         label:'Leads',                      meta:300,   dir:'maior', metaLabel:'300/mês' },
-    { id:'vendas_geradas',label:'Vendas geradas',             meta:80000, dir:'maior', metaLabel:'R$ 80k/mês' }
+    { id:'roas',          label:'ROAS',                       meta:3,     dir:'maior', metaLabel:'3,0x',       status:'ativo' },
+    { id:'cac',           label:'CAC',                        meta:50,    dir:'menor', metaLabel:'R$ 50',      status:'ativo' },
+    { id:'conversao',     label:'Conversão e-commerce',       meta:2.5,   dir:'maior', metaLabel:'2,5%',       status:'ativo' },
+    { id:'leads',         label:'Leads',                      meta:300,   dir:'maior', metaLabel:'300/mês',    status:'ativo' },
+    { id:'vendas_geradas',label:'Vendas geradas',             meta:80000, dir:'maior', metaLabel:'R$ 80k/mês', status:'ativo' }
   ],
   cris: [
-    { id:'ruptura',           label:'Ruptura',                meta:5,     dir:'menor', metaLabel:'5 itens' },
-    { id:'curva_a',           label:'Curva A',                meta:95,    dir:'maior', metaLabel:'95%' },
-    { id:'verba',             label:'Verba captada',          meta:30000, dir:'maior', metaLabel:'R$ 30k/mês' },
-    { id:'bonif_trocas',      label:'Bonificações + trocas',  meta:15000, dir:'maior', metaLabel:'R$ 15k' },
-    { id:'fornecedores_novos',label:'Fornecedores novos',     meta:2,     dir:'maior', metaLabel:'2/mês' }
+    { id:'ruptura',           label:'Ruptura',                meta:5,     dir:'menor', metaLabel:'5 itens',    status:'ativo' },
+    { id:'curva_a',           label:'Curva A',                meta:95,    dir:'maior', metaLabel:'95%',        status:'ativo' },
+    { id:'verba',             label:'Verba captada',          meta:30000, dir:'maior', metaLabel:'R$ 30k/mês', status:'ativo' },
+    { id:'bonif_trocas',      label:'Bonificações + trocas',  meta:15000, dir:'maior', metaLabel:'R$ 15k',     status:'ativo' },
+    { id:'fornecedores_novos',label:'Fornecedores novos',     meta:2,     dir:'maior', metaLabel:'2/mês',      status:'ativo' }
   ],
+  /* ─────────────────────────────────────────────────────────────────────
+   * A partir daqui: gestores com KPIs EM IMPLANTAÇÃO.
+   * Sentido e unidade já corrigidos (menor/maior corretos). Metas serão
+   * definidas junto com o gestor. Enquanto isso, NÃO entram no cálculo.
+   * ───────────────────────────────────────────────────────────────────── */
   tairine: [
-    { id:'fichas',      label:'Conformidade das fichas técnicas', meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'foodcost',    label:'Food cost / CMV',                   meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'reclam_prod', label:'Reclamações de produto (controle)', meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'rendimento',  label:'Rendimento por lote',               meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'seguranca',   label:'Segurança dos alimentos',           meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'fichas',      label:'Conformidade das fichas técnicas', meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'foodcost',    label:'Food cost / CMV',                   meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'reclam_prod', label:'Reclamações de produto',            meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'rendimento',  label:'Rendimento por lote',               meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'seguranca',   label:'Segurança dos alimentos',           meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ],
   marques: [
-    { id:'checklists',  label:'Conformidade dos checklists',       meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'nps_google',  label:'NPS / Google',                      meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'reclamacoes', label:'Reclamações (controle)',            meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'tempo_atend', label:'Tempo de atendimento',              meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'planos',      label:'Planos de ação concluídos',         meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'clima',       label:'Clima e disciplina operacional',    meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'checklists',  label:'Conformidade dos checklists',       meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'nps_google',  label:'NPS / Google',                      meta:0,   dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'reclamacoes', label:'Reclamações',                       meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'tempo_atend', label:'Tempo de atendimento (min)',        meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'planos',      label:'Planos de ação concluídos',         meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'clima',       label:'Clima e disciplina operacional',    meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ],
   leorick: [
-    { id:'sensorial',   label:'Padrão sensorial dos pratos',       meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'rend_porcao', label:'Rendimento e porção',               meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'retrabalho',  label:'Retrabalho e devolução (controle)', meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'tempo_prep',  label:'Tempo de preparo',                  meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'teste_tec',   label:'Aprovação em teste técnico',        meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'sensorial',   label:'Padrão sensorial dos pratos',       meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'rend_porcao', label:'Rendimento e porção',               meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'retrabalho',  label:'Retrabalho e devolução',            meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'tempo_prep',  label:'Tempo de preparo (min)',            meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'teste_tec',   label:'Aprovação em teste técnico',        meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ],
   mariana: [
-    { id:'venda_canal', label:'Venda por canal',                   meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'ticket',      label:'Ticket médio',                      meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'tempo_atend', label:'Tempo de atendimento',              meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'abertura',    label:'Conformidade de abertura/fechamento', meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'satisfacao',  label:'Satisfação do cliente (NPS)',       meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'venda_canal', label:'Venda por canal',                   meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'ticket',      label:'Ticket médio',                      meta:0,   dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'tempo_atend', label:'Tempo de atendimento (min)',        meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'abertura',    label:'Conformidade de abertura/fechamento', meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'satisfacao',  label:'Satisfação do cliente (NPS)',       meta:0,   dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ],
   elizeu: [
-    { id:'prod_real',   label:'Produção planejada × realizada',    meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'rend_lote',   label:'Rendimento por lote',               meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'perda_op',    label:'Perda operacional (controle)',      meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'tempo_prep',  label:'Tempo de preparo',                  meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'fichas',      label:'Conformidade das fichas',           meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'prod_real',   label:'Produção planejada × realizada',    meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'rend_lote',   label:'Rendimento por lote',               meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'perda_op',    label:'Perda operacional',                 meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'tempo_prep',  label:'Tempo de preparo (min)',            meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'fichas',      label:'Conformidade das fichas',           meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ],
   matheus: [
-    { id:'acuracidade', label:'Acuracidade do estoque',            meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'rupturas',    label:'Rupturas e vencimentos (controle)', meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'perdas_ap',   label:'Perdas registradas × apuradas',     meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'divergencia', label:'Divergência de recebimento (controle)', meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'tempo_nota',  label:'Tempo de entrada da nota',          meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'acuracidade', label:'Acuracidade do estoque',            meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'rupturas',    label:'Rupturas e vencimentos',            meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'perdas_ap',   label:'Perdas registradas × apuradas',     meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'divergencia', label:'Divergência de recebimento',        meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'tempo_nota',  label:'Tempo de entrada da nota (min)',    meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' }
   ],
   jhonatan: [
-    { id:'organizacao',   label:'Organização do estoque',   meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'fifo',          label:'FIFO / FEFO',              meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'produtividade', label:'Produtividade',            meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'separacao',     label:'Qualidade da separação',   meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'recebimento',   label:'Recebimento e separação',  meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'organizacao',   label:'Organização do estoque',   meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'fifo',          label:'FIFO / FEFO',              meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'produtividade', label:'Produtividade',            meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'separacao',     label:'Qualidade da separação',   meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'recebimento',   label:'Recebimento e separação',  meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ],
   eduardo: [
-    { id:'tempo_fat',     label:'Tempo de faturamento',       meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'zero_erros',    label:'Zero erros',                 meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'zero_canc',     label:'Zero cancelamentos internos',meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'produtividade', label:'Produtividade',              meta:100, dir:'maior', metaLabel:'100%' },
-    { id:'conf_fiscal',   label:'Conferência fiscal',         meta:100, dir:'maior', metaLabel:'100%' }
+    { id:'tempo_fat',     label:'Tempo de faturamento (min)', meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'zero_erros',    label:'Zero erros',                 meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'zero_canc',     label:'Zero cancelamentos internos',meta:0,   dir:'menor', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'produtividade', label:'Produtividade',              meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' },
+    { id:'conf_fiscal',   label:'Conferência fiscal',         meta:100, dir:'maior', metaLabel:'em definição', status:'em_implantacao' }
   ]
 };
 var CULTURA_ITENS = ['Disciplina','POPs','Trabalho em equipe','Feedback','Atitude'];
@@ -529,7 +544,13 @@ function podeVer(id){ var p=gestoresPermitidos(); return p===null || p.indexOf(i
 function primeiraView(){ if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
 function recalcScore(id){
   var kpis=KPIS_AREA[id]||[]; var soma=0,n=0;
-  kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id); var raw=inp?inp.value.trim():''; var at=atinKPI({id:k.id,dir:k.dir,meta:metaEf(id,k)},raw);
+  kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id);
+    /* KPI em implantação (ou suspenso/nao_aplicavel): NÃO entra no cálculo — não pontua nem penaliza */
+    if(k.status && k.status!=='ativo'){
+      if(cell){ cell.textContent='🚧'; cell.style.color='var(--mu2)'; cell.title='KPI em implantação — não entra no score'; }
+      return;
+    }
+    var raw=inp?inp.value.trim():''; var at=atinKPI({id:k.id,dir:k.dir,meta:metaEf(id,k)},raw);
     if(at==null){ if(cell){cell.textContent='—';cell.style.color='var(--mu2)';} } else { soma+=at;n++; if(cell){cell.textContent=Math.round(at)+'%';cell.style.color=at>=90?'var(--ok)':at>=50?'var(--warn)':'var(--red)';} } });
   var kpiBlock=n?(soma/n)/100*70:0;
   var ri=el('q-'+id+'-ralos'); var ralos=(ri && ri.value.trim()!=='')?20:0;
@@ -557,12 +578,24 @@ function renderScoreCard(r){
   var mes=mesAtual(); var s=loadScore(r.id,mes)||{}; var kpis=KPIS_AREA[r.id]||[];
   var adm=ehAdmin(); var mo=loadMetasOverlay(r.id);
   var rows=kpis.map(function(k){ var v=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:''; var a=k.dir==='maior'?'≥':'≤'; var mv=metaEf(r.id,k); var hasOv=(mo&&mo[k.id]!=null&&mo[k.id]!=='');
+    /* KPI em implantação: linha visualmente diferenciada, sem input de meta editável, sem input de realizado */
+    if(k.status && k.status!=='ativo'){
+      var selo={em_implantacao:'🚧 em implantação — não pontua', suspenso:'⏸ suspenso — não pontua', nao_aplicavel:'— não se aplica'}[k.status]||'não pontua';
+      return '<tr style="opacity:.55"><td>'+k.label+' <span style="font-size:.68rem;color:var(--warn);background:rgba(255,170,43,.12);padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:600">'+selo+'</span></td><td><span style="color:var(--mu2)">a definir</span></td><td><input type="text" value="" disabled style="opacity:.5;cursor:not-allowed" title="KPI em implantação — realizado não pontua"></td><td class="at" id="q-'+r.id+'-at-'+k.id+'" style="color:var(--mu2)">🚧</td></tr>';
+    }
     var metaCell=adm?('<input type="number" step="any" id="qm-'+r.id+'-'+k.id+'" value="'+mv+'" onchange="editarMeta(\''+r.id+'\',\''+k.id+'\',this)" title="Editar meta (admin)" style="width:88px;background:var(--s2);border:1px solid var(--cyan);border-radius:6px;padding:4px 7px;color:var(--tx);font-family:inherit;font-size:.82rem;outline:none">'):('<span style="color:var(--mu)">'+a+' '+(hasOv?mv:k.metaLabel)+'</span>');
     return '<tr><td>'+k.label+'</td><td>'+metaCell+'</td><td><input type="number" step="any" id="q-'+r.id+'-'+k.id+'" value="'+esc(v)+'" oninput="recalcScore(\''+r.id+'\')"></td><td class="at" id="q-'+r.id+'-at-'+k.id+'">—</td></tr>'; }).join('');
   var cult=CULTURA_ITENS.map(function(c,i){ var ck=(s.cultura&&s.cultura[i])?' checked':''; return '<label><input type="checkbox" id="q-'+r.id+'-cult-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> '+c+'</label>'; }).join('');
   var disc=DISCIPLINA_ENTREGAS.map(function(e,i){ var ck=(s.disciplina&&s.disciplina[i]!=null)?(s.disciplina[i]?' checked':''):' checked'; return '<label><input type="checkbox" id="q-'+r.id+'-disc-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> <span>'+e.nome+'</span> <span class="peso">−'+e.peso+'</span></label>'; }).join('');
   var ralos=(s.ralos!=null)?esc(s.ralos):'';
   return '<div class="card"><div class="sec">🎯 Score QDACE® — 100 pontos</div>'+
+    (function(){
+      var em = kpis.filter(function(k){ return k.status && k.status!=='ativo'; }).length;
+      var at = kpis.filter(function(k){ return !k.status || k.status==='ativo'; }).length;
+      if(em===0) return '';
+      if(at===0) return '<div style="background:rgba(255,170,43,.10);border:1px solid rgba(255,170,43,.35);border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:.82rem;color:var(--warn)">🚧 <strong>Todos os KPIs deste gestor estão em implantação.</strong> O bloco de 70 pts (KPIs) não pontuará até que sejam definidos. Score sai apenas de Ralos + Cultura − Disciplina.</div>';
+      return '<div style="background:rgba(255,170,43,.08);border:1px solid rgba(255,170,43,.28);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:.78rem;color:var(--warn)">🚧 <strong>'+em+' de '+(em+at)+' KPIs</strong> estão em implantação e não pontuam. O score do bloco KPI é a média apenas dos '+at+' KPIs ativos.</div>';
+    })()+
     '<div class="rep-head"><label>Mês</label><input type="month" id="q-'+r.id+'-mes" value="'+mes+'" onchange="scoreTrocarMes(\''+r.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">70 KPIs · 20 Ralos · 10 Cultura · − Disciplina</span>'+(adm?' <span style="font-size:.72rem;color:var(--cyan)">✏️ metas editáveis (admin)</span>':'')+'</div>'+
     '<div class="subsec">Indicadores da área — 70 pts</div><table class="sc"><thead><tr><th>KPI</th><th>Meta</th><th>Realizado</th><th style="text-align:right">Atingimento</th></tr></thead><tbody>'+rows+'</tbody></table>'+
     '<div class="subsec">Fechar os Ralos — 20 pts</div><div style="margin-bottom:6px;font-size:.78rem;color:var(--mu2)">Descreva a solução criada no período que reduziu custo/perda. <strong>Preenchido = 20 pts.</strong></div><textarea id="q-'+r.id+'-ralos" placeholder="Ex.: renegociei o frete e economizei R$ 8k/mês; troquei o fornecedor X e reduzi avarias..." oninput="recalcScore(\''+r.id+'\')" style="width:100%;min-height:58px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 11px;color:var(--tx);font-family:inherit;font-size:.85rem;resize:vertical;outline:none">'+ralos+'</textarea>'+
