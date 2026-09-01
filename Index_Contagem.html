@@ -777,7 +777,7 @@ function renderKpi(){
      }).join("")+
      '<input type="date" id="kde" value="'+(KDE||"")+'"><input type="date" id="kate" value="'+(KATE||"")+'">'+
      '<button onclick="periodo(\'custom\',this)">Aplicar</button>'+
-     '<button onclick="window.print()" style="background:var(--qf);border-color:var(--qf);color:#fff;font-weight:600">Gerar PDF</button>'+
+     '<button onclick="gerarPdf()" style="background:var(--qf);border-color:var(--qf);color:#fff;font-weight:600">Gerar PDF</button>'+
      '</div>';
 
   if(!k.totalContagens){
@@ -875,6 +875,19 @@ function renderKpi(){
 }
 
 function ncard(t,v,s){ return '<div class="nm"><small>'+esc(t)+'</small>'+v+'<div class="sub">'+esc(s)+'</div></div>'; }
+
+/* O navegador usa o document.title como nome sugerido do arquivo.
+   Trocamos antes de imprimir e devolvemos depois. */
+function gerarPdf(){
+  var orig=document.title;
+  function dt(s){ var p=String(s||"").split("-"); return p.length===3?(p[2]+p[1]+p[0]):""; }
+  var a=dt(KPI&&KPI.periodo?KPI.periodo.de:"");
+  var b=dt(KPI&&KPI.periodo?KPI.periodo.ate:"");
+  var per=(!a&&!b)?dt(hojeIso()):(a===b?a:a+"_a_"+b);
+  document.title="Contagem_QFood_"+per;
+  window.print();
+  setTimeout(function(){ document.title=orig; },1200);
+}
 
 /* Velocímetro em SVG. maiorMelhor=false inverte a escala de cor
    (usado na taxa de recontagem, onde perto de zero é bom). */
