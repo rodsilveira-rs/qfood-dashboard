@@ -797,12 +797,12 @@ function renderKpi(){
     gauge(k.acuracidadePct,"Acuracidade","Itens em que o físico bateu exato com o sistema",true,[90,97])+
     gauge(k.coberturaPct,"Cobertura",k.totalContagens+" contados de "+k.itensPlanejados+" planejados",true,[85,95])+
     gauge(k.recontagemPct,"Taxa de recontagem","Quanto menor, melhor. Taxa alta pede investigação",false,[5,15])+
+    gaugeBalanco(k)+
     '</div>';
 
   var acer=k.comSaldoParaConfronto?Math.round(k.acuracidadePct/100*k.comSaldoParaConfronto):0;
   h+='<div class="nums">'+
     ncard("Contagens","<b>"+k.totalContagens+"</b>",k.sessoes+" dia(s) de contagem")+
-    ncard("Divergência em R$","<b class='r'>"+rs(k.divergenciaAbsolutaRS)+"</b>","valor absoluto acumulado")+
     ncard("Divergência em unidades","<b>"+k.divergenciaAbsolutaUn+"</b>","soma das diferenças")+
     ncard("Itens não localizados","<b class='"+(k.naoLocalizados?"y":"m")+"'>"+k.naoLocalizados+"</b>","procurados e não achados")+
     ncard("Confrontados","<b>"+k.comSaldoParaConfronto+"</b>",acer+" bateram exato")+
@@ -918,6 +918,41 @@ function gauge(pct,nome,hint,maiorMelhor,lim){
     '<text x="90" y="104" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans,sans-serif;font-size:12px">'+
       (vazio?"sem dados":"%")+'</text></svg>'+
     '<div class="gz-nm">'+esc(nome)+'</div><div class="gz-hint">'+esc(hint)+'</div></div>';
+}
+
+/* Balanço falta x sobra.
+   Ponteiro à direita = falta física (contamos menos que o sistema).
+   Ponteiro à esquerda = sobra física. O meio é o equilíbrio. */
+function gaugeBalanco(k){
+  var v=k.balancoFaltaPct;
+  var vazio=(v==null||isNaN(v));
+  var R=70,LEN=Math.PI*R;
+  var pos=vazio?50:Math.max(0,Math.min(100,v));
+  var off=LEN*(1-pos/100);
+
+  var destaque,rotulo,cor;
+  if(vazio){ destaque="—"; rotulo="sem divergência"; cor="#5e718e"; }
+  else if(pos>55){ destaque=pos.toFixed(0); rotulo="FALTA"; cor="#ff4d4f"; }
+  else if(pos<45){ destaque=(100-pos).toFixed(0); rotulo="SOBRA"; cor="#22d3ee"; }
+  else{ destaque=pos.toFixed(0); rotulo="EQUILIBRADO"; cor="#ffaa2b"; }
+
+  var hint = vazio
+    ? "Nenhuma divergência no período"
+    : "Faltando "+k.unidadesFalta+" un em "+k.itensComFalta+" itens · "+
+      "sobrando "+k.unidadesSobra+" un em "+k.itensComSobra+" itens";
+
+  return '<div class="gz"><svg viewBox="0 0 180 118">'+
+    '<path d="M 20 92 A 70 70 0 0 1 160 92" fill="none" stroke="#2e3447" stroke-width="15" stroke-linecap="round"/>'+
+    '<path d="M 20 92 A 70 70 0 0 1 160 92" fill="none" stroke="'+cor+'" stroke-width="15" stroke-linecap="round" '+
+      'stroke-dasharray="'+LEN.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'"/>'+
+    '<line x1="90" y1="14" x2="90" y2="30" stroke="#1a1f2e" stroke-width="2.5"/>'+
+    '<text x="22" y="110" fill="#5e718e" style="font-family:DM Sans;font-size:10px">sobra</text>'+
+    '<text x="158" y="110" text-anchor="end" fill="#5e718e" style="font-family:DM Sans;font-size:10px">falta</text>'+
+    '<text x="90" y="80" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:31px;font-weight:800">'+
+      destaque+(vazio?"":"%")+'</text>'+
+    '<text x="90" y="97" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px">'+
+      rotulo+'</text></svg>'+
+    '<div class="gz-nm">Balanço do estoque</div><div class="gz-hint">'+esc(hint)+'</div></div>';
 }
 
 /* Curva de acuracidade diária, SVG puro */
