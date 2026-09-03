@@ -254,9 +254,11 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 
 var API="https://script.google.com/macros/s/AKfycbzrrsO9rj3Tu1BtB449g0rAli6zpgxcdLZ9ydFaq6rfvMH_jTh194CtbPzArRM52qLkKA/exec";
 
-var BASE_CACHE_KEY="qfood_contagem_base_v1";
+var UNI=(new URLSearchParams(location.search).get("u")||"qfood").toLowerCase();
+/* Cache e fila por unidade — sem isso a base da VIX sobrescreve a do Q Food */
+var BASE_CACHE_KEY="qfood_contagem_base_v1_"+UNI;
 var BASE_TTL_MS=7*24*60*60*1000;
-var FILA_KEY="qfood_contagem_fila_v1";
+var FILA_KEY="qfood_contagem_fila_v1_"+UNI;
 
 var USER=null, MODO=null, DATA=null, SESSAO=null, PERFIL={}, BASE=null, MAPA_GTIN={};
 var ITEM_SEL=null, SCANNER=null, FILTRO="", VER_FEITOS=false;
@@ -296,13 +298,13 @@ function num(v){ if(v===""||v==null) return null; var n=parseFloat(String(v).rep
 
 /* ---------- rede ---------- */
 function api(action,params,cb){
-  var q=API+"?modulo=contagem&action="+encodeURIComponent(action)+"&autorEmail="+encodeURIComponent(USER.email);
+  var q=API+"?modulo=contagem&unidade="+UNI+"&action="+encodeURIComponent(action)+"&autorEmail="+encodeURIComponent(USER.email);
   Object.keys(params||{}).forEach(function(k){ q+="&"+k+"="+encodeURIComponent(params[k]); });
   fetch(q).then(function(r){return r.json();}).then(function(j){cb(null,j);}).catch(function(e){cb(e);});
 }
 /* form-urlencoded evita preflight CORS a partir do GitHub Pages */
 function apiPost(action,payload,cb){
-  payload=payload||{}; payload.autorEmail=USER.email;
+  payload=payload||{}; payload.autorEmail=USER.email; payload.unidade=UNI;
   var body=new URLSearchParams();
   body.append("action",action); body.append("payload",JSON.stringify(payload));
   fetch(API+"?modulo=contagem",{method:"POST",body:body})
@@ -322,7 +324,14 @@ function carregarBase(done){
 }
 function aplicarBase(arr){
   BASE=arr||[]; MAPA_GTIN={};
-  BASE.forEach(function(r){ if(r[2]) MAPA_GTIN[r[2]]=r[0]; });
+  /* Um item pode ter vários códigos, e um código pode servir a mais de
+     um item (108 casos na VIX). Por isso o valor é sempre uma lista. */
+  BASE.forEach(function(r){
+    String(r[2]||"").split(/\s+/).forEach(function(g){
+      if(!g) return;
+      (MAPA_GTIN[g]=MAPA_GTIN[g]||[]).push(r[0]);
+    });
+  });
 }
 function nomeDe(cod){
   cod=padCod(cod);
@@ -337,6 +346,7 @@ function carregarSessao(){
     if(err) return erro("Falha de conexão. Verifique a internet e tente de novo.");
     if(!j.ok) return erro(j.error||"Erro ao carregar a sessão.");
     SESSAO=j.sessao; PERFIL=SESSAO.perfil||{};
+    if(SESSAO.nomeUnidade) document.querySelector(".ttl").textContent="Contagem · "+SESSAO.nomeUnidade;
     montarTabs();
     if(!MODO) MODO=(PERFIL.preparador||PERFIL.admin)?"prep":"cont";
     sincTabs(); render(); escoarFila();
@@ -730,7 +740,26 @@ function fecharCam(){
   if(SCANNER){ try{ SCANNER.stop().then(function(){SCANNER.clear();SCANNER=null;}); }catch(e){ SCANNER=null; } }
 }
 function tratarLeitura(txt){
-  var g=padGtin(txt), cod=g?MAPA_GTIN[g]:null;
+  var g=padGtin(txt), achados=(g?MAPA_GTIN[g]:null)||[];
+
+  if(achados.length>1){
+    /* Código usado por mais de um produto: prioriza os que estão na
+       lista de hoje; se ainda houver dúvida, quem conta escolhe. */
+    var naLista=achados.filter(function(c){
+      return (SESSAO.itens||[]).some(function(x){return x.codigo===c;});
+    });
+    if(naLista.length===1){ achados=naLista; }
+    else{
+      var opts=(naLista.length?naLista:achados);
+      FILTRO=""; render();
+      alert("Este código serve a "+opts.length+" produtos diferentes.\n\n"+
+            opts.map(function(c){return "• "+nomeDe(c);}).join("\n")+
+            "\n\nToque no item certo na lista.");
+      FILTRO=opts.map(function(c){return c;}).join(" ");
+      return;
+    }
+  }
+  var cod=achados[0]||null;
   if(!cod){
     FILTRO=""; render();
     alert("Código não encontrado na base:\n"+txt+"\n\nUse a busca por nome para achar o item.");
@@ -892,7 +921,7 @@ function gerarPdf(){
   var a=dt(KPI&&KPI.periodo?KPI.periodo.de:"");
   var b=dt(KPI&&KPI.periodo?KPI.periodo.ate:"");
   var per=(!a&&!b)?dt(hojeIso()):(a===b?a:a+"_a_"+b);
-  document.title="Contagem_QFood_"+per;
+  document.title="Contagem_"+(UNI==="vix"?"MercLiberdadeVIX":"QFood")+"_"+per;
   window.print();
   setTimeout(function(){ document.title=orig; },1200);
 }
