@@ -198,26 +198,54 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
    "Salvar como PDF". Sai melhor que jsPDF, não quebra acento, e os
    velocímetros saem nítidos porque são SVG, não imagem. */
 @media print{
-  @page{size:A4 portrait;margin:12mm;}
-  body{background:#fff !important;color:#111 !important;padding:0;}
-  .top,.per,.dock,.ov,.no-print{display:none !important;}
+  @page{size:A4 portrait;margin:14mm 12mm 16mm;}
+  body{background:#fff !important;color:#1f2937 !important;padding:0;font-size:10px;}
+  .top,.per,.dock,.ov,.no-print,.st-sp,.st-ic,.comp-ic{display:none !important;}
   .only-print{display:block;}
   .wrap{max-width:100%;padding:0;}
-  .gz,.nm,.panel{background:#fff !important;border:1px solid #ccc !important;break-inside:avoid;page-break-inside:avoid;}
-  .gauges{grid-template-columns:repeat(3,1fr);}
-  .nums{grid-template-columns:repeat(4,1fr);}
-  .sec-h{color:#555 !important;}
-  th{color:#555 !important;border-bottom:1px solid #999 !important;}
-  td{border-bottom:1px solid #ddd !important;}
-  .m,.cd{color:#777 !important;}
+
+  /* Cabeçalho da marca */
+  .prt-h{border-bottom:3px solid #e63329;padding-bottom:9px;margin-bottom:14px;}
+  .prt-h h1{font-family:'Syne',sans-serif;font-size:19px;color:#111827;letter-spacing:-.3px;}
+  .prt-h p{font-size:9.5px;color:#6b7280;margin-top:3px;}
+
+  /* Rodapé repetido em todas as páginas */
+  .pfoot{display:flex !important;justify-content:space-between;
+    position:fixed;bottom:0;left:0;right:0;
+    border-top:1px solid #e5e7eb;padding-top:5px;font-size:8px;color:#9ca3af;}
+
+  /* Títulos nunca ficam órfãos no fim da página */
+  .sec-h{color:#374151 !important;font-size:9px;margin:14px 0 6px;
+    break-after:avoid;page-break-after:avoid;}
+  .sec-h + .panel,.sec-h + .gauges{break-before:avoid;page-break-before:avoid;}
+
+  .gz,.nm,.st,.comp,.panel{background:#fff !important;border:1px solid #e5e7eb !important;
+    break-inside:avoid;page-break-inside:avoid;}
+  .gauges{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .kpi-row{grid-template-columns:repeat(4,1fr);gap:8px;}
+  .kpi-main{grid-template-columns:1fr;}
+  .st-vl{font-size:20px;color:#111827 !important;}
+  .st-lb,.comp-tx{color:#4b5563 !important;}
+
+  /* Tabelas: cabeçalho repetido, zebra, linha inteira na mesma página */
+  table{font-size:8.5px;}
+  thead{display:table-header-group;}
+  tfoot{display:table-footer-group;}
+  tr{break-inside:avoid;page-break-inside:avoid;}
+  th{background:#1a2638 !important;color:#fff !important;padding:6px 5px;
+    border-bottom:none !important;font-size:7.5px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  td{padding:5px;border-bottom:1px solid #eef1f5 !important;vertical-align:top;}
+  tbody tr:nth-child(even) td{background:#f8fafc;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .cd{color:#9ca3af !important;font-size:7.5px;}
+
+  .m{color:#6b7280 !important;}
   .g{color:#0a7f5c !important;} .r{color:#c0231f !important;} .y{color:#a06a00 !important;}
-  .gz-nm,.nm b{color:#111 !important;}
-  .gz-hint,.nm small,.nm .sub{color:#666 !important;}
-  table{font-size:0.68rem;}
+  .gz-nm{color:#111827 !important;font-size:10px;}
+  .gz-hint,.nm small,.nm .sub,.comp-vl small{color:#6b7280 !important;font-size:8px;}
+  .comp h4{color:#111827 !important;}
   .brk{page-break-before:always;}
-  .prt-h{border-bottom:2px solid #e63329;padding-bottom:10px;margin-bottom:16px;}
-  .prt-h h1{font-family:'Syne',sans-serif;font-size:1.2rem;color:#111;}
-  .prt-h p{font-size:0.75rem;color:#555;margin-top:4px;}
 }
 </style>
 </head>
@@ -240,8 +268,12 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 
 <div class="wrap narrow" id="wrap">
   <div class="only-print prt-h">
-    <h1>Q Food Company — Auditoria de Estoque</h1>
+    <h1>Contagem de Estoque</h1>
     <p id="prt-sub">—</p>
+  </div>
+  <div class="pfoot hide" id="pfoot">
+    <span id="pfoot-l">Q Food Company · Contagem</span>
+    <span id="pfoot-r">—</span>
   </div>
   <div id="app"><div class="empty"><span class="spin"></span> Carregando…</div></div>
 </div>
@@ -862,9 +894,15 @@ function carregarKpi(){
 function renderKpi(){
   if(!KPI){ periodo("7"); return; }
   var k=KPI,h="";
+  var uniNome=(SESSAO&&SESSAO.nomeUnidade)||(UNI==="vix"?"Mercearia Liberdade VIX":"Q Food Company");
+  document.querySelector(".prt-h h1").textContent="Contagem de Estoque — "+uniNome;
   document.getElementById("prt-sub").textContent=
-    "Período de "+fmtData(k.periodo.de)+" a "+fmtData(k.periodo.ate)+
-    " · emitido em "+fmtData(hojeIso())+" por "+(USER.nome||USER.email);
+    (k.periodo.de===k.periodo.ate
+      ? fmtData(k.periodo.de)
+      : "Período de "+fmtData(k.periodo.de)+" a "+fmtData(k.periodo.ate))+
+    " · emitido por "+(USER.nome||USER.email)+" em "+fmtData(hojeIso());
+  document.getElementById("pfoot-l").textContent=uniNome+" · Contagem";
+  document.getElementById("pfoot-r").textContent=fmtData(hojeIso());
 
   h+='<div class="per no-print">'+
      ['hoje|Hoje','7|7 dias','30|30 dias','mes|Mês atual','ant|Mês anterior'].map(function(x){
@@ -959,9 +997,10 @@ function renderKpi(){
 
   var itens=(k.porItem||[]).filter(function(i){return i.acuracidade!=null;});
   if(itens.length){
-    h+='<div class="sec-h brk">Itens por acuracidade (pior primeiro)</div><div class="panel"><table>'+
+    h+='<div class="sec-h brk">Itens por acuracidade (pior primeiro)</div><div class="panel"><table><thead>'+
        '<tr><th>Item</th><th class="n">Contagens</th><th class="n">Acuracidade</th>'+
-       '<th class="n">Diverg. un</th><th class="n">Diverg. R$</th><th class="n">Última</th></tr>';
+       '<th class="n">Diverg. un</th><th class="n">Diverg. R$</th><th class="n">Última</th></tr>'+
+       '</thead><tbody>';
     itens.slice(0,40).forEach(function(i){
       var c=i.acuracidade>=97?"g":(i.acuracidade>=90?"y":"r");
       h+='<tr><td>'+esc(i.nome)+'<div class="cd">'+esc(i.codigo)+'</div></td>'+
@@ -970,12 +1009,12 @@ function renderKpi(){
          '<td class="n '+(i.valorDivergencia?"r":"m")+'">'+rs(i.valorDivergencia)+'</td>'+
          '<td class="n m">'+fmtData(i.ultimaContagem)+'</td></tr>';
     });
-    h+='</table></div>';
+    h+='</tbody></table></div>';
   }
 
   if((k.top20Divergencias||[]).length){
     h+='<div class="sec-h">Maiores divergências do período</div><div class="panel"><table>'+
-       '<tr><th>Data</th><th>Item</th><th class="n">Diferença</th><th class="n">Impacto</th><th>Quem contou</th></tr>';
+       '<thead><tr><th>Data</th><th>Item</th><th class="n">Diferença</th><th class="n">Impacto</th><th>Quem contou</th></tr></thead><tbody>';
     k.top20Divergencias.forEach(function(d){
       h+='<tr><td class="m">'+fmtData(d.data)+'</td>'+
          '<td>'+esc(d.nome)+'<div class="cd">'+esc(d.codigo)+'</div></td>'+
@@ -983,14 +1022,14 @@ function renderKpi(){
          '<td class="n r">'+rs(Math.abs(d.valor))+'</td>'+
          '<td class="m">'+esc(String(d.usuario).split("@")[0])+'</td></tr>';
     });
-    h+='</table></div>';
+    h+='</tbody></table></div>';
   }
 
   var us=k.porUsuario||{};
   if(Object.keys(us).length && (PERFIL.admin||PERFIL.preparador)){
     h+='<div class="sec-h">Por operador</div><div class="panel"><table>'+
-       '<tr><th>Operador</th><th class="n">Contagens</th><th class="n">Acuracidade</th>'+
-       '<th class="n">Recontagens</th><th class="n">% recontagem</th></tr>';
+       '<thead><tr><th>Operador</th><th class="n">Contagens</th><th class="n">Acuracidade</th>'+
+       '<th class="n">Recontagens</th><th class="n">% recontagem</th></tr></thead><tbody>';
     Object.keys(us).forEach(function(u){
       var a=us[u];
       var ac=a.comSaldo?(a.exatos/a.comSaldo*100):null;
@@ -1000,7 +1039,7 @@ function renderKpi(){
          '<td class="n">'+a.recontagens+'</td>'+
          '<td class="n '+(pr>15?"r":pr>5?"y":"m")+'">'+pr.toFixed(0)+'%</td></tr>';
     });
-    h+='</table><div class="gz-hint" style="margin-top:10px">Acuracidade muito alta somada a recontagem alta '+
+    h+='</tbody></table><div class="gz-hint" style="margin-top:10px">Acuracidade muito alta somada a recontagem alta '+
        'no mesmo operador é o padrão a investigar: pode indicar recontagem feita depois de ver o saldo.</div></div>';
   }
 
