@@ -116,6 +116,50 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .mb-t > i{display:block;height:100%;}
 .mb-v{width:82px;text-align:right;font-size:0.76rem;font-variant-numeric:tabular-nums;}
 
+/* ---------- cartões de destaque ---------- */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
+.st{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;position:relative;overflow:hidden;}
+.st-top{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
+.st-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.st-lb{font-size:0.72rem;color:var(--mu);line-height:1.25;}
+.st-vl{font-family:var(--fh);font-size:1.75rem;font-weight:800;line-height:1;}
+.st-ft{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:8px;}
+.st-dl{font-size:0.68rem;line-height:1.3;}
+.st-dl b{font-family:var(--fh);font-size:0.78rem;}
+.st-sp{opacity:.85;flex-shrink:0;}
+
+.kpi-main{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:start;margin-bottom:16px;}
+@media(max-width:860px){.kpi-main{grid-template-columns:1fr;}}
+
+.comp{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;}
+.comp h4{font-family:var(--fh);font-size:0.8rem;margin-bottom:11px;font-weight:700;}
+.comp-i{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--br);}
+.comp-i:last-child{border-bottom:none;}
+.comp-ic{width:28px;height:28px;border-radius:8px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.comp-tx{flex:1;font-size:0.73rem;color:var(--mu);line-height:1.3;}
+.comp-vl{text-align:right;white-space:nowrap;}
+.comp-vl b{display:block;font-family:var(--fh);font-size:0.95rem;}
+.comp-vl small{font-size:0.62rem;color:var(--mu2);}
+
+/* ---------- contagens por hora ---------- */
+.hbar{display:flex;align-items:flex-end;gap:3px;height:150px;padding-top:8px;}
+.hbar-c{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;}
+.hbar-b{width:100%;background:linear-gradient(180deg,#4d8ef5,#2f6ad4);border-radius:4px 4px 0 0;min-height:2px;transition:height .3s;}
+.hbar-b.pico{background:linear-gradient(180deg,#36cfa0,#1f9e77);}
+.hbar-l{font-size:0.6rem;color:var(--mu2);white-space:nowrap;}
+.hbar-v{font-size:0.6rem;color:var(--mu);font-variant-numeric:tabular-nums;}
+
+/* ---------- ranking por setor ---------- */
+.rk{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--br);}
+.rk:last-child{border-bottom:none;}
+.rk-n{width:22px;height:22px;border-radius:50%;background:var(--s2);color:var(--mu);display:flex;align-items:center;justify-content:center;font-size:0.66rem;font-weight:700;font-family:var(--fh);flex-shrink:0;}
+.rk-n.top{background:rgba(54,207,160,.18);color:var(--ok);}
+.rk-nm{flex:1;font-size:0.78rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rk-tr{width:90px;height:7px;background:var(--s2);border-radius:99px;overflow:hidden;flex-shrink:0;}
+.rk-tr>i{display:block;height:100%;border-radius:99px;}
+.rk-q{width:44px;text-align:right;font-size:0.73rem;font-variant-numeric:tabular-nums;color:var(--mu);}
+.rk-p{width:52px;text-align:right;font-size:0.76rem;font-variant-numeric:tabular-nums;font-weight:600;}
+
 /* ---------- barra fixa ---------- */
 .dock{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--sf);border-top:1px solid var(--br);padding:10px 14px;display:flex;gap:8px;max-width:760px;margin:0 auto;}
 .dock .btn{flex:1;padding:14px;font-size:0.9rem;}
@@ -262,7 +306,10 @@ var FILA_KEY="qfood_contagem_fila_v1_"+UNI;
 
 var USER=null, MODO=null, DATA=null, SESSAO=null, PERFIL={}, BASE=null, MAPA_GTIN={};
 var ITEM_SEL=null, SCANNER=null, FILTRO="", VER_FEITOS=false;
-var KDE=null, KATE=null, KPI=null, KPER="7";
+var KDE=null, KATE=null, KPI=null, KPER="7", KPI_ANT=null;
+
+/* Meta de acuracidade — vale para Q Food e Mercearia */
+var META_ACURACIDADE=98;
 
 /* ---------- init ---------- */
 (function(){
@@ -793,10 +840,22 @@ function periodo(p,btn){
 
 function carregarKpi(){
   document.getElementById("app").innerHTML='<div class="empty"><span class="spin"></span> Calculando…</div>';
+
+  /* Período anterior de mesma duração, para calcular as variações */
+  var d1=new Date(KDE+"T12:00:00"), d2=new Date(KATE+"T12:00:00");
+  var dur=Math.max(1,Math.round((d2-d1)/86400000)+1);
+  var a2=new Date(d1.getTime()-86400000), a1=new Date(a2.getTime()-(dur-1)*86400000);
+
+  var pend=2;
+  function pronto(){ if(--pend===0 && KPI) renderKpi(); }
+
   api("kpis",{de:KDE,ate:KATE},function(err,j){
     if(err) return erro("Falha de conexão.");
     if(!j.ok) return erro(j.error||"Erro ao calcular KPIs.");
-    KPI=j.kpis; renderKpi();
+    KPI=j.kpis; pronto();
+  });
+  api("kpis",{de:isoDe(a1),ate:isoDe(a2)},function(err,j){
+    KPI_ANT=(!err&&j&&j.ok)?j.kpis:null; pronto();
   });
 }
 
@@ -822,12 +881,28 @@ function renderKpi(){
     return;
   }
 
-  h+='<div class="gauges">'+
-    gauge(k.acuracidadePct,"Acuracidade","Itens em que o físico bateu exato com o sistema",true,[90,97])+
-    gauge(k.coberturaPct,"Cobertura",k.totalContagens+" contados de "+k.itensPlanejados+" planejados",true,[85,95])+
-    gauge(k.recontagemPct,"Taxa de recontagem","Quanto menor, melhor. Taxa alta pede investigação",false,[5,15])+
-    gaugeBalanco(k)+
+  var ka=KPI_ANT, sd=k.serieDiaria||[];
+  var acertos=k.comSaldoParaConfronto?Math.round(k.acuracidadePct/100*k.comSaldoParaConfronto):0;
+
+  h+='<div class="kpi-row">'+
+    stat("📦","#4d8ef5","Contagens no período",k.totalContagens,
+         k.totalContagens, ka?ka.totalContagens:null, sd.map(function(s){return s.contagens;}))+
+    stat("✅","#36cfa0","Bateram exato",acertos,
+         k.acuracidadePct, ka?ka.acuracidadePct:null, sd.map(function(s){return s.acuracidade;}))+
+    stat("⚠️","#ffaa2b","Divergência em unidades",k.divergenciaAbsolutaUn,
+         k.divergenciaAbsolutaUn, ka?ka.divergenciaAbsolutaUn:null, sd.map(function(s){return s.contagens;}))+
+    stat("💰","#ff4d4f","Divergência em R$",rs(k.divergenciaAbsolutaRS),
+         k.divergenciaAbsolutaRS, ka?ka.divergenciaAbsolutaRS:null,
+         sd.map(function(s){return Math.abs(s.valorDivergencia||0);}))+
     '</div>';
+
+  var rotPer=(KPER==="hoje")?"do dia":(KPER==="mes"?"do mês":(KPER==="ant"?"do mês anterior":"do período"));
+  h+='<div class="kpi-main"><div><div class="gauges">'+
+    gauge(k.acuracidadePct,"Acuracidade","Itens em que o físico bateu exato com o sistema",true,[90,97])+
+    gaugeMeta(k,rotPer)+
+    gauge(k.coberturaPct,"Cobertura",k.totalContagens+" contados de "+k.itensPlanejados+" planejados",true,[85,95])+
+    gaugeBalanco(k)+
+    '</div></div>'+complementares(k,ka)+'</div>';
 
   var pc=k.porCurva||{}, cA=pc.A||{}, cAl=pc.ALEATORIO||{}, cEx=pc.EXTRA||{};
   if((cA.contagens||0)+(cAl.contagens||0)>0){
@@ -836,6 +911,8 @@ function renderKpi(){
         (cA.contagens||0)+" contagens · "+(cA.comSaldo||0)+" confrontadas",true,[90,97])+
       gauge(cAl.acuracidade,"Aleatórios",
         (cAl.contagens||0)+" contagens · "+(cAl.comSaldo||0)+" confrontadas",true,[90,97])+
+      gauge(k.recontagemPct,"Taxa de recontagem",
+        "Quanto menor, melhor. Taxa alta pede investigação",false,[5,15])+
       '</div>';
 
     var dif=(cA.acuracidade!=null&&cAl.acuracidade!=null)?(cA.acuracidade-cAl.acuracidade):null;
@@ -860,14 +937,8 @@ function renderKpi(){
     h+='</div>';
   }
 
-  var acer=k.comSaldoParaConfronto?Math.round(k.acuracidadePct/100*k.comSaldoParaConfronto):0;
-  h+='<div class="nums">'+
-    ncard("Contagens","<b>"+k.totalContagens+"</b>",k.sessoes+" dia(s) de contagem")+
-    ncard("Divergência em unidades","<b>"+k.divergenciaAbsolutaUn+"</b>","soma das diferenças")+
-    ncard("Itens não localizados","<b class='"+(k.naoLocalizados?"y":"m")+"'>"+k.naoLocalizados+"</b>","procurados e não achados")+
-    ncard("Confrontados","<b>"+k.comSaldoParaConfronto+"</b>",acer+" bateram exato")+
-    ncard("Recontagens","<b class='"+(k.recontagens?"y":"m")+"'>"+k.recontagens+"</b>","com justificativa registrada")+
-    '</div>';
+  if(k.porHora) h+='<div class="sec-h">Contagens por hora</div><div class="panel">'+barrasHora(k.porHora)+'</div>';
+  h+=rankSetor(k.porSetor);
 
   var met=k.porMetodo||{},somaM=0;
   Object.keys(met).forEach(function(x){ somaM+=met[x]; });
@@ -944,6 +1015,121 @@ function renderKpi(){
 
 function ncard(t,v,s){ return '<div class="nm"><small>'+esc(t)+'</small>'+v+'<div class="sub">'+esc(s)+'</div></div>'; }
 
+/* Cartão com número grande, variação contra o período anterior e mini-curva */
+function stat(ic,cor,label,valor,atual,anterior,serie){
+  var d;
+  if(anterior!=null&&atual!=null&&anterior!==0){
+    var v=((atual-anterior)/Math.abs(anterior))*100;
+    var sobe=v>=0;
+    var bom=(cor!=="#ff4d4f"&&cor!=="#ffaa2b")?sobe:!sobe;  // em divergência, cair é bom
+    d='<div class="st-dl '+(bom?"g":"r")+'"><b>'+(sobe?"▲ +":"▼ ")+v.toFixed(0)+
+      '%</b><br><span class="m">vs. período anterior</span></div>';
+  } else {
+    d='<div class="st-dl m">sem base de comparação</div>';
+  }
+  return '<div class="st"><div class="st-top">'+
+    '<div class="st-ic" style="background:'+cor+'22;color:'+cor+'">'+ic+'</div>'+
+    '<div class="st-lb">'+esc(label)+'</div></div>'+
+    '<div class="st-vl">'+valor+'</div>'+
+    '<div class="st-ft">'+d+spark(serie,cor)+'</div></div>';
+}
+
+function spark(vals,cor){
+  vals=(vals||[]).filter(function(v){return v!=null;});
+  if(vals.length<2) return '<div class="st-sp"></div>';
+  var W=76,H=26,mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),rg=(mx-mn)||1;
+  var pts=vals.map(function(v,i){
+    return (i/(vals.length-1)*W).toFixed(1)+","+(H-((v-mn)/rg)*(H-4)-2).toFixed(1);
+  }).join(" ");
+  return '<svg class="st-sp" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+
+    '<polyline points="'+pts+'" fill="none" stroke="'+cor+'" stroke-width="2" '+
+    'stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+
+/* Atingimento da meta: acuracidade 36% com meta 98% → ponteiro em 36,7% */
+function gaugeMeta(k,rotuloPeriodo){
+  var ac=k.acuracidadePct;
+  var vazio=(ac==null||isNaN(ac));
+  var ating=vazio?0:Math.min(100,(ac/META_ACURACIDADE)*100);
+  var cor=vazio?"#5e718e":(ating>=100?"#36cfa0":(ating>=85?"#a7d96b":(ating>=60?"#ffaa2b":"#ff4d4f")));
+  var falta=vazio?null:Math.max(0,META_ACURACIDADE-ac);
+  var hint=vazio?"Sem confronto no período"
+    :(falta<=0?"Meta de "+META_ACURACIDADE+"% atingida"
+      :"Faltam "+falta.toFixed(1).replace(".",",")+" pontos para a meta de "+META_ACURACIDADE+"%");
+  var extra='<text x="90" y="117" text-anchor="middle" fill="#5e718e" '+
+    'style="font-family:DM Sans;font-size:9px">meta '+META_ACURACIDADE+'%</text>';
+  return '<div class="gz">'+
+    gzArco(ating,vazio,true,cor,(vazio?"—":ating.toFixed(1).replace(".",",")),
+           (vazio?"sem dados":"% da meta"),extra)+
+    '<div class="gz-nm">Meta '+esc(rotuloPeriodo||"do período")+'</div>'+
+    '<div class="gz-hint">'+esc(hint)+'</div></div>';
+}
+
+/* Painel lateral de indicadores complementares */
+function complementares(k,ka){
+  function li(ic,txt,val,sub){
+    return '<div class="comp-i"><div class="comp-ic">'+ic+'</div>'+
+           '<div class="comp-tx">'+esc(txt)+'</div>'+
+           '<div class="comp-vl"><b>'+val+'</b><small>'+esc(sub||"")+'</small></div></div>';
+  }
+  var ops=Object.keys(k.porUsuario||{}).length;
+  var opsAnt=ka?Object.keys(ka.porUsuario||{}).length:null;
+  var ritmo=k.ritmoSeg;
+  var ritmoTxt=ritmo==null?"—":(ritmo<60?ritmo+"s":Math.floor(ritmo/60)+"m"+(ritmo%60?(ritmo%60)+"s":""));
+  var porDia=k.sessoes?Math.round(k.totalContagens/k.sessoes):0;
+  var met=k.porMetodo||{};
+  var somaM=Object.keys(met).reduce(function(s,x){return s+met[x];},0);
+  var camPct=somaM?Math.round(((met.CAMERA||0)/somaM)*100):0;
+
+  return '<div class="comp"><h4>Indicadores complementares</h4>'+
+    li("⏱","Ritmo entre contagens",ritmoTxt,"mediana do intervalo")+
+    li("👥","Operadores no período",ops,opsAnt!=null?("antes: "+opsAnt):"")+
+    li("📅","Média por dia de contagem",porDia,k.sessoes+" dia(s)")+
+    li("📷","Leitura por câmera",camPct+"%",somaM+" leituras")+
+    li("🔎","Itens não localizados",k.naoLocalizados,"procurados sem achar")+
+    li("🔁","Recontagens",k.recontagens,"com justificativa")+
+    '</div>';
+}
+
+/* Perfil de contagem ao longo do dia */
+function barrasHora(porHora){
+  var horas=[],mx=0;
+  for(var hh=0;hh<24;hh++){ var q=porHora[hh]||0; if(q>0){horas.push([hh,q]); if(q>mx)mx=q;} }
+  if(horas.length<2) return '<div class="gz-hint">Dados insuficientes para o perfil por hora.</div>';
+  var total=horas.reduce(function(s,x){return s+x[1];},0);
+  var pico=horas.reduce(function(a,b){return b[1]>a[1]?b:a;});
+  var h2='<div class="hbar">';
+  horas.forEach(function(x){
+    var alt=Math.max(2,(x[1]/mx)*118);
+    h2+='<div class="hbar-c"><div class="hbar-v">'+x[1]+'</div>'+
+        '<div class="hbar-b'+(x[0]===pico[0]?" pico":"")+'" style="height:'+alt.toFixed(0)+'px"></div>'+
+        '<div class="hbar-l">'+(x[0]<10?"0":"")+x[0]+'h</div></div>';
+  });
+  return h2+'</div><div class="gz-hint" style="margin-top:10px">Pico às '+
+    (pico[0]<10?"0":"")+pico[0]+'h com '+pico[1]+' contagens ('+
+    Math.round(pico[1]/total*100)+'% do total). Contagem concentrada cedo é sinal de rotina '+
+    'saudável — espalhada pelo dia costuma indicar que ela está sendo encaixada nas sobras de tempo.</div>';
+}
+
+/* Ranking por setor (ou fornecedor, onde não houver setor cadastrado) */
+function rankSetor(setores){
+  setores=(setores||[]).filter(function(s){return s.contagens>0;}).slice(0,6);
+  if(!setores.length) return "";
+  var mx=setores[0].contagens||1;
+  var h2='<div class="sec-h">Ranking por setor</div><div class="panel">';
+  setores.forEach(function(s,i){
+    var ac=s.acuracidade;
+    var cor=ac==null?"#5e718e":(ac>=97?"#36cfa0":(ac>=90?"#ffaa2b":"#ff4d4f"));
+    h2+='<div class="rk"><div class="rk-n'+(i===0?" top":"")+'">'+(i+1)+'</div>'+
+        '<div class="rk-nm" title="'+esc(s.setor)+'">'+esc(s.setor)+'</div>'+
+        '<div class="rk-tr"><i style="width:'+(s.contagens/mx*100).toFixed(0)+'%;background:'+cor+'"></i></div>'+
+        '<div class="rk-q">'+s.contagens+'</div>'+
+        '<div class="rk-p" style="color:'+cor+'">'+(ac==null?"—":ac.toFixed(0)+"%")+'</div></div>';
+  });
+  return h2+'<div class="gz-hint" style="margin-top:9px">Barra = volume contado. Percentual = '+
+    'acuracidade do setor. Setor com muito volume e percentual baixo é onde vale começar.</div></div>';
+}
+
 /* O navegador usa o document.title como nome sugerido do arquivo.
    Trocamos antes de imprimir e devolvemos depois. */
 function gerarPdf(){
@@ -983,7 +1169,7 @@ function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
   var px=(90+R*Math.cos(th)).toFixed(1), py=(92-R*Math.sin(th)).toFixed(1);
 
   var D='M 20 92 A 70 70 0 0 1 160 92';
-  var s='<svg viewBox="0 0 180 118"><defs>'+
+  var s='<svg viewBox="0 0 180 124"><defs>'+
     '<linearGradient id="'+id+'" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="160" y2="0">'+
     stops+'</linearGradient></defs>';
 
@@ -996,6 +1182,8 @@ function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
        '<circle cx="'+px+'" cy="'+py+'" r="4.6" fill="#1a1f2e" stroke="'+corTexto+'" stroke-width="2.4"/>';
   }
 
+  s+='<text x="16" y="108" fill="#5e718e" style="font-family:DM Sans;font-size:9px">0</text>'+
+     '<text x="164" y="108" text-anchor="end" fill="#5e718e" style="font-family:DM Sans;font-size:9px">100</text>';
   s+=(extra||"")+
     '<text x="90" y="84" text-anchor="middle" fill="'+corTexto+'" '+
       'style="font-family:Syne,sans-serif;font-size:31px;font-weight:800">'+num+'</text>'+
