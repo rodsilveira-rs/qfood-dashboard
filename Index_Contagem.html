@@ -829,6 +829,37 @@ function renderKpi(){
     gaugeBalanco(k)+
     '</div>';
 
+  var pc=k.porCurva||{}, cA=pc.A||{}, cAl=pc.ALEATORIO||{}, cEx=pc.EXTRA||{};
+  if((cA.contagens||0)+(cAl.contagens||0)>0){
+    h+='<div class="sec-h">Acuracidade por categoria</div><div class="gauges">'+
+      gauge(cA.acuracidade,"Curva A · fixos",
+        (cA.contagens||0)+" contagens · "+(cA.comSaldo||0)+" confrontadas",true,[90,97])+
+      gauge(cAl.acuracidade,"Aleatórios",
+        (cAl.contagens||0)+" contagens · "+(cAl.comSaldo||0)+" confrontadas",true,[90,97])+
+      '</div>';
+
+    var dif=(cA.acuracidade!=null&&cAl.acuracidade!=null)?(cA.acuracidade-cAl.acuracidade):null;
+    var leitura;
+    if(dif==null) leitura="Ainda sem confronto suficiente nas duas categorias.";
+    else if(dif>=10) leitura="A curva A está "+dif.toFixed(1).replace(".",",")+
+      " pontos acima dos aleatórios. O que você vigia todo dia está sob controle; "+
+      "o erro mora no estoque que ninguém olha.";
+    else if(dif<=-10) leitura="Os aleatórios estão "+Math.abs(dif).toFixed(1).replace(".",",")+
+      " pontos acima da curva A. Item de alto giro errando mais que item parado é sinal de "+
+      "contagem no automático — vale olhar as recontagens desses itens.";
+    else leitura="As duas categorias estão próximas ("+
+      Math.abs(dif).toFixed(1).replace(".",",")+" pontos de diferença). "+
+      "O comportamento do estoque é uniforme, sem bolsão de erro concentrado.";
+
+    h+='<div class="panel"><div class="gz-hint" style="font-size:0.76rem">'+esc(leitura)+'</div>';
+    if(cEx.contagens){
+      h+='<div class="gz-hint" style="margin-top:8px">'+cEx.contagens+
+         ' contagem(ns) EXTRA — itens bipados fora da lista do dia. Não entram em nenhuma '+
+         'das duas categorias e ficam fora do KPI de cobertura.</div>';
+    }
+    h+='</div>';
+  }
+
   var acer=k.comSaldoParaConfronto?Math.round(k.acuracidadePct/100*k.comSaldoParaConfronto):0;
   h+='<div class="nums">'+
     ncard("Contagens","<b>"+k.totalContagens+"</b>",k.sessoes+" dia(s) de contagem")+
