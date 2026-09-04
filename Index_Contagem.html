@@ -1055,8 +1055,8 @@ function gaugeMeta(k,rotuloPeriodo){
   var hint=vazio?"Sem confronto no período"
     :(falta<=0?"Meta de "+META_ACURACIDADE+"% atingida"
       :"Faltam "+falta.toFixed(1).replace(".",",")+" pontos para a meta de "+META_ACURACIDADE+"%");
-  var extra='<text x="92" y="112" text-anchor="middle" fill="#5e718e" '+
-    'style="font-family:DM Sans;font-size:9px">meta '+META_ACURACIDADE+'%</text>';
+  var extra='<text x="100" y="140" text-anchor="middle" fill="#5e718e" '+
+    'style="font-family:DM Sans;font-size:9.5px">meta '+META_ACURACIDADE+'%</text>';
   return '<div class="gz">'+
     gzArco(ating,vazio,true,cor,(vazio?"—":ating.toFixed(1).replace(".",",")),
            (vazio?"sem dados":"% da meta"),extra)+
@@ -1146,17 +1146,11 @@ function gerarPdf(){
    (usado na taxa de recontagem, onde perto de zero é bom). */
 var GZ_SEQ=0;
 
-/* Arco em degradê. O fundo mostra a escala inteira esmaecida e o
-   preenchimento repete o mesmo degradê em cor cheia — então a posição
-   do arco já diz se está bom antes de ler o número.
-   maiorMelhor=false inverte a escala (verde à esquerda), usado na
-   taxa de recontagem, onde perto de zero é o bom. */
-/* Velocímetro segmentado com ponteiro, no padrão do modelo.
-   Faixas em 50 / 75 / 90 — os mesmos cortes que a operação usa para
-   decidir se está bom. maiorMelhor=false espelha as cores (verde à
-   esquerda), usado na taxa de recontagem, onde perto de zero é o bom. */
+/* Velocímetro no padrão do modelo: arco fino, faixas separadas por
+   pequenos vãos brancos, escala em 0/50/75/90/100 e o número DENTRO
+   da abertura — não sobre o arco, senão o ponteiro corta o texto. */
 function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
-  var CX=92, CY=98, R=62, W=13, GAP=0.8;
+  var CX=100, CY=104, R=68, W=17, GAP=1.1;
 
   function pt(r,val){
     var th=(180-1.8*val)*Math.PI/180;
@@ -1170,39 +1164,37 @@ function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
       (op?' opacity="'+op+'"':'')+'/>';
   }
 
-  var faixas=[[0,30,"#e5484d"],[30,50,"#f76b15"],[50,75,"#ffc53d"],
-              [75,90,"#7bc043"],[90,100,"#2ea043"]];
+  var faixas=[[0,28,"#e03131"],[28,50,"#f76707"],[50,75,"#fcc419"],
+              [75,90,"#94d82d"],[90,100,"#2f9e44"]];
   if(maiorMelhor===false){
     faixas=faixas.map(function(f){ return [100-f[1],100-f[0],f[2]]; }).reverse();
   }
 
-  var s='<svg viewBox="0 0 184 132">';
-
+  var s='<svg viewBox="0 0 200 150">';
   faixas.forEach(function(f){
     var a=f[0]+(f[0]>0?GAP:0), b=f[1]-(f[1]<100?GAP:0);
-    if(b>a) s+=arco(a,b,f[2], vazio?0.22:1);
+    if(b>a) s+=arco(a,b,f[2], vazio?0.20:1);
   });
 
-  // Marcações da escala
-  [[0,10,110,"start"],[50,92,20,"middle"],[75,148,45,"start"],
-   [90,180,77,"end"],[100,178,110,"end"]].forEach(function(t){
-    s+='<text x="'+t[1]+'" y="'+t[2]+'" text-anchor="'+t[3]+'" fill="#5e718e" '+
-       'style="font-family:DM Sans;font-size:8.5px">'+t[0]+'%</text>';
+  // Escala, posicionada fora do arco como no modelo
+  [["0%",26,116,"middle"],["50%",100,22,"middle"],["75%",165,48,"start"],
+   ["90%",184,86,"start"],["100%",176,116,"middle"]].forEach(function(t){
+    s+='<text x="'+t[1]+'" y="'+t[2]+'" text-anchor="'+t[3]+'" fill="#8fa0c0" '+
+       'style="font-family:DM Sans;font-size:10px">'+t[0]+'</text>';
   });
 
-  // Ponteiro
   if(!vazio){
-    var tip=pt(R-16, v);
+    var tip=pt(R-9, v);
     s+='<line x1="'+CX+'" y1="'+CY+'" x2="'+tip[0].toFixed(1)+'" y2="'+tip[1].toFixed(1)+
-       '" stroke="'+corTexto+'" stroke-width="3.4" stroke-linecap="round"/>'+
-       '<circle cx="'+CX+'" cy="'+CY+'" r="5.2" fill="'+corTexto+'"/>'+
-       '<circle cx="'+CX+'" cy="'+CY+'" r="2.2" fill="#1a1f2e"/>';
+       '" stroke="#1a2638" stroke-width="6" stroke-linecap="round"/>'+
+       '<circle cx="'+CX+'" cy="'+CY+'" r="6" fill="#1a2638"/>';
   }
 
+  // Número dentro da abertura do velocímetro
   s+=(extra||"")+
-    '<text x="92" y="88" text-anchor="middle" fill="'+corTexto+'" '+
-      'style="font-family:Syne,sans-serif;font-size:29px;font-weight:800">'+num+'</text>'+
-    '<text x="92" y="124" text-anchor="middle" fill="#8fa0c0" '+
+    '<text x="100" y="102" text-anchor="middle" fill="'+corTexto+'" '+
+      'style="font-family:Syne,sans-serif;font-size:34px;font-weight:800">'+num+'</text>'+
+    '<text x="100" y="122" text-anchor="middle" fill="#8fa0c0" '+
       'style="font-family:DM Sans,sans-serif;font-size:11px">'+sufixo+'</text></svg>';
   return s;
 }
@@ -1244,16 +1236,16 @@ function gaugeBalanco(k){
     : "Faltando "+k.unidadesFalta+" un em "+k.itensComFalta+" itens · "+
       "sobrando "+k.unidadesSobra+" un em "+k.itensComSobra+" itens";
 
-  var R2=70, LEN2=Math.PI*R2, off2=LEN2*(1-pos/100);
+  var R2=68, LEN2=Math.PI*R2, off2=LEN2*(1-pos/100);
   var id2="gzb"+(++GZ_SEQ);
   var th2=(180-1.8*pos)*Math.PI/180;
-  var bx=(90+R2*Math.cos(th2)).toFixed(1), by=(92-R2*Math.sin(th2)).toFixed(1);
-  var D2='M 20 92 A 70 70 0 0 1 160 92';
+  var bx=(100+R2*Math.cos(th2)).toFixed(1), by=(104-R2*Math.sin(th2)).toFixed(1);
+  var D2='M 32 104 A 68 68 0 0 1 168 104';
 
   // Escala própria: sobra à esquerda (ciano), equilíbrio no meio (âmbar),
   // falta à direita (vermelho). O meio não é verde de propósito —
   // falta e sobra se cancelando é erro de lançamento, não acerto.
-  var s2='<svg viewBox="0 0 180 118"><defs>'+
+  var s2='<svg viewBox="0 0 200 150"><defs>'+
     '<linearGradient id="'+id2+'" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="160" y2="0">'+
       '<stop offset="0%" stop-color="#22d3ee"/><stop offset="30%" stop-color="#6ec7e0"/>'+
       '<stop offset="50%" stop-color="#ffaa2b"/><stop offset="100%" stop-color="#ff4d4f"/>'+
@@ -1268,12 +1260,12 @@ function gaugeBalanco(k){
         '<circle cx="'+bx+'" cy="'+by+'" r="4.6" fill="#1a1f2e" stroke="'+cor+'" stroke-width="2.4"/>';
   }
 
-  s2+='<line x1="90" y1="15" x2="90" y2="29" stroke="#8fa0c0" stroke-width="2" opacity="0.6"/>'+
-    '<text x="22" y="110" fill="#5e718e" style="font-family:DM Sans;font-size:10px">sobra</text>'+
-    '<text x="158" y="110" text-anchor="end" fill="#5e718e" style="font-family:DM Sans;font-size:10px">falta</text>'+
-    '<text x="90" y="80" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:31px;font-weight:800">'+
+  s2+='<line x1="100" y1="26" x2="100" y2="42" stroke="#8fa0c0" stroke-width="2" opacity="0.6"/>'+
+    '<text x="30" y="126" fill="#8fa0c0" style="font-family:DM Sans;font-size:10px">sobra</text>'+
+    '<text x="170" y="126" text-anchor="end" fill="#8fa0c0" style="font-family:DM Sans;font-size:10px">falta</text>'+
+    '<text x="100" y="98" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:34px;font-weight:800">'+
       destaque+(vazio?"":"%")+'</text>'+
-    '<text x="90" y="97" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px">'+
+    '<text x="100" y="118" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px">'+
       rotulo+'</text></svg>';
 
   return '<div class="gz">'+s2+
