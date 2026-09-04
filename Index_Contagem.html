@@ -1055,8 +1055,8 @@ function gaugeMeta(k,rotuloPeriodo){
   var hint=vazio?"Sem confronto no período"
     :(falta<=0?"Meta de "+META_ACURACIDADE+"% atingida"
       :"Faltam "+falta.toFixed(1).replace(".",",")+" pontos para a meta de "+META_ACURACIDADE+"%");
-  var extra='<text x="100" y="140" text-anchor="middle" fill="#5e718e" '+
-    'style="font-family:DM Sans;font-size:9.5px">meta '+META_ACURACIDADE+'%</text>';
+  var extra='<text x="100" y="96" text-anchor="middle" fill="#5e718e" '+
+    'style="font-family:DM Sans;font-size:9px">meta '+META_ACURACIDADE+'%</text>';
   return '<div class="gz">'+
     gzArco(ating,vazio,true,cor,(vazio?"—":ating.toFixed(1).replace(".",",")),
            (vazio?"sem dados":"% da meta"),extra)+
@@ -1142,15 +1142,10 @@ function gerarPdf(){
   setTimeout(function(){ document.title=orig; },1200);
 }
 
-/* Velocímetro em SVG. maiorMelhor=false inverte a escala de cor
-   (usado na taxa de recontagem, onde perto de zero é bom). */
-var GZ_SEQ=0;
-
-/* Velocímetro no padrão do modelo: arco fino, faixas separadas por
-   pequenos vãos brancos, escala em 0/50/75/90/100 e o número DENTRO
-   da abertura — não sobre o arco, senão o ponteiro corta o texto. */
+/* Velocímetro no padrão do modelo. O ponteiro assume a cor da faixa
+   onde a agulha parou — assim a leitura funciona antes do número. */
 function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
-  var CX=100, CY=104, R=68, W=17, GAP=1.1;
+  var CX=100, CY=104, R=68, W=15, GAP=1.1;
 
   function pt(r,val){
     var th=(180-1.8*val)*Math.PI/180;
@@ -1170,32 +1165,35 @@ function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
     faixas=faixas.map(function(f){ return [100-f[1],100-f[0],f[2]]; }).reverse();
   }
 
-  var s='<svg viewBox="0 0 200 150">';
+  // Cor da faixa onde o ponteiro parou
+  var corPont="#8fa0c0";
+  faixas.forEach(function(f){ if(v>=f[0] && v<=f[1]) corPont=f[2]; });
+
+  var s='<svg viewBox="0 0 200 148">';
   faixas.forEach(function(f){
     var a=f[0]+(f[0]>0?GAP:0), b=f[1]-(f[1]<100?GAP:0);
     if(b>a) s+=arco(a,b,f[2], vazio?0.20:1);
   });
 
-  // Escala, posicionada fora do arco como no modelo
-  [["0%",26,116,"middle"],["50%",100,22,"middle"],["75%",165,48,"start"],
-   ["90%",184,86,"start"],["100%",176,116,"middle"]].forEach(function(t){
+  [["0%",24,116,"middle"],["50%",100,22,"middle"],["75%",166,50,"start"],
+   ["90%",185,88,"start"],["100%",178,116,"middle"]].forEach(function(t){
     s+='<text x="'+t[1]+'" y="'+t[2]+'" text-anchor="'+t[3]+'" fill="#8fa0c0" '+
-       'style="font-family:DM Sans;font-size:10px">'+t[0]+'</text>';
+       'style="font-family:DM Sans;font-size:9.5px">'+t[0]+'</text>';
   });
 
   if(!vazio){
-    var tip=pt(R-9, v);
+    var tip=pt(R-11, v);
     s+='<line x1="'+CX+'" y1="'+CY+'" x2="'+tip[0].toFixed(1)+'" y2="'+tip[1].toFixed(1)+
-       '" stroke="#1a2638" stroke-width="6" stroke-linecap="round"/>'+
-       '<circle cx="'+CX+'" cy="'+CY+'" r="6" fill="#1a2638"/>';
+       '" stroke="'+corPont+'" stroke-width="4.5" stroke-linecap="round"/>'+
+       '<circle cx="'+CX+'" cy="'+CY+'" r="5.5" fill="'+corPont+'"/>'+
+       '<circle cx="'+CX+'" cy="'+CY+'" r="2" fill="#1a1f2e"/>';
   }
 
-  // Número dentro da abertura do velocímetro
   s+=(extra||"")+
-    '<text x="100" y="102" text-anchor="middle" fill="'+corTexto+'" '+
-      'style="font-family:Syne,sans-serif;font-size:34px;font-weight:800">'+num+'</text>'+
-    '<text x="100" y="122" text-anchor="middle" fill="#8fa0c0" '+
-      'style="font-family:DM Sans,sans-serif;font-size:11px">'+sufixo+'</text></svg>';
+    '<text x="100" y="128" text-anchor="middle" fill="'+corTexto+'" '+
+      'style="font-family:Syne,sans-serif;font-size:21px;font-weight:800">'+num+'</text>'+
+    '<text x="100" y="142" text-anchor="middle" fill="#8fa0c0" '+
+      'style="font-family:DM Sans,sans-serif;font-size:9.5px">'+sufixo+'</text></svg>';
   return s;
 }
 
@@ -1236,37 +1234,49 @@ function gaugeBalanco(k){
     : "Faltando "+k.unidadesFalta+" un em "+k.itensComFalta+" itens · "+
       "sobrando "+k.unidadesSobra+" un em "+k.itensComSobra+" itens";
 
-  var R2=68, LEN2=Math.PI*R2, off2=LEN2*(1-pos/100);
-  var id2="gzb"+(++GZ_SEQ);
-  var th2=(180-1.8*pos)*Math.PI/180;
-  var bx=(100+R2*Math.cos(th2)).toFixed(1), by=(104-R2*Math.sin(th2)).toFixed(1);
-  var D2='M 32 104 A 68 68 0 0 1 168 104';
-
-  // Escala própria: sobra à esquerda (ciano), equilíbrio no meio (âmbar),
-  // falta à direita (vermelho). O meio não é verde de propósito —
-  // falta e sobra se cancelando é erro de lançamento, não acerto.
-  var s2='<svg viewBox="0 0 200 150"><defs>'+
-    '<linearGradient id="'+id2+'" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="160" y2="0">'+
-      '<stop offset="0%" stop-color="#22d3ee"/><stop offset="30%" stop-color="#6ec7e0"/>'+
-      '<stop offset="50%" stop-color="#ffaa2b"/><stop offset="100%" stop-color="#ff4d4f"/>'+
-    '</linearGradient></defs>';
-
-  if(vazio){
-    s2+='<path d="'+D2+'" fill="none" stroke="#2e3447" stroke-width="15" stroke-linecap="round"/>';
-  } else {
-    s2+='<path d="'+D2+'" fill="none" stroke="url(#'+id2+')" stroke-width="15" stroke-linecap="round" opacity="0.16"/>'+
-        '<path d="'+D2+'" fill="none" stroke="url(#'+id2+')" stroke-width="15" stroke-linecap="round" '+
-          'stroke-dasharray="'+LEN2.toFixed(1)+'" stroke-dashoffset="'+off2.toFixed(1)+'"/>'+
-        '<circle cx="'+bx+'" cy="'+by+'" r="4.6" fill="#1a1f2e" stroke="'+cor+'" stroke-width="2.4"/>';
+  // Escala própria: sobra à esquerda, equilíbrio no meio, falta à direita.
+  // O meio é âmbar e não verde de propósito — falta e sobra se cancelando
+  // é erro de lançamento, não acerto.
+  var CX2=100, CY2=104, R2=68, W2=15, GAP2=1.1;
+  function pt2(r,val){
+    var th=(180-1.8*val)*Math.PI/180;
+    return [(CX2+r*Math.cos(th)), (CY2-r*Math.sin(th))];
+  }
+  function arco2(a,b,c){
+    var p1=pt2(R2,a), p2=pt2(R2,b);
+    return '<path d="M '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+
+      ' A '+R2+' '+R2+' 0 0 1 '+p2[0].toFixed(1)+' '+p2[1].toFixed(1)+
+      '" fill="none" stroke="'+c+'" stroke-width="'+W2+'" stroke-linecap="butt"'+
+      (vazio?' opacity="0.20"':'')+'/>';
   }
 
-  s2+='<line x1="100" y1="26" x2="100" y2="42" stroke="#8fa0c0" stroke-width="2" opacity="0.6"/>'+
-    '<text x="30" y="126" fill="#8fa0c0" style="font-family:DM Sans;font-size:10px">sobra</text>'+
-    '<text x="170" y="126" text-anchor="end" fill="#8fa0c0" style="font-family:DM Sans;font-size:10px">falta</text>'+
-    '<text x="100" y="98" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:34px;font-weight:800">'+
-      destaque+(vazio?"":"%")+'</text>'+
-    '<text x="100" y="118" text-anchor="middle" fill="'+cor+'" style="font-family:Syne,sans-serif;font-size:11px;font-weight:700;letter-spacing:1px">'+
-      rotulo+'</text></svg>';
+  var faixas2=[[0,25,"#22b8cf"],[25,45,"#66d9e8"],[45,55,"#fcc419"],
+               [55,75,"#f76707"],[75,100,"#e03131"]];
+  var corPont2="#8fa0c0";
+  faixas2.forEach(function(f){ if(pos>=f[0] && pos<=f[1]) corPont2=f[2]; });
+
+  var s2='<svg viewBox="0 0 200 148">';
+  faixas2.forEach(function(f){
+    var a=f[0]+(f[0]>0?GAP2:0), b=f[1]-(f[1]<100?GAP2:0);
+    if(b>a) s2+=arco2(a,b,f[2]);
+  });
+
+  s2+='<text x="24" y="116" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans;font-size:9.5px">sobra</text>'+
+      '<text x="100" y="22" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans;font-size:9.5px">meio</text>'+
+      '<text x="178" y="116" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans;font-size:9.5px">falta</text>';
+
+  if(!vazio){
+    var tip2=pt2(R2-11,pos);
+    s2+='<line x1="'+CX2+'" y1="'+CY2+'" x2="'+tip2[0].toFixed(1)+'" y2="'+tip2[1].toFixed(1)+
+        '" stroke="'+corPont2+'" stroke-width="4.5" stroke-linecap="round"/>'+
+        '<circle cx="'+CX2+'" cy="'+CY2+'" r="5.5" fill="'+corPont2+'"/>'+
+        '<circle cx="'+CX2+'" cy="'+CY2+'" r="2" fill="#1a1f2e"/>';
+  }
+
+  s2+='<text x="100" y="128" text-anchor="middle" fill="'+cor+'" '+
+        'style="font-family:Syne,sans-serif;font-size:21px;font-weight:800">'+destaque+(vazio?"":"%")+'</text>'+
+      '<text x="100" y="142" text-anchor="middle" fill="'+cor+'" '+
+        'style="font-family:Syne,sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1px">'+rotulo+'</text></svg>';
 
   return '<div class="gz">'+s2+
     '<div class="gz-nm">Balanço do estoque</div><div class="gz-hint">'+esc(hint)+'</div></div>';
