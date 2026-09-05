@@ -405,13 +405,12 @@ function num(v){ if(v===""||v==null) return null; var n=parseFloat(String(v).rep
 function api(action,params,cb){
   var q=API+"?modulo=contagem&unidade="+UNI+"&action="+encodeURIComponent(action)+"&autorEmail="+encodeURIComponent(USER.email);
   Object.keys(params||{}).forEach(function(k){ q+="&"+k+"="+encodeURIComponent(params[k]); });
-  fetch(q).then(function(r){return r.json();})
+  fetch(q).then(function(r){ return r.json(); })
     .then(function(j){
-      /* Sem este try, um erro dentro do cb cairia no catch abaixo e seria
-         reportado como falha de rede — mandando você caçar internet quando
-         o problema está na renderização. */
-      try{ cb(null,j); }
-      catch(e){ console.error("Erro ao renderizar ("+action+"):", e); }
+      /* O cb roda fora da cadeia de promises. Sem isso, um erro de
+         renderização cairia no catch abaixo e apareceria como falha de
+         rede — mandando você caçar internet quando o problema é a tela. */
+      setTimeout(function(){ cb(null,j); },0);
     })
     .catch(function(e){ cb(e); });
 }
@@ -485,7 +484,7 @@ function montarTabs(){
   }).join("");
 }
 function sincTabs(){
-  ["prep","cont","kpi","aj"].forEach(function(m){FV
+  ["prep","cont","kpi","aj"].forEach(function(m){
     var el=document.getElementById("tab-"+m);
     if(el) el.className="tab"+(MODO===m?" on":"");
   });
@@ -505,7 +504,7 @@ function setModo(m){
 function render(){
   if(MODO==="prep") renderPrep();
   else if(MODO==="cont") renderCont();
-  else if(MODO==="aj") renderAjustes();
+  else if(MODO==="aj"){ if(ANALISE) renderAjustes(); else carregarAnalise(); }
   else renderKpi();
 }
 
