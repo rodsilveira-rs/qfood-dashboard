@@ -405,7 +405,15 @@ function num(v){ if(v===""||v==null) return null; var n=parseFloat(String(v).rep
 function api(action,params,cb){
   var q=API+"?modulo=contagem&unidade="+UNI+"&action="+encodeURIComponent(action)+"&autorEmail="+encodeURIComponent(USER.email);
   Object.keys(params||{}).forEach(function(k){ q+="&"+k+"="+encodeURIComponent(params[k]); });
-  fetch(q).then(function(r){return r.json();}).then(function(j){cb(null,j);}).catch(function(e){cb(e);});
+  fetch(q).then(function(r){return r.json();})
+    .then(function(j){
+      /* Sem este try, um erro dentro do cb cairia no catch abaixo e seria
+         reportado como falha de rede — mandando você caçar internet quando
+         o problema está na renderização. */
+      try{ cb(null,j); }
+      catch(e){ console.error("Erro ao renderizar ("+action+"):", e); }
+    })
+    .catch(function(e){ cb(e); });
 }
 /* form-urlencoded evita preflight CORS a partir do GitHub Pages */
 function apiPost(action,payload,cb){
