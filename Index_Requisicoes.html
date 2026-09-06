@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Central de Requisições</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --lime:#84cc16;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;padding:0 0 60px;}
+button,input,select,textarea{font-family:var(--fb);}
+a{color:var(--blue);}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important;}}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+
+/* ---- TOPO ---- */
+.top{border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:50;}
+.top-in{max-width:1080px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;}
+.top-back{color:var(--mu);text-decoration:none;font-size:0.82rem;white-space:nowrap;}
+.top-back:hover{color:var(--tx);}
+.top-title{font-family:var(--fh);font-weight:700;font-size:1.05rem;flex:1;}
+.top-user{font-size:0.74rem;color:var(--mu2);white-space:nowrap;}
+.sino{position:relative;background:none;border:1px solid var(--br);border-radius:10px;color:var(--tx);
+  padding:7px 11px;cursor:pointer;font-size:0.95rem;}
+.sino:hover{border-color:var(--b2);}
+.sino-n{position:absolute;top:-6px;right:-6px;background:var(--lime);color:#12200a;font-size:0.62rem;
+  font-weight:700;border-radius:999px;min-width:18px;height:18px;line-height:18px;padding:0 5px;display:none;}
+.btn-nova{background:var(--lime);color:#12200a;border:none;border-radius:10px;padding:9px 16px;
+  font-family:var(--fh);font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;}
+.btn-nova:hover{filter:brightness(1.08);}
+
+/* ---- CONTADORES ---- */
+.cnt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 18px;}
+.cnt{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:16px 18px;cursor:pointer;
+  text-align:left;transition:border-color .15s;}
+.cnt:hover{border-color:var(--b2);}
+.cnt.on{border-color:var(--lime);}
+.cnt-n{font-family:var(--fh);font-size:1.7rem;font-weight:800;line-height:1;}
+.cnt-l{font-size:0.74rem;color:var(--mu);margin-top:6px;}
+.cnt.destaque .cnt-n{color:var(--warn);}
+
+/* ---- FILTROS ---- */
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.inp,.sel{background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:9px 12px;
+  color:var(--tx);font-size:0.82rem;outline:none;}
+.inp:focus,.sel:focus{border-color:var(--b2);}
+.inp::placeholder{color:var(--mu2);}
+.filtros .inp{flex:1;min-width:180px;}
+
+/* ---- LISTA ---- */
+.lista{display:flex;flex-direction:column;gap:10px;}
+.rq{background:var(--sf);border:1px solid var(--br);border-left:3px solid var(--s3);border-radius:12px;
+  padding:14px 16px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:10px;transition:border-color .15s;}
+.rq:hover{border-color:var(--b2);}
+.rq.novo{border-left-color:var(--lime);background:linear-gradient(90deg,rgba(132,204,22,0.06),transparent 40%);}
+.rq-id{font-family:var(--fh);font-size:0.72rem;color:var(--mu2);letter-spacing:0.4px;}
+.rq-tit{font-family:var(--fh);font-weight:700;font-size:0.98rem;margin:2px 0 6px;}
+.rq-meta{font-size:0.74rem;color:var(--mu);line-height:1.6;}
+.rq-dir{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.rq-quando{font-size:0.68rem;color:var(--mu2);}
+.chip{display:inline-block;font-size:0.68rem;font-weight:500;padding:4px 10px;border-radius:999px;
+  border:1px solid var(--br);background:var(--s2);color:var(--mu);white-space:nowrap;}
+.chip.nova,.chip.em_triagem{background:rgba(255,170,43,.14);color:var(--warn);border-color:rgba(255,170,43,.3);}
+.chip.em_analise,.chip.em_cotacao{background:rgba(77,142,245,.14);color:var(--blue);border-color:rgba(77,142,245,.3);}
+.chip.aguardando_informacao,.chip.aguardando_aprovacao{background:rgba(160,124,246,.14);color:var(--pur);border-color:rgba(160,124,246,.3);}
+.chip.comprada,.chip.aguardando_entrega{background:rgba(34,211,238,.14);color:var(--cyan);border-color:rgba(34,211,238,.3);}
+.chip.recebida_ok,.chip.concluida{background:rgba(54,207,160,.14);color:var(--ok);border-color:rgba(54,207,160,.3);}
+.chip.recebida_parcial,.chip.recebida_divergencia{background:rgba(255,77,79,.14);color:var(--red);border-color:rgba(255,77,79,.3);}
+.chip.cancelada,.chip.recusada{background:var(--s2);color:var(--mu2);}
+.chip.urg{background:rgba(255,77,79,.14);color:var(--red);border-color:rgba(255,77,79,.3);}
+
+.vazio{background:var(--sf);border:1px dashed var(--b2);border-radius:14px;padding:44px 24px;text-align:center;}
+.vazio-t{font-family:var(--fh);font-weight:700;margin-bottom:6px;}
+.vazio-s{font-size:0.82rem;color:var(--mu);margin-bottom:18px;}
+
+/* ---- DETALHE ---- */
+.det-hdr{display:flex;align-items:flex-start;gap:14px;margin:22px 0 16px;flex-wrap:wrap;}
+.det-tit{font-family:var(--fh);font-size:1.35rem;font-weight:800;flex:1;min-width:240px;}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 20px;margin-bottom:14px;}
+.card-t{font-family:var(--fh);font-weight:700;font-size:0.9rem;margin-bottom:14px;}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;font-size:0.84rem;}
+.kv dt{color:var(--mu);}
+.kv dd{color:var(--tx);}
+.aguardando{background:rgba(255,170,43,.1);border:1px solid rgba(255,170,43,.25);border-radius:10px;
+  padding:11px 14px;font-size:0.84rem;color:var(--warn);margin-bottom:14px;}
+
+.item{border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--bg);}
+.item-d{font-weight:500;font-size:0.9rem;}
+.item-e{font-size:0.76rem;color:var(--mu);margin-top:5px;line-height:1.6;}
+
+.anexos{display:flex;flex-wrap:wrap;gap:10px;}
+.anexo{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--br);
+  border-radius:10px;padding:9px 13px;font-size:0.78rem;color:var(--tx);text-decoration:none;max-width:280px;}
+.anexo:hover{border-color:var(--b2);}
+.anexo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anexo small{color:var(--mu2);font-size:0.68rem;}
+
+/* ---- TIMELINE ---- */
+.tl{position:relative;padding-left:26px;}
+.tl:before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--s3);}
+.ev{position:relative;padding-bottom:18px;}
+.ev:last-child{padding-bottom:0;}
+.ev:before{content:"";position:absolute;left:-23px;top:5px;width:10px;height:10px;border-radius:50%;
+  background:var(--s3);border:2px solid var(--sf);}
+.ev.status:before{background:var(--blue);}
+.ev.compra:before{background:var(--cyan);}
+.ev.recebimento:before{background:var(--ok);}
+.ev.criacao:before{background:var(--lime);}
+.ev-h{font-size:0.72rem;color:var(--mu2);margin-bottom:3px;}
+.ev-h b{color:var(--mu);font-weight:500;}
+.ev-c{font-size:0.86rem;line-height:1.6;}
+
+/* ---- FORM ---- */
+.campo{margin-bottom:14px;}
+.lbl{display:block;font-size:0.76rem;color:var(--mu);margin-bottom:6px;}
+.lbl i{color:var(--mu2);font-style:normal;}
+.campo .inp,.campo .sel,.campo textarea{width:100%;}
+textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
+.linha{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.linha3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.mais{background:none;border:1px dashed var(--b2);border-radius:10px;color:var(--mu);padding:9px 14px;
+  font-size:0.78rem;cursor:pointer;width:100%;}
+.mais:hover{color:var(--tx);border-color:var(--b3);}
+.extra{display:none;margin-top:12px;}
+.extra.on{display:block;}
+
+.btn{border:none;border-radius:10px;padding:10px 18px;font-family:var(--fh);font-weight:700;
+  font-size:0.82rem;cursor:pointer;}
+.btn-p{background:var(--lime);color:#12200a;}
+.btn-s{background:var(--s2);color:var(--tx);border:1px solid var(--br);}
+.btn-s:hover{border-color:var(--b2);}
+.btn-ok{background:rgba(54,207,160,.16);color:var(--ok);border:1px solid rgba(54,207,160,.35);}
+.btn-w{background:rgba(255,170,43,.16);color:var(--warn);border:1px solid rgba(255,170,43,.35);}
+.btn-d{background:rgba(255,77,79,.14);color:var(--red);border:1px solid rgba(255,77,79,.3);}
+.btn:disabled{opacity:.55;cursor:wait;}
+.btns{display:flex;gap:10px;flex-wrap:wrap;}
+
+.anexar-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.anexar-bar .btn-s{font-size:0.76rem;padding:8px 13px;}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--s3);
+  border:1px solid var(--b2);border-radius:12px;padding:13px 20px;font-size:0.84rem;z-index:200;
+  display:none;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.toast.err{border-color:rgba(255,77,79,.5);color:#ffd7d7;}
+.carregando{text-align:center;color:var(--mu2);font-size:0.84rem;padding:34px;}
+
+@media(max-width:760px){
+  .cnt-grid{grid-template-columns:repeat(2,1fr);}
+  .linha,.linha3{grid-template-columns:1fr;}
+  .kv{grid-template-columns:1fr;gap:2px 0;}
+  .kv dd{margin-bottom:8px;}
+  .rq{grid-template-columns:1fr;}
+  .rq-dir{align-items:flex-start;text-align:left;flex-direction:row;}
+  .top-user{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="top-in">
+    <a href="Index_Menu.html" class="top-back">← Menu</a>
+    <div class="top-title" id="titulo">Central de Requisições</div>
+    <div class="top-user" id="quem">—</div>
+    <button class="sino" id="sino" title="Novidades">🔔<span class="sino-n" id="sino-n">0</span></button>
+    <button class="btn-nova" id="btn-nova">+ Nova requisição</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <!-- LISTA -->
+  <div id="v-lista">
+    <div class="cnt-grid">
+      <button class="cnt on" data-escopo="abertas"><div class="cnt-n" id="c-abertas">–</div><div class="cnt-l">Em aberto</div></button>
+      <button class="cnt" data-escopo="minhas"><div class="cnt-n" id="c-minhas">–</div><div class="cnt-l">Minhas</div></button>
+      <button class="cnt destaque" data-escopo="comigo"><div class="cnt-n" id="c-comigo">–</div><div class="cnt-l">Aguardando você</div></button>
+      <button class="cnt" data-escopo="entrega"><div class="cnt-n" id="c-entrega">–</div><div class="cnt-l">Aguardando entrega</div></button>
+    </div>
+
+    <div class="filtros">
+      <input class="inp" id="f-busca" placeholder="Buscar por número, título ou solicitante">
+      <select class="sel" id="f-empresa"><option value="">Todas as empresas</option></select>
+      <select class="sel" id="f-status"><option value="">Todos os status</option></select>
+    </div>
+
+    <div class="lista" id="lista"></div>
+  </div>
+
+  <!-- DETALHE -->
+  <div id="v-detalhe" style="display:none"></div>
+
+  <!-- NOVA -->
+  <div id="v-nova" style="display:none"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CENTRAL DE REQUISIÇÕES — Index_Requisicoes.html
+   Frontend do módulo REQ_ (backend em Code_Requisicoes.gs).
+
+   ⚠️ CONFIRA A API_URL ABAIXO: tem que ser a MESMA usada pelos
+   outros módulos (o deployment antigo, AKfycbwf1CiH...).
+   Pegue em: Implantar > Gerenciar implantações > botão copiar.
+   ════════════════════════════════════════════════════════════════ */
+
+var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec";
+
+// ────────────────────────────────────────────────────────────
+// 1. CONFIG
+// ────────────────────────────────────────────────────────────
+var ReqConfig = {
+  pollingMs:      5 * 60 * 1000,   // 5 min, só com a aba visível
+  maxLadoFoto:    1600,            // px — comprime antes de subir
+  qualidadeFoto:  0.8,
+  sessaoMs:       8 * 60 * 60 * 1000
+};
+
+// ────────────────────────────────────────────────────────────
+// 2. ESTADO
+// ────────────────────────────────────────────────────────────
+var ReqState = {
+  sessao:      null,
+  config:      null,
+  lista:       [],
+  novidades:   {ids:[], total:0},
+  escopo:      "abertas",
+  detalheId:   null,
+  timer:       null,
+  anexosNovos: []      // anexos da tela de criação (só links; arquivos sobem depois)
+};
+
+// ────────────────────────────────────────────────────────────
+// 3. API
+// ────────────────────────────────────────────────────────────
+var ReqAPI = {
+  get: function(action, params){
+    var q = "?modulo=requisicoes&action=" + encodeURIComponent(action) +
+            "&email=" + encodeURIComponent(ReqState.sessao.email);
+    Object.keys(params || {}).forEach(function(k){
+      if(params[k] !== undefined && params[k] !== null && params[k] !== ""){
+        q += "&" + k + "=" + encodeURIComponent(params[k]);
+      }
+    });
+    return fetch(API_URL + q)
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok) throw new Error(j.error || "Falha na leitura");
+        return j.resultado;
+      });
+  },
+
+  post: function(action, payload){
+    payload = payload || {};
+    payload.email = ReqState.sessao.email;
+    var body = new URLSearchParams();
+    body.append("action", action);
+    body.append("payload", JSON.stringify(payload));
+    return fetch(API_URL + "?modulo=requisicoes", {method:"POST", body:body})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok) throw new Error(j.error || "Falha ao gravar");
+        return j.resultado;
+      });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 4. SESSÃO
+// ────────────────────────────────────────────────────────────
+function ReqSessao(){
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem("qfood_session") || "null"); } catch(_){}
+  if(!s || !s.email || (Date.now() - s.ts > ReqConfig.sessaoMs)){
+    location.href = "Index_Menu.html";
+    return null;
+  }
+  return s;
+}
+
+// ────────────────────────────────────────────────────────────
+// 5. UTILITÁRIOS
+// ────────────────────────────────────────────────────────────
+function esc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function dataBr(iso){
+  if(!iso) return "";
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return String(iso).substring(0,10);
+  return ("0"+d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2) + "/" + d.getFullYear();
+}
+
+function horaBr(iso){
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  return dataBr(iso) + " " + ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+}
+
+function desde(iso){
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  var min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if(min < 1)    return "agora";
+  if(min < 60)   return "há " + min + " min";
+  var h = Math.floor(min / 60);
+  if(h < 24)     return "há " + h + "h";
+  var dias = Math.floor(h / 24);
+  if(dias === 1) return "ontem";
+  if(dias < 30)  return "há " + dias + " dias";
+  return dataBr(iso);
+}
+
+function nomeDe(email){
+  if(!email) return "—";
+  var u = (ReqState.config && ReqState.config.usuario) || {};
+  if(email.toLowerCase() === (u.email||"").toLowerCase()) return "você";
+  return email.split("@")[0];
+}
+
+function toast(msg, erro){
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast" + (erro ? " err" : "");
+  t.style.display = "block";
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.style.display = "none"; }, erro ? 6000 : 3200);
+}
+
+function mostrar(qual){
+  ["lista","detalhe","nova"].forEach(function(v){
+    document.getElementById("v-" + v).style.display = (v === qual ? "block" : "none");
+  });
+  window.scrollTo(0, 0);
+}
+
+// ────────────────────────────────────────────────────────────
+// 6. LISTA
+// ────────────────────────────────────────────────────────────
+var ReqLista = {
+  carregar: function(){
+    document.getElementById("lista").innerHTML = '<div class="carregando">Carregando…</div>';
+    var filtros = {
+      escopo:  (ReqState.escopo === "entrega" ? "" : ReqState.escopo),
+      empresa: document.getElementById("f-empresa").value,
+      status:  document.getElementById("f-status").value
+    };
+    return ReqAPI.get("listar", filtros).then(function(r){
+      ReqState.lista = r.requisicoes || [];
+      ReqLista.render();
+    }).catch(function(e){
+      document.getElementById("lista").innerHTML =
+        '<div class="vazio"><div class="vazio-t">Não deu para carregar</div>' +
+        '<div class="vazio-s">' + esc(e.message) + '</div></div>';
+    });
+  },
+
+  render: function(){
+    var busca = (document.getElementById("f-busca").value || "").toLowerCase().trim();
+    var itens = ReqState.lista.filter(function(r){
+      if(ReqState.escopo === "entrega" &&
+         r.status !== "COMPRADA" && r.status !== "AGUARDANDO_ENTREGA") return false;
+      if(!busca) return true;
+      return (r.id + " " + r.titulo + " " + r.abertoPorNome + " " +
+              r.solicitanteOriginal + " " + r.empresa).toLowerCase().indexOf(busca) >= 0;
+    });
+
+    var el = document.getElementById("lista");
+    if(!itens.length){
+      el.innerHTML =
+        '<div class="vazio"><div class="vazio-t">Nada por aqui</div>' +
+        '<div class="vazio-s">Quando alguém precisar de algo, a requisição aparece nesta lista.</div>' +
+        '<button class="btn btn-p" onclick="ReqForm.abrir()">+ Nova requisição</button></div>';
+      return;
+    }
+
+    el.innerHTML = itens.map(function(r){
+      var novo = ReqState.novidades.ids.indexOf(r.id) >= 0;
+      var solic = r.solicitanteOriginal || r.abertoPorNome || r.abertoPor;
+      var linha2 = [r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ");
+      var aguardando = r.responsavelAtual
+        ? "Aguardando " + nomeDe(r.responsavelAtual)
+        : (r.encerrada ? "Encerrada" : "");
+      return '' +
+      '<div class="rq' + (novo ? ' novo' : '') + '" onclick="ReqDetalhe.abrir(\'' + r.id + '\')">' +
+        '<div>' +
+          '<div class="rq-id">' + esc(r.id) + (novo ? ' · novidade' : '') + '</div>' +
+          '<div class="rq-tit">' + esc(r.titulo) + '</div>' +
+          '<div class="rq-meta">' + esc(linha2) + '<br>Pedido por ' + esc(solic) +
+            (r.prazoEntrega ? ' · Previsão ' + esc(dataBr(r.prazoEntrega)) : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="rq-dir">' +
+          '<span class="chip ' + r.status.toLowerCase() + '">' + esc(r.statusLabel) + '</span>' +
+          (r.urgencia === "Alta" || r.urgencia === "Emergencial"
+            ? '<span class="chip urg">' + esc(r.urgencia) + '</span>' : '') +
+          '<span class="rq-quando">' + esc(aguardando) + '</span>' +
+          '<span class="rq-quando">' + esc(desde(r.ultimaAtualizacao)) + '</span>' +
+        '</div>' +
+      '</div>';
+    }).join("");
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 7. DETALHE + TIMELINE
+// ────────────────────────────────────────────────────────────
+var ReqDetalhe = {
+  abrir: function(id){
+    ReqState.detalheId = id;
+    mostrar("detalhe");
+    document.getElementById("v-detalhe").innerHTML = '<div class="carregando">Carregando ' + esc(id) + '…</div>';
+    ReqAPI.get("detalhe", {id:id}).then(function(d){
+      ReqDetalhe.render(d);
+      return ReqAPI.post("marcarComoLida", {id:id});
+    }).then(function(){
+      ReqNotif.atualizar();
+    }).catch(function(e){
+      document.getElementById("v-detalhe").innerHTML =
+        '<div class="card"><div class="card-t">Não deu para abrir</div>' +
+        '<div class="rq-meta">' + esc(e.message) + '</div>' +
+        '<div class="btns" style="margin-top:14px"><button class="btn btn-s" onclick="ReqDetalhe.voltar()">Voltar</button></div></div>';
+    });
+  },
+
+  voltar: function(){
+    ReqState.detalheId = null;
+    mostrar("lista");
+    ReqLista.carregar();
+  },
+
+  recarregar: function(){
+    if(ReqState.detalheId) ReqDetalhe.abrir(ReqState.detalheId);
+  },
+
+  render: function(d){
+    var r = d.requisicao, p = d.podeAgir;
+    var h = '';
+
+    h += '<div class="det-hdr">' +
+           '<button class="btn btn-s" onclick="ReqDetalhe.voltar()">← Voltar</button>' +
+           '<div class="det-tit">' + esc(r.titulo) + '</div>' +
+           '<span class="chip ' + r.status.toLowerCase() + '">' + esc(r.statusLabel) + '</span>' +
+         '</div>';
+
+    if(r.responsavelAtual){
+      h += '<div class="aguardando">Aguardando ' + esc(nomeDe(r.responsavelAtual)) +
+           ' (' + esc(r.responsavelAtual) + ')</div>';
+    }
+
+    // Dados
+    h += '<div class="card"><div class="card-t">' + esc(r.id) + '</div><dl class="kv">' +
+         ReqDetalhe.kv("Empresa / unidade", [r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ")) +
+         ReqDetalhe.kv("Aberta por", r.abertoPorNome + " · " + dataBr(r.dataAbertura)) +
+         ReqDetalhe.kv("Solicitante", r.solicitanteOriginal) +
+         ReqDetalhe.kv("Urgência", r.urgencia) +
+         ReqDetalhe.kv("Precisa até", dataBr(r.dataNecessidade)) +
+         ReqDetalhe.kv("Descrição", r.descricao) +
+         '</dl></div>';
+
+    // Itens
+    if(d.itens.length){
+      h += '<div class="card"><div class="card-t">O que foi pedido</div>';
+      d.itens.forEach(function(it){
+        var espec = [
+          it.quantidade ? "Qtd: " + it.quantidade + " " + (it.unidadeMedida||"") : "",
+          it.marca ? "Marca: " + it.marca : "", it.modelo ? "Modelo: " + it.modelo : "",
+          it.cor ? "Cor: " + it.cor : "", it.voltagem ? "Voltagem: " + it.voltagem : "",
+          it.dimensoes ? "Medidas: " + it.dimensoes : "", it.peso ? "Peso: " + it.peso : "",
+          it.qtdRecebida ? "Recebido: " + it.qtdRecebida : ""
+        ].filter(Boolean).join(" · ");
+        h += '<div class="item"><div class="item-d">' + esc(it.descricao) + '</div>' +
+             (espec ? '<div class="item-e">' + esc(espec) + '</div>' : '') +
+             (it.especificacao ? '<div class="item-e">' + esc(it.especificacao) + '</div>' : '') +
+             '</div>';
+      });
+      h += '</div>';
+    }
+
+    // Anexos
+    h += '<div class="card"><div class="card-t">Referências</div>';
+    h += d.anexos.length
+      ? '<div class="anexos">' + d.anexos.map(function(a){
+          var icone = a.tipo === "LINK" ? "🔗" : (a.tipo === "IMAGEM" ? "📷" : "📄");
+          var rotulo = a.nomeArquivo || a.origem || a.url;
+          return '<a class="anexo" href="' + esc(a.url) + '" target="_blank" rel="noopener">' +
+                 icone + '<span>' + esc(rotulo) + '</span>' +
+                 '<small>' + esc(nomeDe(a.anexadoPor)) + '</small></a>';
+        }).join("") + '</div>'
+      : '<div class="rq-meta">Nenhum link, foto ou arquivo ainda.</div>';
+
+    if(p.anexar){
+      h += '<div class="anexar-bar">' +
+             '<button class="btn btn-s" onclick="ReqAnexo.link()">🔗 Link</button>' +
+             '<button class="btn btn-s" onclick="ReqAnexo.escolher(\'IMAGEM\')">📷 Foto</button>' +
+             '<button class="btn btn-s" onclick="ReqAnexo.escolher(\'PDF\')">📄 PDF ou arquivo</button>' +
+             '<input type="file" id="arq" style="display:none" onchange="ReqAnexo.enviar(this)">' +
+           '</div>';
+    }
+    h += '</div>';
+
+    // Compras
+    if(r.fornecedor || r.valorFinal || r.prazoEntrega || r.obsCompras){
+      h += '<div class="card"><div class="card-t">Compra</div><dl class="kv">' +
+           ReqDetalhe.kv("Fornecedor", r.fornecedor) +
+           ReqDetalhe.kv("Valor", r.valorFinal !== "" ? "R$ " + r.valorFinal : "") +
+           ReqDetalhe.kv("Previsão de entrega", dataBr(r.prazoEntrega)) +
+           ReqDetalhe.kv("Nº do pedido", r.numeroPedido) +
+           ReqDetalhe.kv("NF", r.nf) +
+           ReqDetalhe.kv("Observação", r.obsCompras) +
+           '</dl></div>';
+    }
+
+    // Recebimento
+    if(r.statusRecebimento){
+      h += '<div class="card"><div class="card-t">Recebimento</div><dl class="kv">' +
+           ReqDetalhe.kv("Situação", r.statusRecebimento) +
+           ReqDetalhe.kv("Recebido por", nomeDe(r.recebidoPor) + " · " + dataBr(r.dataRecebimento)) +
+           ReqDetalhe.kv("Observação", r.obsRecebimento) +
+           '</dl></div>';
+    }
+
+    // Ações
+    h += ReqAcoes.render(r, p);
+
+    // Timeline
+    h += '<div class="card"><div class="card-t">Histórico</div><div class="tl">';
+    h += d.eventos.map(function(ev){
+      var texto = ev.texto;
+      if(ev.tipo === "STATUS" && ev.statusNovo){
+        texto = "Status: " + ev.statusLabel + (ev.texto ? " — " + ev.texto : "");
+      }
+      return '<div class="ev ' + esc(ev.tipo.toLowerCase()) + '">' +
+               '<div class="ev-h"><b>' + esc(ev.usuarioNome || nomeDe(ev.usuario)) + '</b> · ' +
+                 esc(horaBr(ev.dataHora)) + '</div>' +
+               '<div class="ev-c">' + esc(texto) + '</div>' +
+             '</div>';
+    }).join("");
+    h += '</div></div>';
+
+    document.getElementById("v-detalhe").innerHTML = h;
+  },
+
+  kv: function(rotulo, valor){
+    if(!valor) return "";
+    return "<dt>" + esc(rotulo) + "</dt><dd>" + esc(valor).replace(/\n/g,"<br>") + "</dd>";
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 8. AÇÕES (triagem, compras, recebimento, comentário)
+// ────────────────────────────────────────────────────────────
+var ReqAcoes = {
+  render: function(r, p){
+    var h = "";
+
+    if(p.triar){
+      h += '<div class="card"><div class="card-t">Triagem</div>' +
+           '<div class="rq-meta" style="margin-bottom:12px">Libere para Compras, devolva pedindo mais informação ou recuse.</div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-ok" onclick="ReqAcoes.status(\'EM_ANALISE\',\'Liberada para Compras\')">Liberar para Compras</button>' +
+             '<button class="btn btn-w" onclick="ReqAcoes.statusComTexto(\'AGUARDANDO_INFORMACAO\',\'O que falta informar?\')">Pedir mais informação</button>' +
+             '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'RECUSADA\',\'Motivo da recusa\')">Recusar</button>' +
+           '</div></div>';
+    }
+
+    if(p.registrarCompra && !r.encerrada){
+      h += '<div class="card"><div class="card-t">Registrar a compra</div>' +
+           '<div class="linha">' +
+             '<div class="campo"><label class="lbl" for="c-forn">Fornecedor</label>' +
+               '<input class="inp" id="c-forn" value="' + esc(r.fornecedor) + '"></div>' +
+             '<div class="campo"><label class="lbl" for="c-valor">Valor total</label>' +
+               '<input class="inp" id="c-valor" placeholder="0,00" value="' + esc(r.valorFinal) + '"></div>' +
+           '</div>' +
+           '<div class="linha3">' +
+             '<div class="campo"><label class="lbl" for="c-prazo">Previsão de entrega</label>' +
+               '<input class="inp" id="c-prazo" type="date" value="' + esc((r.prazoEntrega||"").substring(0,10)) + '"></div>' +
+             '<div class="campo"><label class="lbl" for="c-ped">Nº do pedido <i>opcional</i></label>' +
+               '<input class="inp" id="c-ped" value="' + esc(r.numeroPedido) + '"></div>' +
+             '<div class="campo"><label class="lbl" for="c-nf">NF <i>opcional</i></label>' +
+               '<input class="inp" id="c-nf" value="' + esc(r.nf) + '"></div>' +
+           '</div>' +
+           '<div class="campo"><label class="lbl" for="c-obs">Observação para quem pediu</label>' +
+             '<textarea class="inp" id="c-obs" placeholder="Ex.: esse modelo saiu de linha, comprei o equivalente.">' + esc(r.obsCompras) + '</textarea></div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-p" onclick="ReqAcoes.registrarCompra()">Marcar como comprada</button>' +
+             '<button class="btn btn-s" onclick="ReqAcoes.status(\'EM_COTACAO\',\'Cotando\')">Estou cotando</button>' +
+             '<button class="btn btn-w" onclick="ReqAcoes.statusComTexto(\'AGUARDANDO_INFORMACAO\',\'O que você precisa saber?\')">Preciso de informação</button>' +
+           '</div></div>';
+    }
+
+    if(p.confirmarRecebimento){
+      h += '<div class="card"><div class="card-t">Chegou?</div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-ok" onclick="ReqAcoes.receber(\'OK\')">Recebi, está certo</button>' +
+             '<button class="btn btn-w" onclick="ReqAcoes.receber(\'PARCIAL\')">Recebi parcial</button>' +
+             '<button class="btn btn-d" onclick="ReqAcoes.receber(\'DIVERGENCIA\')">Recebi com problema</button>' +
+             '<button class="btn btn-s" onclick="ReqAcoes.receber(\'NAO_RECEBI\')">Ainda não chegou</button>' +
+           '</div></div>';
+    }
+
+    // Comentário — todo mundo que enxerga a requisição
+    if(p.comentar){
+      h += '<div class="card"><div class="card-t">Comentar</div>' +
+           '<div class="campo"><textarea class="inp" id="novo-coment" placeholder="Escreva aqui. Todo mundo que acompanha esta requisição vai ver."></textarea></div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-p" onclick="ReqAcoes.comentar()">Enviar comentário</button>' +
+             (p.cancelar ? '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'CANCELADA\',\'Por que está cancelando?\')">Cancelar requisição</button>' : '') +
+           '</div></div>';
+    }
+
+    return h;
+  },
+
+  comentar: function(){
+    var t = document.getElementById("novo-coment").value.trim();
+    if(!t){ toast("Escreva o comentário antes de enviar.", true); return; }
+    ReqAPI.post("comentar", {id:ReqState.detalheId, texto:t})
+      .then(function(){ toast("Comentário enviado."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  status: function(novo, texto){
+    ReqAPI.post("alterarStatus", {id:ReqState.detalheId, status:novo, texto:texto || ""})
+      .then(function(){ toast("Pronto."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  statusComTexto: function(novo, pergunta){
+    var t = prompt(pergunta);
+    if(t === null) return;
+    if(!t.trim()){ toast("Escreva alguma coisa para a pessoa entender.", true); return; }
+    ReqAcoes.status(novo, t.trim());
+  },
+
+  registrarCompra: function(){
+    ReqAPI.post("registrarCompra", {
+      id:           ReqState.detalheId,
+      fornecedor:   document.getElementById("c-forn").value.trim(),
+      valorFinal:   document.getElementById("c-valor").value.trim(),
+      prazoEntrega: document.getElementById("c-prazo").value,
+      numeroPedido: document.getElementById("c-ped").value.trim(),
+      nf:           document.getElementById("c-nf").value.trim(),
+      obsCompras:   document.getElementById("c-obs").value.trim()
+    }).then(function(){
+      toast("Compra registrada. Quem pediu já consegue ver.");
+      ReqDetalhe.recarregar();
+    }).catch(function(e){ toast(e.message, true); });
+  },
+
+  receber: function(situacao){
+    var obs = "";
+    if(situacao === "PARCIAL" || situacao === "DIVERGENCIA"){
+      obs = prompt(situacao === "PARCIAL" ? "O que faltou?" : "Qual foi o problema?");
+      if(obs === null) return;
+      if(!obs.trim()){ toast("Descreva o que houve.", true); return; }
+    }
+    if(situacao === "NAO_RECEBI"){
+      obs = prompt("Quer deixar alguma observação? (pode deixar em branco)") || "";
+    }
+    ReqAPI.post("confirmarRecebimento", {id:ReqState.detalheId, situacao:situacao, observacao:obs.trim()})
+      .then(function(){ toast("Recebimento registrado."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9. ANEXOS — link, foto ou PDF
+// ────────────────────────────────────────────────────────────
+var ReqAnexo = {
+  link: function(){
+    var url = prompt("Cole o link (Mercado Livre, Instagram, Facebook, site do fornecedor…)");
+    if(!url || !url.trim()) return;
+    ReqAPI.post("anexar", {id:ReqState.detalheId, tipo:"LINK", url:url.trim()})
+      .then(function(r){ toast("Link anexado (" + r.origem + ")."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  escolher: function(tipo){
+    var inp = document.getElementById("arq");
+    inp.accept = (tipo === "IMAGEM") ? "image/*" : ".pdf,.doc,.docx,.xls,.xlsx";
+    inp.dataset.tipo = tipo;
+    inp.value = "";
+    inp.click();
+  },
+
+  enviar: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    var tipo = input.dataset.tipo || "OUTRO";
+    toast("Enviando " + arq.name + "…");
+
+    var pronto = function(base64, mime){
+      ReqAPI.post("anexar", {
+        id:          ReqState.detalheId,
+        tipo:        tipo,
+        base64:      base64,
+        mimeType:    mime,
+        nomeArquivo: arq.name
+      }).then(function(){
+        toast("Anexado.");
+        ReqDetalhe.recarregar();
+      }).catch(function(e){ toast(e.message, true); });
+    };
+
+    if(arq.type.indexOf("image") === 0){
+      ReqAnexo.comprimir(arq, function(b64){ pronto(b64, "image/jpeg"); });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ pronto(String(fr.result).split(",")[1], arq.type || "application/octet-stream"); };
+      fr.onerror = function(){ toast("Não deu para ler o arquivo.", true); };
+      fr.readAsDataURL(arq);
+    }
+  },
+
+  // Foto de celular vem com 4–8 MB. Reduz antes de subir.
+  comprimir: function(arq, callback){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var max = ReqConfig.maxLadoFoto;
+        var l = img.width, a = img.height;
+        if(l > max || a > max){
+          if(l > a){ a = Math.round(a * max / l); l = max; }
+          else     { l = Math.round(l * max / a); a = max; }
+        }
+        var cv = document.createElement("canvas");
+        cv.width = l; cv.height = a;
+        cv.getContext("2d").drawImage(img, 0, 0, l, a);
+        callback(cv.toDataURL("image/jpeg", ReqConfig.qualidadeFoto).split(",")[1]);
+      };
+      img.onerror = function(){ toast("Não deu para ler a imagem.", true); };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(arq);
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 10. NOVA REQUISIÇÃO
+// ────────────────────────────────────────────────────────────
+var ReqForm = {
+  abrir: function(){
+    mostrar("nova");
+    var c = ReqState.config;
+    var empresas = (c.empresas || []).map(function(e){
+      return '<option value="' + esc(e.chave) + '">' + esc(e.valor) + '</option>';
+    }).join("");
+    var setores = (c.setores || []).map(function(s){
+      return '<option value="' + esc(s.valor) + '">' + esc(s.valor) + '</option>';
+    }).join("");
+    var categorias = (c.categorias || []).map(function(x){
+      return '<option value="' + esc(x.valor) + '">' + esc(x.valor) + '</option>';
+    }).join("");
+
+    document.getElementById("v-nova").innerHTML =
+    '<div class="det-hdr">' +
+      '<button class="btn btn-s" onclick="ReqForm.fechar()">← Cancelar</button>' +
+      '<div class="det-tit">Nova requisição</div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">O que você precisa?</div>' +
+      '<div class="campo"><label class="lbl" for="n-titulo">Em poucas palavras</label>' +
+        '<input class="inp" id="n-titulo" placeholder="Ex.: geladeira nova para a cozinha" maxlength="120"></div>' +
+      '<div class="campo"><label class="lbl" for="n-desc">Explique com suas palavras</label>' +
+        '<textarea class="inp" id="n-desc" placeholder="Escreva do jeito que falaria. Se tiver foto ou link, dá para anexar depois de criar."></textarea></div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Para onde é?</div>' +
+      '<div class="linha3">' +
+        '<div class="campo"><label class="lbl" for="n-empresa">Empresa</label>' +
+          '<select class="sel" id="n-empresa" onchange="ReqForm.unidades()"><option value="">Escolha</option>' + empresas + '</select></div>' +
+        '<div class="campo"><label class="lbl" for="n-unidade">Unidade</label>' +
+          '<select class="sel" id="n-unidade"><option value="">Escolha a empresa antes</option></select></div>' +
+        '<div class="campo"><label class="lbl" for="n-setor">Setor <i>opcional</i></label>' +
+          '<select class="sel" id="n-setor"><option value="">—</option>' + setores + '</select></div>' +
+      '</div>' +
+      '<div class="campo"><label class="lbl" for="n-solic">Quem pediu, se não foi você <i>opcional</i></label>' +
+        '<input class="inp" id="n-solic" placeholder="Nome ou e-mail de quem precisa"></div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Item</div>' +
+      '<div class="linha3">' +
+        '<div class="campo" style="grid-column:span 2"><label class="lbl" for="i-desc">O que é</label>' +
+          '<input class="inp" id="i-desc" placeholder="Ex.: geladeira expositora 1200 litros"></div>' +
+        '<div class="campo"><label class="lbl" for="i-qtd">Quantidade <i>opcional</i></label>' +
+          '<input class="inp" id="i-qtd" placeholder="Ex.: 5 caixas"></div>' +
+      '</div>' +
+      '<button class="mais" onclick="ReqForm.maisEspec()" id="btn-espec">+ Mais especificações (marca, cor, medidas, voltagem…)</button>' +
+      '<div class="extra" id="espec">' +
+        '<div class="linha3">' +
+          '<div class="campo"><label class="lbl" for="i-cat">Categoria</label>' +
+            '<select class="sel" id="i-cat"><option value="">—</option>' + categorias + '</select></div>' +
+          '<div class="campo"><label class="lbl" for="i-marca">Marca</label><input class="inp" id="i-marca"></div>' +
+          '<div class="campo"><label class="lbl" for="i-modelo">Modelo</label><input class="inp" id="i-modelo"></div>' +
+        '</div>' +
+        '<div class="linha3">' +
+          '<div class="campo"><label class="lbl" for="i-cor">Cor</label><input class="inp" id="i-cor"></div>' +
+          '<div class="campo"><label class="lbl" for="i-volt">Voltagem</label>' +
+            '<select class="sel" id="i-volt"><option value="">—</option><option>110V</option><option>220V</option><option>Bivolt</option></select></div>' +
+          '<div class="campo"><label class="lbl" for="i-dim">Medidas (C×L×A)</label><input class="inp" id="i-dim" placeholder="Ex.: 80×70×190 cm"></div>' +
+        '</div>' +
+        '<div class="linha">' +
+          '<div class="campo"><label class="lbl" for="i-peso">Peso</label><input class="inp" id="i-peso"></div>' +
+          '<div class="campo"><label class="lbl" for="i-preco">Preço aproximado</label><input class="inp" id="i-preco" placeholder="0,00"></div>' +
+        '</div>' +
+        '<div class="campo"><label class="lbl" for="i-espec">Outras especificações</label>' +
+          '<textarea class="inp" id="i-espec" style="min-height:60px"></textarea></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Links de referência</div>' +
+      '<div class="rq-meta">Cole links do Mercado Livre, Instagram, Facebook ou do site do fornecedor. Fotos e PDFs você anexa depois de criar.</div>' +
+      '<div id="links-lista" style="margin:12px 0"></div>' +
+      '<button class="mais" onclick="ReqForm.addLink()">+ Adicionar link</button>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Prazo</div>' +
+      '<div class="linha">' +
+        '<div class="campo"><label class="lbl" for="n-urg">Urgência</label>' +
+          '<select class="sel" id="n-urg"><option>Normal</option><option>Baixa</option><option>Alta</option><option>Emergencial</option></select></div>' +
+        '<div class="campo"><label class="lbl" for="n-quando">Precisa até <i>opcional</i></label>' +
+          '<input class="inp" id="n-quando" type="date"></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="btns" style="margin-bottom:30px">' +
+      '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar()">Enviar requisição</button>' +
+      '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>' +
+    '</div>';
+
+    ReqState.anexosNovos = [];
+    document.getElementById("n-titulo").focus();
+  },
+
+  fechar: function(){ mostrar("lista"); },
+
+  maisEspec: function(){
+    document.getElementById("espec").classList.toggle("on");
+    var aberto = document.getElementById("espec").classList.contains("on");
+    document.getElementById("btn-espec").textContent = aberto
+      ? "− Esconder especificações"
+      : "+ Mais especificações (marca, cor, medidas, voltagem…)";
+  },
+
+  unidades: function(){
+    var emp = document.getElementById("n-empresa").value;
+    var lista = (ReqState.config.unidades || []).filter(function(u){
+      return u.chave === emp || u.chave === "*";
+    });
+    document.getElementById("n-unidade").innerHTML =
+      '<option value="">Escolha</option>' +
+      lista.map(function(u){ return '<option value="' + esc(u.valor) + '">' + esc(u.valor) + '</option>'; }).join("");
+  },
+
+  addLink: function(){
+    var url = prompt("Cole o link");
+    if(!url || !url.trim()) return;
+    ReqState.anexosNovos.push({url: url.trim()});
+    ReqForm.renderLinks();
+  },
+
+  removerLink: function(i){
+    ReqState.anexosNovos.splice(i, 1);
+    ReqForm.renderLinks();
+  },
+
+  renderLinks: function(){
+    document.getElementById("links-lista").innerHTML = ReqState.anexosNovos.map(function(a, i){
+      return '<div class="item" style="display:flex;justify-content:space-between;gap:10px;align-items:center">' +
+             '<span class="item-e" style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🔗 ' + esc(a.url) + '</span>' +
+             '<button class="btn btn-s" style="padding:5px 10px;font-size:0.72rem" onclick="ReqForm.removerLink(' + i + ')">Remover</button>' +
+             '</div>';
+    }).join("");
+  },
+
+  enviar: function(){
+    var titulo = document.getElementById("n-titulo").value.trim();
+    var desc   = document.getElementById("n-desc").value.trim();
+    var emp    = document.getElementById("n-empresa").value;
+    var uni    = document.getElementById("n-unidade").value;
+    var iDesc  = document.getElementById("i-desc").value.trim();
+
+    if(!titulo){ toast("Escreva em poucas palavras o que você precisa.", true); return; }
+    if(!emp){    toast("Escolha a empresa.", true); return; }
+    if(!uni){    toast("Escolha a unidade.", true); return; }
+    if(!desc && !iDesc){ toast("Explique o que você precisa ou preencha o item.", true); return; }
+
+    var itens = [];
+    if(iDesc){
+      itens.push({
+        descricao:     iDesc,
+        quantidade:    document.getElementById("i-qtd").value.trim(),
+        categoria:     document.getElementById("i-cat").value,
+        marca:         document.getElementById("i-marca").value.trim(),
+        modelo:        document.getElementById("i-modelo").value.trim(),
+        cor:           document.getElementById("i-cor").value.trim(),
+        voltagem:      document.getElementById("i-volt").value,
+        dimensoes:     document.getElementById("i-dim").value.trim(),
+        peso:          document.getElementById("i-peso").value.trim(),
+        precoEstimado: document.getElementById("i-preco").value.trim(),
+        especificacao: document.getElementById("i-espec").value.trim()
+      });
+    }
+
+    var btn = document.getElementById("btn-enviar");
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+
+    ReqAPI.post("criar", {
+      requestUuid:         ReqForm.uuid(),
+      titulo:              titulo,
+      descricao:           desc,
+      empresa:             emp,
+      unidade:             uni,
+      setor:               document.getElementById("n-setor").value,
+      solicitanteOriginal: document.getElementById("n-solic").value.trim(),
+      urgencia:            document.getElementById("n-urg").value,
+      dataNecessidade:     document.getElementById("n-quando").value,
+      itens:               itens,
+      links:               ReqState.anexosNovos
+    }).then(function(r){
+      toast(r.duplicada ? "Essa requisição já tinha sido criada." : "Requisição " + r.id + " criada.");
+      ReqState.anexosNovos = [];
+      ReqDetalhe.abrir(r.id);
+    }).catch(function(e){
+      toast(e.message, true);
+      btn.disabled = false;
+      btn.textContent = "Enviar requisição";
+    });
+  },
+
+  // Idempotência: o backend usa isso para não criar duas requisições
+  // no duplo clique ou no reenvio por internet instável.
+  uuid: function(){
+    if(!ReqForm._uuid){
+      ReqForm._uuid = "web-" + Date.now().toString(36) + "-" +
+                      Math.random().toString(36).slice(2, 10);
+    }
+    return ReqForm._uuid;
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 11. NOVIDADES (sino + contadores + polling)
+// ────────────────────────────────────────────────────────────
+var ReqNotif = {
+  atualizar: function(){
+    return ReqAPI.get("novidades", {}).then(function(n){
+      ReqState.novidades = n;
+      document.getElementById("c-abertas").textContent = "–";
+      document.getElementById("c-minhas").textContent  = n.minhasAbertas;
+      document.getElementById("c-comigo").textContent  = n.aguardandoVoce;
+      document.getElementById("c-entrega").textContent = n.aguardandoEntrega;
+
+      var badge = document.getElementById("sino-n");
+      badge.textContent = n.total;
+      badge.style.display = n.total > 0 ? "block" : "none";
+
+      if(!ReqState.detalheId) ReqLista.render();
+      return n;
+    }).catch(function(){ /* silencioso: polling não incomoda o usuário */ });
+  },
+
+  sincronizar: function(){
+    return ReqNotif.atualizar().then(function(){
+      if(ReqState.detalheId) return;
+      return ReqLista.carregar().then(function(){
+        document.getElementById("c-abertas").textContent =
+          ReqState.lista.filter(function(r){ return !r.encerrada; }).length;
+      });
+    });
+  },
+
+  iniciar: function(){
+    if(ReqState.timer) clearInterval(ReqState.timer);
+    ReqState.timer = setInterval(function(){
+      if(document.visibilityState === "visible") ReqNotif.atualizar();
+    }, ReqConfig.pollingMs);
+
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") ReqNotif.atualizar();
+    });
+  },
+
+  verNovidades: function(){
+    if(!ReqState.novidades.total){ toast("Nada novo desde a sua última visita."); return; }
+    ReqState.escopo = "abertas";
+    document.querySelectorAll(".cnt").forEach(function(b){
+      b.classList.toggle("on", b.dataset.escopo === "abertas");
+    });
+    mostrar("lista");
+    ReqLista.carregar().then(function(){
+      var lista = document.getElementById("lista");
+      var primeiro = lista.querySelector(".rq.novo");
+      if(primeiro) primeiro.scrollIntoView({block:"center"});
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 12. INICIALIZAÇÃO
+// ────────────────────────────────────────────────────────────
+function ReqInit(){
+  ReqState.sessao = ReqSessao();
+  if(!ReqState.sessao) return;
+
+  document.getElementById("quem").textContent = ReqState.sessao.nome || ReqState.sessao.email;
+
+  ReqAPI.get("config", {}).then(function(c){
+    ReqState.config = c;
+
+    if(c.usuario.isCompras){
+      document.getElementById("titulo").textContent = "Central de Requisições — Compras";
+    }
+
+    document.getElementById("f-empresa").innerHTML =
+      '<option value="">Todas as empresas</option>' +
+      (c.empresas || []).map(function(e){
+        return '<option value="' + esc(e.chave) + '">' + esc(e.valor) + '</option>';
+      }).join("");
+
+    document.getElementById("f-status").innerHTML =
+      '<option value="">Todos os status</option>' +
+      Object.keys(c.statusLabel).map(function(k){
+        return '<option value="' + esc(k) + '">' + esc(c.statusLabel[k]) + '</option>';
+      }).join("");
+
+    // Deep link vindo do e-mail: Index_Requisicoes.html?rq=RQ-2026-0001
+    var m = location.search.match(/[?&]rq=([^&]+)/);
+    if(m) return ReqDetalhe.abrir(decodeURIComponent(m[1]));
+
+    return ReqNotif.sincronizar();
+  }).then(function(){
+    ReqNotif.iniciar();
+  }).catch(function(e){
+    document.getElementById("lista").innerHTML =
+      '<div class="vazio"><div class="vazio-t">Não deu para entrar</div>' +
+      '<div class="vazio-s">' + esc(e.message) + '</div>' +
+      '<a class="btn btn-s" href="Index_Menu.html">Voltar ao menu</a></div>';
+  });
+
+  // Eventos de tela
+  document.getElementById("btn-nova").onclick = function(){ ReqForm.abrir(); };
+  document.getElementById("sino").onclick     = function(){ ReqNotif.verNovidades(); };
+
+  document.querySelectorAll(".cnt").forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll(".cnt").forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+      ReqState.escopo = b.dataset.escopo;
+      mostrar("lista");
+      ReqLista.carregar();
+    };
+  });
+
+  document.getElementById("f-busca").oninput    = function(){ ReqLista.render(); };
+  document.getElementById("f-empresa").onchange = function(){ ReqLista.carregar(); };
+  document.getElementById("f-status").onchange  = function(){ ReqLista.carregar(); };
+}
+
+ReqInit();
+</script>
+</body>
+</html>
