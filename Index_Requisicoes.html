@@ -41,7 +41,7 @@ a{color:var(--blue);}
 .btn-nova:hover{filter:brightness(1.08);}
 
 /* ---- CONTADORES ---- */
-.cnt-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:22px 0 18px;}
+.cnt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:22px 0 18px;}
 .cnt{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:16px 18px;cursor:pointer;
   text-align:left;transition:border-color .15s;}
 .cnt:hover{border-color:var(--b2);}
@@ -186,6 +186,7 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
       <button class="cnt" data-escopo="minhas"><div class="cnt-n" id="c-minhas">–</div><div class="cnt-l">Minhas</div></button>
       <button class="cnt destaque" data-escopo="comigo"><div class="cnt-n" id="c-comigo">–</div><div class="cnt-l">Aguardando você</div></button>
       <button class="cnt" data-escopo="entrega"><div class="cnt-n" id="c-entrega">–</div><div class="cnt-l">Aguardando entrega</div></button>
+      <button class="cnt" data-escopo="todas"><div class="cnt-n" id="c-todas">–</div><div class="cnt-l">Todas</div></button>
     </div>
 
     <div class="filtros">
@@ -355,10 +356,15 @@ function mostrar(qual){
 var ReqLista = {
   carregar: function(){
     document.getElementById("lista").innerHTML = '<div class="carregando">Carregando…</div>';
+    var status = document.getElementById("f-status").value;
+    // "Em aberto" esconde encerradas — mas se a pessoa escolheu um status,
+    // ela quer ver aquele status, encerrado ou não.
+    var escopo = ReqState.escopo;
+    if(escopo === "entrega" || escopo === "todas" || status) escopo = "";
     var filtros = {
-      escopo:  (ReqState.escopo === "entrega" ? "" : ReqState.escopo),
+      escopo:  escopo,
       empresa: document.getElementById("f-empresa").value,
-      status:  document.getElementById("f-status").value
+      status:  status
     };
     return ReqAPI.get("listar", filtros).then(function(r){
       ReqState.lista = r.requisicoes || [];
@@ -964,7 +970,8 @@ var ReqNotif = {
   atualizar: function(){
     return ReqAPI.get("novidades", {}).then(function(n){
       ReqState.novidades = n;
-      document.getElementById("c-abertas").textContent = "–";
+      document.getElementById("c-abertas").textContent = n.abertas;
+      document.getElementById("c-todas").textContent   = n.totalVisiveis;
       document.getElementById("c-minhas").textContent  = n.minhasAbertas;
       document.getElementById("c-comigo").textContent  = n.aguardandoVoce;
       document.getElementById("c-entrega").textContent = n.aguardandoEntrega;
@@ -981,10 +988,7 @@ var ReqNotif = {
   sincronizar: function(){
     return ReqNotif.atualizar().then(function(){
       if(ReqState.detalheId) return;
-      return ReqLista.carregar().then(function(){
-        document.getElementById("c-abertas").textContent =
-          ReqState.lista.filter(function(r){ return !r.encerrada; }).length;
-      });
+      return ReqLista.carregar();
     });
   },
 
