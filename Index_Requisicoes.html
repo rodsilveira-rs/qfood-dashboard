@@ -42,12 +42,14 @@ a{color:var(--blue);}
 
 /* ---- CONTADORES ---- */
 .cnt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:22px 0 18px;}
-.cnt{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:16px 18px;cursor:pointer;
-  text-align:left;transition:border-color .15s;}
-.cnt:hover{border-color:var(--b2);}
-.cnt.on{border-color:var(--lime);}
-.cnt-n{font-family:var(--fh);font-size:1.7rem;font-weight:800;line-height:1;}
-.cnt-l{font-size:0.74rem;color:var(--mu);margin-top:6px;}
+.cnt{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:14px 18px;cursor:pointer;
+  text-align:left;color:var(--tx);transition:all .15s;box-shadow:0 1px 0 rgba(255,255,255,.05) inset;}
+.cnt:hover{background:var(--s3);border-color:var(--b3);transform:translateY(-1px);}
+.cnt:active{transform:translateY(0);}
+.cnt.on{background:var(--s3);border-color:var(--lime);box-shadow:0 0 0 1px var(--lime) inset;}
+.cnt-n{font-family:var(--fh);font-size:1.7rem;font-weight:800;line-height:1;color:var(--tx);}
+.cnt-l{font-size:0.74rem;color:var(--mu);margin-top:6px;font-weight:500;}
+.cnt.on .cnt-l{color:var(--tx);}
 .cnt.destaque .cnt-n{color:var(--warn);}
 
 /* ---- FILTROS ---- */
@@ -163,6 +165,27 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
   .rq{grid-template-columns:1fr;}
   .rq-dir{align-items:flex-start;text-align:left;flex-direction:row;}
   .top-user{display:none;}
+}
+/* ---- IMPRESSÃO / PDF ---- */
+.print-cab{display:none;}
+@media print{
+  @page{margin:14mm;}
+  body{background:#fff;color:#111;padding:0;}
+  .top,#v-lista,#v-nova,.toast,.btns,.anexar-bar,.det-hdr .btn,.det-hdr .chip{display:none !important;}
+  .wrap{max-width:100%;padding:0;}
+  .print-cab{display:block;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px;}
+  .print-cab h1{font-family:var(--fh);font-size:1.3rem;margin-bottom:4px;}
+  .print-cab div{font-size:0.8rem;color:#555;}
+  .card{background:#fff;border:1px solid #bbb;break-inside:avoid;margin-bottom:10px;}
+  .card-t,.det-tit,.item-d{color:#111;}
+  .kv dt,.rq-meta,.item-e,.ev-h,.ev-h b{color:#555;}
+  .kv dd,.ev-c{color:#111;}
+  .item{background:#fff;border-color:#ccc;}
+  .anexo{background:#fff;border-color:#ccc;color:#111;}
+  .aguardando{background:#fff;border:1px solid #999;color:#111;}
+  .tl:before{background:#bbb;}
+  .ev:before{border-color:#fff;background:#999;}
+  a{color:#111;text-decoration:underline;}
 }
 </style>
 </head>
@@ -458,10 +481,16 @@ var ReqDetalhe = {
     var r = d.requisicao, p = d.podeAgir;
     var h = '';
 
+    h += '<div class="print-cab">' +
+           '<h1>Requisição ' + esc(r.id) + ' — ' + esc(r.titulo) + '</h1>' +
+           '<div>Q Food Group · ' + esc(r.statusLabel) + ' · gerado em ' + esc(horaBr(new Date().toISOString())) + '</div>' +
+         '</div>';
+
     h += '<div class="det-hdr">' +
            '<button class="btn btn-s" onclick="ReqDetalhe.voltar()">← Voltar</button>' +
            '<div class="det-tit">' + esc(r.titulo) + '</div>' +
            '<span class="chip ' + r.status.toLowerCase() + '">' + esc(r.statusLabel) + '</span>' +
+           '<button class="btn btn-s" onclick="window.print()">🖨 PDF</button>' +
          '</div>';
 
     if(r.responsavelAtual){
@@ -970,8 +999,9 @@ var ReqNotif = {
   atualizar: function(){
     return ReqAPI.get("novidades", {}).then(function(n){
       ReqState.novidades = n;
-      document.getElementById("c-abertas").textContent = n.abertas;
-      document.getElementById("c-todas").textContent   = n.totalVisiveis;
+      // Se o backend ainda não recebeu Nova versão, esses campos vêm undefined.
+      document.getElementById("c-abertas").textContent = (n.abertas === undefined ? "?" : n.abertas);
+      document.getElementById("c-todas").textContent   = (n.totalVisiveis === undefined ? "?" : n.totalVisiveis);
       document.getElementById("c-minhas").textContent  = n.minhasAbertas;
       document.getElementById("c-comigo").textContent  = n.aguardandoVoce;
       document.getElementById("c-entrega").textContent = n.aguardandoEntrega;
