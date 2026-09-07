@@ -482,12 +482,21 @@ var CKP_SYNC_URL   = 'https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__Bg
 var CKP_SYNC_TOKEN = 'qfood-rs-2026-xK9pL3mQ7vN2bT8';
 function enviarSheet(aba, dado){
   var url = window.__QFOOD_SYNC_URL || CKP_SYNC_URL;
-  try{
-    fetch(url, { method:'POST', body: JSON.stringify({ token: CKP_SYNC_TOKEN, aba: aba, dado: dado }) })
-      .then(function(r){ return r.text(); })
-      .then(function(t){ try{ console.log('[sync '+aba+']', t); }catch(e){} })
-      .catch(function(e){ try{ console.warn('[sync '+aba+']', e); }catch(_){} });
-  }catch(e){}
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ token: CKP_SYNC_TOKEN, aba: aba, dado: dado })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(resp){
+    console.log('[sync '+aba+']', resp);
+    if(resp && resp.ok === true) return resp;
+    return { ok:false, erro:(resp && (resp.erro || resp.error)) || 'Resposta inválida do servidor' };
+  })
+  .catch(function(e){
+    console.warn('[sync '+aba+']', e);
+    return { ok:false, erro:'Sem conexão com o servidor (' + ((e && e.message) ? e.message : e) + ')' };
+  });
 }
 function travaKey(ano,tri){ return 'qfood_chk_trava_'+ano+'_'+tri; }
 function loadTrava(ano,tri){ try{ return JSON.parse(localStorage.getItem(travaKey(ano,tri))||'null'); }catch(e){ return null; } }
@@ -543,37 +552,75 @@ function gestoresPermitidos(){
 function podeVer(id){ var p=gestoresPermitidos(); return p===null || p.indexOf(id)>=0; }
 function primeiraView(){ if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
 function recalcScore(id){
-  var kpis=KPIS_AREA[id]||[]; var soma=0,n=0;
+  var kpis=KPIS_AREA[id]||[]; var soma=0,n=0,vazios=0,nNa=0;
   kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id);
     /* KPI em implantação (ou suspenso/nao_aplicavel): NÃO entra no cálculo — não pontua nem penaliza */
     if(k.status && k.status!=='ativo'){
       if(cell){ cell.textContent='🚧'; cell.style.color='var(--mu2)'; cell.title='KPI em implantação — não entra no score'; }
       return;
     }
+    /* N/A do mês: fora do numerador E do denominador */
+    var cbNa=el('q-'+id+'-na-'+k.id);
+    if(cbNa && cbNa.checked){
+      nNa++;
+      if(inp){ inp.disabled=true; inp.style.opacity='.35'; }
+      if(cell){ cell.textContent='N/A'; cell.style.color='var(--mu2)'; cell.title='Não se aplica neste mês — fora do cálculo'; }
+      return;
+    }
+    if(inp){ inp.disabled=false; inp.style.opacity=''; }
     var raw=inp?inp.value.trim():''; var at=atinKPI({id:k.id,dir:k.dir,meta:metaEf(id,k)},raw);
-    if(at==null){ if(cell){cell.textContent='—';cell.style.color='var(--mu2)';} } else { soma+=at;n++; if(cell){cell.textContent=Math.round(at)+'%';cell.style.color=at>=90?'var(--ok)':at>=50?'var(--warn)':'var(--red)';} } });
+    if(at==null){
+      at=0; vazios++;
+      if(cell){ cell.textContent='0% ⚠'; cell.style.color='var(--red)'; cell.title='KPI não preenchido — conta como zero'; }
+    } else {
+      if(cell){ cell.textContent=Math.round(at)+'%'; cell.style.color=at>=90?'var(--ok)':at>=50?'var(--warn)':'var(--red)'; cell.title=''; }
+    }
+    soma+=at; n++; });
   var kpiBlock=n?(soma/n)/100*70:0;
   var ri=el('q-'+id+'-ralos'); var ralos=(ri && ri.value.trim()!=='')?20:0;
   var cult=0; CULTURA_ITENS.forEach(function(c,i){ var cb=el('q-'+id+'-cult-'+i); if(cb&&cb.checked) cult+=2; });
   var desc=0; DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); if(cb&&!cb.checked) desc+=e.peso; });
   var total=Math.max(0,Math.round(kpiBlock+ralos+cult-desc));
   setTxt('q-'+id+'-bk-kpi',kpiBlock.toFixed(1)); setTxt('q-'+id+'-bk-ralos',ralos); setTxt('q-'+id+'-bk-cult',cult); setTxt('q-'+id+'-bk-disc',desc); setTxt('q-'+id+'-total',total);
+  var selo=el('q-'+id+'-selo');
+  if(selo){
+    if(vazios>0){
+      selo.textContent='⚠ INCOMPLETO — '+vazios+' KPI'+(vazios>1?'s':'')+' sem preenchimento (contando como zero)'+(nNa>0?' · '+nNa+' N/A':'');
+      selo.style.color='var(--red)'; selo.style.background='rgba(230,51,41,.10)'; selo.style.borderColor='rgba(230,51,41,.35)'; selo.style.display='block';
+    } else if(nNa>0){
+      selo.textContent='✓ Completo · '+nNa+' KPI'+(nNa>1?'s':'')+' marcado'+(nNa>1?'s':'')+' como N/A neste mês';
+      selo.style.color='var(--mu)'; selo.style.background='rgba(255,255,255,.04)'; selo.style.borderColor='rgba(255,255,255,.12)'; selo.style.display='block';
+    } else {
+      selo.style.display='none';
+    }
+  }
   var f=faixaQDACE(total),fb=el('q-'+id+'-faixa'); if(fb){fb.textContent=faixaIco(f.nome);fb.style.color=f.cor;fb.style.borderColor=f.cor;}
-  return {total:total,faixa:f.nome,desc:desc};
+  return {total:total,faixa:f.nome,desc:desc,vazios:vazios,na:nNa};
 }
 function scoreTrocarMes(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var s=loadScore(id,mes)||{};
-  (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); if(inp) inp.value=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:''; });
+  (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); if(inp) inp.value=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:'';
+    var cbNa=el('q-'+id+'-na-'+k.id); if(cbNa) cbNa.checked=!!(s.na&&s.na[k.id]); });
   CULTURA_ITENS.forEach(function(c,i){ var cb=el('q-'+id+'-cult-'+i); if(cb) cb.checked=!!(s.cultura&&s.cultura[i]); });
   DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); if(cb) cb.checked=(s.disciplina&&s.disciplina[i]!=null)?!!s.disciplina[i]:true; });
   var r=el('q-'+id+'-ralos'); if(r) r.value=(s.ralos!=null)?s.ralos:''; recalcScore(id); setTxt('q-'+id+'-msg',''); }
 function salvarScore(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var r=recalcScore(id);
-  var kpis={}; (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); kpis[k.id]=inp?inp.value.trim():''; });
+  var kpis={}; var na={}; var naLista=[];
+  (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); kpis[k.id]=inp?inp.value.trim():'';
+    var cbNa=el('q-'+id+'-na-'+k.id); if(cbNa&&cbNa.checked){ na[k.id]=true; naLista.push(k.id); } });
   var cultura=CULTURA_ITENS.map(function(c,i){ var cb=el('q-'+id+'-cult-'+i); return cb?cb.checked:false; });
   var disciplina=DISCIPLINA_ENTREGAS.map(function(e,i){ var cb=el('q-'+id+'-disc-'+i); return cb?cb.checked:true; });
   var ri=el('q-'+id+'-ralos');
-  try{ localStorage.setItem(scoreKey(id,mes),JSON.stringify({mes:mes,kpis:kpis,ralos:ri?ri.value:'',cultura:cultura,disciplina:disciplina,desconto:r.desc,total:r.total,faixa:r.faixa,salvo_em:new Date().toISOString()})); }catch(e){}
-  try{ enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, detalhe_json:JSON.stringify({kpis:kpis,cultura:cultura,disciplina:disciplina,ralos_solucao:(el('q-'+id+'-ralos')?el('q-'+id+'-ralos').value:'')}), salvo_em:new Date().toISOString() }); }catch(e){}
-  setTxt('q-'+id+'-msg','✓ score salvo ('+mes+')'); }
+  var _editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim();
+  try{ localStorage.setItem(scoreKey(id,mes),JSON.stringify({mes:mes,kpis:kpis,na:na,ralos:ri?ri.value:'',cultura:cultura,disciplina:disciplina,desconto:r.desc,total:r.total,faixa:r.faixa,kpis_vazios:r.vazios,salvo_em:new Date().toISOString()})); }catch(e){}
+  if(!_editor){ setTxt('q-'+id+'-msg','⚠ Salvo só neste aparelho — sem sessão ativa, o Sheets recusa gravação em QDACE_SCORE. Entre pelo Index_Menu.'); var _s=el('q-'+id+'-msg'); if(_s) _s.style.color='#ffaa2b'; return; }
+  setTxt('q-'+id+'-msg','⏳ enviando ao Sheets...');
+  var _q=el('q-'+id+'-msg'); if(_q) _q.style.color='var(--mu)';
+  enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, editado_por:_editor, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, kpis_na:naLista.join(','), kpis_vazios:r.vazios, detalhe_json:JSON.stringify({kpis:kpis,na:naLista,cultura:cultura,disciplina:disciplina,ralos_solucao:(el('q-'+id+'-ralos')?el('q-'+id+'-ralos').value:'')}), salvo_em:new Date().toISOString() })
+    .then(function(resp){
+      var e2=el('q-'+id+'-msg');
+      if(resp.ok){ setTxt('q-'+id+'-msg','✓ score gravado no Sheets ('+mes+')'+(resp.linha?' · linha '+resp.linha:'')); if(e2) e2.style.color=''; }
+      else { setTxt('q-'+id+'-msg','✗ NÃO gravado no Sheets — '+resp.erro+'. Salvo só neste aparelho.'); if(e2) e2.style.color='#e63329'; }
+    }); }
 function renderScoreCard(r){
   var mes=mesAtual(); var s=loadScore(r.id,mes)||{}; var kpis=KPIS_AREA[r.id]||[];
   var adm=ehAdmin(); var mo=loadMetasOverlay(r.id);
@@ -581,10 +628,12 @@ function renderScoreCard(r){
     /* KPI em implantação: linha visualmente diferenciada, sem input de meta editável, sem input de realizado */
     if(k.status && k.status!=='ativo'){
       var selo={em_implantacao:'🚧 em implantação — não pontua', suspenso:'⏸ suspenso — não pontua', nao_aplicavel:'— não se aplica'}[k.status]||'não pontua';
-      return '<tr style="opacity:.55"><td>'+k.label+' <span style="font-size:.68rem;color:var(--warn);background:rgba(255,170,43,.12);padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:600">'+selo+'</span></td><td><span style="color:var(--mu2)">a definir</span></td><td><input type="text" value="" disabled style="opacity:.5;cursor:not-allowed" title="KPI em implantação — realizado não pontua"></td><td class="at" id="q-'+r.id+'-at-'+k.id+'" style="color:var(--mu2)">🚧</td></tr>';
+      return '<tr style="opacity:.55"><td>'+k.label+' <span style="font-size:.68rem;color:var(--warn);background:rgba(255,170,43,.12);padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:600">'+selo+'</span></td><td><span style="color:var(--mu2)">a definir</span></td><td><input type="text" value="" disabled style="opacity:.5;cursor:not-allowed" title="KPI em implantação — realizado não pontua"></td><td style="text-align:center;color:var(--mu2)">—</td><td class="at" id="q-'+r.id+'-at-'+k.id+'" style="color:var(--mu2)">🚧</td></tr>';
     }
     var metaCell=adm?('<input type="number" step="any" id="qm-'+r.id+'-'+k.id+'" value="'+mv+'" onchange="editarMeta(\''+r.id+'\',\''+k.id+'\',this)" title="Editar meta (admin)" style="width:88px;background:var(--s2);border:1px solid var(--cyan);border-radius:6px;padding:4px 7px;color:var(--tx);font-family:inherit;font-size:.82rem;outline:none">'):('<span style="color:var(--mu)">'+a+' '+(hasOv?mv:k.metaLabel)+'</span>');
-    return '<tr><td>'+k.label+'</td><td>'+metaCell+'</td><td><input type="number" step="any" id="q-'+r.id+'-'+k.id+'" value="'+esc(v)+'" oninput="recalcScore(\''+r.id+'\')"></td><td class="at" id="q-'+r.id+'-at-'+k.id+'">—</td></tr>'; }).join('');
+    var naCk=(s.na&&s.na[k.id])?' checked':'';
+    var naCell='<td style="text-align:center"><input type="checkbox" id="q-'+r.id+'-na-'+k.id+'"'+naCk+' onchange="recalcScore(\''+r.id+'\')" title="Não se aplica neste mês — sai do cálculo"></td>';
+    return '<tr><td>'+k.label+'</td><td>'+metaCell+'</td><td><input type="number" step="any" id="q-'+r.id+'-'+k.id+'" value="'+esc(v)+'" oninput="recalcScore(\''+r.id+'\')"></td>'+naCell+'<td class="at" id="q-'+r.id+'-at-'+k.id+'">—</td></tr>'; }).join('');
   var cult=CULTURA_ITENS.map(function(c,i){ var ck=(s.cultura&&s.cultura[i])?' checked':''; return '<label><input type="checkbox" id="q-'+r.id+'-cult-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> '+c+'</label>'; }).join('');
   var disc=DISCIPLINA_ENTREGAS.map(function(e,i){ var ck=(s.disciplina&&s.disciplina[i]!=null)?(s.disciplina[i]?' checked':''):' checked'; return '<label><input type="checkbox" id="q-'+r.id+'-disc-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> <span>'+e.nome+'</span> <span class="peso">−'+e.peso+'</span></label>'; }).join('');
   var ralos=(s.ralos!=null)?esc(s.ralos):'';
@@ -597,7 +646,7 @@ function renderScoreCard(r){
       return '<div style="background:rgba(255,170,43,.08);border:1px solid rgba(255,170,43,.28);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:.78rem;color:var(--warn)">🚧 <strong>'+em+' de '+(em+at)+' KPIs</strong> estão em implantação e não pontuam. O score do bloco KPI é a média apenas dos '+at+' KPIs ativos.</div>';
     })()+
     '<div class="rep-head"><label>Mês</label><input type="month" id="q-'+r.id+'-mes" value="'+mes+'" onchange="scoreTrocarMes(\''+r.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">70 KPIs · 20 Ralos · 10 Cultura · − Disciplina</span>'+(adm?' <span style="font-size:.72rem;color:var(--cyan)">✏️ metas editáveis (admin)</span>':'')+'</div>'+
-    '<div class="subsec">Indicadores da área — 70 pts</div><table class="sc"><thead><tr><th>KPI</th><th>Meta</th><th>Realizado</th><th style="text-align:right">Atingimento</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div class="subsec">Indicadores da área — 70 pts</div><div id="q-'+r.id+'-selo" style="display:none;border:1px solid;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:.8rem;font-weight:600"></div><table class="sc"><thead><tr><th>KPI</th><th>Meta</th><th>Realizado</th><th style="text-align:center" title="Não se aplica neste mês">N/A</th><th style="text-align:right">Atingimento</th></tr></thead><tbody>'+rows+'</tbody></table>'+
     '<div class="subsec">Fechar os Ralos — 20 pts</div><div style="margin-bottom:6px;font-size:.78rem;color:var(--mu2)">Descreva a solução criada no período que reduziu custo/perda. <strong>Preenchido = 20 pts.</strong></div><textarea id="q-'+r.id+'-ralos" placeholder="Ex.: renegociei o frete e economizei R$ 8k/mês; troquei o fornecedor X e reduzi avarias..." oninput="recalcScore(\''+r.id+'\')" style="width:100%;min-height:58px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 11px;color:var(--tx);font-family:inherit;font-size:.85rem;resize:vertical;outline:none">'+ralos+'</textarea>'+
     '<div class="subsec">Cultura — 10 pts (2 cada)</div><div class="cult">'+cult+'</div>'+
     '<div class="subsec">Disciplina de Execução — descontos</div><div class="cult disc">'+disc+'</div><div style="font-size:.78rem;color:var(--mu);margin-top:6px">Marcado = entregue. <strong>Desmarque o que faltou</strong> — cada falta desconta o peso.</div>'+
@@ -736,9 +785,19 @@ function salvarReport(id){
   var dado = { gestor_id:id, gestor_nome:r.nome, area:r.funcao, frente:r.frente||'', data_iso:iso, data:isoBR(iso), hora:agoraHora(), salvo_em:new Date().toISOString() };
   REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); dado['rep_'+c.id]=e?e.value.trim():''; });
   try{ localStorage.setItem(reportKey(id, iso), JSON.stringify(dado)); }catch(e){}
-  var enviado=false;
-  try{ enviarSheet('DIARIO', { gestor_id:id, gestor_nome:r.nome, area:r.funcao, data_iso:iso, data:isoBR(iso), hora:agoraHora(), rep_result:dado.rep_result, rep_plano:dado.rep_plano, rep_risco:dado.rep_risco, rep_acao:dado.rep_acao, salvo_em:dado.salvo_em }); enviado=true; }catch(e){ console.error('[report sync]', e); }
-  setTxt('rep-'+id+'-msg', enviado ? '✓ salvo e enviado ao Sheets' : '✓ salvo no aparelho');
+  setTxt('rep-'+id+'-msg','⏳ enviando ao Sheets...');
+  var _m = el('rep-'+id+'-msg'); if(_m) _m.style.color = 'var(--mu)';
+  enviarSheet('DIARIO', { gestor_id:id, gestor_nome:r.nome, area:r.funcao, data_iso:iso, data:isoBR(iso), hora:agoraHora(), rep_result:dado.rep_result, rep_plano:dado.rep_plano, rep_risco:dado.rep_risco, rep_acao:dado.rep_acao, salvo_em:dado.salvo_em })
+    .then(function(resp){
+      var e2 = el('rep-'+id+'-msg');
+      if(resp.ok){
+        setTxt('rep-'+id+'-msg','✓ gravado no Sheets · linha '+resp.linha+(resp.versao?' · '+resp.versao:''));
+        if(e2) e2.style.color = '';
+      } else {
+        setTxt('rep-'+id+'-msg','✗ NÃO gravado no Sheets — '+resp.erro+'. Está salvo só neste aparelho; clique em Salvar novamente.');
+        if(e2) e2.style.color = '#e63329';
+      }
+    });
   atualizarStatusInline(id, iso);
   var hs=el('hero-status-'+id); if(hs && iso===ontem()) hs.innerHTML=statusInlineHTML(true);
 }
