@@ -1275,6 +1275,81 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       🚨 ALERTAS DE VALIDADE (Jonathas)
+       Card recolhível, começa fechado. Lê/grava em Estoque_Validades_Entrada.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="valal-painel" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;margin-bottom:20px;overflow:hidden;transition:all .25s">
+    <div id="valal-toggle" onclick="toggleValAlertaPainel()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;user-select:none;background:linear-gradient(90deg,rgba(255,77,79,.10),rgba(255,170,43,.06))">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:1.2rem">&#128680;</span>
+        <div>
+          <div style="font-size:.9rem;font-weight:700;color:var(--tx);letter-spacing:.3px">
+            Alertas de Validade
+            <span id="valal-badge" style="display:none;margin-left:8px;font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.3px;vertical-align:middle"></span>
+          </div>
+          <div id="valal-subtitulo" style="font-size:.7rem;color:var(--mu);margin-top:2px">Produtos perto do vencimento esperando a&#231;&#227;o (clique para abrir)</div>
+        </div>
+      </div>
+      <span id="valal-arrow" style="font-size:1.1rem;color:var(--mu);transition:transform .25s">&#9656;</span>
+    </div>
+
+    <div id="valal-content" style="display:none;padding:18px 20px 20px;border-top:1px solid var(--br)">
+
+      <!-- Aviso para quem só acompanha (Maiko, Célio, Cris) -->
+      <div id="valal-aviso-radar" style="display:none;padding:9px 14px;background:rgba(77,142,245,.08);border:1px solid rgba(77,142,245,.28);border-radius:8px;font-size:.74rem;color:#4d8ef5;margin-bottom:12px">
+        &#128065; <b>Modo acompanhamento:</b> voc&#234; v&#234; todos os alertas, mas quem registra a a&#231;&#227;o &#233; o Jonathas.
+      </div>
+
+      <!-- KPIs -->
+      <div id="valal-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <select id="valal-f-fornecedor" onchange="valalAplicarFiltros()" style="flex:1;min-width:200px;max-width:340px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="">Todos os fornecedores</option>
+        </select>
+        <select id="valal-f-urgencia" onchange="valalAplicarFiltros()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="">Toda urg&#234;ncia</option>
+          <option value="vencido">&#128308; Vencidos</option>
+          <option value="critico">&#128308; At&#233; 7 dias</option>
+          <option value="urgente">&#128992; 8 a 30 dias</option>
+          <option value="atencao">&#128993; 31 a 90 dias</option>
+        </select>
+        <select id="valal-f-ordem" onchange="valalAplicarFiltros()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="critico">Mais cr&#237;tico primeiro</option>
+          <option value="folga">Mais folga primeiro</option>
+          <option value="qtde">Maior quantidade</option>
+          <option value="fornecedor">Por fornecedor</option>
+        </select>
+        <input type="text" id="valal-f-busca" oninput="valalAplicarFiltros()" placeholder="&#128269; C&#243;digo ou nome do produto..." style="flex:1;min-width:180px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--mu);cursor:pointer">
+          <input type="checkbox" id="valal-f-tratados" onchange="valalAplicarFiltros()" style="cursor:pointer"> Mostrar itens j&#225; tratados
+        </label>
+        <span id="valal-count-info" style="font-size:.7rem;color:var(--mu2);font-weight:600"></span>
+        <div style="flex:1"></div>
+        <button type="button" onclick="valalCopiarCriticos()" style="background:rgba(54,207,160,.12);border:1px solid rgba(54,207,160,.32);color:#36cfa0;padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">&#128241; Copiar cr&#237;ticos</button>
+        <button type="button" onclick="valalLimparFiltros()" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">Limpar filtros</button>
+        <button type="button" onclick="valalCarregar(false)" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">&#128260; Recarregar</button>
+      </div>
+
+      <!-- Tabela -->
+      <div id="valal-lista" style="max-height:520px;overflow:auto;border:1px solid var(--br);border-radius:8px;background:var(--s2)">
+        <div style="padding:26px;text-align:center;color:var(--mu);font-size:.82rem">Clique em recarregar para buscar os alertas.</div>
+      </div>
+
+      <div id="valal-status" style="margin-top:12px;font-size:.78rem;padding:10px;border-radius:8px;display:none"></div>
+
+      <div style="margin-top:12px;font-size:.66rem;color:var(--mu2);font-style:italic">
+        A&#231;&#245;es dispon&#237;veis: Comunicado ao Comercial &#183; Sem Estoque &#183; Promo&#231;&#227;o &#183; Outros. Depois de gravada, a linha fica bloqueada.
+      </div>
+
+    </div>
+  </div>
+
   <div id="cmp-step1">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
       <div class="sec" style="margin:0">&#128722; Cota&#231;&#227;o de Compras</div>
@@ -3276,6 +3351,9 @@ async function v3Init(){
   // Só renderiza cards de Aprovação/Designação para aprovadores
   V3._state.operacionalCarregado = true;
   await v3CarregarOperacional();
+
+  // Alertas de Validade: carrega em background só para pintar o badge do card
+  valalCarregar(true);
 }
 
 // ============================================================
@@ -6815,7 +6893,10 @@ function valentImprimir() {
 }
 
 function valentAbrirHistorico() {
-  alert("📋 Histórico de Conferências\n\nEsta funcionalidade estará disponível na próxima entrega (Mensagem 4).\n\nPor enquanto, consulte diretamente na aba Estoque_Validades_Entrada do Google Sheets.");
+  if (!VALAL.aberto) toggleValAlertaPainel();
+  var chk = document.getElementById('valal-f-tratados');
+  if (chk) { chk.checked = true; valalAplicarFiltros(); }
+  document.getElementById('valal-painel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function valentDispararAlertaAgora() {
@@ -6835,6 +6916,521 @@ async function valentDispararAlertaAgora() {
   } catch (e) {
     alert("❌ Falha de rede: " + e.message);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ALERTAS DE VALIDADE (Jonathas) — v6.2
+// Lê Estoque_Validades_Entrada via GET tipo=validade_entrada
+// Grava ação via POST tipo=validade_acao
+// ═══════════════════════════════════════════════════════════════
+
+// Status que exigem ação do Jonathas.
+// ALERTADO_90d = nomenclatura antiga | EM_CICLO / ENCERRADO_VENCIDO = ciclo de conferência
+var VALAL_STATUS_ACAO = ["ALERTADO_90d", "EM_CICLO", "ENCERRADO_VENCIDO"];
+
+// Quem pode MARCAR ação (além de perfil admin no UUSR).
+// Maiko e Célio ficam só de radar — veem tudo, não marcam.
+var VALAL_EMAILS_ACAO = ["jonathas@qfoodcompany.com.br"];
+
+var VALAL_ACOES = [
+  { id: "COMUNICADO_COMERCIAL", label: "Comunicado ao Comercial", icone: "\uD83D\uDCE2", cor: "#4d8ef5" },
+  { id: "SEM_ESTOQUE",          label: "Sem Estoque",             icone: "\uD83D\uDCE6", cor: "#8fa0c0" },
+  { id: "PROMOCAO",             label: "Promoção",                icone: "\uD83C\uDFF7\uFE0F", cor: "#36cfa0" },
+  { id: "OUTROS",               label: "Outros",                  icone: "\uD83D\uDCDD", cor: "#a07cf6" }
+];
+
+var VALAL = {
+  aberto: false,
+  carregando: false,
+  carregado: false,
+  registros: [],      // todos os que pedem ação (normalizados)
+  visiveis: [],       // após filtro/ordenação — é o que a tabela mostra
+  obs: {},            // { id_entrada: texto digitado }
+  filtroForn: "",
+  filtroUrg: "",
+  filtroBusca: "",
+  ordem: "critico",
+  mostrarTratados: false
+};
+
+// ── Helpers ────────────────────────────────────────────────────
+
+// Converte qualquer formato de data vindo do Sheets em "yyyy-mm-dd"
+function valalParseData(v) {
+  if (!v && v !== 0) return "";
+  if (typeof v === 'string') {
+    if (v.indexOf('T') > 0) {
+      var d1 = new Date(v);
+      if (!isNaN(d1.getTime())) {
+        return d1.getUTCFullYear() + '-' + String(d1.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d1.getUTCDate()).padStart(2, '0');
+      }
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
+    var m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return m[3] + '-' + m[2] + '-' + m[1];
+    return v.substring(0, 10);
+  }
+  if (v instanceof Date) {
+    return v.getUTCFullYear() + '-' + String(v.getUTCMonth() + 1).padStart(2, '0') + '-' + String(v.getUTCDate()).padStart(2, '0');
+  }
+  if (typeof v === 'number') {
+    var dt = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-' + String(dt.getUTCDate()).padStart(2, '0');
+  }
+  return "";
+}
+
+// Dias até vencer (negativo = já venceu)
+function valalDiasAteVencer(yyyymmdd) {
+  if (!yyyymmdd) return 9999;
+  var p = yyyymmdd.split('-');
+  var val = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  return Math.floor((val - hoje) / 86400000);
+}
+
+function valalFaixa(dias) {
+  if (dias < 0)   return { chave: "vencido",  label: "VENCIDO",  cor: "#ff4d4f", bola: "\uD83D\uDD34" };
+  if (dias <= 7)  return { chave: "critico",  label: "CRÍTICO",  cor: "#ff7875", bola: "\uD83D\uDD34" };
+  if (dias <= 30) return { chave: "urgente",  label: "URGENTE",  cor: "#ffaa2b", bola: "\uD83D\uDFE0" };
+  if (dias <= 90) return { chave: "atencao",  label: "ATENÇÃO",  cor: "#ffd666", bola: "\uD83D\uDFE1" };
+  return            { chave: "monitorar", label: "MONITORAR", cor: "#8fa0c0", bola: "\u26AA" };
+}
+
+function valalFmtData(yyyymmdd) {
+  if (!yyyymmdd) return "—";
+  var p = yyyymmdd.split('-');
+  if (p.length !== 3) return yyyymmdd;
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+function valalFmtQtde(n) {
+  var v = parseFloat(n);
+  if (isNaN(v)) return "—";
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+function valalEsc(s) {
+  return String(s == null ? "" : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Só Jonathas + admins marcam ação. Os demais veem em modo radar.
+function valalPodeAgir() {
+  var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
+  var email = "";
+  if (perfil && perfil.email) email = String(perfil.email).toLowerCase().trim();
+  if (!email) {
+    try { email = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").toLowerCase().trim(); } catch (e) {}
+  }
+  if (VALAL_EMAILS_ACAO.indexOf(email) >= 0) return true;
+  if (perfil && String(perfil.perfil || "").toLowerCase() === "admin") return true;
+  return false;
+}
+
+function valalUsuario() {
+  var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
+  if (perfil && (perfil.nome || perfil.email)) return perfil.nome || perfil.email;
+  try {
+    var s = JSON.parse(localStorage.getItem("qfood_session") || "{}");
+    return s.nome || s.email || "desconhecido";
+  } catch (e) { return "desconhecido"; }
+}
+
+// ── Abrir/fechar ───────────────────────────────────────────────
+
+function toggleValAlertaPainel() {
+  var content = document.getElementById('valal-content');
+  var arrow = document.getElementById('valal-arrow');
+  var sub = document.getElementById('valal-subtitulo');
+  VALAL.aberto = !VALAL.aberto;
+  if (VALAL.aberto) {
+    content.style.display = 'block';
+    arrow.style.transform = 'rotate(90deg)';
+    sub.textContent = 'Marque a ação tomada em cada produto';
+    if (!VALAL.carregado) valalCarregar(false);
+    else valalRenderizar();
+  } else {
+    content.style.display = 'none';
+    arrow.style.transform = 'rotate(0deg)';
+    sub.textContent = 'Produtos perto do vencimento esperando ação (clique para abrir)';
+  }
+}
+
+// ── Carregamento ───────────────────────────────────────────────
+
+async function valalCarregar(silencioso) {
+  if (VALAL.carregando) return;
+  VALAL.carregando = true;
+  var lista = document.getElementById('valal-lista');
+  if (!silencioso && lista) {
+    lista.innerHTML = '<div style="padding:26px;text-align:center;color:var(--mu)"><div class="spin" style="margin:0 auto 10px"></div>Carregando alertas de validade...</div>';
+  }
+  try {
+    var r = await fetch(VALIDADES_SYNC_URL + "?tipo=validade_entrada&_=" + Date.now());
+    var resp = await r.json();
+    if (!resp || !resp.ok || !resp.registros) throw new Error((resp && resp.erro) || "resposta inválida do Apps Script");
+
+    VALAL.registros = resp.registros.map(function (reg) {
+      var validade = valalParseData(reg["Validade"]);
+      var acao = String(reg["Acao_Tomada"] || "").trim();
+      return {
+        id:         String(reg["ID_Entrada"] || "").trim(),
+        fornecedor: String(reg["Fornecedor"] || "").trim(),
+        codigo:     String(reg["Codigo_Produto"] || "").trim(),
+        descricao:  String(reg["Descricao"] || "").trim(),
+        unidade:    String(reg["Unidade"] || "UN").trim() || "UN",
+        qtde:       reg["Qtde"],
+        validade:   validade,
+        dias:       valalDiasAteVencer(validade),
+        status:     String(reg["Status_Alerta"] || "").trim(),
+        dataAlerta: valalParseData(reg["Data_Alerta_Enviado"]),
+        acao:       acao,
+        acaoPor:    String(reg["Acao_por"] || "").trim(),
+        acaoEm:     String(reg["Acao_em"] || "").trim(),
+        observacoes: String(reg["Observacoes"] || "").trim()
+      };
+    }).filter(function (x) {
+      return x.id && VALAL_STATUS_ACAO.indexOf(x.status) >= 0;
+    });
+
+    VALAL.carregado = true;
+    valalPopularFornecedores();
+    valalAtualizarBadge();
+    if (VALAL.aberto || !silencioso) valalRenderizar();
+  } catch (e) {
+    console.warn("[valal] Erro ao carregar alertas:", e.message);
+    if (lista) {
+      lista.innerHTML = '<div style="padding:20px;text-align:center;color:#ff7875;font-size:.82rem">\u274C Não foi possível carregar os alertas: ' + valalEsc(e.message) +
+        '<br><button type="button" onclick="valalCarregar(false)" style="margin-top:10px;background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:6px 14px;border-radius:8px;font-size:.75rem;cursor:pointer">Tentar de novo</button></div>';
+    }
+  } finally {
+    VALAL.carregando = false;
+  }
+}
+
+function valalPopularFornecedores() {
+  var sel = document.getElementById('valal-f-fornecedor');
+  if (!sel) return;
+  var atual = sel.value;
+  var set = {};
+  VALAL.registros.forEach(function (r) { if (r.fornecedor) set[r.fornecedor] = true; });
+  var nomes = Object.keys(set).sort();
+  sel.innerHTML = '<option value="">Todos os fornecedores (' + nomes.length + ')</option>' +
+    nomes.map(function (n) {
+      var qt = VALAL.registros.filter(function (r) { return r.fornecedor === n && !r.acao; }).length;
+      return '<option value="' + valalEsc(n) + '">' + valalEsc(n.length > 42 ? n.substring(0, 42) + '…' : n) + ' (' + qt + ')</option>';
+    }).join('');
+  if (atual) sel.value = atual;
+}
+
+function valalAtualizarBadge() {
+  var badge = document.getElementById('valal-badge');
+  if (!badge) return;
+  var pendentes = VALAL.registros.filter(function (r) { return !r.acao; });
+  var criticos = pendentes.filter(function (r) { return r.dias <= 7; }).length;
+  if (pendentes.length === 0) {
+    badge.style.display = 'none';
+    return;
+  }
+  badge.style.display = 'inline-block';
+  badge.style.background = criticos > 0 ? 'rgba(255,77,79,.18)' : 'rgba(255,170,43,.18)';
+  badge.style.color = criticos > 0 ? '#ff4d4f' : '#ffaa2b';
+  badge.style.border = '1px solid ' + (criticos > 0 ? 'rgba(255,77,79,.4)' : 'rgba(255,170,43,.4)');
+  badge.textContent = pendentes.length + ' pendente' + (pendentes.length > 1 ? 's' : '') + (criticos > 0 ? ' · ' + criticos + ' crítico' + (criticos > 1 ? 's' : '') : '');
+}
+
+// ── Filtros / ordenação ────────────────────────────────────────
+
+function valalAplicarFiltros() {
+  VALAL.filtroForn = (document.getElementById('valal-f-fornecedor') || {}).value || "";
+  VALAL.filtroUrg = (document.getElementById('valal-f-urgencia') || {}).value || "";
+  VALAL.filtroBusca = ((document.getElementById('valal-f-busca') || {}).value || "").toLowerCase().trim();
+  VALAL.ordem = (document.getElementById('valal-f-ordem') || {}).value || "critico";
+  var chk = document.getElementById('valal-f-tratados');
+  VALAL.mostrarTratados = chk ? chk.checked : false;
+  valalRenderizar();
+}
+
+function valalLimparFiltros() {
+  ['valal-f-fornecedor', 'valal-f-urgencia', 'valal-f-busca'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = "";
+  });
+  var ord = document.getElementById('valal-f-ordem'); if (ord) ord.value = "critico";
+  var chk = document.getElementById('valal-f-tratados'); if (chk) chk.checked = false;
+  valalAplicarFiltros();
+}
+
+function valalCalcularVisiveis() {
+  var lista = VALAL.registros.filter(function (r) {
+    if (!VALAL.mostrarTratados && r.acao) return false;
+    if (VALAL.filtroForn && r.fornecedor !== VALAL.filtroForn) return false;
+    if (VALAL.filtroUrg && valalFaixa(r.dias).chave !== VALAL.filtroUrg) return false;
+    if (VALAL.filtroBusca) {
+      var alvo = (r.codigo + " " + r.descricao + " " + r.fornecedor).toLowerCase();
+      if (alvo.indexOf(VALAL.filtroBusca) < 0) return false;
+    }
+    return true;
+  });
+
+  var ord = VALAL.ordem;
+  lista.sort(function (a, b) {
+    if (ord === "critico")   return a.dias - b.dias;
+    if (ord === "folga")     return b.dias - a.dias;
+    if (ord === "qtde")      return (parseFloat(b.qtde) || 0) - (parseFloat(a.qtde) || 0);
+    if (ord === "fornecedor") {
+      var c = a.fornecedor.localeCompare(b.fornecedor, 'pt-BR');
+      return c !== 0 ? c : a.dias - b.dias;
+    }
+    return a.dias - b.dias;
+  });
+  VALAL.visiveis = lista;
+  return lista;
+}
+
+// ── Render ─────────────────────────────────────────────────────
+
+function valalRenderizar() {
+  valalRenderizarKPIs();
+  var lista = valalCalcularVisiveis();
+  var el = document.getElementById('valal-lista');
+  if (!el) return;
+
+  var podeAgir = valalPodeAgir();
+  var avisoRadar = document.getElementById('valal-aviso-radar');
+  if (avisoRadar) avisoRadar.style.display = podeAgir ? 'none' : 'block';
+
+  var info = document.getElementById('valal-count-info');
+  if (info) info.textContent = lista.length + ' de ' + VALAL.registros.length + ' registro(s)';
+
+  if (lista.length === 0) {
+    el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--mu);font-size:.85rem">' +
+      (VALAL.registros.length === 0
+        ? '\u2705 Nenhum produto aguardando ação no momento.'
+        : '\uD83D\uDD0D Nenhum produto bate com os filtros atuais.') + '</div>';
+    return;
+  }
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:900px">' +
+    '<thead><tr style="background:var(--s2);position:sticky;top:0;z-index:2">' +
+    '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Urg.</th>' +
+    '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Produto</th>' +
+    '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Fornecedor</th>' +
+    '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Qtde</th>' +
+    '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Validade</th>' +
+    '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br);min-width:330px">Ação</th>' +
+    '</tr></thead><tbody>';
+
+  lista.forEach(function (r, i) {
+    var fx = valalFaixa(r.dias);
+    var diasTxt = r.dias < 0 ? ('vencido há ' + Math.abs(r.dias) + 'd') : (r.dias === 0 ? 'vence HOJE' : 'faltam ' + r.dias + 'd');
+    var bloqueado = !!r.acao;
+
+    html += '<tr style="border-bottom:1px solid var(--br)' + (bloqueado ? ';opacity:.62' : '') + '">';
+
+    // Urgência
+    html += '<td style="padding:9px 8px;vertical-align:top;white-space:nowrap">' +
+      '<span style="font-size:.9rem">' + fx.bola + '</span>' +
+      '<div style="font-size:.6rem;font-weight:700;color:' + fx.cor + ';letter-spacing:.4px;margin-top:2px">' + fx.label + '</div>' +
+      '</td>';
+
+    // Produto
+    html += '<td style="padding:9px 8px;vertical-align:top">' +
+      '<div style="font-weight:600;color:var(--tx);line-height:1.3">' + valalEsc(r.descricao || '—') + '</div>' +
+      '<div style="font-size:.66rem;color:var(--mu2);margin-top:2px">cód. ' + valalEsc(r.codigo) + ' · ' + valalEsc(r.id) + '</div>' +
+      '</td>';
+
+    // Fornecedor
+    html += '<td style="padding:9px 8px;vertical-align:top;color:var(--mu);font-size:.72rem;max-width:180px">' +
+      valalEsc(r.fornecedor.length > 34 ? r.fornecedor.substring(0, 34) + '…' : r.fornecedor) + '</td>';
+
+    // Qtde
+    html += '<td style="padding:9px 8px;vertical-align:top;text-align:center;white-space:nowrap;font-weight:600;color:var(--tx)">' +
+      valalFmtQtde(r.qtde) + ' <span style="font-size:.65rem;color:var(--mu2);font-weight:400">' + valalEsc(r.unidade) + '</span></td>';
+
+    // Validade
+    html += '<td style="padding:9px 8px;vertical-align:top;text-align:center;white-space:nowrap">' +
+      '<div style="color:var(--tx);font-weight:600">' + valalFmtData(r.validade) + '</div>' +
+      '<div style="font-size:.64rem;color:' + fx.cor + ';font-weight:700;margin-top:2px">' + diasTxt + '</div>' +
+      '</td>';
+
+    // Ação
+    html += '<td style="padding:9px 8px;vertical-align:top">';
+    if (bloqueado) {
+      var meta = VALAL_ACOES.filter(function (a) { return a.id === r.acao; })[0] ||
+                 { label: r.acao, icone: "\u2705", cor: "#36cfa0" };
+      html += '<div style="background:rgba(54,207,160,.08);border:1px solid rgba(54,207,160,.28);border-radius:8px;padding:8px 10px">' +
+        '<div style="font-weight:700;color:' + meta.cor + ';font-size:.75rem">' + meta.icone + ' ' + valalEsc(meta.label) + '</div>' +
+        '<div style="font-size:.65rem;color:var(--mu2);margin-top:3px">por ' + valalEsc(r.acaoPor || '—') +
+          (r.acaoEm ? ' em ' + valalEsc(valalFmtData(valalParseData(r.acaoEm))) : '') + ' \u00b7 \uD83D\uDD12 bloqueado</div>' +
+        (r.observacoes ? '<div style="font-size:.68rem;color:var(--mu);margin-top:4px;font-style:italic">\u201C' + valalEsc(r.observacoes) + '\u201D</div>' : '') +
+        '</div>';
+    } else if (!podeAgir) {
+      html += '<div style="font-size:.7rem;color:var(--mu2);font-style:italic;padding:6px 0">Aguardando ação do Jonathas</div>';
+    } else {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">';
+      VALAL_ACOES.forEach(function (a) {
+        html += '<button type="button" onclick="valalAgir(' + i + ',\'' + a.id + '\')" ' +
+          'style="background:rgba(255,255,255,.03);border:1px solid ' + a.cor + '55;color:' + a.cor + ';padding:5px 9px;border-radius:7px;font-size:.68rem;font-weight:600;cursor:pointer;white-space:nowrap" ' +
+          'onmouseover="this.style.background=\'' + a.cor + '22\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
+          a.icone + ' ' + a.label + '</button>';
+      });
+      html += '</div>';
+      html += '<input type="text" id="valal-obs-' + i + '" value="' + valalEsc(VALAL.obs[r.id] || '') + '" ' +
+        'oninput="VALAL.obs[\'' + valalEsc(r.id) + '\']=this.value" ' +
+        'placeholder="Observação (opcional) — ex: avisado Dayane, promoção 30%..." ' +
+        'style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:6px 9px;color:var(--tx);font-size:.72rem">';
+    }
+    html += '</td></tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+function valalRenderizarKPIs() {
+  var box = document.getElementById('valal-kpis');
+  if (!box) return;
+  var pend = VALAL.registros.filter(function (r) { return !r.acao; });
+  var vencidos = pend.filter(function (r) { return r.dias < 0; }).length;
+  var criticos = pend.filter(function (r) { return r.dias >= 0 && r.dias <= 7; }).length;
+  var urgentes = pend.filter(function (r) { return r.dias > 7 && r.dias <= 30; }).length;
+  var tratados = VALAL.registros.filter(function (r) { return !!r.acao; }).length;
+
+  var card = function (valor, rotulo, cor, filtro) {
+    return '<div onclick="' + (filtro ? "document.getElementById('valal-f-urgencia').value='" + filtro + "';valalAplicarFiltros()" : "") + '" ' +
+      'style="flex:1;min-width:110px;background:var(--s2);border:1px solid var(--br);border-left:3px solid ' + cor + ';border-radius:8px;padding:9px 12px' + (filtro ? ';cursor:pointer' : '') + '">' +
+      '<div style="font-size:1.25rem;font-weight:800;color:' + cor + ';line-height:1.1">' + valor + '</div>' +
+      '<div style="font-size:.62rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:2px">' + rotulo + '</div>' +
+      '</div>';
+  };
+
+  box.innerHTML =
+    card(pend.length, 'Pendentes', '#ffaa2b', '') +
+    card(vencidos, 'Vencidos', '#ff4d4f', 'vencido') +
+    card(criticos, 'Até 7 dias', '#ff7875', 'critico') +
+    card(urgentes, '8 a 30 dias', '#ffd666', 'urgente') +
+    card(tratados, 'Já tratados', '#36cfa0', '');
+}
+
+// ── Gravar ação ────────────────────────────────────────────────
+
+async function valalAgir(idx, acaoId) {
+  var r = VALAL.visiveis[idx];
+  if (!r) return;
+  if (!valalPodeAgir()) {
+    alert("Somente o Jonathas (ou um administrador) pode marcar ação nos alertas de validade.");
+    return;
+  }
+  if (r.acao) {
+    alert("Este item já teve ação registrada e está bloqueado para edição.");
+    return;
+  }
+
+  var meta = VALAL_ACOES.filter(function (a) { return a.id === acaoId; })[0];
+  var campoObs = document.getElementById('valal-obs-' + idx);
+  var obs = campoObs ? String(campoObs.value || "").trim() : "";
+
+  if (acaoId === "OUTROS" && !obs) {
+    alert("Para a ação \"Outros\", descreva o que foi feito no campo de observação.");
+    if (campoObs) campoObs.focus();
+    return;
+  }
+
+  var ok = confirm(
+    "Confirmar ação?\n\n" +
+    "Produto: " + r.descricao + "\n" +
+    "Validade: " + valalFmtData(r.validade) + (r.dias < 0 ? " (vencido há " + Math.abs(r.dias) + " dias)" : " (faltam " + r.dias + " dias)") + "\n" +
+    "Ação: " + meta.label + "\n" +
+    (obs ? "Obs: " + obs + "\n" : "") +
+    "\nDepois de gravada, esta linha fica BLOQUEADA para novas edições."
+  );
+  if (!ok) return;
+
+  var statusEl = document.getElementById('valal-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--s2)';
+    statusEl.style.color = 'var(--mu)';
+    statusEl.style.border = '1px solid var(--br)';
+    statusEl.innerHTML = '\u23F3 Gravando ação em ' + valalEsc(r.id) + '...';
+  }
+
+  try {
+    var payload = {
+      token: VALIDADES_SYNC_TOKEN,
+      tipo: "validade_acao",
+      dado: {
+        id_entrada: r.id,
+        acao_tomada: acaoId,
+        acao_por: valalUsuario(),
+        observacoes: obs
+      }
+    };
+    var resposta = await fetch(VALIDADES_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    var resp = await resposta.json();
+
+    if (resp && resp.ok) {
+      // Trava localmente sem esperar novo GET
+      r.acao = acaoId;
+      r.acaoPor = valalUsuario();
+      r.acaoEm = new Date().toISOString();
+      r.observacoes = obs;
+      delete VALAL.obs[r.id];
+
+      if (statusEl) {
+        statusEl.style.background = 'rgba(54,207,160,.12)';
+        statusEl.style.color = '#36cfa0';
+        statusEl.style.border = '1px solid rgba(54,207,160,.35)';
+        statusEl.innerHTML = '\u2705 <b>' + valalEsc(meta.label) + '</b> registrado para ' + valalEsc(r.descricao) + '.';
+      }
+      if (typeof v3ToastShow === 'function') v3ToastShow('Ação registrada: ' + meta.label, 'ok');
+      valalPopularFornecedores();
+      valalAtualizarBadge();
+      valalRenderizar();
+    } else {
+      throw new Error((resp && resp.erro) || "resposta sem ok");
+    }
+  } catch (e) {
+    if (statusEl) {
+      statusEl.style.background = 'rgba(255,120,117,.12)';
+      statusEl.style.color = '#ff7875';
+      statusEl.style.border = '1px solid rgba(255,120,117,.35)';
+      statusEl.innerHTML = '\u274C Não foi possível gravar: ' + valalEsc(e.message) + '. Nada foi alterado — tente de novo.';
+    }
+  }
+}
+
+// ── Copiar lista crítica para WhatsApp ─────────────────────────
+
+function valalCopiarCriticos() {
+  var lista = valalCalcularVisiveis().filter(function (r) { return !r.acao && r.dias <= 30; }).slice(0, 15);
+  if (lista.length === 0) { alert("Nenhum item crítico (até 30 dias) na visão atual."); return; }
+  var txt = "*ALERTA DE VALIDADE - Q FOOD*\n_" + new Date().toLocaleDateString('pt-BR') + "_\n\n";
+  lista.forEach(function (r, i) {
+    var fx = valalFaixa(r.dias);
+    txt += fx.bola + " *" + r.descricao + "*\n";
+    txt += "   " + valalFmtQtde(r.qtde) + " " + r.unidade + " | val. " + valalFmtData(r.validade) +
+      (r.dias < 0 ? " (vencido há " + Math.abs(r.dias) + "d)" : " (faltam " + r.dias + "d)") + "\n";
+    txt += "   " + r.fornecedor + "\n\n";
+  });
+  txt += "_Marque a ação tomada no módulo Compras > Alertas de Validade._";
+
+  var copiar = function () {
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).catch(copiar);
+  } else { copiar(); }
+  if (typeof v3ToastShow === 'function') v3ToastShow(lista.length + ' item(ns) copiados para o WhatsApp', 'ok');
+  else alert("Lista copiada!");
 }
 
 // ============================================================
