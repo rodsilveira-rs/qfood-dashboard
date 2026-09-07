@@ -143,6 +143,17 @@ textarea.cons{width:100%;min-height:230px;background:var(--s2);border:1px solid 
 .det-sec li::before{content:'\2022';position:absolute;left:0;color:var(--mu);}
 .mclose{position:absolute;top:14px;right:14px;background:var(--s2);border:1px solid var(--br);color:var(--mu);width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;}
 .mclose:hover{color:var(--tx);}
+.rec-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:14px 0}
+.rec-in label{display:block;font-size:.78rem;color:var(--mu);margin-bottom:5px}
+.rec-in input{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:9px 11px;color:var(--tx);font-family:inherit;font-size:.95rem;outline:none}
+.rec-in input:focus{border-color:var(--cyan)}
+.rec-card{border:1px solid var(--b2);border-radius:10px;padding:14px 16px;margin-bottom:12px;background:var(--s2)}
+.rec-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:10px;font-size:1rem}
+.rec-bar{height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;margin-bottom:12px}
+.rec-bar i{display:block;height:100%;border-radius:4px;transition:width .3s}
+.rec-l{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:.85rem;border-bottom:1px solid rgba(255,255,255,.04)}
+.rec-l span{color:var(--mu)}
+.rec-f{margin-top:9px;font-size:.74rem;color:var(--mu2)}
 </style>
 </head>
 <body>
@@ -635,7 +646,7 @@ function salvarScore(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var r=re
   enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, editado_por:_editor, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, kpis_na:naLista.join(','), kpis_vazios:r.vazios, detalhe_json:JSON.stringify({kpis:kpis,na:naLista,cultura:cultura,disciplina:disciplina,ralos_solucao:(el('q-'+id+'-ralos')?el('q-'+id+'-ralos').value:'')}), salvo_em:new Date().toISOString() })
     .then(function(resp){
       var e2=el('q-'+id+'-msg');
-      if(resp.ok){ setTxt('q-'+id+'-msg','✓ score gravado no Sheets ('+mes+')'+(resp.linha?' · linha '+resp.linha:'')); if(e2) e2.style.color=''; }
+      if(resp.ok){ setTxt('q-'+id+'-msg','✓ score gravado no banco de dados ('+mes+')'+(resp.linha?' · linha '+resp.linha:'')); if(e2) e2.style.color=''; }
       else { setTxt('q-'+id+'-msg','✗ NÃO gravado no Sheets — '+resp.erro+'. Salvo só neste aparelho.'); if(e2) e2.style.color='#e63329'; }
     }); }
 function renderScoreCard(r){
@@ -762,6 +773,7 @@ function renderNav(){
   function podeP(p){ return perm===null || perm.indexOf(p.id)>=0; }
   var btns=[];
   if(adm){ btns.push('<div class="nav-group"><button class="ceo" data-view="ceo">👑 Painel do CEO</button><button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button></div>'); }
+  if(adm || (gestoresPermitidos()||[]).indexOf('gustavo')>=0){ btns.push('<div class="nav-group"><button data-view="receita">💰 Receita diária</button>'+(adm?'<button data-view="metas">🎯 Metas das empresas</button>':'')+'</div>'); }
   var qf=ORG_A.responsaveis.concat(ORG_A.linhaFrente).filter(podeP);
   if(qf.length){ btns.push('<div class="nav-group"><span class="nav-lbl a">Q Food</span>'+qf.map(function(p){ return '<button data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'; }).join('')+'</div>'); }
   var bp=pessoasParteB().filter(podeP);
@@ -783,8 +795,11 @@ function placeholder(tag,titulo,txt){ return '<div style="border:1px dashed var(
 function renderPainel(view){
   var perm=gestoresPermitidos(); var adm=ehAdmin();
   if(!adm && (!perm || perm.length===0)){ el('painel').innerHTML='<div class="card"><div class="ct">Sem acesso</div><p style="color:var(--mu)">Seu usuário não está vinculado a nenhum painel do Checkpoint. Fale com o administrador.</p></div>'; return; }
-  if(view==='ceo'||view==='rodrigo'){ if(!adm) view=perm[0]; }
+  if(view==='receita'){ if(!adm && (!perm || perm.indexOf('gustavo')<0)) view=perm[0]; }
+  else if(view==='ceo'||view==='rodrigo'){ if(!adm) view=perm[0]; }
   else if(!podeVer(view)){ view = adm?'ceo':perm[0]; }
+  if(view==='receita') return painelReceita();
+  if(view==='metas'){ if(!adm) return painelReceita(); return painelMetas(); }
   if(view==='ceo') return painelCEO(); if(view==='rodrigo') return painelRodrigo(); var p=findPessoa(view); if(p) return painelPessoa(p); painelCEO();
 }
 function renderReportForm(r){
@@ -864,6 +879,367 @@ function lojaSalvar(){ var fat=parseFloat((el('loja-fat').value||'0').replace(/\
   try{ localStorage.setItem(lojaKey(anoAtual(),CEO_TRI),JSON.stringify({faturamento:fat,ebitda:eb,cond:cond,salvo_em:new Date().toISOString()})); }catch(e){}
   try{ var _lf=lojaFaixaCalc(fat,eb); enviarSheet('LOJA', { ano:anoAtual(), tri:CEO_TRI, faturamento:fat, ebitda:eb, cond_faturamento:!!cond[0], cond_ebitda:!!cond[1], cond_nps:!!cond[2], cond_google:!!cond[3], cond_cmv:!!cond[4], cond_auditoria:!!cond[5], faixa:_lf?_lf.faixa:'', salvo_em:new Date().toISOString() }); }catch(e){}
   painelCEO(); }
+/* ══════════════════════════════════════════════════════════════
+   RECEITA DIÁRIA — lançamento por empresa + tendência do mês
+   ══════════════════════════════════════════════════════════════ */
+var RECEITA_EMPRESAS = [
+  { id:'emp_qfood',     nome:'Q Food',              emoji:'📦' },
+  { id:'emp_mercearia', nome:'Mercearia Liberdade', emoji:'🛒' },
+  { id:'emp_gogui',     nome:'Gogui',               emoji:'🍲' },
+  { id:'emp_sushitrip', nome:'Sushi Trip',          emoji:'🍣' },
+  { id:'emp_prime',     nome:'Prime Sushi',         emoji:'🍱' }
+];
+var RECEITA_CACHE = null;
+var METAS_CACHE = null;
+var APURACAO_CACHE = null;
+
+function recTriDoMes(mes){ var p=mes.split('-'); return p[0]+'-T'+Math.ceil(parseInt(p[1],10)/3); }
+function recMesesDoTri(periodo){ var p=periodo.split('-T'); var ini=(parseInt(p[1],10)-1)*3+1; return [0,1,2].map(function(i){ return p[0]+'-'+String(ini+i).padStart(2,'0'); }); }
+function recTriAtual(){ return recTriDoMes(mesAtual()); }
+function recNiveis(empId,periodo){ return (METAS_CACHE&&METAS_CACHE[empId]&&METAS_CACHE[empId][periodo])||null; }
+function recNivel1(empId,periodo){ var n=recNiveis(empId,periodo); return (n&&n[1])||null; }
+function recMetaMensal(empId,mes){ var n1=recNivel1(empId,recTriDoMes(mes)); return n1?(Number(n1.faturamento_tri)||0)/3:0; }
+function recEbitda(empId,periodo){ return (APURACAO_CACHE&&APURACAO_CACHE[empId]&&APURACAO_CACHE[empId][periodo]!=null)?Number(APURACAO_CACHE[empId][periodo]):null; }
+function recSomaTri(empId,periodo){ var t=0; recMesesDoTri(periodo).forEach(function(m){ t+=recSomaMes(empId,m).total; }); return t; }
+function recNivelAtingido(empId,periodo){
+  var n=recNiveis(empId,periodo); if(!n) return null;
+  var fat=recSomaTri(empId,periodo); var eb=recEbitda(empId,periodo);
+  var atingido=null, proximo=null;
+  for(var i=1;i<=5;i++){
+    var nv=n[i]; if(!nv) continue;
+    var okFat=fat>=(Number(nv.faturamento_tri)||0);
+    var okEb=(eb!=null)&&(eb>=(Number(nv.ebitda_pct)||0));
+    if(okFat&&okEb){ atingido=nv; atingido.nivel=i; }
+    else if(!proximo){ proximo=nv; proximo.nivel=i; }
+  }
+  return { fat:fat, ebitda:eb, atingido:atingido, proximo:proximo, niveis:n };
+}
+
+function recMoeda(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function recParseNum(s){ if(s==null||s==='') return 0; var t=String(s).trim().replace(/[R$\s]/g,''); if(t.indexOf(',')>=0){ t=t.replace(/\./g,'').replace(',','.'); } var n=parseFloat(t); return isFinite(n)?n:0; }
+function recMesRef(){ var e=el('rec-mes'); return (e&&e.value)||mesAtual(); }
+function recDiasNoMes(mes){ var p=mes.split('-'); return new Date(parseInt(p[0],10), parseInt(p[1],10), 0).getDate(); }
+function recDiaCorrente(mes){ var h=hoje(); if(h.substring(0,7)===mes) return parseInt(h.substring(8,10),10); if(h.substring(0,7)>mes) return recDiasNoMes(mes); return 0; }
+function recKeyLocal(mes){ return 'qfood_chk_receita_'+mes; }
+function recLocal(mes){ try{ return JSON.parse(localStorage.getItem(recKeyLocal(mes))||'{}')||{}; }catch(e){ return {}; } }
+function recLocalSet(mes,empId,iso,valor){ var o=recLocal(mes); o[empId]=o[empId]||{}; o[empId][iso]=valor; try{ localStorage.setItem(recKeyLocal(mes),JSON.stringify(o)); }catch(e){} }
+
+function recSomaMes(empId,mes){
+  var mapa={};
+  if(RECEITA_CACHE && RECEITA_CACHE[empId]){ Object.keys(RECEITA_CACHE[empId]).forEach(function(k){ if(k.substring(0,7)===mes) mapa[k]=RECEITA_CACHE[empId][k]; }); }
+  var loc=recLocal(mes)[empId]||{};
+  Object.keys(loc).forEach(function(k){ mapa[k]=loc[k]; });
+  var t=0,n=0; Object.keys(mapa).forEach(function(k){ t+=Number(mapa[k])||0; if(Number(mapa[k])>0) n++; });
+  return { total:t, lancamentos:n, mapa:mapa };
+}
+
+function recValorDia(empId,iso){
+  var mes=iso.substring(0,7);
+  var loc=recLocal(mes)[empId]||{};
+  if(loc[iso]!=null) return loc[iso];
+  if(RECEITA_CACHE && RECEITA_CACHE[empId] && RECEITA_CACHE[empId][iso]!=null) return RECEITA_CACHE[empId][iso];
+  return '';
+}
+
+function recCalc(emp,mes){
+  var s=recSomaMes(emp.id,mes);
+  var dias=recDiasNoMes(mes), dia=recDiaCorrente(mes), restam=Math.max(0,dias-dia);
+  var meta=recMetaMensal(emp.id,mes);
+  var falta=Math.max(0,meta-s.total);
+  var mediaAtual=dia>0?(s.total/dia):0;
+  var mediaNec=restam>0?(falta/restam):0;
+  var projecao=mediaAtual*dias;
+  var pct=meta>0?(s.total/meta*100):0;
+  var ritmo='SEM META';
+  if(meta>0){
+    if(dia>=dias){ ritmo = s.total>=meta?'MÊS FECHADO NA META':'MÊS FECHADO ABAIXO'; }
+    else if(projecao>=meta) ritmo='NO RITMO';
+    else if(projecao>=meta*0.95) ritmo='ATENÇÃO — LEVEMENTE ABAIXO';
+    else ritmo='ABAIXO DO RITMO';
+  }
+  return { total:s.total, lancamentos:s.lancamentos, dias:dias, dia:dia, restam:restam, meta:meta, falta:falta, mediaAtual:mediaAtual, mediaNec:mediaNec, projecao:projecao, pct:pct, ritmo:ritmo };
+}
+
+function recCorRitmo(r){ if(r.indexOf('NO RITMO')>=0||r.indexOf('NA META')>=0) return 'var(--ok)'; if(r.indexOf('ATENÇÃO')>=0) return 'var(--warn)'; if(r==='SEM META') return 'var(--mu)'; return 'var(--red)'; }
+
+function recCardEmpresa(emp,mes){
+  var c=recCalc(emp,mes);
+  var barra=Math.max(0,Math.min(100,c.pct));
+  var linhas='';
+  if(c.meta>0){
+    linhas =
+      '<div class="rec-l"><span>Meta do mês</span><strong>'+recMoeda(c.meta)+'</strong></div>'+
+      '<div class="rec-l"><span>Realizado</span><strong style="color:var(--ok)">'+recMoeda(c.total)+' <span style="color:var(--mu);font-weight:400">('+c.pct.toFixed(0)+'%)</span></strong></div>'+
+      '<div class="rec-l"><span>Falta</span><strong>'+recMoeda(c.falta)+'</strong></div>'+
+      '<div class="rec-l"><span>Dia</span><strong>'+c.dia+' de '+c.dias+' — restam '+c.restam+'</strong></div>'+
+      '<div class="rec-l"><span>Média/dia necessária</span><strong>'+recMoeda(c.mediaNec)+'</strong></div>'+
+      '<div class="rec-l"><span>Média/dia atual</span><strong>'+recMoeda(c.mediaAtual)+'</strong></div>'+
+      '<div class="rec-l"><span>Projeção do mês</span><strong style="color:'+recCorRitmo(c.ritmo)+'">'+recMoeda(c.projecao)+'</strong></div>';
+  } else {
+    linhas =
+      '<div class="rec-l"><span>Realizado</span><strong style="color:var(--ok)">'+recMoeda(c.total)+'</strong></div>'+
+      '<div class="rec-l"><span>Dia</span><strong>'+c.dia+' de '+c.dias+'</strong></div>'+
+      '<div class="rec-l"><span>Média/dia atual</span><strong>'+recMoeda(c.mediaAtual)+'</strong></div>'+
+      '<div class="rec-l" style="color:var(--mu)"><span>Meta</span><strong style="color:var(--mu)">não definida</strong></div>';
+  }
+  return '<div class="rec-card">'+
+    '<div class="rec-h">'+emp.emoji+' <strong>'+emp.nome+'</strong><span class="faixa" style="color:'+recCorRitmo(c.ritmo)+';border-color:'+recCorRitmo(c.ritmo)+'">'+c.ritmo+'</span></div>'+
+    (c.meta>0?'<div class="rec-bar"><i style="width:'+barra+'%;background:'+(barra>=100?'var(--ok)':barra>=80?'var(--warn)':'var(--red)')+'"></i></div>':'')+
+    linhas+
+    '<div class="rec-f">'+c.lancamentos+' dia(s) lançado(s) no mês</div>'+
+  '</div>';
+}
+
+function recTextoWhats(mes){
+  var p=mes.split('-'); var MES=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'][parseInt(p[1],10)-1]+'/'+p[0];
+  var t='💰 *RECEITA DIÁRIA — '+MES+'*\n📅 _'+isoBR(hoje())+'_\n';
+  RECEITA_EMPRESAS.forEach(function(emp){
+    var c=recCalc(emp,mes);
+    t+='\n━━━━━━━━━━━━━━━━━━\n'+emp.emoji+' *'+emp.nome.toUpperCase()+'*\n━━━━━━━━━━━━━━━━━━\n';
+    if(c.meta>0){
+      t+='💰 *Meta:* '+recMoeda(c.meta)+'\n';
+      t+='✅ *Realizado:* '+recMoeda(c.total)+' _('+c.pct.toFixed(0)+'%)_\n';
+      t+='⏳ *Falta:* '+recMoeda(c.falta)+'\n';
+      t+='📆 Dia *'+c.dia+' de '+c.dias+'* — restam *'+c.restam+'*\n';
+      t+='🎯 Média/dia necessária: *'+recMoeda(c.mediaNec)+'*\n';
+      t+='📉 Média/dia atual: *'+recMoeda(c.mediaAtual)+'*\n';
+      t+='🔮 Projeção: *'+recMoeda(c.projecao)+'*\n';
+      t+='*RITMO: '+c.ritmo+'*\n';
+    } else {
+      t+='✅ *Realizado:* '+recMoeda(c.total)+'\n';
+      t+='📆 Dia *'+c.dia+' de '+c.dias+'*\n';
+      t+='_Meta ainda não definida._\n';
+    }
+  });
+  return t;
+}
+
+function recCopiar(){
+  var t=el('rec-whats'); if(!t) return;
+  if(!t.value) t.value=recTextoWhats(recMesRef());
+  t.focus(); t.select();
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t.value); } else { document.execCommand('copy'); }
+    setTxt('rec-copy-msg','✓ copiado');
+  }catch(e){ setTxt('rec-copy-msg','selecione e copie'); }
+}
+
+function recCarregarBase(){
+  return new Promise(function(resolve){
+    var url=(window.__QFOOD_SYNC_URL||CKP_SYNC_URL)+'?aba=RECEITA_DIARIA';
+    fetch(url,{method:'GET'})
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        var cache={};
+        if(d&&d.ok&&d.registros){
+          d.registros.forEach(function(reg){
+            var emp=String(reg.gestor_id||'').trim(); if(!emp) return;
+            var iso=String(reg.data_iso||'').substring(0,10); if(!iso) return;
+            cache[emp]=cache[emp]||{};
+            cache[emp][iso]=Number(reg.receita)||0;
+          });
+        }
+        RECEITA_CACHE=cache; resolve(true);
+      })
+      .catch(function(e){ console.warn('[receita] falha ao carregar base', e); RECEITA_CACHE=RECEITA_CACHE||{}; resolve(false); });
+  });
+}
+
+function recSalvarDia(){
+  var iso=(el('rec-data')||{}).value||hoje();
+  var mes=iso.substring(0,7);
+  var _editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim();
+  var pend=[];
+  RECEITA_EMPRESAS.forEach(function(emp){
+    var inp=el('rec-in-'+emp.id); if(!inp) return;
+    var bruto=String(inp.value||'').trim();
+    if(bruto==='') return;
+    var val=recParseNum(bruto);
+    recLocalSet(mes,emp.id,iso,val);
+    pend.push({emp:emp,val:val});
+  });
+  if(!pend.length){ setTxt('rec-msg','⚠ Nenhum valor preenchido.'); var _v=el('rec-msg'); if(_v) _v.style.color='#ffaa2b'; return; }
+  setTxt('rec-msg','⏳ salvando na base de dados...');
+  var _m=el('rec-msg'); if(_m) _m.style.color='var(--mu)';
+  var proms=pend.map(function(x){
+    return enviarSheet('RECEITA_DIARIA',{ gestor_id:x.emp.id, gestor_nome:x.emp.nome, empresa:x.emp.nome, data_iso:iso, data:isoBR(iso), receita:x.val, lancado_por:_editor||'sem-sessao', salvo_em:new Date().toISOString() });
+  });
+  Promise.all(proms).then(function(res){
+    var falhas=res.filter(function(r){ return !r.ok; });
+    var e2=el('rec-msg');
+    if(!falhas.length){
+      setTxt('rec-msg','✓ Salvo na base de dados ('+pend.length+' empresa(s))');
+      if(e2) e2.style.color='';
+      pend.forEach(function(x){ RECEITA_CACHE=RECEITA_CACHE||{}; RECEITA_CACHE[x.emp.id]=RECEITA_CACHE[x.emp.id]||{}; RECEITA_CACHE[x.emp.id][iso]=x.val; });
+    } else {
+      setTxt('rec-msg','✗ '+falhas.length+' de '+pend.length+' não foram salvos — '+falhas[0].erro+'. Ficaram salvos só neste aparelho.');
+      if(e2) e2.style.color='#e63329';
+    }
+    recRenderPainelInterno();
+  });
+}
+
+function recTrocarData(){
+  var iso=(el('rec-data')||{}).value||hoje();
+  RECEITA_EMPRESAS.forEach(function(emp){ var inp=el('rec-in-'+emp.id); if(inp){ var v=recValorDia(emp.id,iso); inp.value=(v===''||v==null)?'':String(v).replace('.',','); } });
+  setTxt('rec-msg','');
+}
+
+function recTrocarMes(){ recRenderPainelInterno(); }
+
+function recRenderPainelInterno(){
+  var mes=recMesRef();
+  var alvo=el('rec-cards'); if(alvo) alvo.innerHTML=RECEITA_EMPRESAS.map(function(emp){ return recCardEmpresa(emp,mes); }).join('');
+  var tri=el('rec-tri'); if(tri) tri.innerHTML=RECEITA_EMPRESAS.map(function(emp){ return recCardTri(emp,recTriDoMes(mes)); }).join('');
+  var t=el('rec-whats'); if(t) t.value='';
+  setTxt('rec-copy-msg','');
+}
+
+function recCarregarMetas(){
+  return new Promise(function(resolve){
+    var base=(window.__QFOOD_SYNC_URL||CKP_SYNC_URL);
+    Promise.all([
+      fetch(base+'?aba=METAS_EMPRESA',{method:'GET'}).then(function(r){return r.json();}).catch(function(){return null;}),
+      fetch(base+'?aba=APURACAO_TRI',{method:'GET'}).then(function(r){return r.json();}).catch(function(){return null;})
+    ]).then(function(res){
+      var mc={};
+      if(res[0]&&res[0].ok&&res[0].registros){
+        res[0].registros.forEach(function(r){
+          var e=String(r.gestor_id||'').trim(), p=String(r.periodo_iso||'').trim(), nv=parseInt(r.nivel,10);
+          if(!e||!p||!nv) return;
+          mc[e]=mc[e]||{}; mc[e][p]=mc[e][p]||{};
+          mc[e][p][nv]={ faturamento_tri:Number(r.faturamento_tri)||0, ebitda_pct:Number(r.ebitda_pct)||0, premio:String(r.premio||'') };
+        });
+      }
+      var ac={};
+      if(res[1]&&res[1].ok&&res[1].registros){
+        res[1].registros.forEach(function(r){
+          var e=String(r.gestor_id||'').trim(), p=String(r.periodo_iso||'').trim();
+          if(!e||!p) return;
+          ac[e]=ac[e]||{}; ac[e][p]=Number(r.ebitda_pct)||0;
+        });
+      }
+      METAS_CACHE=mc; APURACAO_CACHE=ac; resolve(true);
+    });
+  });
+}
+
+function recCardTri(emp,periodo){
+  var r=recNivelAtingido(emp.id,periodo);
+  if(!r||!r.niveis){ return '<div class="rec-card"><div class="rec-h">'+emp.emoji+' <strong>'+emp.nome+'</strong></div><div style="color:var(--mu);font-size:.84rem">Sem metas cadastradas para '+periodo+'.</div></div>'; }
+  var eb=r.ebitda;
+  var rows=[1,2,3,4,5].map(function(i){
+    var nv=r.niveis[i]; if(!nv) return '';
+    var okF=r.fat>=nv.faturamento_tri, okE=(eb!=null)&&eb>=nv.ebitda_pct;
+    var cor=(okF&&okE)?'var(--ok)':'var(--mu)';
+    var ic=(okF&&okE)?'✓':(okF?'◐':'○');
+    return '<tr style="color:'+cor+'"><td>'+ic+' '+i+'</td><td>'+recMoeda(nv.faturamento_tri)+'</td><td>'+nv.ebitda_pct+'%</td><td>'+esc(nv.premio)+'</td></tr>';
+  }).join('');
+  var st;
+  if(r.atingido) st='<span class="faixa" style="color:var(--ok);border-color:var(--ok)">Nível '+r.atingido.nivel+' · '+esc(r.atingido.premio)+'</span>';
+  else st='<span class="faixa" style="color:var(--mu);border-color:var(--b2)">nenhum nível atingido</span>';
+  var falta='';
+  if(r.proximo){
+    var fF=Math.max(0,r.proximo.faturamento_tri-r.fat);
+    var fE=(eb==null)?null:Math.max(0,r.proximo.ebitda_pct-eb);
+    falta='<div class="rec-l"><span>Falta p/ nível '+r.proximo.nivel+'</span><strong>'+recMoeda(fF)+(fE!=null&&fE>0?' e '+fE.toFixed(1)+' p.p. de EBITDA':'')+'</strong></div>';
+  }
+  return '<div class="rec-card">'+
+    '<div class="rec-h">'+emp.emoji+' <strong>'+emp.nome+'</strong>'+st+'</div>'+
+    '<div class="rec-l"><span>Faturamento do trimestre</span><strong style="color:var(--ok)">'+recMoeda(r.fat)+'</strong></div>'+
+    '<div class="rec-l"><span>EBITDA informado</span><strong style="color:'+(eb==null?'var(--warn)':'var(--tx)')+'">'+(eb==null?'não informado':eb+'%')+'</strong></div>'+
+    falta+
+    '<table class="sc" style="margin-top:10px"><thead><tr><th>Nível</th><th>Faturamento</th><th>EBITDA</th><th>Prêmio</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+  '</div>';
+}
+
+function painelMetas(){
+  var per=recTriAtual();
+  el('painel').innerHTML='<div class="card"><div class="sec">🎯 Metas por empresa — trimestre</div>'+
+    '<div class="rep-head"><label>Trimestre</label><input type="text" id="met-per" value="'+per+'" placeholder="2026-T3" onchange="metRender()" style="width:110px"><span style="font-size:.76rem;color:var(--mu2)">Formato: ANO-Tn · o nível 1 vira a meta mensal do acompanhamento diário</span></div>'+
+    '<div id="met-corpo"></div></div>';
+  if(METAS_CACHE===null){ recCarregarMetas().then(metRender); } else { metRender(); }
+}
+
+function metRender(){
+  var per=(el('met-per')||{}).value||recTriAtual();
+  var html=RECEITA_EMPRESAS.map(function(emp){
+    var n=recNiveis(emp.id,per)||{};
+    var eb=recEbitda(emp.id,per);
+    var linhas=[1,2,3,4,5].map(function(i){
+      var v=n[i]||{faturamento_tri:'',ebitda_pct:'',premio:''};
+      return '<tr><td style="color:var(--mu)">'+i+'</td>'+
+        '<td><input type="text" inputmode="decimal" id="met-'+emp.id+'-'+i+'-fat" value="'+(v.faturamento_tri||'')+'" placeholder="0" style="width:120px"></td>'+
+        '<td><input type="text" inputmode="decimal" id="met-'+emp.id+'-'+i+'-eb" value="'+(v.ebitda_pct||'')+'" placeholder="0" style="width:70px"></td>'+
+        '<td><input type="text" id="met-'+emp.id+'-'+i+'-pr" value="'+esc(v.premio||'')+'" placeholder="½ salário" style="width:130px"></td></tr>';
+    }).join('');
+    return '<div class="rec-card"><div class="rec-h">'+emp.emoji+' <strong>'+emp.nome+'</strong></div>'+
+      '<table class="sc"><thead><tr><th>Nível</th><th>Faturamento do trimestre</th><th>EBITDA %</th><th>Prêmio</th></tr></thead><tbody>'+linhas+'</tbody></table>'+
+      '<div class="rep-head" style="margin-top:10px"><label>EBITDA realizado no trimestre (%)</label><input type="text" inputmode="decimal" id="met-'+emp.id+'-apur" value="'+(eb==null?'':eb)+'" placeholder="0" style="width:80px"></div>'+
+      '<div class="rep-actions"><button class="btn-save" onclick="metSalvar(\''+emp.id+'\')">💾 Salvar '+esc(emp.nome)+'</button><span id="met-msg-'+emp.id+'" class="rep-msg"></span></div>'+
+    '</div>';
+  }).join('');
+  el('met-corpo').innerHTML=html;
+}
+
+function metSalvar(empId){
+  var per=(el('met-per')||{}).value||recTriAtual();
+  var emp=RECEITA_EMPRESAS.filter(function(e){return e.id===empId;})[0]; if(!emp) return;
+  var _editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim();
+  if(!_editor){ setTxt('met-msg-'+empId,'⚠ Sem sessão ativa — não é possível gravar metas na base de dados.'); var _w=el('met-msg-'+empId); if(_w) _w.style.color='#ffaa2b'; return; }
+  setTxt('met-msg-'+empId,'⏳ salvando na base de dados...');
+  var _m=el('met-msg-'+empId); if(_m) _m.style.color='var(--mu)';
+  var proms=[];
+  METAS_CACHE=METAS_CACHE||{}; METAS_CACHE[empId]=METAS_CACHE[empId]||{}; METAS_CACHE[empId][per]=METAS_CACHE[empId][per]||{};
+  for(var i=1;i<=5;i++){
+    var fat=recParseNum((el('met-'+empId+'-'+i+'-fat')||{}).value);
+    var ebp=recParseNum((el('met-'+empId+'-'+i+'-eb')||{}).value);
+    var pre=String((el('met-'+empId+'-'+i+'-pr')||{}).value||'').trim();
+    if(!fat&&!ebp&&!pre) continue;
+    METAS_CACHE[empId][per][i]={faturamento_tri:fat,ebitda_pct:ebp,premio:pre};
+    proms.push(enviarSheet('METAS_EMPRESA',{ gestor_id:empId, gestor_nome:emp.nome, empresa:emp.nome, periodo_iso:per, nivel:i, faturamento_tri:fat, ebitda_pct:ebp, premio:pre, editado_por:_editor, salvo_em:new Date().toISOString() }));
+  }
+  var apurRaw=String((el('met-'+empId+'-apur')||{}).value||'').trim();
+  if(apurRaw!==''){
+    var apur=recParseNum(apurRaw);
+    APURACAO_CACHE=APURACAO_CACHE||{}; APURACAO_CACHE[empId]=APURACAO_CACHE[empId]||{}; APURACAO_CACHE[empId][per]=apur;
+    proms.push(enviarSheet('APURACAO_TRI',{ gestor_id:empId, gestor_nome:emp.nome, empresa:emp.nome, periodo_iso:per, ebitda_pct:apur, editado_por:_editor, salvo_em:new Date().toISOString() }));
+  }
+  if(!proms.length){ setTxt('met-msg-'+empId,'⚠ Nada preenchido para salvar.'); var _n=el('met-msg-'+empId); if(_n) _n.style.color='#ffaa2b'; return; }
+  Promise.all(proms).then(function(res){
+    var falhas=res.filter(function(r){ return !r.ok; });
+    var e2=el('met-msg-'+empId);
+    if(!falhas.length){ setTxt('met-msg-'+empId,'✓ Salvo na base de dados'); if(e2) e2.style.color=''; }
+    else { setTxt('met-msg-'+empId,'✗ '+falhas.length+' de '+res.length+' não foram salvos — '+falhas[0].erro); if(e2) e2.style.color='#e63329'; }
+  });
+}
+
+function painelReceita(){
+  var iso=hoje(), mes=mesAtual();
+  var inputs=RECEITA_EMPRESAS.map(function(emp){
+    return '<div class="rec-in"><label>'+emp.emoji+' '+emp.nome+'</label><input type="text" inputmode="decimal" id="rec-in-'+emp.id+'" placeholder="0,00"></div>';
+  }).join('');
+  el('painel').innerHTML =
+    '<div class="card"><div class="sec">💰 Receita diária — lançamento</div>'+
+      '<div class="rep-head"><label>Data</label><input type="date" id="rec-data" value="'+iso+'" onchange="recTrocarData()"><span style="font-size:.76rem;color:var(--mu2)">Deixe em branco a empresa que não teve movimento a lançar</span></div>'+
+      '<div class="rec-grid">'+inputs+'</div>'+
+      '<div class="rep-actions"><button class="btn-save" onclick="recSalvarDia()">💾 Salvar lançamentos do dia</button><span id="rec-msg" class="rep-msg"></span></div>'+
+    '</div>'+
+    '<div class="card"><div class="sec">📈 Tendência do mês</div>'+
+      '<div class="rep-head"><label>Mês</label><input type="month" id="rec-mes" value="'+mes+'" onchange="recTrocarMes()"></div>'+
+      '<div id="rec-cards"></div>'+
+      '<div class="subsec">Resumo para WhatsApp</div>'+
+      '<textarea id="rec-whats" style="width:100%;min-height:150px;font-family:monospace;font-size:.78rem"></textarea>'+
+      '<div class="rep-actions"><button class="btn-save" onclick="recCopiar()">📋 Gerar e copiar</button><span id="rec-copy-msg" class="rep-msg"></span></div>'+
+    '</div>';
+  el('painel').innerHTML += '<div class="card"><div class="sec">🏆 Apuração do trimestre — níveis de prêmio</div><div id="rec-tri"></div></div>';
+  recTrocarData();
+  recRenderPainelInterno();
+  var pend=[];
+  if(RECEITA_CACHE===null) pend.push(recCarregarBase());
+  if(METAS_CACHE===null) pend.push(recCarregarMetas());
+  if(pend.length){ Promise.all(pend).then(function(){ recTrocarData(); recRenderPainelInterno(); }); }
+}
 function painelCEO(){
   var iso=ontem(),mes=mesAtual(),ano=anoAtual();
   var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length,tot=ORG_A.responsaveis.length;
