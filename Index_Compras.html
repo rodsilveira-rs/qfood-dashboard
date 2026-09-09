@@ -6858,6 +6858,17 @@ function valentImprimir() {
     c = { fornecedor: forn, data: data, conferidoPor: conferidoPor, entradas: entradas };
   }
 
+  // Dias entre a data da conferência e a validade (ambas em "yyyy-mm-dd")
+  var diasEntre = function(ini, fim) {
+    if (!ini || !fim) return null;
+    var a = String(ini).split('-'), b = String(fim).split('-');
+    if (a.length !== 3 || b.length !== 3) return null;
+    var d1 = new Date(+a[0], +a[1] - 1, +a[2]);
+    var d2 = new Date(+b[0], +b[1] - 1, +b[2]);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+    return Math.round((d2 - d1) / 86400000);
+  };
+
   var w = window.open('', '_blank');
   var dataBR = c.data.split('-').reverse().join('/');
   var html = '<html><head><title>Conferência ' + c.fornecedor + ' - ' + dataBR + '</title>' +
@@ -6868,22 +6879,35 @@ function valentImprimir() {
     'th{background:#f0f0f0;font-weight:bold}' +
     '.right{text-align:right}.center{text-align:center}' +
     '.footer{margin-top:20px;font-size:11px;color:#666;text-align:center;font-style:italic}' +
+    '.nota{margin-top:14px;font-size:10px;color:#555;font-style:italic}' +
     '@media print{body{padding:0}}' +
     '</style></head><body>' +
     '<h1>Entrada de Produtos Conferidos na data*</h1>' +
     '<h2>Data da Conferência: ' + dataBR + ', Fabricante: ' + c.fornecedor + '</h2>' +
-    '<table><thead><tr><th style="width:60px">Código</th><th>Descrição</th><th style="width:40px" class="center">UN</th><th style="width:80px" class="right">Qtde</th><th style="width:100px" class="center">Validade</th></tr></thead><tbody>';
+    '<table><thead><tr><th style="width:60px">Código</th><th>Descrição</th><th style="width:40px" class="center">UN</th><th style="width:80px" class="right">Qtde</th><th style="width:100px" class="center">Validade</th><th style="width:90px" class="center">Dias de Validade</th></tr></thead><tbody>';
   // Ordena por validade crescente (vence mais cedo primeiro)
   var entradasOrdenadas = c.entradas.slice().sort(function(a, b) {
     var va = String(a.validade || '9999-12-31');
     var vb = String(b.validade || '9999-12-31');
     return va.localeCompare(vb);
   });
+  var qtCurtos = 0;
   entradasOrdenadas.forEach(function(e) {
     var valBR = (e.validade || '').split('-').reverse().join('/');
-    html += '<tr><td>' + e.codigo_produto + '</td><td>' + e.descricao + '</td><td class="center">' + (e.unidade || 'UN') + '</td><td class="right">' + parseFloat(e.qtde).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td><td class="center">' + valBR + '</td></tr>';
+    var dias = diasEntre(c.data, e.validade);
+    var diasTxt = '—', estilo = '';
+    if (dias !== null) {
+      if (dias < 0) { diasTxt = 'VENCIDO (' + Math.abs(dias) + ' d)'; estilo = 'color:#b00020;font-weight:bold'; qtCurtos++; }
+      else if (dias === 0) { diasTxt = 'vence hoje'; estilo = 'color:#b00020;font-weight:bold'; qtCurtos++; }
+      else { diasTxt = dias + ' dias'; }
+      if (dias > 0 && dias <= 30) { estilo = 'color:#b00020;font-weight:bold'; qtCurtos++; }
+      else if (dias > 30 && dias <= 90) { estilo = 'color:#b35c00;font-weight:bold'; qtCurtos++; }
+    }
+    html += '<tr><td>' + e.codigo_produto + '</td><td>' + e.descricao + '</td><td class="center">' + (e.unidade || 'UN') + '</td><td class="right">' + parseFloat(e.qtde).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td><td class="center">' + valBR + '</td><td class="center" style="' + estilo + '">' + diasTxt + '</td></tr>';
   });
   html += '</tbody></table>' +
+    '<div class="nota">* Dias de validade contados a partir da data da conferência (' + dataBR + ').' +
+    (qtCurtos > 0 ? ' Destacados: ' + qtCurtos + ' item(ns) com 90 dias ou menos de validade.' : '') + '</div>' +
     '<div class="footer">' + c.fornecedor.split(' ')[0] + ' em estoque</div>' +
     '<div class="footer" style="margin-top:8px">Conferido por: ' + (c.conferidoPor || '—') + ' | Q Food Company</div>' +
     '</body></html>';
