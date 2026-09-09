@@ -182,6 +182,20 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 .slot.cheio{border-style:solid;border-color:var(--lime);padding:0;}
 .obrig{color:var(--red);}
 
+/* ---- OVERLAY DE GRAVAÇÃO ---- */
+.gravando{position:fixed;inset:0;background:rgba(10,13,20,.72);z-index:400;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;cursor:progress;}
+.gravando.on{display:flex;}
+.spin{width:42px;height:42px;border:3px solid var(--s3);border-top-color:var(--lime);
+  border-radius:50%;animation:girar .7s linear infinite;}
+@keyframes girar{to{transform:rotate(360deg);}}
+.gravando-t{font-family:var(--fh);font-weight:700;font-size:0.92rem;}
+
+.slot-arq{border:1px dashed var(--b2);border-radius:12px;padding:14px;cursor:pointer;background:var(--bg);
+  color:var(--mu2);font-size:0.78rem;display:flex;align-items:center;gap:10px;}
+.slot-arq:hover{border-color:var(--lime);color:var(--mu);}
+.slot-arq.cheio{border-style:solid;border-color:var(--lime);color:var(--tx);}
+
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--s3);
   border:1px solid var(--b2);border-radius:12px;padding:13px 20px;font-size:0.84rem;z-index:200;
   display:none;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.4);}
@@ -264,6 +278,7 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
   <div id="v-nova" style="display:none"></div>
 </div>
 
+<div class="gravando" id="gravando"><div class="spin"></div><div class="gravando-t" id="gravando-t">Salvando…</div></div>
 <div class="modal" id="modal"><div class="modal-cx" id="modal-cx"></div></div>
 <div class="lightbox" id="lightbox" onclick="ReqFoto.fechar()"><img id="lightbox-img" alt=""></div>
 <div class="toast" id="toast"></div>
@@ -300,6 +315,7 @@ var ReqState = {
   novidades:   {ids:[], total:0},
   escopo:      "abertas",
   detalheId:   null,
+  reqAtual:    null,
   timer:       null,
   anexosNovos: []      // anexos da tela de criação (só links; arquivos sobem depois)
 };
@@ -324,18 +340,42 @@ var ReqAPI = {
       });
   },
 
-  post: function(action, payload){
+  // Uma gravação por vez. Enquanto ela corre, a tela fica bloqueada —
+  // sem isso a pessoa clica de novo e o LockService recusa a segunda.
+  ocupado: false,
+
+  post: function(action, payload, rotulo){
+    if(ReqAPI.ocupado){
+      return Promise.reject(new Error("Já estou salvando. Aguarde um instante."));
+    }
+    ReqAPI.ocupado = true;
+    ReqAPI.bloquear(rotulo || "Salvando…");
+
     payload = payload || {};
     payload.email = ReqState.sessao.email;
     var body = new URLSearchParams();
     body.append("action", action);
     body.append("payload", JSON.stringify(payload));
+
     return fetch(API_URL + "?modulo=requisicoes", {method:"POST", body:body})
       .then(function(r){ return r.json(); })
       .then(function(j){
         if(!j.ok) throw new Error(j.error || "Falha ao gravar");
         return j.resultado;
+      })
+      .finally(function(){
+        ReqAPI.ocupado = false;
+        ReqAPI.liberar();
       });
+  },
+
+  bloquear: function(rotulo){
+    document.getElementById("gravando-t").textContent = rotulo;
+    document.getElementById("gravando").classList.add("on");
+  },
+
+  liberar: function(){
+    document.getElementById("gravando").classList.remove("on");
   }
 };
 
@@ -393,6 +433,18 @@ function nomeDe(email){
   var u = (ReqState.config && ReqState.config.usuario) || {};
   if(email.toLowerCase() === (u.email||"").toLowerCase()) return "você";
   return email.split("@")[0];
+}
+
+// Máscara de dinheiro: digita 12345 e vira R$ 123,45
+function moeda(el){
+  if(!el) return;
+  el.addEventListener("input", function(){
+    var v = el.value.replace(/\D/g, "");
+    if(!v){ el.value = ""; return; }
+    var n = (parseInt(v, 10) / 100).toFixed(2).split(".");
+    el.value = "R$ " + n[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + n[1];
+  });
+  el.setAttribute("inputmode", "numeric");
 }
 
 function toast(msg, erro){
@@ -474,6 +526,7 @@ var ReqLista = {
           '<span class="chip ' + r.status.toLowerCase() + '">' + esc(r.statusLabel) + '</span>' +
           (r.urgencia === "Alta" || r.urgencia === "Emergencial"
             ? '<span class="chip urg">' + esc(r.urgencia) + '</span>' : '') +
+          (ReqPrazo.atrasada(r) ? '<span class="chip urg">Retorno atrasado</span>' : '') +
           '<span class="rq-quando">' + esc(aguardando) + '</span>' +
           '<span class="rq-quando">' + esc(desde(r.ultimaAtualizacao)) + '</span>' +
         '</div>' +
@@ -515,6 +568,7 @@ var ReqDetalhe = {
 
   render: function(d){
     var r = d.requisicao, p = d.podeAgir;
+    ReqState.reqAtual = r;
     var h = '';
 
     h += '<div class="print-cab">' +
@@ -530,8 +584,11 @@ var ReqDetalhe = {
          '</div>';
 
     if(r.responsavelAtual){
-      h += '<div class="aguardando">Aguardando ' + esc(nomeDe(r.responsavelAtual)) +
-           ' (' + esc(r.responsavelAtual) + ')</div>';
+      var atraso = ReqPrazo.atrasada(r);
+      h += '<div class="aguardando"' + (atraso ? ' style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b"' : '') + '>' +
+           'Aguardando ' + esc(nomeDe(r.responsavelAtual)) + ' (' + esc(r.responsavelAtual) + ')' +
+           (r.prazoRetorno ? ' · retorno prometido para ' + esc(dataBr(r.prazoRetorno)) + (atraso ? ' — ATRASADO' : '') : '') +
+           '</div>';
     }
 
     // Dados
@@ -541,6 +598,7 @@ var ReqDetalhe = {
          ReqDetalhe.kv("Solicitante", r.solicitanteOriginal) +
          ReqDetalhe.kv("Urgência", r.urgencia) +
          ReqDetalhe.kv("Precisa até", dataBr(r.dataNecessidade)) +
+         ReqDetalhe.kv("Retorno de Compras até", dataBr(r.prazoRetorno)) +
          ReqDetalhe.kv("Descrição", r.descricao) +
          '</dl></div>';
 
@@ -634,6 +692,7 @@ var ReqDetalhe = {
     h += '</div></div>';
 
     document.getElementById("v-detalhe").innerHTML = h;
+    moeda(document.getElementById("c-valor"));
   },
 
   kv: function(rotulo, valor){
@@ -654,7 +713,7 @@ var ReqAcoes = {
            '<div class="rq-meta" style="margin-bottom:12px">Libere para Compras, devolva pedindo mais informação ou recuse.</div>' +
            '<div class="btns">' +
              '<button class="btn btn-ok" onclick="ReqAcoes.status(\'EM_ANALISE\',\'Liberada para Compras\')">Liberar para Compras</button>' +
-             '<button class="btn btn-w" onclick="ReqAcoes.statusComTexto(\'AGUARDANDO_INFORMACAO\',\'O que falta informar?\')">Pedir mais informação</button>' +
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Pedir mais informação</button>' +
              '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'RECUSADA\',\'Motivo da recusa\')">Recusar</button>' +
            '</div></div>';
     }
@@ -666,7 +725,7 @@ var ReqAcoes = {
              '<div class="campo"><label class="lbl" for="c-forn">Fornecedor <span class="obrig">*</span></label>' +
                '<input class="inp" id="c-forn" value="' + esc(r.fornecedor) + '"></div>' +
              '<div class="campo"><label class="lbl" for="c-valor">Valor total <span class="obrig">*</span></label>' +
-               '<input class="inp" id="c-valor" placeholder="0,00" value="' + esc(r.valorFinal) + '"></div>' +
+               '<input class="inp" id="c-valor" placeholder="R$ 0,00" value="' + esc(r.valorFinal) + '"></div>' +
            '</div>' +
            '<div class="linha3">' +
              '<div class="campo"><label class="lbl" for="c-prazo">Previsão de entrega <span class="obrig">*</span></label>' +
@@ -680,8 +739,8 @@ var ReqAcoes = {
              '<textarea class="inp" id="c-obs" placeholder="Ex.: esse modelo saiu de linha, comprei o equivalente.">' + esc(r.obsCompras) + '</textarea></div>' +
            '<div class="btns">' +
              '<button class="btn btn-p" onclick="ReqAcoes.registrarCompra()">Marcar como comprada</button>' +
-             '<button class="btn btn-s" onclick="ReqAcoes.status(\'EM_COTACAO\',\'Cotando\')">Estou cotando</button>' +
-             '<button class="btn btn-w" onclick="ReqAcoes.statusComTexto(\'AGUARDANDO_INFORMACAO\',\'O que você precisa saber?\')">Preciso de informação</button>' +
+             '<button class="btn btn-s" onclick="ReqPrazo.abrir(\'EM_COTACAO\')">Estou cotando</button>' +
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Preciso de informação</button>' +
            '</div></div>';
     }
 
@@ -755,13 +814,6 @@ var ReqAcoes = {
   },
 
   receber: function(situacao){
-    // Tudo certo é o único caminho sem evidência.
-    if(situacao === "OK"){
-      ReqAPI.post("confirmarRecebimento", {id:ReqState.detalheId, situacao:"OK", observacao:""})
-        .then(function(){ toast("Recebimento registrado. Requisição encerrada."); ReqDetalhe.recarregar(); })
-        .catch(function(e){ toast(e.message, true); });
-      return;
-    }
     ReqReceb.abrir(situacao);
   }
 };
@@ -896,33 +948,40 @@ var ReqFoto = {
 var ReqReceb = {
   situacao: null,
   fotos:    [null, null, null],
+  doc:      null,
 
   titulos: {
-    PARCIAL:     {t:"Recebi parcial",        s:"Diga o que faltou e fotografe o que chegou. A Cris é avisada por e-mail."},
-    DIVERGENCIA: {t:"Recebi com problema",   s:"Descreva o problema e anexe as fotos. A Cris é avisada por e-mail."},
-    NAO_RECEBI:  {t:"Ainda não chegou",      s:"Registre desde quando você está esperando. A cobrança do fornecedor volta para a Cris."}
+    OK:          {t:"Recebi, está certo",  s:"Se quiser, fotografe o item e anexe a NF ou o recibo. Tudo opcional aqui."},
+    PARCIAL:     {t:"Recebi parcial",      s:"Diga o que faltou e fotografe o que chegou. A Cris é avisada por e-mail."},
+    DIVERGENCIA: {t:"Recebi com problema", s:"Descreva o problema e anexe as fotos. A Cris é avisada por e-mail."},
+    NAO_RECEBI:  {t:"Ainda não chegou",    s:"Registre desde quando está esperando. A cobrança do fornecedor volta para a Cris."}
   },
 
   abrir: function(situacao){
     ReqReceb.situacao = situacao;
     ReqReceb.fotos = [null, null, null];
+    ReqReceb.doc = null;
     var cfg = ReqReceb.titulos[situacao] || {t:"Recebimento", s:""};
-    var precisaFoto = (situacao !== "NAO_RECEBI");
+    var problema = (situacao === "PARCIAL" || situacao === "DIVERGENCIA");
+    var marca = problema ? ' <span class="obrig">*</span>' : ' <i>opcional</i>';
 
     document.getElementById("modal-cx").innerHTML =
       '<div class="modal-t">' + esc(cfg.t) + '</div>' +
       '<div class="modal-s">' + esc(cfg.s) + '</div>' +
-      '<div class="campo"><label class="lbl" for="rc-obs">O que aconteceu <span class="obrig">*</span></label>' +
+      '<div class="campo"><label class="lbl" for="rc-obs">Observação' +
+        (situacao === "OK" ? ' <i>opcional</i>' : ' <span class="obrig">*</span>') + '</label>' +
         '<textarea class="inp" id="rc-obs" placeholder="Ex.: vieram 3 caixas das 5, e uma delas estava molhada."></textarea></div>' +
-      '<label class="lbl">Fotos' + (precisaFoto ? ' <span class="obrig">*</span>' : ' <i>opcional</i>') +
-        ' <i>— até 3, toque para escolher</i></label>' +
+      '<label class="lbl">Fotos do item' + marca + ' <i>— até 3, toque para escolher</i></label>' +
       '<div class="slots">' +
         [0,1,2].map(function(i){
-          return '<div class="slot" id="slot-' + i + '" onclick="ReqReceb.escolher(' + i + ')">' +
+          return '<div class="slot" id="slot-' + i + '" onclick="ReqReceb.escolherFoto(' + i + ')">' +
                  '<div class="slot-x">📷</div><div>Foto ' + (i+1) + '</div></div>';
         }).join("") +
       '</div>' +
-      '<input type="file" id="rc-arq" accept="image/*" capture="environment" style="display:none" onchange="ReqReceb.pegou(this)">' +
+      '<label class="lbl" style="margin-top:14px">NF ou recibo <i>opcional — PDF ou imagem</i></label>' +
+      '<div class="slot-arq" id="slot-doc" onclick="ReqReceb.escolherDoc()">📄 <span id="slot-doc-txt">Anexar NF ou recibo</span></div>' +
+      '<input type="file" id="rc-foto" accept="image/*" capture="environment" style="display:none" onchange="ReqReceb.pegouFoto(this)">' +
+      '<input type="file" id="rc-doc" accept=".pdf,image/*" style="display:none" onchange="ReqReceb.pegouDoc(this)">' +
       '<div class="btns" style="margin-top:18px">' +
         '<button class="btn btn-p" id="rc-ok" onclick="ReqReceb.confirmar()">Registrar</button>' +
         '<button class="btn btn-s" onclick="ReqReceb.fechar()">Cancelar</button>' +
@@ -936,53 +995,86 @@ var ReqReceb = {
     document.getElementById("modal").classList.remove("on");
     document.getElementById("modal-cx").innerHTML = "";
     ReqReceb.fotos = [null, null, null];
+    ReqReceb.doc = null;
   },
 
-  escolher: function(i){
-    var inp = document.getElementById("rc-arq");
+  escolherFoto: function(i){
+    var inp = document.getElementById("rc-foto");
     inp.dataset.slot = i;
     inp.value = "";
     inp.click();
   },
 
-  pegou: function(input){
+  pegouFoto: function(input){
     var arq = input.files && input.files[0];
     if(!arq) return;
     var i = parseInt(input.dataset.slot, 10);
     ReqAnexo.comprimir(arq, function(b64){
-      ReqReceb.fotos[i] = {base64:b64, nome:arq.name || ("evidencia_" + (i+1) + ".jpg")};
+      ReqReceb.fotos[i] = {base64:b64, nome:arq.name || ("evidencia_" + (i+1) + ".jpg"), mime:"image/jpeg"};
       var slot = document.getElementById("slot-" + i);
       slot.className = "slot cheio";
       slot.innerHTML = '<img alt="Foto ' + (i+1) + '" src="data:image/jpeg;base64,' + b64 + '">';
     });
   },
 
+  escolherDoc: function(){
+    var inp = document.getElementById("rc-doc");
+    inp.value = "";
+    inp.click();
+  },
+
+  pegouDoc: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    var guardar = function(b64, mime){
+      ReqReceb.doc = {base64:b64, nome:arq.name, mime:mime};
+      document.getElementById("slot-doc").className = "slot-arq cheio";
+      document.getElementById("slot-doc-txt").textContent = arq.name;
+    };
+    if(arq.type.indexOf("image") === 0){
+      ReqAnexo.comprimir(arq, function(b64){ guardar(b64, "image/jpeg"); });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ guardar(String(fr.result).split(",")[1], arq.type || "application/pdf"); };
+      fr.onerror = function(){ toast("Não deu para ler o arquivo.", true); };
+      fr.readAsDataURL(arq);
+    }
+  },
+
   confirmar: function(){
     var obs = document.getElementById("rc-obs").value.trim();
-    if(!obs){ toast("Descreva o que aconteceu.", true); return; }
+    var problema = (ReqReceb.situacao === "PARCIAL" || ReqReceb.situacao === "DIVERGENCIA");
 
+    if(ReqReceb.situacao !== "OK" && !obs){
+      toast("Descreva o que aconteceu.", true); return;
+    }
     var fotos = ReqReceb.fotos.filter(function(f){ return f; });
-    if(ReqReceb.situacao !== "NAO_RECEBI" && !fotos.length){
-      toast("Anexe pelo menos uma foto do que chegou.", true);
-      return;
+    if(problema && !fotos.length){
+      toast("Anexe pelo menos uma foto do que chegou.", true); return;
     }
 
     var btn = document.getElementById("rc-ok");
     btn.disabled = true;
     btn.textContent = "Enviando…";
 
-    // Sobe as fotos uma a uma e só então registra o recebimento.
+    // Sobe anexo por anexo e só então registra. Se algum falhar,
+    // o recebimento não é gravado pela metade.
+    var envios = fotos.map(function(f){
+      return {tipo:"IMAGEM", base64:f.base64, mimeType:f.mime, nomeArquivo:f.nome, origem:"Evidência"};
+    });
+    if(ReqReceb.doc){
+      envios.push({
+        tipo: ReqReceb.doc.mime.indexOf("image") === 0 ? "IMAGEM" : "PDF",
+        base64: ReqReceb.doc.base64, mimeType: ReqReceb.doc.mime,
+        nomeArquivo: ReqReceb.doc.nome, origem: "NF/Recibo"
+      });
+    }
+
     var fila = Promise.resolve();
-    fotos.forEach(function(f){
+    envios.forEach(function(a, i){
       fila = fila.then(function(){
-        return ReqAPI.post("anexar", {
-          id:          ReqState.detalheId,
-          tipo:        "IMAGEM",
-          base64:      f.base64,
-          mimeType:    "image/jpeg",
-          nomeArquivo: f.nome,
-          origem:      "Evidência"
-        });
+        a.id = ReqState.detalheId;
+        return ReqAPI.post("anexar", a, "Enviando anexo " + (i+1) + " de " + envios.length + "…");
       });
     });
 
@@ -991,15 +1083,136 @@ var ReqReceb = {
         id:         ReqState.detalheId,
         situacao:   ReqReceb.situacao,
         observacao: obs
-      });
+      }, "Registrando recebimento…");
     }).then(function(){
       ReqReceb.fechar();
-      toast("Registrado. A Cris foi avisada.");
+      toast(ReqReceb.situacao === "OK" ? "Recebimento registrado. Requisição encerrada."
+                                       : "Registrado. A Cris foi avisada.");
       ReqDetalhe.recarregar();
     }).catch(function(e){
       toast(e.message, true);
       btn.disabled = false;
       btn.textContent = "Registrar";
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9d. PRAZO DE RETORNO — Compras não segura requisição sem data
+// ────────────────────────────────────────────────────────────
+var ReqPrazo = {
+  // Quanto tempo Compras tem para voltar, conforme a urgência
+  diasPorUrgencia: {Emergencial:0, Alta:1, Normal:3, Baixa:5},
+  req: null,
+
+  hojeIso: function(){
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  },
+
+  maisDias: function(n){
+    var d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  },
+
+  // Sugestão = o que a urgência pede, mas nunca depois de quando precisam do item.
+  // Se o prazo é curto, sobra a véspera. Se já estourou, é hoje.
+  sugerir: function(r){
+    var porUrgencia = ReqPrazo.maisDias(ReqPrazo.diasPorUrgencia[r.urgencia] === undefined ? 3 : ReqPrazo.diasPorUrgencia[r.urgencia]);
+    var nec = (r.dataNecessidade || "").substring(0, 10);
+    if(!nec) return porUrgencia;
+    var vespera = new Date(nec + "T12:00:00");
+    vespera.setDate(vespera.getDate() - 1);
+    var vIso = vespera.getFullYear() + "-" + ("0"+(vespera.getMonth()+1)).slice(-2) + "-" + ("0"+vespera.getDate()).slice(-2);
+    var limite = (porUrgencia < vIso) ? porUrgencia : vIso;
+    return (limite < ReqPrazo.hojeIso()) ? ReqPrazo.hojeIso() : limite;
+  },
+
+  atrasada: function(r){
+    if(!r || !r.prazoRetorno) return false;
+    if(r.status !== "EM_COTACAO" && r.status !== "AGUARDANDO_INFORMACAO") return false;
+    return r.prazoRetorno.substring(0, 10) < ReqPrazo.hojeIso();
+  },
+
+  abrir: function(status){
+    var r = ReqState.reqAtual;
+    if(!r){ toast("Recarregue a requisição.", true); return; }
+    ReqPrazo.req = r;
+
+    var nec = (r.dataNecessidade || "").substring(0, 10);
+    var sugestao = ReqPrazo.sugerir(r);
+    var ehCotacao = (status === "EM_COTACAO");
+
+    var aviso = "";
+    if(r.urgencia === "Emergencial"){
+      aviso = '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
+              'Requisição EMERGENCIAL' + (nec ? ' — precisam disso até ' + esc(dataBr(nec)) : '') +
+              '. O retorno deve ser hoje.</div>';
+    } else if(nec){
+      aviso = '<div class="aguardando">Precisam do item até <b>' + esc(dataBr(nec)) +
+              '</b>. Seu retorno tem que caber antes disso.</div>';
+    }
+
+    document.getElementById("modal-cx").innerHTML =
+      '<div class="modal-t">' + (ehCotacao ? "Estou cotando" : "Preciso de informação") + '</div>' +
+      '<div class="modal-s">' + (ehCotacao
+        ? "Informe até quando você volta com a cotação. Quem pediu passa a ver essa data."
+        : "Diga o que falta e até quando você precisa da resposta.") + '</div>' +
+      aviso +
+      '<div class="campo"><label class="lbl" for="pz-texto">' +
+        (ehCotacao ? "Observação <i>opcional</i>" : "O que você precisa saber <span class=\"obrig\">*</span>") + '</label>' +
+        '<textarea class="inp" id="pz-texto" placeholder="' +
+        (ehCotacao ? "Ex.: pedi orçamento em três fornecedores." : "Ex.: qual a voltagem da tomada da cozinha?") + '"></textarea></div>' +
+      '<div class="campo"><label class="lbl" for="pz-data">Retorno até <span class="obrig">*</span></label>' +
+        '<input class="inp" id="pz-data" type="date" value="' + esc(sugestao) + '" min="' + esc(ReqPrazo.hojeIso()) + '"' +
+        (nec ? ' max="' + esc(nec) + '"' : '') + '></div>' +
+      '<div class="btns" style="margin-top:6px">' +
+        '<button class="btn btn-p" id="pz-ok" onclick="ReqPrazo.confirmar(\'' + status + '\')">Confirmar</button>' +
+        '<button class="btn btn-s" onclick="ReqPrazo.fechar()">Cancelar</button>' +
+      '</div>';
+
+    document.getElementById("modal").classList.add("on");
+  },
+
+  fechar: function(){
+    document.getElementById("modal").classList.remove("on");
+    document.getElementById("modal-cx").innerHTML = "";
+  },
+
+  confirmar: function(status){
+    var texto = document.getElementById("pz-texto").value.trim();
+    var data  = document.getElementById("pz-data").value;
+    var r = ReqPrazo.req || {};
+    var nec = (r.dataNecessidade || "").substring(0, 10);
+
+    if(status === "AGUARDANDO_INFORMACAO" && !texto){
+      toast("Escreva o que você precisa saber.", true); return;
+    }
+    if(!data){ toast("Informe até quando você retorna.", true); return; }
+    if(data < ReqPrazo.hojeIso()){ toast("A data de retorno não pode ser no passado.", true); return; }
+    if(nec && data > nec){
+      toast("O retorno não pode ser depois de " + dataBr(nec) + ", que é quando precisam do item.", true);
+      return;
+    }
+
+    var btn = document.getElementById("pz-ok");
+    btn.disabled = true;
+    btn.textContent = "Salvando…";
+
+    ReqAPI.post("alterarStatus", {
+      id:           ReqState.detalheId,
+      status:       status,
+      texto:        texto,
+      prazoRetorno: data
+    }).then(function(){
+      ReqPrazo.fechar();
+      toast("Pronto. Retorno prometido para " + dataBr(data) + ".");
+      ReqDetalhe.recarregar();
+    }).catch(function(e){
+      toast(e.message, true);
+      btn.disabled = false;
+      btn.textContent = "Confirmar";
     });
   }
 };
@@ -1070,7 +1283,7 @@ var ReqForm = {
         '</div>' +
         '<div class="linha">' +
           '<div class="campo"><label class="lbl" for="i-peso">Peso</label><input class="inp" id="i-peso"></div>' +
-          '<div class="campo"><label class="lbl" for="i-preco">Preço aproximado</label><input class="inp" id="i-preco" placeholder="0,00"></div>' +
+          '<div class="campo"><label class="lbl" for="i-preco">Preço aproximado</label><input class="inp" id="i-preco" placeholder="R$ 0,00"></div>' +
         '</div>' +
         '<div class="campo"><label class="lbl" for="i-espec">Outras especificações</label>' +
           '<textarea class="inp" id="i-espec" style="min-height:60px"></textarea></div>' +
@@ -1098,6 +1311,7 @@ var ReqForm = {
     '</div>';
 
     ReqState.anexosNovos = [];
+    moeda(document.getElementById("i-preco"));
     document.getElementById("n-titulo").focus();
   },
 
@@ -1169,6 +1383,15 @@ var ReqForm = {
         precoEstimado: document.getElementById("i-preco").value.trim(),
         especificacao: document.getElementById("i-espec").value.trim()
       });
+    }
+
+    if(!ReqState.anexosNovos.length){
+      var seguir = confirm(
+        "Você não anexou nenhum link de referência.\n\n" +
+        "Um link do Mercado Livre, do Instagram ou do site do fornecedor ajuda muito " +
+        "a Cris a comprar exatamente o que você quer — e evita idas e vindas.\n\n" +
+        "Quer enviar assim mesmo?");
+      if(!seguir) return;
     }
 
     var btn = document.getElementById("btn-enviar");
@@ -1323,7 +1546,10 @@ function ReqInit(){
   document.addEventListener("keydown", function(e){
     if(e.key !== "Escape") return;
     if(document.getElementById("lightbox").classList.contains("on")) return ReqFoto.fechar();
-    if(document.getElementById("modal").classList.contains("on"))    return ReqReceb.fechar();
+    if(document.getElementById("modal").classList.contains("on")){
+      document.getElementById("modal").classList.remove("on");
+      document.getElementById("modal-cx").innerHTML = "";
+    }
   });
 
   document.getElementById("f-busca").oninput    = function(){ ReqLista.render(); };
