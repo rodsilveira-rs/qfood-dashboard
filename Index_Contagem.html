@@ -247,8 +247,13 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
     break-after:avoid;page-break-after:avoid;}
   .sec-h + .panel,.sec-h + .gauges{break-before:avoid;page-break-before:avoid;}
 
-  .gz,.nm,.st,.comp,.panel{background:#fff !important;border:1px solid #e5e7eb !important;
+  .gz,.nm,.st,.comp,.panel,.aj{background:#fff !important;border:1px solid #e5e7eb !important;
     break-inside:avoid;page-break-inside:avoid;}
+  .aj-mot,.aj-acao{color:#374151 !important;}
+  .aj-acao{background:#f8fafc !important;}
+  .aj-h{background:#f8fafc !important;border-color:#e5e7eb !important;}
+  .aj-nm{color:#111827 !important;}
+  .aj-bt{display:none !important;}
   .gauges{grid-template-columns:repeat(3,1fr);gap:8px;}
   .kpi-row{grid-template-columns:repeat(4,1fr);gap:8px;}
   .kpi-main{grid-template-columns:1fr;}
@@ -1117,9 +1122,11 @@ function renderAjustes(){
   if(!ANALISE){ carregarAnalise(); return; }
   var a=ANALISE, r=a.resumo||{}, h="";
 
-  h+='<div class="per">'+[30,60,90].map(function(d){
+  h+='<div class="per no-print">'+[30,60,90].map(function(d){
       return '<button class="'+(AJ_DIAS===d?"on":"")+'" onclick="ajPeriodo('+d+')">'+d+' dias</button>';
-    }).join("")+'</div>';
+    }).join("")+
+    '<button onclick="pdfAjustes()" style="background:var(--qf);border-color:var(--qf);color:#fff;font-weight:600">Gerar PDF</button>'+
+    '</div>';
 
   h+='<div class="alert info">A análise olha o histórico de cada item e aponta o padrão. '+
      'Ela <b>sugere</b> — o ajuste é feito por você no Live Work, e aqui você registra que foi feito.</div>';
@@ -1142,7 +1149,7 @@ function renderAjustes(){
 
   var fs=[["todos","Todos ("+tot+")"],["ATENCAO","Atenção"],["CONVERSAO","Conversão"],
           ["AJUSTE","Ajustes"],["INSTAVEL","Instáveis"],["OBSERVAR","Observação"]];
-  h+='<div class="filtros" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'+
+  h+='<div class="filtros no-print" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'+
      fs.map(function(f){
        return '<button class="'+(AJ_FILTRO===f[0]?"on":"")+'" onclick="ajFiltro(\''+f[0]+'\')" '+
          'style="background:'+(AJ_FILTRO===f[0]?"var(--qf)":"var(--s2)")+';border:1px solid var(--br);'+
@@ -1155,6 +1162,36 @@ function renderAjustes(){
   lista.forEach(function(i){ h+=ajItem(i); });
 
   document.getElementById("app").innerHTML=h;
+}
+
+/* O PDF sai do que está na tela, então o filtro selecionado já vem
+   aplicado. O nome do arquivo carrega o filtro para você não acabar
+   com cinco arquivos de nome igual na pasta de downloads. */
+function pdfAjustes(){
+  var orig=document.title;
+  var nomes={todos:"Todos",ATENCAO:"Atencao",CONVERSAO:"Conversao",
+             AJUSTE:"Ajustes",INSTAVEL:"Instaveis",OBSERVAR:"Observacao"};
+  var p=hojeIso().split("-");
+  document.title="Ajustes_"+(UNI==="vix"?"MercLiberdadeVIX":"QFood")+
+    "_"+(nomes[AJ_FILTRO]||AJ_FILTRO)+"_"+p[2]+p[1]+p[0];
+
+  var sub=document.getElementById("prt-sub");
+  var subOrig=sub?sub.textContent:"";
+  var h1=document.querySelector(".prt-h h1");
+  var h1Orig=h1?h1.textContent:"";
+  var uniNome=(SESSAO&&SESSAO.nomeUnidade)||(UNI==="vix"?"Mercearia Liberdade VIX":"Q Food Company");
+
+  if(h1) h1.textContent="Sugestões de Ajuste de Estoque — "+uniNome;
+  if(sub) sub.textContent="Últimos "+AJ_DIAS+" dias · filtro: "+(nomes[AJ_FILTRO]||AJ_FILTRO)+
+    " · emitido por "+(USER.nome||USER.email)+" em "+fmtData(hojeIso());
+
+  window.print();
+
+  setTimeout(function(){
+    document.title=orig;
+    if(sub) sub.textContent=subOrig;
+    if(h1) h1.textContent=h1Orig;
+  },1200);
 }
 
 function ajCard(ic,cor,label,valor,sub){
