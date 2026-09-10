@@ -568,10 +568,17 @@ function renderPrep(){
   var ok=itens.filter(function(i){return i.qtdSistema!=null;});
   progresso(ok.length,itens.length,"Saldos · "+fmtBr(DATA));
 
+  var _cont=s.contados||0, _tot=itens.length;
+  var _estado={
+    LIBERADA:   {cls:"ok",   txt:"<b>Liberada para a expedição.</b> Saldos lançados e conferência disponível."},
+    EM_CONTAGEM:{cls:"info", txt:"<b>Contagem em andamento.</b> "+_cont+" de "+_tot+" itens já conferidos."},
+    FECHADA:    {cls:"ok",   txt:"<b>Contagem encerrada.</b> "+_cont+" de "+_tot+" itens conferidos."}
+  }[s.status] || {cls:"info", txt:"<b>Situação:</b> "+esc(s.status)};
+
   h+= (s.status==="PREPARANDO")
     ? '<div class="alert warn">Faltam <b>'+pend.length+'</b> saldos. Digite o saldo do Live Work e tecle <b>Enter</b> — '+
       'o cursor pula sozinho para o próximo. Se o item estiver zerado no sistema, use <b>Zerado</b> e o próximo do ranking entra no lugar.</div>'
-    : '<div class="alert ok">Contagem <b>'+esc(s.status)+'</b>. A expedição já pode contar.</div>';
+    : '<div class="alert '+_estado.cls+'">'+_estado.txt+'</div>';
 
   if(pend.length){ h+='<div class="sec-h">Pendentes ('+pend.length+')</div>'; pend.forEach(function(i){h+=cardPrep(i);}); }
   if(ok.length){ h+='<div class="sec-h">Lançados ('+ok.length+')</div>'; ok.forEach(function(i){h+=cardPrep(i);}); }
@@ -688,8 +695,8 @@ function renderCont(){
   if(!s.existe){
     progresso(0,1,"Contagem de "+fmtBr(DATA));
     document.getElementById("app").innerHTML=
-      '<div class="alert warn"><b>Célio ainda não preparou a contagem de hoje.</b><br>'+
-      'Assim que ele liberar, os itens aparecem aqui.</div>'+
+      '<div class="alert warn"><b>A contagem de hoje ainda não foi preparada.</b><br>'+
+      'Os itens aparecem aqui assim que os saldos forem lançados e a lista liberada.</div>'+
       '<button class="btn sec wide" onclick="carregarSessao()">Verificar de novo</button>';
     document.getElementById("dock").classList.add("hide");
     return;
@@ -701,7 +708,8 @@ function renderCont(){
   progresso(fei.length,itens.length,"Contagem · "+fmtBr(DATA));
 
   if(s.status==="PREPARANDO"){
-    h+='<div class="alert warn">Célio ainda está lançando os saldos ('+s.saldosPendentes+' pendentes). '+
+    h+='<div class="alert warn">Lançamento de saldos em andamento ('+s.saldosPendentes+' pendentes'+
+       (s.preparadoPor?' · '+esc(String(s.preparadoPor).split("@")[0]):'')+'). '+
        'Você já pode contar normalmente — a comparação aparece quando o saldo entrar.</div>';
   }
   var fila=lerFila();
@@ -818,7 +826,7 @@ function revelar(r){
   var h="";
   if(r.naoLocalizado){
     h='<div class="rev non"><div class="rev-t">Registrado como não localizado</div>'+
-      '<div class="cam-tip">Fica marcado para o Célio conferir depois.</div></div>';
+      '<div class="cam-tip">Fica registrado para conferência posterior.</div></div>';
   } else if(r.semSaldoLancado){
     h='<div class="rev non"><div class="rev-t">Contagem gravada: '+r.qtdContada+'</div>'+
       '<div class="cam-tip">O saldo do sistema ainda não foi lançado. A comparação sai no relatório.</div></div>';
