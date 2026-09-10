@@ -289,6 +289,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
     <div class="top-r1">
       <button class="back" onclick="location.href='Index_Menu.html'">←</button>
       <div class="ttl">Contagem</div>
+      <button class="back" onclick="location.reload()" title="Recarregar a tela">⟳</button>
       <div class="who" id="who">—</div>
     </div>
     <div class="tabs hide" id="tabs"></div>
@@ -460,7 +461,14 @@ function nomeDe(cod){
 
 /* ---------- sessão ---------- */
 function carregarSessao(){
-  document.getElementById("app").innerHTML='<div class="empty"><span class="spin"></span> Carregando contagem…</div>';
+  /* Só limpa a tela na primeira carga. Num refresh, mantém o que está
+     visível e troca só quando a resposta chegar. */
+  if(!SESSAO||!SESSAO.existe){
+    document.getElementById("app").innerHTML='<div class="empty"><span class="spin"></span> Carregando contagem…</div>';
+  } else {
+    var bt=document.getElementById("bt-atualizar");
+    if(bt){ bt.disabled=true; bt.textContent="Atualizando…"; }
+  }
   api("sessao",{data:DATA},function(err,j){
     if(err) return erro("Falha de conexão. Verifique a internet e tente de novo.");
     if(!j.ok) return erro(j.error||"Erro ao carregar a sessão.");
@@ -471,8 +479,23 @@ function carregarSessao(){
     sincTabs(); render(); escoarFila();
   });
 }
+/* Se já temos a sessão em memória, um erro de rede não pode apagar a
+   tela — a pessoa está no meio do trabalho. Mostra o aviso por cima e
+   mantém a lista funcionando. */
 function erro(m){
-  document.getElementById("app").innerHTML='<div class="alert err">'+esc(m)+'</div>';
+  if(SESSAO && SESSAO.existe){
+    render();
+    var app=document.getElementById("app");
+    var av=document.createElement("div");
+    av.className="alert err";
+    av.innerHTML='<b>'+esc(m)+'</b><br>Suas contagens já foram gravadas — nada foi perdido. '+
+      'Continue contando normalmente.<br><br>'+
+      '<button class="btn sec" onclick="carregarSessao()">Tentar atualizar de novo</button>';
+    app.insertBefore(av, app.firstChild);
+    return;
+  }
+  document.getElementById("app").innerHTML='<div class="alert err">'+esc(m)+
+    '<br><br><button class="btn sec" onclick="carregarSessao()">Tentar de novo</button></div>';
   document.getElementById("dock").classList.add("hide");
 }
 
@@ -713,7 +736,9 @@ function renderCont(){
   var d=document.getElementById("dock");
   d.classList.remove("hide");
   d.innerHTML='<button class="btn" onclick="abrirCam()">📷 Escanear</button>'+
-              '<button class="btn sec" onclick="carregarSessao()">Atualizar</button>';
+              '<button class="btn sec" id="bt-atualizar" onclick="carregarSessao()" '+
+              'title="Puxa mudanças feitas por outras pessoas. Os itens que você contou já somem sozinhos.">'+
+              '🔄 Buscar novidades</button>';
 }
 
 function cardCont(i){
