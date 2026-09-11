@@ -205,12 +205,60 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 .toast.err{border-color:rgba(255,77,79,.5);color:#ffd7d7;}
 .carregando{text-align:center;color:var(--mu2);font-size:0.84rem;padding:34px;}
 
+/* ---- ABAS ---- */
+.abas{display:flex;gap:8px;margin:20px 0 4px;border-bottom:1px solid var(--br);}
+.aba{background:none;border:none;border-bottom:2px solid transparent;color:var(--mu);
+  padding:10px 16px;font-family:var(--fh);font-weight:700;font-size:0.86rem;cursor:pointer;}
+.aba:hover{color:var(--tx);}
+.aba.on{color:var(--tx);border-bottom-color:var(--lime);}
+
+/* ---- VELOCÍMETROS ---- */
+.gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0;}
+.gauge{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:22px 20px 18px;text-align:center;}
+.gauge svg{width:100%;max-width:260px;height:auto;display:block;margin:0 auto;}
+.g-pct{font-family:var(--fh);font-weight:800;font-size:2.9rem;line-height:1;}
+.g-sub{font-size:0.7rem;fill:var(--mu2);}
+.g-tit{font-family:var(--fh);font-weight:700;font-size:0.92rem;margin-top:10px;}
+.g-desc{font-size:0.74rem;color:var(--mu);margin-top:6px;line-height:1.55;}
+.g-base{font-size:0.7rem;color:var(--mu2);margin-top:10px;padding-top:10px;border-top:1px solid var(--br);}
+
+/* ---- CARDS DE NÚMERO ---- */
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.num{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:16px 18px;}
+.num-n{font-family:var(--fh);font-size:1.6rem;font-weight:800;line-height:1;}
+.num-l{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.num.alerta .num-n{color:var(--red);}
+
+.card{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:20px;margin-bottom:16px;}
+.card-t{font-family:var(--fh);font-weight:700;font-size:0.92rem;margin-bottom:4px;}
+.card-s{font-size:0.74rem;color:var(--mu2);margin-bottom:16px;}
+.graficos{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chart-box{position:relative;height:260px;}
+
+table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+th{text-align:left;font-size:0.7rem;color:var(--mu2);text-transform:uppercase;letter-spacing:0.4px;
+  padding:8px 10px;border-bottom:1px solid var(--br);font-weight:500;}
+td{padding:10px;border-bottom:1px solid var(--br);}
+tr:last-child td{border-bottom:none;}
+.dias{font-family:var(--fh);font-weight:700;}
+.dias.ruim{color:var(--red);}
+.dias.atencao{color:var(--warn);}
+
+.carregando{text-align:center;color:var(--mu2);font-size:0.86rem;padding:60px;}
+.vazio{color:var(--mu2);font-size:0.82rem;padding:20px;text-align:center;}
+
+@media(max-width:900px){
+  .gauges{grid-template-columns:1fr;}
+  .nums{grid-template-columns:repeat(2,1fr);}
+  .graficos{grid-template-columns:1fr;}
+}
+
 /* ---- IMPRESSÃO / PDF ---- */
 .print-cab{display:none;}
 @media print{
   @page{margin:14mm;}
   body{background:#fff;color:#111;padding:0;}
-  .top,#v-lista,#v-nova,.toast,.btns,.anexar-bar,.modal,.lightbox,.det-hdr .btn,.det-hdr .chip{display:none !important;}
+  .top,#v-lista,#v-nova,#v-kpi,.abas,.toast,.btns,.anexar-bar,.modal,.lightbox,.det-hdr .btn,.det-hdr .chip{display:none !important;}
   .wrap{max-width:100%;padding:0;}
   .print-cab{display:block;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px;}
   .print-cab h1{font-family:var(--fh);font-size:1.3rem;margin-bottom:4px;}
@@ -255,6 +303,11 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 </div>
 
 <div class="wrap">
+  <div class="abas" id="abas" style="display:none">
+    <button class="aba on" data-aba="fila">Requisições</button>
+    <button class="aba" data-aba="kpi">📊 Indicadores</button>
+  </div>
+
   <!-- LISTA -->
   <div id="v-lista">
     <div class="cnt-grid" id="cnt-grid"></div>
@@ -273,6 +326,9 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 
   <!-- NOVA -->
   <div id="v-nova" style="display:none"></div>
+
+  <!-- KPIs -->
+  <div id="v-kpi" style="display:none"></div>
 </div>
 
 <div class="gravando" id="gravando"><div class="spin"></div><div class="gravando-t" id="gravando-t">Salvando…</div></div>
@@ -454,9 +510,14 @@ function toast(msg, erro){
 }
 
 function mostrar(qual){
-  ["lista","detalhe","nova"].forEach(function(v){
+  ["lista","detalhe","nova","kpi"].forEach(function(v){
     document.getElementById("v-" + v).style.display = (v === qual ? "block" : "none");
   });
+  // As abas só fazem sentido sobre a lista e o painel
+  var abas = document.getElementById("abas");
+  if(abas && abas.dataset.liberado === "1"){
+    abas.style.display = (qual === "lista" || qual === "kpi") ? "flex" : "none";
+  }
   window.scrollTo(0, 0);
 }
 
@@ -617,6 +678,9 @@ var ReqDetalhe = {
 
   voltar: function(){
     ReqState.detalheId = null;
+    document.querySelectorAll(".aba").forEach(function(x){
+      x.classList.toggle("on", x.dataset.aba === "fila");
+    });
     mostrar("lista");
     ReqLista.carregar();
   },
@@ -1843,6 +1907,351 @@ var ReqNotif = {
 };
 
 // ────────────────────────────────────────────────────────────
+// 11b. INDICADORES — velocímetros e gráficos na aba de KPIs
+// ────────────────────────────────────────────────────────────
+var ReqKpi = {
+  dados:    null,
+  graficos: {},
+  chartjs:  null,
+
+  // Chart.js só é baixado quando alguém abre a aba. Quem nunca
+  // usa o painel não paga o custo da biblioteca.
+  carregarChartjs: function(){
+    if(ReqKpi.chartjs) return ReqKpi.chartjs;
+    ReqKpi.chartjs = new Promise(function(ok, falhou){
+      if(window.Chart) return ok();
+      var t = document.createElement("script");
+      t.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+      t.onload = function(){ ok(); };
+      t.onerror = function(){ falhou(new Error("Não consegui carregar a biblioteca de gráficos.")); };
+      document.head.appendChild(t);
+    });
+    return ReqKpi.chartjs;
+  },
+
+  abrir: function(){
+    mostrar("kpi");
+    if(ReqKpi.dados){ ReqKpi.render(); return; }
+
+    document.getElementById("v-kpi").innerHTML = '<div class="carregando">Carregando indicadores…</div>';
+    Promise.all([
+      ReqKpi.carregarChartjs(),
+      ReqAPI.get("kpi", {})
+    ]).then(function(r){
+      ReqKpi.dados = r[1];
+      ReqKpi.render();
+    }).catch(function(e){
+      document.getElementById("v-kpi").innerHTML =
+        '<div class="vazio"><div class="vazio-t">Não deu para carregar os indicadores</div>' +
+        '<div class="vazio-s">' + esc(e.message) + '</div></div>';
+    });
+  },
+
+  filtros: function(){
+    return '<div class="filtros" style="margin:18px 0">' +
+      '<select class="sel" id="k-periodo">' +
+        '<option value="30">Últimos 30 dias</option>' +
+        '<option value="90" selected>Últimos 90 dias</option>' +
+        '<option value="180">Últimos 6 meses</option>' +
+        '<option value="365">Últimos 12 meses</option>' +
+        '<option value="0">Tudo</option>' +
+      '</select>' +
+      '<select class="sel" id="k-empresa"><option value="">Todas as empresas</option>' +
+        ((ReqState.config && ReqState.config.empresas) || []).map(function(e){
+          return '<option value="' + esc(e.chave) + '">' + esc(e.valor) + '</option>';
+        }).join("") +
+      '</select></div>';
+  },
+
+  ligarFiltros: function(){
+    var p = document.getElementById("k-periodo");
+    var e = document.getElementById("k-empresa");
+    if(p) p.onchange = ReqKpi.render;
+    if(e) e.onchange = ReqKpi.render;
+  },
+
+  reais: function(n){
+    return "R$ " + (Number(n)||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+  },
+
+  diasEntre: function(de, ate){
+    var a = new Date(de), b = ate ? new Date(ate) : new Date();
+    if(isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+    return (b.getTime() - a.getTime()) / 86400000;
+  },
+
+  horasEntre: function(de, ate){
+    var d = ReqKpi.diasEntre(de, ate);
+    return d === null ? null : d * 24;
+  },
+
+  media: function(lista){
+    var v = lista.filter(function(x){ return x !== null && isFinite(x); });
+    if(!v.length) return null;
+    return v.reduce(function(a,b){ return a+b; }, 0) / v.length;
+  },
+
+// ── Velocímetro ─────────────────────────────────────────────
+// Arco de 270°, percentual gigante no centro, cor pela faixa.
+  gauge: function(pct, base, titulo, descricao, unidade){
+  var vazio = (pct === null);
+  var v = vazio ? 0 : Math.max(0, Math.min(100, pct));
+  var cor = vazio ? "var(--mu2)" : (v >= 90 ? "var(--ok)" : (v >= 70 ? "var(--warn)" : "var(--red)"));
+
+  var raio = 80, cx = 100, cy = 100;
+  var inicio = 135, varredura = 270;
+  var ponto = function(ang){
+    var r = (ang - 90) * Math.PI / 180;
+    return [cx + raio * Math.cos(r), cy + raio * Math.sin(r)];
+  };
+  var arco = function(de, ate){
+    var a = ponto(de), b = ponto(ate);
+    var grande = (ate - de) > 180 ? 1 : 0;
+    return "M " + a[0].toFixed(2) + " " + a[1].toFixed(2) +
+           " A " + raio + " " + raio + " 0 " + grande + " 1 " + b[0].toFixed(2) + " " + b[1].toFixed(2);
+  };
+
+  var fim = inicio + (varredura * v / 100);
+  var agulha = ponto(fim);
+
+  return '<div class="gauge">' +
+    '<svg viewBox="0 0 200 175" role="img" aria-label="' + esc(titulo) + ': ' +
+      (vazio ? "sem dados" : v.toFixed(0) + "%") + '">' +
+      '<path d="' + arco(inicio, inicio + varredura) + '" fill="none" stroke="var(--s3)" ' +
+        'stroke-width="16" stroke-linecap="round"></path>' +
+      (v > 0 ? '<path d="' + arco(inicio, fim) + '" fill="none" stroke="' + cor + '" ' +
+        'stroke-width="16" stroke-linecap="round"></path>' : '') +
+      (vazio ? '' : '<circle cx="' + agulha[0].toFixed(2) + '" cy="' + agulha[1].toFixed(2) +
+        '" r="7" fill="' + cor + '" stroke="var(--sf)" stroke-width="3"></circle>') +
+      '<text x="100" y="105" text-anchor="middle" class="g-pct" fill="' + cor + '">' +
+        (vazio ? "—" : v.toFixed(0) + (unidade || "%")) + '</text>' +
+      '<text x="100" y="128" text-anchor="middle" class="g-sub">' + esc(base) + '</text>' +
+    '</svg>' +
+    '<div class="g-tit">' + esc(titulo) + '</div>' +
+    '<div class="g-desc">' + esc(descricao) + '</div>' +
+  '</div>';
+  },
+
+// ── Filtro de período e empresa ─────────────────────────────
+  filtrar: function(){
+  var selP = document.getElementById("k-periodo");
+  var selE = document.getElementById("k-empresa");
+  var d = selP ? parseInt(selP.value, 10) : 90;
+  var emp = selE ? selE.value : "";
+  var corte = d ? new Date(Date.now() - d * 86400000).toISOString() : "";
+
+  return (ReqKpi.dados.registros || []).filter(function(r){
+    if(corte && r.abertura < corte) return false;
+    if(emp && r.empresa !== emp) return false;
+    return true;
+  });
+  },
+
+// ── Cálculo e desenho ───────────────────────────────────────
+  render: function(){
+  var rs = ReqKpi.filtrar();
+  var el = document.getElementById("v-kpi");
+
+  if(!rs.length){
+    el.innerHTML = ReqKpi.filtros() +
+      '<div class="vazio" style="padding:60px">Nenhuma requisição no período escolhido.</div>';
+    ReqKpi.ligarFiltros();
+    return;
+  }
+
+  // ---- KPI 1: entrega dentro da previsão ----
+  var comPrevisao = rs.filter(function(r){ return r.recebimento && r.prazoEntrega; });
+  var noPrazo = comPrevisao.filter(function(r){
+    return r.recebimento.substring(0,10) <= r.prazoEntrega;
+  });
+  var kpiPrazo = comPrevisao.length ? (noPrazo.length / comPrevisao.length * 100) : null;
+
+  // ---- KPI 2: fluxo respeitado (passou por aprovação) ----
+  var chegaramCompras = rs.filter(function(r){ return r.aprovadaEm || r.nasceuAprovada; });
+  var aprovadas = chegaramCompras.filter(function(r){ return !!r.aprovadaEm; });
+  var kpiFluxo = chegaramCompras.length ? (aprovadas.length / chegaramCompras.length * 100) : null;
+
+  // ---- KPI 3: recebimento sem divergência ----
+  var recebidas = rs.filter(function(r){ return r.statusRecebimento; });
+  var limpas = recebidas.filter(function(r){ return r.statusRecebimento === "OK"; });
+  var kpiRecebimento = recebidas.length ? (limpas.length / recebidas.length * 100) : null;
+
+  // ---- Números de apoio ----
+  var abertas = rs.filter(function(r){
+    return ["CONCLUIDA","CANCELADA","RECUSADA"].indexOf(r.status) < 0;
+  });
+  var hojeIso = new Date().toISOString().substring(0,10);
+  var atrasadas = abertas.filter(function(r){
+    return r.prazoRetorno && r.prazoRetorno < hojeIso &&
+           (r.status === "EM_COTACAO" || r.status === "AGUARDANDO_INFORMACAO");
+  });
+  var mediaRetorno = ReqKpi.media(rs.map(function(r){
+    if(!r.primeiroRetorno) return null;
+    return ReqKpi.horasEntre(r.aprovadaEm || r.abertura, r.primeiroRetorno);
+  }));
+  var mediaCiclo = ReqKpi.media(rs.map(function(r){
+    if(!r.conclusao) return null;
+    return ReqKpi.diasEntre(r.abertura, r.conclusao);
+  }));
+  var valorTotal = rs.reduce(function(a, r){ return a + (r.valorFinal || 0); }, 0);
+
+  var h = ReqKpi.filtros();
+
+  h += '<div class="gauges">' +
+    ReqKpi.gauge(kpiPrazo, comPrevisao.length + " entregas avaliadas", "Entregue no prazo",
+          "Recebidas até a previsão que a Cris informou ao registrar a compra.") +
+    ReqKpi.gauge(kpiFluxo, chegaramCompras.length + " requisições na fila", "Fluxo respeitado",
+          "Chegaram em Compras com aprovação registrada, em vez de entrar direto.") +
+    ReqKpi.gauge(kpiRecebimento, recebidas.length + " recebimentos", "Recebido sem divergência",
+          "Chegou completo e correto, sem faltar item nem problema na entrega.") +
+  '</div>';
+
+  h += '<div class="nums">' +
+    '<div class="num"><div class="num-n">' + abertas.length + '</div><div class="num-l">Em aberto agora</div></div>' +
+    '<div class="num' + (atrasadas.length ? ' alerta' : '') + '"><div class="num-n">' + atrasadas.length +
+      '</div><div class="num-l">Retornos atrasados</div></div>' +
+    '<div class="num"><div class="num-n">' +
+      (mediaRetorno === null ? "—" : (mediaRetorno < 24 ? mediaRetorno.toFixed(0) + "h" : (mediaRetorno/24).toFixed(1) + "d")) +
+      '</div><div class="num-l">1º retorno de Compras</div></div>' +
+    '<div class="num"><div class="num-n">' +
+      (mediaCiclo === null ? "—" : mediaCiclo.toFixed(1) + "d") +
+      '</div><div class="num-l">Ciclo completo médio</div></div>' +
+  '</div>';
+
+  h += '<div class="graficos">' +
+    '<div class="card"><div class="card-t">Onde estão as requisições</div>' +
+      '<div class="card-s">Distribuição por status no período</div>' +
+      '<div class="chart-box"><canvas id="g-status"></canvas></div></div>' +
+    '<div class="card"><div class="card-t">Volume por empresa</div>' +
+      '<div class="card-s">Quantidade de requisições abertas</div>' +
+      '<div class="chart-box"><canvas id="g-empresa"></canvas></div></div>' +
+    '<div class="card"><div class="card-t">Quem mais pede</div>' +
+      '<div class="card-s">Top 8 solicitantes</div>' +
+      '<div class="chart-box"><canvas id="g-solic"></canvas></div></div>' +
+    '<div class="card"><div class="card-t">Valor comprado</div>' +
+      '<div class="card-s">Total ' + esc(ReqKpi.reais(valorTotal)) + ' no período</div>' +
+      '<div class="chart-box"><canvas id="g-valor"></canvas></div></div>' +
+  '</div>';
+
+  // ---- Paradas há mais tempo ----
+  var paradas = abertas.slice().sort(function(a, b){
+    return (a.ultimaAtualizacao || "").localeCompare(b.ultimaAtualizacao || "");
+  }).slice(0, 10);
+
+  h += '<div class="card"><div class="card-t">Paradas há mais tempo</div>' +
+       '<div class="card-s">As dez requisições em aberto sem movimento há mais dias</div>';
+  h += paradas.length
+    ? '<table><thead><tr><th>Nº</th><th>O que é</th><th>Empresa</th><th>Aguardando</th><th>Parada há</th></tr></thead><tbody>' +
+      paradas.map(function(r){
+        var d = ReqKpi.diasEntre(r.ultimaAtualizacao, null);
+        var cls = d > 7 ? "dias ruim" : (d > 3 ? "dias atencao" : "dias");
+        return '<tr>' +
+          '<td><a href="Index_Requisicoes.html?rq=' + encodeURIComponent(r.id) + '" style="color:var(--blue)">' + esc(r.id) + '</a></td>' +
+          '<td>' + esc(r.titulo || r.solicitante) + '</td>' +
+          '<td>' + esc(r.empresa) + '</td>' +
+          '<td>' + esc((r.responsavelAtual || "").split("@")[0]) + '</td>' +
+          '<td class="' + cls + '">' + (d === null ? "—" : d.toFixed(0) + " dias") + '</td>' +
+        '</tr>';
+      }).join("") + '</tbody></table>'
+    : '<div class="vazio">Nenhuma requisição em aberto.</div>';
+  h += '</div>';
+
+  el.innerHTML = h;
+  ReqKpi.ligarFiltros();
+
+  ReqKpi.desenharGraficos(rs);
+  },
+
+// ── Gráficos ────────────────────────────────────────────────
+  agrupar: function(lista, chave){
+  var m = {};
+  lista.forEach(function(r){
+    var k = r[chave] || "—";
+    m[k] = (m[k] || 0) + 1;
+  });
+  return m;
+  },
+
+  desenharGraficos: function(rs){
+  Object.keys(ReqKpi.graficos).forEach(function(k){
+    try { ReqKpi.graficos[k].destroy(); } catch(_){}
+  });
+  ReqKpi.graficos = {};
+
+  var css = getComputedStyle(document.documentElement);
+  var cor = function(v){ return css.getPropertyValue(v).trim(); };
+  Chart.defaults.color = cor("--mu");
+  Chart.defaults.font.family = "DM Sans, sans-serif";
+  Chart.defaults.font.size = 11;
+
+  var grade = {grid:{color:"rgba(255,255,255,0.06)"}, ticks:{color:cor("--mu2")}};
+
+  var rotulos = {
+    NOVA:"Nova", EM_TRIAGEM:"Aprovação", EM_ANALISE:"Com Compras", EM_COTACAO:"Cotação",
+    AGUARDANDO_INFORMACAO:"Aguardando resposta", AGUARDANDO_APROVACAO:"Alçada",
+    COMPRADA:"Comprada", AGUARDANDO_ENTREGA:"A caminho", RECEBIDA_OK:"Recebida",
+    RECEBIDA_PARCIAL:"Parcial", RECEBIDA_DIVERGENCIA:"Divergência",
+    CONCLUIDA:"Concluída", CANCELADA:"Cancelada", RECUSADA:"Recusada"
+  };
+
+  // Status
+  var porStatus = ReqKpi.agrupar(rs, "status");
+  ReqKpi.graficos.status = new Chart(document.getElementById("g-status"), {
+    type:"bar",
+    data:{
+      labels: Object.keys(porStatus).map(function(k){ return rotulos[k] || k; }),
+      datasets:[{data: Object.values(porStatus), backgroundColor: cor("--blue"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, indexAxis:"y", plugins:{legend:{display:false}},
+             scales:{x:grade, y:grade}}
+  });
+
+  // Empresa
+  var porEmpresa = ReqKpi.agrupar(rs, "empresa");
+  ReqKpi.graficos.empresa = new Chart(document.getElementById("g-empresa"), {
+    type:"bar",
+    data:{
+      labels: Object.keys(porEmpresa),
+      datasets:[{data: Object.values(porEmpresa), backgroundColor: cor("--lime"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:grade, y:grade}}
+  });
+
+  // Solicitantes
+  var porSolic = ReqKpi.agrupar(rs, "solicitante");
+  var topo = Object.keys(porSolic).sort(function(a,b){ return porSolic[b]-porSolic[a]; }).slice(0,8);
+  ReqKpi.graficos.solic = new Chart(document.getElementById("g-solic"), {
+    type:"bar",
+    data:{
+      labels: topo.map(function(k){ return k.split("@")[0]; }),
+      datasets:[{data: topo.map(function(k){ return porSolic[k]; }),
+                 backgroundColor: cor("--pur"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, indexAxis:"y", plugins:{legend:{display:false}},
+             scales:{x:grade, y:grade}}
+  });
+
+  // Valor por empresa
+  var valores = {};
+  rs.forEach(function(r){
+    if(!r.valorFinal) return;
+    valores[r.empresa || "—"] = (valores[r.empresa || "—"] || 0) + r.valorFinal;
+  });
+  ReqKpi.graficos.valor = new Chart(document.getElementById("g-valor"), {
+    type:"bar",
+    data:{
+      labels: Object.keys(valores),
+      datasets:[{data: Object.values(valores), backgroundColor: cor("--cyan"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:function(c){ return ReqKpi.reais(c.raw); }}}},
+      scales:{x:grade, y:Object.assign({}, grade, {ticks:{color:cor("--mu2"),
+        callback:function(v){ return "R$ " + (v/1000).toFixed(0) + "k"; }}})}}
+  });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
 // 12. INICIALIZAÇÃO
 // ────────────────────────────────────────────────────────────
 function ReqInit(){
@@ -1858,6 +2267,13 @@ function ReqInit(){
       document.getElementById("titulo").textContent = "Central de Requisições — Compras";
     } else if(ReqHome.aprovador()){
       document.getElementById("titulo").textContent = "Central de Requisições — Aprovações";
+    }
+
+    // Aba de indicadores: só para quem aprova, compra ou administra
+    if(c.usuario.isCompras || c.usuario.isAdmin || ReqHome.aprovador()){
+      var abas = document.getElementById("abas");
+      abas.dataset.liberado = "1";
+      abas.style.display = "flex";
     }
 
     document.getElementById("f-empresa").innerHTML =
@@ -1892,6 +2308,15 @@ function ReqInit(){
   });
 
   // Eventos de tela
+  document.querySelectorAll(".aba").forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll(".aba").forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+      if(b.dataset.aba === "kpi") ReqKpi.abrir();
+      else { mostrar("lista"); ReqLista.render(); }
+    };
+  });
+
   document.getElementById("btn-nova").onclick = function(){ ReqForm.abrir(); };
   document.getElementById("sino").onclick     = function(){ ReqNotif.verNovidades(); };
 
