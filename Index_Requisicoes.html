@@ -51,6 +51,9 @@ a{color:var(--blue);}
 .cnt-l{font-size:0.74rem;color:var(--mu);margin-top:6px;font-weight:500;}
 .cnt.on .cnt-l{color:var(--tx);}
 .cnt.destaque .cnt-n{color:var(--warn);}
+.cnt.alerta .cnt-n{color:var(--red);}
+.rq-acoes{display:flex;gap:6px;margin-top:4px;}
+.rq-acoes .btn{padding:6px 12px;font-size:0.72rem;}
 
 /* ---- FILTROS ---- */
 .filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
@@ -254,13 +257,7 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 <div class="wrap">
   <!-- LISTA -->
   <div id="v-lista">
-    <div class="cnt-grid">
-      <button class="cnt on" data-escopo="abertas"><div class="cnt-n" id="c-abertas">–</div><div class="cnt-l">Em aberto</div></button>
-      <button class="cnt" data-escopo="minhas"><div class="cnt-n" id="c-minhas">–</div><div class="cnt-l">Minhas</div></button>
-      <button class="cnt destaque" data-escopo="comigo"><div class="cnt-n" id="c-comigo">–</div><div class="cnt-l">Aguardando você</div></button>
-      <button class="cnt" data-escopo="entrega"><div class="cnt-n" id="c-entrega">–</div><div class="cnt-l">Aguardando entrega</div></button>
-      <button class="cnt" data-escopo="todas"><div class="cnt-n" id="c-todas">–</div><div class="cnt-l">Todas</div></button>
-    </div>
+    <div class="cnt-grid" id="cnt-grid"></div>
 
     <div class="filtros">
       <input class="inp" id="f-busca" placeholder="Buscar por número, título ou solicitante">
@@ -293,7 +290,7 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
    Pegue em: Implantar > Gerenciar implantações > botão copiar.
    ════════════════════════════════════════════════════════════════ */
 
-var API_URL = "https://script.google.com/macros/s/AKfycbyso-KAp8Dz6h_zoBzImoGQ2FhHPDvYDpZG0dV0M5jVGHzGT1_6f8fKsXmmJ0-YPhrChQ/exec";
+var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec";
 
 // ────────────────────────────────────────────────────────────
 // 1. CONFIG
@@ -362,13 +359,6 @@ var ReqAPI = {
       .then(function(j){
         if(!j.ok) throw new Error(j.error || "Falha ao gravar");
         return j.resultado;
-      })
-      .catch(function(e){
-        // Erro de rede vira mensagem que a pessoa entende.
-        if(e instanceof TypeError || /fetch|network/i.test(e.message)){
-          throw new Error("Não consegui falar com o servidor. Avise o Rodrigo: a URL do módulo pode estar desatualizada.");
-        }
-        throw e;
       })
       .finally(function(){
         ReqAPI.ocupado = false;
@@ -474,18 +464,14 @@ function mostrar(qual){
 // 6. LISTA
 // ────────────────────────────────────────────────────────────
 var ReqLista = {
+  // Carrega tudo que o usuário pode ver, uma vez. Os escopos e filtros
+  // são recortes no cliente — assim os contadores nunca divergem da lista
+  // e trocar de aba é instantâneo.
   carregar: function(){
     document.getElementById("lista").innerHTML = '<div class="carregando">Carregando…</div>';
-    var status = document.getElementById("f-status").value;
-    var escopo = ReqState.escopo;
-    if(escopo === "entrega" || escopo === "todas" || status) escopo = "";
-    var filtros = {
-      escopo:  escopo,
-      empresa: document.getElementById("f-empresa").value,
-      status:  status
-    };
-    return ReqAPI.get("listar", filtros).then(function(r){
+    return ReqAPI.get("listar", {}).then(function(r){
       ReqState.lista = r.requisicoes || [];
+      ReqHome.contar();
       ReqLista.render();
     }).catch(function(e){
       document.getElementById("lista").innerHTML =
@@ -494,21 +480,83 @@ var ReqLista = {
     });
   },
 
+  // Cada escopo é uma pergunta de trabalho, não um status técnico.
+  noEscopo: function(r, escopo){
+    var eu = ReqState.sessao.email.toLowerCase();
+    var meu = (r.abertoPor || "").toLowerCase() === eu ||
+              (r.solicitanteOriginal || "").toLowerCase() === eu;
+    var comigo = (r.responsavelAtual || "").toLowerCase() === eu;
+    var emTransito = (r.status === "COMPRADA" || r.status === "AGUARDANDO_ENTREGA");
+
+    switch(escopo){
+      case "aprovar":         return r.status === "EM_TRIAGEM" && ReqAprov.souAprovador(r.empresa);
+      case "comprar":         return r.status === "EM_ANALISE";
+      case "cotacao":         return r.status === "EM_COTACAO";
+      case "aguardando_resp": return r.status === "AGUARDANDO_INFORMACAO";
+      case "emcompras":       return !r.encerrada && !emTransito && meu;
+      case "entrega":         return emTransito;
+      case "minhas":          return meu && !r.encerrada;
+      case "comigo":          return comigo && !r.encerrada;
+      case "atrasadas":       return ReqPrazo.atrasada(r);
+      case "abertas":         return !r.encerrada;
+      default:                return true;   // todas
+    }
+  },
+
+  // Traduz status técnico em "quem precisa fazer o quê"
+  proximaAcao: function(r){
+    if(r.encerrada) return "Encerrada";
+    var quem = r.responsavelAtual ? nomeDe(r.responsavelAtual) : "";
+    if(r.status === "EM_TRIAGEM")            return quem + " precisa aprovar";
+    if(r.status === "EM_ANALISE")            return "Aguardando " + quem + " comprar";
+    if(r.status === "EM_COTACAO")            return quem + " retorna até " + dataBr(r.prazoRetorno);
+    if(r.status === "AGUARDANDO_INFORMACAO") return quem + " precisa responder";
+    if(r.status === "COMPRADA" ||
+       r.status === "AGUARDANDO_ENTREGA")    return "A caminho" + (r.prazoEntrega ? " · previsão " + dataBr(r.prazoEntrega) : "");
+    return quem ? "Aguardando " + quem : "";
+  },
+
+  // Ordem de trabalho, não ordem cronológica: primeiro o que está
+  // estourando, depois o que tem data mais próxima.
+  prioridade: function(a, b){
+    var peso = function(r){
+      if(r.encerrada) return 9;
+      if(ReqPrazo.atrasada(r)) return 0;
+      if(r.urgencia === "Emergencial") return 1;
+      if(r.urgencia === "Alta") return 2;
+      return r.dataNecessidade ? 3 : 4;
+    };
+    var pa = peso(a), pb = peso(b);
+    if(pa !== pb) return pa - pb;
+
+    var da = (a.dataNecessidade || "9999").substring(0, 10);
+    var db = (b.dataNecessidade || "9999").substring(0, 10);
+    if(da !== db) return da < db ? -1 : 1;
+
+    return (b.ultimaAtualizacao || "").localeCompare(a.ultimaAtualizacao || "");
+  },
+
   render: function(){
-    var busca = (document.getElementById("f-busca").value || "").toLowerCase().trim();
+    var busca   = (document.getElementById("f-busca").value || "").toLowerCase().trim();
+    var empresa = document.getElementById("f-empresa").value;
+    var status  = document.getElementById("f-status").value;
+
     var itens = ReqState.lista.filter(function(r){
-      if(ReqState.escopo === "entrega" &&
-         r.status !== "COMPRADA" && r.status !== "AGUARDANDO_ENTREGA") return false;
+      if(!ReqLista.noEscopo(r, ReqState.escopo)) return false;
+      if(empresa && r.empresa !== empresa) return false;
+      if(status && r.status !== status) return false;
       if(!busca) return true;
       return (r.id + " " + r.titulo + " " + r.abertoPorNome + " " +
               r.solicitanteOriginal + " " + r.empresa).toLowerCase().indexOf(busca) >= 0;
     });
 
+    itens.sort(ReqLista.prioridade);
+
     var el = document.getElementById("lista");
     if(!itens.length){
       el.innerHTML =
         '<div class="vazio"><div class="vazio-t">Nada por aqui</div>' +
-        '<div class="vazio-s">Quando alguém precisar de algo, a requisição aparece nesta lista.</div>' +
+        '<div class="vazio-s">' + esc(ReqHome.vazio()) + '</div>' +
         '<button class="btn btn-p" onclick="ReqForm.abrir()">+ Nova requisição</button></div>';
       return;
     }
@@ -517,16 +565,15 @@ var ReqLista = {
       var novo = ReqState.novidades.ids.indexOf(r.id) >= 0;
       var solic = r.solicitanteOriginal || r.abertoPorNome || r.abertoPor;
       var linha2 = [r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ");
-      var aguardando = r.responsavelAtual
-        ? "Aguardando " + nomeDe(r.responsavelAtual)
-        : (r.encerrada ? "Encerrada" : "");
+      var podeAprovar = (r.status === "EM_TRIAGEM" && ReqAprov.souAprovador(r.empresa));
+
       return '' +
       '<div class="rq' + (novo ? ' novo' : '') + '" onclick="ReqDetalhe.abrir(\'' + r.id + '\')">' +
         '<div>' +
           '<div class="rq-id">' + esc(r.id) + (novo ? ' · novidade' : '') + '</div>' +
           '<div class="rq-tit">' + esc(r.titulo) + '</div>' +
           '<div class="rq-meta">' + esc(linha2) + '<br>Pedido por ' + esc(solic) +
-            (r.prazoEntrega ? ' · Previsão ' + esc(dataBr(r.prazoEntrega)) : '') +
+            (r.dataNecessidade ? ' · Precisa até ' + esc(dataBr(r.dataNecessidade)) : '') +
           '</div>' +
         '</div>' +
         '<div class="rq-dir">' +
@@ -534,8 +581,13 @@ var ReqLista = {
           (r.urgencia === "Alta" || r.urgencia === "Emergencial"
             ? '<span class="chip urg">' + esc(r.urgencia) + '</span>' : '') +
           (ReqPrazo.atrasada(r) ? '<span class="chip urg">Retorno atrasado</span>' : '') +
-          '<span class="rq-quando">' + esc(aguardando) + '</span>' +
+          '<span class="rq-quando">' + esc(ReqLista.proximaAcao(r)) + '</span>' +
           '<span class="rq-quando">' + esc(desde(r.ultimaAtualizacao)) + '</span>' +
+          (podeAprovar
+            ? '<div class="rq-acoes">' +
+                '<button class="btn btn-ok" onclick="event.stopPropagation();ReqAprov.rapida(\'' + r.id + '\')">✓ Aprovar</button>' +
+              '</div>'
+            : '') +
         '</div>' +
       '</div>';
     }).join("");
@@ -597,6 +649,12 @@ var ReqDetalhe = {
            (r.prazoRetorno ? ' · retorno prometido para ' + esc(dataBr(r.prazoRetorno)) + (atraso ? ' — ATRASADO' : '') : '') +
            '</div>';
     }
+
+    // Ação necessária primeiro: quem trabalha no sistema todo dia
+    // não deveria rolar a tela para achar o botão principal.
+    h += ReqAcoes.render(r, p);
+
+    h += ReqAprov.bloco(r, d.eventos);
 
     // Dados
     h += '<div class="card"><div class="card-t">' + esc(r.id) + '</div><dl class="kv">' +
@@ -680,11 +738,8 @@ var ReqDetalhe = {
       h += '</div>';
     }
 
-    // Ações
-    h += ReqAcoes.render(r, p);
-
     // Timeline
-    h += '<div class="card"><div class="card-t">Histórico</div><div class="tl">';
+    h += '<div class="card"><div class="card-t">Atualizações</div><div class="tl">';
     h += d.eventos.map(function(ev){
       var texto = ev.texto;
       if(ev.tipo === "STATUS" && ev.statusNovo){
@@ -716,12 +771,13 @@ var ReqAcoes = {
     var h = "";
 
     if(p.triar){
-      h += '<div class="card"><div class="card-t">Triagem</div>' +
-           '<div class="rq-meta" style="margin-bottom:12px">Libere para Compras, devolva pedindo mais informação ou recuse.</div>' +
+      h += '<div class="card" style="border-color:rgba(255,170,43,.4)">' +
+           '<div class="card-t">Aprovação necessária</div>' +
+           '<div class="rq-meta" style="margin-bottom:12px">Aprovar envia a requisição direto para a fila da Cris.</div>' +
            '<div class="btns">' +
-             '<button class="btn btn-ok" onclick="ReqAcoes.status(\'EM_ANALISE\',\'Liberada para Compras\')">Liberar para Compras</button>' +
-             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Pedir mais informação</button>' +
-             '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'RECUSADA\',\'Motivo da recusa\')">Recusar</button>' +
+             '<button class="btn btn-ok" onclick="ReqAcoes.status(\'EM_ANALISE\',\'Aprovada\')">✓ Aprovar e enviar para Compras</button>' +
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">↩ Pedir ajuste</button>' +
+             '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'RECUSADA\',\'Motivo da recusa\')">✕ Recusar</button>' +
            '</div></div>';
     }
 
@@ -737,9 +793,9 @@ var ReqAcoes = {
            '<div class="linha3">' +
              '<div class="campo"><label class="lbl" for="c-prazo">Previsão de entrega <span class="obrig">*</span></label>' +
                '<input class="inp" id="c-prazo" type="date" value="' + esc((r.prazoEntrega||"").substring(0,10)) + '"></div>' +
-             '<div class="campo"><label class="lbl" for="c-ped">Nº do pedido <span class="obrig">*</span></label>' +
+             '<div class="campo"><label class="lbl" for="c-ped">Nº do pedido <i>opcional</i></label>' +
                '<input class="inp" id="c-ped" value="' + esc(r.numeroPedido) + '"></div>' +
-             '<div class="campo"><label class="lbl" for="c-nf">NF <span class="obrig">*</span></label>' +
+             '<div class="campo"><label class="lbl" for="c-nf">NF <i>opcional — pode completar depois</i></label>' +
                '<input class="inp" id="c-nf" value="' + esc(r.nf) + '"></div>' +
            '</div>' +
            '<div class="campo"><label class="lbl" for="c-obs">Observação para quem pediu</label>' +
@@ -805,8 +861,8 @@ var ReqAcoes = {
       nf:           document.getElementById("c-nf").value.trim(),
       obsCompras:   document.getElementById("c-obs").value.trim()
     };
-    var rotulos = {fornecedor:"Fornecedor", valorFinal:"Valor", prazoEntrega:"Previsão de entrega",
-                   numeroPedido:"Nº do pedido", nf:"NF"};
+    // NF e nº do pedido muitas vezes só existem depois da entrega.
+    var rotulos = {fornecedor:"Fornecedor", valorFinal:"Valor", prazoEntrega:"Previsão de entrega"};
     var faltando = Object.keys(rotulos).filter(function(k){ return !dados[k]; })
                                        .map(function(k){ return rotulos[k]; });
     if(faltando.length){
@@ -1105,6 +1161,201 @@ var ReqReceb = {
 };
 
 // ────────────────────────────────────────────────────────────
+// 6b. HOME POR PAPEL — cada um entra onde trabalha
+// ────────────────────────────────────────────────────────────
+var ReqHome = {
+  // Solicitante, aprovador e Compras entram no sistema com objetivos
+  // diferentes. O primeiro cartão de cada um é a caixa de entrada dele.
+  cartoes: function(){
+    var u = (ReqState.config && ReqState.config.usuario) || {};
+
+    if(u.isCompras){
+      return [
+        {escopo:"comprar",         rotulo:"Para comprar",        destaque:true},
+        {escopo:"cotacao",         rotulo:"Em cotação"},
+        {escopo:"aguardando_resp", rotulo:"Aguardando resposta"},
+        {escopo:"entrega",         rotulo:"Aguardando entrega"},
+        {escopo:"atrasadas",       rotulo:"Atrasadas",           alerta:true}
+      ];
+    }
+    if(ReqHome.aprovador()){
+      return [
+        {escopo:"aprovar",   rotulo:"Para aprovar",       destaque:true},
+        {escopo:"comigo",    rotulo:"Precisa de mim"},
+        {escopo:"minhas",    rotulo:"Minhas abertas"},
+        {escopo:"entrega",   rotulo:"Aguardando entrega"},
+        {escopo:"atrasadas", rotulo:"Atrasadas",          alerta:true}
+      ];
+    }
+    return [
+      {escopo:"comigo",    rotulo:"Precisa de mim",  destaque:true},
+      {escopo:"minhas",    rotulo:"Minhas abertas"},
+      {escopo:"emcompras", rotulo:"Em compras"},
+      {escopo:"entrega",   rotulo:"A caminho"},
+      {escopo:"todas",     rotulo:"Todas"}
+    ];
+  },
+
+  aprovador: function(){
+    var lista = (ReqState.config && ReqState.config.aprovadores) || [];
+    var eu = (ReqState.sessao.email || "").toLowerCase();
+    return lista.some(function(g){ return String(g.valor).toLowerCase() === eu; });
+  },
+
+  // Onde cada papel cai ao abrir a tela
+  escopoInicial: function(){
+    var u = (ReqState.config && ReqState.config.usuario) || {};
+    if(u.isCompras)        return "comprar";
+    if(ReqHome.aprovador())return "aprovar";
+    return "minhas";
+  },
+
+  vazio: function(){
+    var m = {
+      aprovar:         "Nenhuma requisição esperando sua aprovação.",
+      comprar:         "Nenhuma requisição aprovada esperando compra.",
+      cotacao:         "Nada em cotação no momento.",
+      aguardando_resp: "Ninguém está devendo resposta.",
+      atrasadas:       "Nenhum retorno atrasado. Tudo em dia.",
+      comigo:          "Nada esperando por você.",
+      minhas:          "Você não tem requisição aberta.",
+      entrega:         "Nada a caminho.",
+      emcompras:       "Nenhuma requisição sua em compras."
+    };
+    return m[ReqState.escopo] || "Quando alguém precisar de algo, a requisição aparece aqui.";
+  },
+
+  montar: function(){
+    ReqState.escopo = ReqHome.escopoInicial();
+    document.getElementById("cnt-grid").innerHTML = ReqHome.cartoes().map(function(c){
+      return '<button class="cnt' + (c.destaque ? " destaque" : "") + (c.alerta ? " alerta" : "") +
+             (c.escopo === ReqState.escopo ? " on" : "") + '" data-escopo="' + c.escopo + '">' +
+             '<div class="cnt-n" id="cnt-' + c.escopo + '">–</div>' +
+             '<div class="cnt-l">' + esc(c.rotulo) + '</div></button>';
+    }).join("");
+
+    document.querySelectorAll(".cnt").forEach(function(b){
+      b.onclick = function(){
+        document.querySelectorAll(".cnt").forEach(function(x){ x.classList.remove("on"); });
+        b.classList.add("on");
+        ReqState.escopo = b.dataset.escopo;
+        mostrar("lista");
+        ReqLista.render();
+      };
+    });
+  },
+
+  contar: function(){
+    ReqHome.cartoes().forEach(function(c){
+      var el = document.getElementById("cnt-" + c.escopo);
+      if(!el) return;
+      el.textContent = ReqState.lista.filter(function(r){
+        return ReqLista.noEscopo(r, c.escopo);
+      }).length;
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9e. APROVAÇÃO — quem pode aprovar cada empresa
+// ────────────────────────────────────────────────────────────
+var ReqAprov = {
+  // Lista de e-mails autorizados a aprovar as requisições de uma empresa.
+  // A ordem da REQ_PARAM importa: o primeiro é quem aparece como responsável.
+  daEmpresa: function(empresa){
+    var e = String(empresa || "").toUpperCase();
+    return ((ReqState.config && ReqState.config.aprovadores) || [])
+      .filter(function(g){ return g.chave === e; })
+      .map(function(g){ return g.valor; });
+  },
+
+  exigeAprovacao: function(empresa){
+    var e = String(empresa || "").toUpperCase();
+    var lista = ((ReqState.config && ReqState.config.triagem) || [])
+      .filter(function(t){ return t.chave === e; });
+    return lista.length ? String(lista[0].valor).toUpperCase() === "SIM" : false;
+  },
+
+  souAprovador: function(empresa){
+    var eu = (ReqState.config && ReqState.config.usuario.email || "").toLowerCase();
+    return ReqAprov.daEmpresa(empresa).some(function(m){ return m.toLowerCase() === eu; });
+  },
+
+  // Aprovação direto da lista: o Matheus não precisa abrir uma a uma
+  // para liberar sacola e material óbvio. Recusar e pedir ajuste
+  // continuam exigindo o detalhe, porque pedem justificativa.
+  rapida: function(id){
+    var r = ReqState.lista.filter(function(x){ return x.id === id; })[0];
+    if(!r){ toast("Recarregue a lista.", true); return; }
+
+    document.getElementById("modal-cx").innerHTML =
+      '<div class="modal-t">Aprovar ' + esc(r.id) + '?</div>' +
+      '<div class="modal-s">Ao aprovar, a requisição vai direto para a fila da Cris.</div>' +
+      '<div class="card" style="margin:0 0 16px"><dl class="kv">' +
+        '<dt>O que é</dt><dd>' + esc(r.titulo) + '</dd>' +
+        '<dt>Empresa</dt><dd>' + esc([r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ")) + '</dd>' +
+        '<dt>Pedido por</dt><dd>' + esc(r.solicitanteOriginal || r.abertoPorNome) + '</dd>' +
+        '<dt>Urgência</dt><dd>' + esc(r.urgencia) + '</dd>' +
+        (r.dataNecessidade ? '<dt>Precisa até</dt><dd>' + esc(dataBr(r.dataNecessidade)) + '</dd>' : '') +
+      '</dl></div>' +
+      '<div class="btns">' +
+        '<button class="btn btn-ok" id="ap-ok" onclick="ReqAprov.confirmar(\'' + r.id + '\')">✓ Aprovar e enviar para a Cris</button>' +
+        '<button class="btn btn-s" onclick="ReqAprov.fechar();ReqDetalhe.abrir(\'' + r.id + '\')">Abrir para analisar</button>' +
+        '<button class="btn btn-s" onclick="ReqAprov.fechar()">Cancelar</button>' +
+      '</div>';
+
+    document.getElementById("modal").classList.add("on");
+  },
+
+  fechar: function(){
+    document.getElementById("modal").classList.remove("on");
+    document.getElementById("modal-cx").innerHTML = "";
+  },
+
+  confirmar: function(id){
+    var btn = document.getElementById("ap-ok");
+    btn.disabled = true;
+    btn.textContent = "Aprovando…";
+    ReqAPI.post("alterarStatus", {id:id, status:"EM_ANALISE", texto:"Aprovada"}, "Aprovando…")
+      .then(function(){
+        ReqAprov.fechar();
+        toast(id + " aprovada. Já está com a Cris.");
+        return ReqNotif.sincronizar();
+      })
+      .catch(function(e){
+        toast(e.message, true);
+        btn.disabled = false;
+        btn.textContent = "✓ Aprovar e enviar para a Cris";
+      });
+  },
+
+  // Bloco do detalhe: quem aprovou e quando, ou quem ainda pode aprovar.
+  bloco: function(r, eventos){
+    if(!ReqAprov.exigeAprovacao(r.empresa)) return "";
+
+    var ev = (eventos || []).filter(function(e){
+      return e.tipo === "STATUS" && e.statusAnterior === "EM_TRIAGEM" && e.statusNovo === "EM_ANALISE";
+    }).pop();
+
+    if(ev){
+      return '<div class="card"><div class="card-t">Aprovação</div><dl class="kv">' +
+             '<dt>Situação</dt><dd style="color:var(--ok)">✓ Aprovada</dd>' +
+             '<dt>Por</dt><dd>' + esc(ev.usuarioNome || nomeDe(ev.usuario)) + '</dd>' +
+             '<dt>Quando</dt><dd>' + esc(horaBr(ev.dataHora)) + '</dd>' +
+             '</dl></div>';
+    }
+
+    if(r.status !== "EM_TRIAGEM") return "";
+
+    return '<div class="card"><div class="card-t">Aprovação</div><dl class="kv">' +
+           '<dt>Situação</dt><dd style="color:var(--warn)">⏳ Aguardando aprovação</dd>' +
+           '<dt>Pode aprovar</dt><dd>' +
+             esc(ReqAprov.daEmpresa(r.empresa).map(nomeDe).join(" · ")) + '</dd>' +
+           '</dl></div>';
+  }
+};
+
+// ────────────────────────────────────────────────────────────
 // 9d. PRAZO DE RETORNO — Compras não segura requisição sem data
 // ────────────────────────────────────────────────────────────
 var ReqPrazo = {
@@ -1257,7 +1508,7 @@ var ReqForm = {
     '<div class="card"><div class="card-t">Para onde é?</div>' +
       '<div class="linha3">' +
         '<div class="campo"><label class="lbl" for="n-empresa">Empresa</label>' +
-          '<select class="sel" id="n-empresa" onchange="ReqForm.unidades()"><option value="">Escolha</option>' + empresas + '</select></div>' +
+          '<select class="sel" id="n-empresa" onchange="ReqForm.empresaMudou()"><option value="">Escolha</option>' + empresas + '</select></div>' +
         '<div class="campo"><label class="lbl" for="n-unidade">Unidade</label>' +
           '<select class="sel" id="n-unidade"><option value="">Escolha a empresa antes</option></select></div>' +
         '<div class="campo"><label class="lbl" for="n-setor">Setor <i>opcional</i></label>' +
@@ -1265,6 +1516,7 @@ var ReqForm = {
       '</div>' +
       '<div class="campo"><label class="lbl" for="n-solic">Quem pediu, se não foi você <i>opcional</i></label>' +
         '<input class="inp" id="n-solic" placeholder="Nome ou e-mail de quem precisa"></div>' +
+      '<div id="aviso-aprov"></div>' +
     '</div>' +
 
     '<div class="card"><div class="card-t">Item</div>' +
@@ -1297,10 +1549,15 @@ var ReqForm = {
       '</div>' +
     '</div>' +
 
-    '<div class="card"><div class="card-t">Links de referência</div>' +
-      '<div class="rq-meta">Cole links do Mercado Livre, Instagram, Facebook ou do site do fornecedor. Fotos e PDFs você anexa depois de criar.</div>' +
+    '<div class="card"><div class="card-t">Referências</div>' +
+      '<div class="rq-meta">Link do Mercado Livre, print do Instagram, foto do que acabou, orçamento em PDF. Quanto mais a Cris vir, menos ida e volta.</div>' +
       '<div id="links-lista" style="margin:12px 0"></div>' +
-      '<button class="mais" onclick="ReqForm.addLink()">+ Adicionar link</button>' +
+      '<div class="anexar-bar">' +
+        '<button class="btn btn-s" onclick="ReqForm.addLink()">🔗 Colar link</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.addArquivo(\'IMAGEM\')">📷 Foto</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.addArquivo(\'PDF\')">📄 Arquivo ou PDF</button>' +
+      '</div>' +
+      '<input type="file" id="n-arq" style="display:none" onchange="ReqForm.pegouArquivo(this)">' +
     '</div>' +
 
     '<div class="card"><div class="card-t">Prazo</div>' +
@@ -1312,8 +1569,8 @@ var ReqForm = {
       '</div>' +
     '</div>' +
 
-    '<div class="btns" style="margin-bottom:30px">' +
-      '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar()">Enviar requisição</button>' +
+    '<div class="btns" style="margin-bottom:30px" id="btns-envio">' +
+      '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(false)">Enviar requisição</button>' +
       '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>' +
     '</div>';
 
@@ -1330,6 +1587,70 @@ var ReqForm = {
     document.getElementById("btn-espec").textContent = aberto
       ? "− Esconder especificações"
       : "+ Mais especificações (marca, cor, medidas, voltagem…)";
+  },
+
+  // Ao escolher a empresa, a pessoa já vê quem vai aprovar — e o
+  // aprovador ganha o botão de mandar direto para a Cris.
+  empresaMudou: function(){
+    ReqForm.unidades();
+    var emp = document.getElementById("n-empresa").value;
+    var aviso = document.getElementById("aviso-aprov");
+    var btns = document.getElementById("btns-envio");
+    if(!emp){ aviso.innerHTML = ""; return; }
+
+    if(!ReqAprov.exigeAprovacao(emp)){
+      aviso.innerHTML = '<div class="aguardando" style="background:rgba(54,207,160,.1);border-color:rgba(54,207,160,.3);color:var(--ok)">' +
+                        'Esta requisição vai direto para a Cris, sem aprovação.</div>';
+      return;
+    }
+
+    var quem = ReqAprov.daEmpresa(emp).map(nomeDe).join(" ou ");
+    if(ReqAprov.souAprovador(emp)){
+      aviso.innerHTML = '<div class="aguardando" style="background:rgba(54,207,160,.1);border-color:rgba(54,207,160,.3);color:var(--ok)">' +
+                        'Você pode aprovar requisições desta empresa.</div>';
+      btns.innerHTML =
+        '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(true)">Aprovar e enviar para a Cris</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.enviar(false)">Enviar para aprovação</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>';
+    } else {
+      aviso.innerHTML = '<div class="aguardando">Será enviada para aprovação de <b>' + esc(quem) +
+                        '</b> e depois segue para a Cris.</div>';
+      btns.innerHTML =
+        '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(false)">Enviar para aprovação</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>';
+    }
+  },
+
+  addArquivo: function(tipo){
+    var inp = document.getElementById("n-arq");
+    inp.accept = (tipo === "IMAGEM") ? "image/*" : ".pdf,.doc,.docx,.xls,.xlsx,image/*";
+    inp.dataset.tipo = tipo;
+    inp.value = "";
+    inp.click();
+  },
+
+  pegouArquivo: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    if(ReqState.anexosNovos.length >= 10){ toast("Máximo de 10 referências.", true); return; }
+    var tipo = input.dataset.tipo || "OUTRO";
+
+    var guardar = function(b64, mime){
+      ReqState.anexosNovos.push({
+        tipo: mime.indexOf("image") === 0 ? "IMAGEM" : "PDF",
+        base64: b64, mime: mime, nome: arq.name
+      });
+      ReqForm.renderLinks();
+    };
+
+    if(arq.type.indexOf("image") === 0){
+      ReqAnexo.comprimir(arq, function(b64){ guardar(b64, "image/jpeg"); });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ guardar(String(fr.result).split(",")[1], arq.type || "application/pdf"); };
+      fr.onerror = function(){ toast("Não deu para ler o arquivo.", true); };
+      fr.readAsDataURL(arq);
+    }
   },
 
   unidades: function(){
@@ -1356,14 +1677,21 @@ var ReqForm = {
 
   renderLinks: function(){
     document.getElementById("links-lista").innerHTML = ReqState.anexosNovos.map(function(a, i){
+      var icone = a.url ? "🔗" : (a.tipo === "IMAGEM" ? "📷" : "📄");
+      var rotulo = a.url || a.nome;
+      var mini = (a.tipo === "IMAGEM" && a.base64)
+        ? '<img src="data:image/jpeg;base64,' + a.base64 + '" style="width:42px;height:42px;object-fit:cover;border-radius:8px">'
+        : '';
       return '<div class="item" style="display:flex;justify-content:space-between;gap:10px;align-items:center">' +
-             '<span class="item-e" style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">🔗 ' + esc(a.url) + '</span>' +
+             '<div style="display:flex;align-items:center;gap:10px;overflow:hidden">' + mini +
+               '<span class="item-e" style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+               icone + ' ' + esc(rotulo) + '</span></div>' +
              '<button class="btn btn-s" style="padding:5px 10px;font-size:0.72rem" onclick="ReqForm.removerLink(' + i + ')">Remover</button>' +
              '</div>';
     }).join("");
   },
 
-  enviar: function(){
+  enviar: function(autoaprovar){
     var titulo = document.getElementById("n-titulo").value.trim();
     var desc   = document.getElementById("n-desc").value.trim();
     var emp    = document.getElementById("n-empresa").value;
@@ -1394,16 +1722,21 @@ var ReqForm = {
 
     if(!ReqState.anexosNovos.length){
       var seguir = confirm(
-        "Você não anexou nenhum link de referência.\n\n" +
-        "Um link do Mercado Livre, do Instagram ou do site do fornecedor ajuda muito " +
+        "Você não anexou nenhuma referência.\n\n" +
+        "Um link, uma foto do que acabou ou um print do Instagram ajuda muito " +
         "a Cris a comprar exatamente o que você quer — e evita idas e vindas.\n\n" +
         "Quer enviar assim mesmo?");
       if(!seguir) return;
     }
 
+    var links    = ReqState.anexosNovos.filter(function(a){ return a.url; });
+    var arquivos = ReqState.anexosNovos.filter(function(a){ return a.base64; });
+
     var btn = document.getElementById("btn-enviar");
     btn.disabled = true;
     btn.textContent = "Enviando…";
+
+    var idCriado = null;
 
     ReqAPI.post("criar", {
       requestUuid:         ReqForm.uuid(),
@@ -1416,15 +1749,41 @@ var ReqForm = {
       urgencia:            document.getElementById("n-urg").value,
       dataNecessidade:     document.getElementById("n-quando").value,
       itens:               itens,
-      links:               ReqState.anexosNovos
-    }).then(function(r){
-      toast(r.duplicada ? "Essa requisição já tinha sido criada." : "Requisição " + r.id + " criada.");
+      links:               links,
+      autoaprovar:         !!autoaprovar
+    }, "Criando requisição…").then(function(r){
+      idCriado = r.id;
+      if(r.duplicada) return null;
+
+      // A subpasta do Drive só existe depois que a requisição tem número,
+      // então os arquivos sobem agora, um a um, com a tela bloqueada.
+      var fila = Promise.resolve();
+      arquivos.forEach(function(a, i){
+        fila = fila.then(function(){
+          return ReqAPI.post("anexar", {
+            id: idCriado, tipo: a.tipo, base64: a.base64,
+            mimeType: a.mime, nomeArquivo: a.nome
+          }, "Enviando anexo " + (i+1) + " de " + arquivos.length + "…");
+        });
+      });
+      return fila;
+    }).then(function(){
+      toast("Requisição " + idCriado + " criada.");
       ReqState.anexosNovos = [];
-      ReqDetalhe.abrir(r.id);
+      ReqForm._uuid = null;
+      ReqDetalhe.abrir(idCriado);
     }).catch(function(e){
       toast(e.message, true);
       btn.disabled = false;
       btn.textContent = "Enviar requisição";
+      // Se a requisição nasceu e só o anexo falhou, leva a pessoa para ela
+      // em vez de deixar o formulário preenchido dando a impressão de erro total.
+      if(idCriado){
+        toast("A requisição " + idCriado + " foi criada, mas algum anexo falhou. Anexe pelo detalhe.", true);
+        ReqState.anexosNovos = [];
+        ReqForm._uuid = null;
+        ReqDetalhe.abrir(idCriado);
+      }
     });
   },
 
@@ -1446,16 +1805,9 @@ var ReqNotif = {
   atualizar: function(){
     return ReqAPI.get("novidades", {}).then(function(n){
       ReqState.novidades = n;
-      document.getElementById("c-abertas").textContent = (n.abertas === undefined ? "?" : n.abertas);
-      document.getElementById("c-todas").textContent   = (n.totalVisiveis === undefined ? "?" : n.totalVisiveis);
-      document.getElementById("c-minhas").textContent  = n.minhasAbertas;
-      document.getElementById("c-comigo").textContent  = n.aguardandoVoce;
-      document.getElementById("c-entrega").textContent = n.aguardandoEntrega;
-
       var badge = document.getElementById("sino-n");
       badge.textContent = n.total;
       badge.style.display = n.total > 0 ? "block" : "none";
-
       if(!ReqState.detalheId) ReqLista.render();
       return n;
     }).catch(function(){ /* silencioso: polling não incomoda o usuário */ });
@@ -1471,7 +1823,7 @@ var ReqNotif = {
   iniciar: function(){
     if(ReqState.timer) clearInterval(ReqState.timer);
     ReqState.timer = setInterval(function(){
-      if(document.visibilityState === "visible") ReqNotif.atualizar();
+      if(document.visibilityState === "visible") ReqNotif.sincronizar();
     }, ReqConfig.pollingMs);
 
     document.addEventListener("visibilitychange", function(){
@@ -1481,16 +1833,12 @@ var ReqNotif = {
 
   verNovidades: function(){
     if(!ReqState.novidades.total){ toast("Nada novo desde a sua última visita."); return; }
-    ReqState.escopo = "abertas";
-    document.querySelectorAll(".cnt").forEach(function(b){
-      b.classList.toggle("on", b.dataset.escopo === "abertas");
-    });
+    ReqState.escopo = "todas";
+    document.querySelectorAll(".cnt").forEach(function(b){ b.classList.remove("on"); });
     mostrar("lista");
-    ReqLista.carregar().then(function(){
-      var lista = document.getElementById("lista");
-      var primeiro = lista.querySelector(".rq.novo");
-      if(primeiro) primeiro.scrollIntoView({block:"center"});
-    });
+    ReqLista.render();
+    var primeiro = document.getElementById("lista").querySelector(".rq.novo");
+    if(primeiro) primeiro.scrollIntoView({block:"center"});
   }
 };
 
@@ -1508,6 +1856,8 @@ function ReqInit(){
 
     if(c.usuario.isCompras){
       document.getElementById("titulo").textContent = "Central de Requisições — Compras";
+    } else if(ReqHome.aprovador()){
+      document.getElementById("titulo").textContent = "Central de Requisições — Aprovações";
     }
 
     document.getElementById("f-empresa").innerHTML =
@@ -1522,9 +1872,14 @@ function ReqInit(){
         return '<option value="' + esc(k) + '">' + esc(c.statusLabel[k]) + '</option>';
       }).join("");
 
+    ReqHome.montar();
+
     // Deep link vindo do e-mail: Index_Requisicoes.html?rq=RQ-2026-0001
     var m = location.search.match(/[?&]rq=([^&]+)/);
-    if(m) return ReqDetalhe.abrir(decodeURIComponent(m[1]));
+    if(m){
+      ReqLista.carregar();
+      return ReqDetalhe.abrir(decodeURIComponent(m[1]));
+    }
 
     return ReqNotif.sincronizar();
   }).then(function(){
@@ -1540,16 +1895,6 @@ function ReqInit(){
   document.getElementById("btn-nova").onclick = function(){ ReqForm.abrir(); };
   document.getElementById("sino").onclick     = function(){ ReqNotif.verNovidades(); };
 
-  document.querySelectorAll(".cnt").forEach(function(b){
-    b.onclick = function(){
-      document.querySelectorAll(".cnt").forEach(function(x){ x.classList.remove("on"); });
-      b.classList.add("on");
-      ReqState.escopo = b.dataset.escopo;
-      mostrar("lista");
-      ReqLista.carregar();
-    };
-  });
-
   document.addEventListener("keydown", function(e){
     if(e.key !== "Escape") return;
     if(document.getElementById("lightbox").classList.contains("on")) return ReqFoto.fechar();
@@ -1560,8 +1905,8 @@ function ReqInit(){
   });
 
   document.getElementById("f-busca").oninput    = function(){ ReqLista.render(); };
-  document.getElementById("f-empresa").onchange = function(){ ReqLista.carregar(); };
-  document.getElementById("f-status").onchange  = function(){ ReqLista.carregar(); };
+  document.getElementById("f-empresa").onchange = function(){ ReqLista.render(); };
+  document.getElementById("f-status").onchange  = function(){ ReqLista.render(); };
 }
 
 ReqInit();
