@@ -364,6 +364,50 @@ td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 
 var API="https://script.google.com/macros/s/AKfycbzrrsO9rj3Tu1BtB449g0rAli6zpgxcdLZ9ydFaq6rfvMH_jTh194CtbPzArRM52qLkKA/exec";
 
+/* Nada manual aqui: a tela pergunta ao servidor quando o arquivo foi
+   modificado. O GitHub responde no cabeçalho ETag/Last-Modified, que
+   muda sozinho a cada publicação. Um HEAD é uma requisição minúscula,
+   sem baixar o arquivo. */
+var VERSAO=null;
+var ABERTA_EM=Date.now();
+
+function checarVersao(){
+  fetch(location.pathname+"?v="+Date.now(),{method:"HEAD",cache:"no-store"})
+    .then(function(r){
+      var marca=r.headers.get("etag")||r.headers.get("last-modified");
+      if(!marca) return;
+      if(VERSAO===null){ VERSAO=marca; return; }   // primeira leitura: referência
+      if(marca!==VERSAO) avisarVersao();
+    }).catch(function(){});
+}
+
+function avisarVersao(){
+  if(document.getElementById("av-versao")) return;
+  var d=document.createElement("div");
+  d.id="av-versao";
+  d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:200;background:#e63329;"+
+    "color:#fff;padding:13px 14px;font-size:0.82rem;text-align:center;line-height:1.4;"+
+    "font-family:'DM Sans',sans-serif";
+  d.innerHTML='<b>Versão nova disponível.</b><br>'+
+    '<span style="font-size:0.75rem;opacity:.9">Esta tela está desatualizada.</span><br>'+
+    '<button onclick="location.reload(true)" style="margin-top:8px;background:#fff;color:#c0231f;'+
+    'border:none;border-radius:8px;padding:9px 20px;font-weight:700;font-size:0.82rem;'+
+    'font-family:Syne,sans-serif;cursor:pointer">Atualizar agora</button>';
+  document.body.insertBefore(d, document.body.firstChild);
+}
+
+/* Confere ao abrir, a cada 30 min, e sempre que a pessoa volta ao app.
+   O visibilitychange é o que pega o caso real: celular no bolso o dia
+   inteiro, e a checagem periódica nem sempre roda em aba suspensa. */
+checarVersao();
+setInterval(checarVersao, 30*60*1000);
+document.addEventListener("visibilitychange", function(){
+  if(!document.hidden){
+    checarVersao();
+    if(Date.now()-ABERTA_EM > 12*60*60*1000) location.reload(true);
+  }
+});
+
 var UNI=(new URLSearchParams(location.search).get("u")||"qfood").toLowerCase();
 /* Cache e fila por unidade — sem isso a base da VIX sobrescreve a do Q Food */
 var BASE_CACHE_KEY="qfood_contagem_base_v1_"+UNI;
@@ -461,6 +505,8 @@ function nomeDe(cod){
 
 /* ---------- sessão ---------- */
 function carregarSessao(){
+  /* Mais de 12h aberta: recarrega em vez de arriscar rodar código velho */
+  if(Date.now()-ABERTA_EM > 12*60*60*1000){ location.reload(true); return; }
   /* Só limpa a tela na primeira carga. Num refresh, mantém o que está
      visível e troca só quando a resposta chegar. */
   if(!SESSAO||!SESSAO.existe){
