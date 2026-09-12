@@ -773,7 +773,7 @@ function renderNav(){
   function podeP(p){ return perm===null || perm.indexOf(p.id)>=0; }
   var btns=[];
   if(adm){ btns.push('<div class="nav-group"><button class="ceo" data-view="ceo">👑 Painel do CEO</button><button class="ger" data-view="rodrigo">🧭 Consolidação · Rodrigo</button></div>'); }
-  if(adm || (gestoresPermitidos()||[]).indexOf('gustavo')>=0){ btns.push('<div class="nav-group"><button data-view="receita">💰 Receita diária</button>'+(adm?'<button data-view="metas">🎯 Metas das empresas</button>':'')+'</div>'); }
+  if(adm){ btns.push('<div class="nav-group"><button data-view="metas">🎯 Metas das empresas</button></div>'); }
   var qf=ORG_A.responsaveis.concat(ORG_A.linhaFrente).filter(podeP);
   if(qf.length){ btns.push('<div class="nav-group"><span class="nav-lbl a">Q Food</span>'+qf.map(function(p){ return '<button data-view="'+p.id+'">'+p.emoji+' '+p.nome+'</button>'; }).join('')+'</div>'); }
   var bp=pessoasParteB().filter(podeP);
@@ -795,11 +795,10 @@ function placeholder(tag,titulo,txt){ return '<div style="border:1px dashed var(
 function renderPainel(view){
   var perm=gestoresPermitidos(); var adm=ehAdmin();
   if(!adm && (!perm || perm.length===0)){ el('painel').innerHTML='<div class="card"><div class="ct">Sem acesso</div><p style="color:var(--mu)">Seu usuário não está vinculado a nenhum painel do Checkpoint. Fale com o administrador.</p></div>'; return; }
-  if(view==='receita'){ if(!adm && (!perm || perm.indexOf('gustavo')<0)) view=perm[0]; }
+  if(view==='metas'){ if(!adm) view=perm[0]; }
   else if(view==='ceo'||view==='rodrigo'){ if(!adm) view=perm[0]; }
   else if(!podeVer(view)){ view = adm?'ceo':perm[0]; }
-  if(view==='receita') return painelReceita();
-  if(view==='metas'){ if(!adm) return painelReceita(); return painelMetas(); }
+  if(view==='metas'){ if(!adm) return painelCEO(); return painelMetas(); }
   if(view==='ceo') return painelCEO(); if(view==='rodrigo') return painelRodrigo(); var p=findPessoa(view); if(p) return painelPessoa(p); painelCEO();
 }
 function renderReportForm(r){
@@ -838,11 +837,13 @@ function painelPessoa(p){
   var badges=(p.comite?' <span class="tag-comite">Comitê Executivo</span>':'')+(p.frente==='B'?' <span class="tag-b">Mercearia · Gogui</span>':'');
   var nota=PAINEL_MINIMO[p.id]?('Painel mínimo cobrado: '+PAINEL_MINIMO[p.id]):(p.frente==='B'?'Frente: Mercearia Liberdade • Gogui (Restaurantes)':'');
   var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.semPremio?'':(p.frente==='B'?renderPremiacaoB(p):renderPremiacaoCard(p)))):'';
+  var blocoReceita=(p.id==='gustavo')?recBlocoGustavo():'';
   el('painel').innerHTML=
     '<div class="card"><div class="hero"><div class="emoji">'+p.emoji+'</div><div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+statusInlineHTML(ent)+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
-    renderReportForm(p)+extra;
+    blocoReceita+renderReportForm(p)+extra;
   atualizarStatusInline(p.id,ontem());
+  if(p.id==='gustavo') recIniciarGustavo();
   if(KPIS_AREA[p.id]){ recalcScore(p.id); if(!p.semPremio){ if(p.frente==='B') premBAtualizar(p.id); else premAtualizar(p.id); } }
 }
 function painelRodrigo(){
@@ -861,6 +862,7 @@ function painelRodrigo(){
 function gerarConsolidado(){
   var iso=ontem(),mes=mesAtual(),L=[]; var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length;
   L.push('📊 CHECKPOINT DIÁRIO — Q FOOD GROUP'); L.push('📅 '+isoBR(iso)+'  ·  Enviado por: Rodrigo'); L.push('🎯 Reports do dia: '+eg+'/'+ORG_A.responsaveis.length); L.push('━━━━━━━━━━━━━━━');
+  var _rec=recResumoConsolidado(); if(_rec){ _rec.forEach(function(l){ L.push(l); }); L.push('━━━━━━━━━━━━━━━'); }
   ORG_A.responsaveis.forEach(function(r){ var d=loadReport(r.id,iso),sc=loadScore(r.id,mes);
     L.push((d?'🟢':'🔴')+' '+r.emoji+' '+r.nome.toUpperCase()+' — '+r.funcao); if(sc) L.push('📊 Score '+mes+': '+sc.total+'/100 ('+sc.faixa+')');
     if(d){ if(d.rep_result) L.push('• Resultado de ontem: '+d.rep_result); if(d.rep_plano) L.push('• Plano de hoje: '+d.rep_plano); if(d.rep_risco) L.push('• Risco/bloqueio: '+d.rep_risco); if(d.rep_acao) L.push('• Ação corretiva: '+d.rep_acao); } else { L.push('• (report não entregue)'); }
@@ -1214,6 +1216,41 @@ function metSalvar(empId){
   });
 }
 
+function recBlocoGustavo(){
+  var iso=hoje(), mes=mesAtual();
+  var inputs=RECEITA_EMPRESAS.map(function(emp){
+    return '<div class="rec-in"><label>'+emp.emoji+' '+emp.nome+'</label><input type="text" inputmode="decimal" id="rec-in-'+emp.id+'" placeholder="0,00"></div>';
+  }).join('');
+  return '<div class="card"><div class="sec">💰 Receita diária — lançamento</div>'+
+      '<div class="rep-head"><label>Data</label><input type="date" id="rec-data" value="'+iso+'" onchange="recTrocarData()"><span style="font-size:.76rem;color:var(--mu2)">Deixe em branco a empresa que não teve movimento a lançar</span></div>'+
+      '<div class="rec-grid">'+inputs+'</div>'+
+      '<div class="rep-actions"><button class="btn-save" onclick="recSalvarDia()">💾 Salvar lançamentos do dia</button><span id="rec-msg" class="rep-msg"></span></div>'+
+    '</div>'+
+    '<div class="card"><div class="sec">📈 Tendência do mês</div>'+
+      '<div class="rep-head"><label>Mês</label><input type="month" id="rec-mes" value="'+mes+'" onchange="recTrocarMes()"></div>'+
+      '<div id="rec-cards"></div>'+
+    '</div>'+
+    '<div class="card"><div class="sec">🏆 Apuração do trimestre — níveis de prêmio</div><div id="rec-tri"></div></div>';
+}
+function recIniciarGustavo(){
+  recTrocarData(); recRenderPainelInterno();
+  var pend=[];
+  if(RECEITA_CACHE===null) pend.push(recCarregarBase());
+  if(METAS_CACHE===null) pend.push(recCarregarMetas());
+  if(pend.length){ Promise.all(pend).then(function(){ recTrocarData(); recRenderPainelInterno(); }); }
+}
+function recResumoConsolidado(){
+  var mes=mesAtual(), L=[], algum=false;
+  RECEITA_EMPRESAS.forEach(function(emp){
+    var c=recCalc(emp,mes);
+    if(!c.total && !c.meta) return;
+    algum=true;
+    if(c.meta>0) L.push(emp.emoji+' '+emp.nome+': '+recMoeda(c.total)+' ('+c.pct.toFixed(0)+'%) · '+c.ritmo);
+    else L.push(emp.emoji+' '+emp.nome+': '+recMoeda(c.total)+' · sem meta');
+  });
+  if(!algum) return null;
+  return ['💰 RECEITA DO MÊS ('+mes+')'].concat(L);
+}
 function painelReceita(){
   var iso=hoje(), mes=mesAtual();
   var inputs=RECEITA_EMPRESAS.map(function(emp){
