@@ -613,12 +613,72 @@ var FAIXA_ICONE={Diamante:'💎',Ouro:'🥇',Prata:'🥈',Bronze:'🥉','Supera�
 function faixaIco(n){ return (FAIXA_ICONE[n]||'')+' '+n; }
 /* ── Sessão / admin: metas editáveis só por admin ── */
 var CHK_ADMIN_EMAILS = ['rodrigo@qfoodcompany.com.br','rodrigo.silveira@qfoodcompany.com.br','adilson@qfoodcompany.com.br'];
-(function(){ try{ var s=JSON.parse(localStorage.getItem('qfood_session')||'null'); if(s&&s.email){ window.CURRENT_USER={email:s.email,nome:s.nome,role:s.role}; window.__NOSESS=false; } else { window.__NOSESS=true; } }catch(e){ window.__NOSESS=true; } })();
-function ehAdmin(){ if(window.__NOSESS) return true; var u=window.CURRENT_USER||{}; return CHK_ADMIN_EMAILS.indexOf((u.email||'').toLowerCase())>=0; }
+var CHK_DEV_CHAVE = 'qfood-dev-2026';
+(function(){
+  window.__DEVMODE = false;
+  try{
+    var q = new URLSearchParams(location.search);
+    if(q.get('dev') === CHK_DEV_CHAVE){ window.__DEVMODE = true; }
+  }catch(e){}
+  try{
+    var s=JSON.parse(localStorage.getItem('qfood_session')||'null');
+    if(s&&s.email){ window.CURRENT_USER={email:s.email,nome:s.nome,role:s.role}; window.__NOSESS=false; }
+    else { window.__NOSESS=true; }
+  }catch(e){ window.__NOSESS=true; }
+})();
+function ehAdmin(){
+  if(window.__DEVMODE) return true;
+  if(window.__NOSESS) return false;
+  var u=window.CURRENT_USER||{};
+  return CHK_ADMIN_EMAILS.indexOf((u.email||'').toLowerCase())>=0;
+}
+function temAcesso(){
+  if(window.__DEVMODE) return true;
+  if(window.__NOSESS) return false;
+  if(ehAdmin()) return true;
+  var email=((window.CURRENT_USER||{}).email||'').toLowerCase();
+  return !!CHK_EMAIL_TO_GESTOR[email];
+}
+function telaBloqueio(titulo, texto, mostrarEmail){
+  var email=((window.CURRENT_USER||{}).email||'');
+  document.body.innerHTML =
+    '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;font-family:var(--fb,system-ui);background:var(--bg,#1a1f2e)">'+
+      '<div style="max-width:460px;width:100%;background:var(--sf,#242938);border:1px solid var(--br,rgba(255,255,255,.1));border-radius:14px;padding:30px 28px;text-align:center">'+
+        '<div style="font-size:2.4rem;margin-bottom:14px">🔒</div>'+
+        '<div style="font-family:var(--fh,system-ui);font-size:1.1rem;font-weight:700;color:var(--tx,#e8edf5);margin-bottom:10px">'+titulo+'</div>'+
+        '<div style="font-size:.88rem;color:var(--mu,#8fa0c0);line-height:1.55;margin-bottom:20px">'+texto+'</div>'+
+        (mostrarEmail&&email?'<div style="font-size:.78rem;color:var(--mu2,#6b7a99);margin-bottom:18px;word-break:break-all">Conectado como: '+email+'</div>':'')+
+        '<a href="Index_Menu.html" style="display:inline-block;background:var(--cyan,#22d3ee);color:#0d1117;font-weight:700;font-size:.88rem;padding:11px 26px;border-radius:9px;text-decoration:none">Ir para o login</a>'+
+      '</div>'+
+    '</div>';
+}
+function avisoDevMode(){
+  if(!window.__DEVMODE) return;
+  var d=document.createElement('div');
+  d.style.cssText='position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#e63329;color:#fff;text-align:center;padding:7px 12px;font-size:.78rem;font-weight:700;letter-spacing:.3px';
+  d.textContent='⚠ MODO DESENVOLVEDOR ATIVO — acesso total sem sessão. Remova ?dev= da URL antes de compartilhar.';
+  document.body.appendChild(d);
+}
 function logout(){ try{ localStorage.removeItem('qfood_session'); }catch(e){} location.href='Index_Menu.html'; }
 function metaKey(id){ return 'qfood_chk_metas_'+id; }
 function loadMetasOverlay(id){ try{ return JSON.parse(localStorage.getItem(metaKey(id))||'{}')||{}; }catch(e){ return {}; } }
 function metaEf(id,k){ var o=loadMetasOverlay(id); return (o&&o[k.id]!=null&&o[k.id]!=='')?parseFloat(o[k.id]):k.meta; }
+/* Um KPI só entra no cálculo quando tem meta de verdade.
+   'em definição' no metaLabel = não pontua, até que uma meta seja gravada
+   pelo admin (overlay) ou o metaLabel seja corrigido no código. */
+function kpiSemMeta(k){ return String(k.metaLabel||'').toLowerCase().indexOf('em defini') >= 0; }
+function kpiPronto(gid,k){
+  if(k.status && k.status!=='ativo') return false;
+  if(!kpiSemMeta(k)) return true;
+  var o=loadMetasOverlay(gid);
+  return !!(o && o[k.id]!=null && o[k.id]!=='');
+}
+function kpiSeloPendente(gid,k){
+  if(k.status && k.status!=='ativo'){
+    return {em_implantacao:'🚧 em implantação — não pontua', suspenso:'⏸ suspenso — não pontua', nao_aplicavel:'— não se aplica'}[k.status]||'não pontua';
+  }
+  return '📌 sem meta definida — não pontua';
+}
 function salvarMeta(id,kpiId,val){ var o=loadMetasOverlay(id); o[kpiId]=val; try{ localStorage.setItem(metaKey(id),JSON.stringify(o)); }catch(e){} }
 function editarMeta(id,kpiId,inp){
   var val=parseFloat(String(inp.value).replace(',','.'));
@@ -659,7 +719,7 @@ var SUPERVISAO = {
   tairine: ['leorick','elizeu']
 };
 function gestoresPermitidos(){
-  if(ehAdmin()) return null; /* admin OU sem sessão (dev) = todos */
+  if(ehAdmin()) return null; /* admin (ou modo dev explícito) = todos */
   var email=((window.CURRENT_USER||{}).email||'').toLowerCase();
   var meu=CHK_EMAIL_TO_GESTOR[email];
   if(!meu) return [];
@@ -667,20 +727,62 @@ function gestoresPermitidos(){
 }
 function podeVer(id){ var p=gestoresPermitidos(); return p===null || p.indexOf(id)>=0; }
 function primeiraView(){ if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
+/* ── Justificativa de N/A — chave: gestorId|mes|kpiId ────────── */
+var NA_MOTIVOS = {};
+function naKey(gid,mes,kpiId){ return gid+'|'+mes+'|'+kpiId; }
+function naGet(gid,mes,kpiId){ return NA_MOTIVOS[naKey(gid,mes,kpiId)]||null; }
+function naSet(gid,mes,kpiId,obj){ if(obj) NA_MOTIVOS[naKey(gid,mes,kpiId)]=obj; else delete NA_MOTIVOS[naKey(gid,mes,kpiId)]; }
+function naCarregar(gid,mes,detalhe){
+  (KPIS_AREA[gid]||[]).forEach(function(k){ naSet(gid,mes,k.id,null); });
+  if(!detalhe) return;
+  Object.keys(detalhe).forEach(function(kid){ naSet(gid,mes,kid,detalhe[kid]); });
+}
+function naToggle(gid,kpiId){
+  var mes=(el('q-'+gid+'-mes')||{}).value||mesAtual();
+  var cb=el('q-'+gid+'-na-'+kpiId);
+  if(!cb) return;
+  if(cb.checked){
+    var atual=naGet(gid,mes,kpiId);
+    var motivo=prompt('Por que este indicador não se aplica em '+mes+'?\n\nSeja específico — este texto fica registrado e aparece na consolidação.', (atual&&atual.motivo)||'');
+    if(motivo===null || String(motivo).trim()===''){
+      cb.checked=false;
+      naSet(gid,mes,kpiId,null);
+      recalcScore(gid);
+      return;
+    }
+    naSet(gid,mes,kpiId,{ motivo:String(motivo).trim(), por:((window.CURRENT_USER||{}).email||'sem-sessao').toLowerCase(), em:new Date().toISOString() });
+  } else {
+    naSet(gid,mes,kpiId,null);
+  }
+  recalcScore(gid);
+}
+function naResumo(gid,mes){
+  var out=[];
+  (KPIS_AREA[gid]||[]).forEach(function(k){
+    var m=naGet(gid,mes,k.id);
+    if(m) out.push({ kpi_id:k.id, kpi:k.label, motivo:m.motivo, por:m.por, em:m.em });
+  });
+  return out;
+}
+
 function recalcScore(id){
+  var mesRef=(el('q-'+id+'-mes')||{}).value||mesAtual();
   var kpis=KPIS_AREA[id]||[]; var soma=0,n=0,vazios=0,nNa=0;
   kpis.forEach(function(k){ var inp=el('q-'+id+'-'+k.id),cell=el('q-'+id+'-at-'+k.id);
     /* KPI em implantação (ou suspenso/nao_aplicavel): NÃO entra no cálculo — não pontua nem penaliza */
-    if(k.status && k.status!=='ativo'){
-      if(cell){ cell.textContent='🚧'; cell.style.color='var(--mu2)'; cell.title='KPI em implantação — não entra no score'; }
+    if(!kpiPronto(id,k)){
+      if(inp){ inp.disabled=true; inp.style.opacity='.4'; }
+      if(cell){ cell.textContent='📌'; cell.style.color='var(--mu2)'; cell.title=(k.status&&k.status!=='ativo')?'KPI em implantação — não entra no score':'KPI sem meta definida — não entra no score enquanto a meta não for cadastrada'; }
       return;
     }
     /* N/A do mês: fora do numerador E do denominador */
     var cbNa=el('q-'+id+'-na-'+k.id);
     if(cbNa && cbNa.checked){
       nNa++;
+      var mot=naGet(id,mesRef,k.id);
       if(inp){ inp.disabled=true; inp.style.opacity='.35'; }
-      if(cell){ cell.textContent='N/A'; cell.style.color='var(--mu2)'; cell.title='Não se aplica neste mês — fora do cálculo'; }
+      if(cell){ cell.textContent='N/A'; cell.style.color='var(--mu2)'; cell.title=mot?('Não se aplica: '+mot.motivo+'\n('+mot.por+')'):'Não se aplica neste mês'; }
+      cbNa.title=mot?('Motivo: '+mot.motivo):'Não se aplica neste mês';
       return;
     }
     if(inp){ inp.disabled=false; inp.style.opacity=''; }
@@ -704,7 +806,7 @@ function recalcScore(id){
       selo.textContent='⚠ INCOMPLETO — '+vazios+' KPI'+(vazios>1?'s':'')+' sem preenchimento (contando como zero)'+(nNa>0?' · '+nNa+' N/A':'');
       selo.style.color='var(--red)'; selo.style.background='rgba(230,51,41,.10)'; selo.style.borderColor='rgba(230,51,41,.35)'; selo.style.display='block';
     } else if(nNa>0){
-      selo.textContent='✓ Completo · '+nNa+' KPI'+(nNa>1?'s':'')+' marcado'+(nNa>1?'s':'')+' como N/A neste mês';
+      selo.textContent='✓ Completo · '+nNa+' KPI'+(nNa>1?'s':'')+' marcado'+(nNa>1?'s':'')+' como N/A (passe o mouse para ver o motivo)';
       selo.style.color='var(--mu)'; selo.style.background='rgba(255,255,255,.04)'; selo.style.borderColor='rgba(255,255,255,.12)'; selo.style.display='block';
     } else {
       selo.style.display='none';
@@ -714,24 +816,25 @@ function recalcScore(id){
   return {total:total,faixa:f.nome,desc:desc,vazios:vazios,na:nNa};
 }
 function scoreTrocarMes(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var s=loadScore(id,mes)||{};
+  naCarregar(id,mes,s.na_detalhe||null);
   (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); if(inp) inp.value=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:'';
     var cbNa=el('q-'+id+'-na-'+k.id); if(cbNa) cbNa.checked=!!(s.na&&s.na[k.id]); });
   CULTURA_ITENS.forEach(function(c,i){ var cb=el('q-'+id+'-cult-'+i); if(cb) cb.checked=!!(s.cultura&&s.cultura[i]); });
   DISCIPLINA_ENTREGAS.forEach(function(e,i){ var cb=el('q-'+id+'-disc-'+i); if(cb) cb.checked=(s.disciplina&&s.disciplina[i]!=null)?!!s.disciplina[i]:true; });
   var r=el('q-'+id+'-ralos'); if(r) r.value=(s.ralos!=null)?s.ralos:''; recalcScore(id); setTxt('q-'+id+'-msg',''); }
 function salvarScore(id){ var mes=el('q-'+id+'-mes').value||mesAtual(); var r=recalcScore(id);
-  var kpis={}; var na={}; var naLista=[];
+  var kpis={}; var na={}; var naLista=[]; var naDet={};
   (KPIS_AREA[id]||[]).forEach(function(k){ var inp=el('q-'+id+'-'+k.id); kpis[k.id]=inp?inp.value.trim():'';
-    var cbNa=el('q-'+id+'-na-'+k.id); if(cbNa&&cbNa.checked){ na[k.id]=true; naLista.push(k.id); } });
+    var cbNa=el('q-'+id+'-na-'+k.id); if(cbNa&&cbNa.checked){ na[k.id]=true; naLista.push(k.id); var m=naGet(id,mes,k.id); if(m) naDet[k.id]=m; } });
   var cultura=CULTURA_ITENS.map(function(c,i){ var cb=el('q-'+id+'-cult-'+i); return cb?cb.checked:false; });
   var disciplina=DISCIPLINA_ENTREGAS.map(function(e,i){ var cb=el('q-'+id+'-disc-'+i); return cb?cb.checked:true; });
   var ri=el('q-'+id+'-ralos');
   var _editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim();
-  try{ localStorage.setItem(scoreKey(id,mes),JSON.stringify({mes:mes,kpis:kpis,na:na,ralos:ri?ri.value:'',cultura:cultura,disciplina:disciplina,desconto:r.desc,total:r.total,faixa:r.faixa,kpis_vazios:r.vazios,salvo_em:new Date().toISOString()})); }catch(e){}
+  try{ localStorage.setItem(scoreKey(id,mes),JSON.stringify({mes:mes,kpis:kpis,na:na,na_detalhe:naDet,ralos:ri?ri.value:'',cultura:cultura,disciplina:disciplina,desconto:r.desc,total:r.total,faixa:r.faixa,kpis_vazios:r.vazios,salvo_em:new Date().toISOString()})); }catch(e){}
   if(!_editor){ setTxt('q-'+id+'-msg','⚠ Salvo só neste aparelho — sem sessão ativa, o Sheets recusa gravação em QDACE_SCORE. Entre pelo Index_Menu.'); var _s=el('q-'+id+'-msg'); if(_s) _s.style.color='#ffaa2b'; return; }
   setTxt('q-'+id+'-msg','⏳ enviando ao Sheets...');
   var _q=el('q-'+id+'-msg'); if(_q) _q.style.color='var(--mu)';
-  enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, editado_por:_editor, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, kpis_na:naLista.join(','), kpis_vazios:r.vazios, detalhe_json:JSON.stringify({kpis:kpis,na:naLista,cultura:cultura,disciplina:disciplina,ralos_solucao:(el('q-'+id+'-ralos')?el('q-'+id+'-ralos').value:'')}), salvo_em:new Date().toISOString() })
+  enviarSheet('QDACE_SCORE', { gestor_id:id, gestor_nome:(findLider(id)||{}).nome||id, mes:mes, editado_por:_editor, total:r.total, faixa:r.faixa, bloco_kpi:parseFloat((el('q-'+id+'-bk-kpi')||{}).textContent)||0, ralos:parseFloat((el('q-'+id+'-bk-ralos')||{}).textContent)||0, cultura:parseFloat((el('q-'+id+'-bk-cult')||{}).textContent)||0, desconto:r.desc, kpis_na:naLista.join(','), kpis_vazios:r.vazios, kpis_na_detalhe:JSON.stringify(naDet), detalhe_json:JSON.stringify({kpis:kpis,na:naLista,na_detalhe:naDet,cultura:cultura,disciplina:disciplina,ralos_solucao:(el('q-'+id+'-ralos')?el('q-'+id+'-ralos').value:'')}), salvo_em:new Date().toISOString() })
     .then(function(resp){
       var e2=el('q-'+id+'-msg');
       if(resp.ok){ setTxt('q-'+id+'-msg','✓ score gravado no banco de dados ('+mes+')'+(resp.linha?' · linha '+resp.linha:'')); if(e2) e2.style.color=''; }
@@ -742,18 +845,20 @@ function renderScoreCard(r){
   var adm=ehAdmin(); var mo=loadMetasOverlay(r.id);
   var rows=kpis.map(function(k){ var v=(s.kpis&&s.kpis[k.id]!=null)?s.kpis[k.id]:''; var a=k.dir==='maior'?'≥':'≤'; var mv=metaEf(r.id,k); var hasOv=(mo&&mo[k.id]!=null&&mo[k.id]!=='');
     /* KPI em implantação: linha visualmente diferenciada, sem input de meta editável, sem input de realizado */
-    if(k.status && k.status!=='ativo'){
-      var selo={em_implantacao:'🚧 em implantação — não pontua', suspenso:'⏸ suspenso — não pontua', nao_aplicavel:'— não se aplica'}[k.status]||'não pontua';
-      return '<tr style="opacity:.55"><td>'+k.label+' <span style="font-size:.68rem;color:var(--warn);background:rgba(255,170,43,.12);padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:600">'+selo+'</span></td><td><span style="color:var(--mu2)">a definir</span></td><td><input type="text" value="" disabled style="opacity:.5;cursor:not-allowed" title="KPI em implantação — realizado não pontua"></td><td style="text-align:center;color:var(--mu2)">—</td><td class="at" id="q-'+r.id+'-at-'+k.id+'" style="color:var(--mu2)">🚧</td></tr>';
+    if(!kpiPronto(r.id,k)){
+      var selo=kpiSeloPendente(r.id,k);
+      var metaPend=adm?('<input type="number" step="any" id="qm-'+r.id+'-'+k.id+'" value="" placeholder="definir" onchange="editarMeta(\''+r.id+'\',\''+k.id+'\',this)" title="Defina a meta para ativar este KPI" style="width:88px;background:var(--s2);border:1px solid var(--warn);border-radius:6px;padding:4px 7px;color:var(--tx);font-family:inherit;font-size:.82rem;outline:none">'):('<span style="color:var(--mu2)">a definir</span>');
+      return '<tr style="opacity:.6"><td>'+k.label+' <span style="font-size:.68rem;color:var(--warn);background:rgba(255,170,43,.12);padding:2px 7px;border-radius:10px;margin-left:4px;font-weight:600">'+selo+'</span></td><td>'+metaPend+'</td><td><input type="text" value="" disabled style="opacity:.5;cursor:not-allowed" title="Defina a meta para liberar o lançamento"></td><td style="text-align:center;color:var(--mu2)">—</td><td class="at" id="q-'+r.id+'-at-'+k.id+'" style="color:var(--mu2)">📌</td></tr>';
     }
     var metaCell=adm?('<input type="number" step="any" id="qm-'+r.id+'-'+k.id+'" value="'+mv+'" onchange="editarMeta(\''+r.id+'\',\''+k.id+'\',this)" title="Editar meta (admin)" style="width:88px;background:var(--s2);border:1px solid var(--cyan);border-radius:6px;padding:4px 7px;color:var(--tx);font-family:inherit;font-size:.82rem;outline:none">'):('<span style="color:var(--mu)">'+a+' '+(hasOv?mv:k.metaLabel)+'</span>');
     var naCk=(s.na&&s.na[k.id])?' checked':'';
-    var naCell='<td style="text-align:center"><input type="checkbox" id="q-'+r.id+'-na-'+k.id+'"'+naCk+' onchange="recalcScore(\''+r.id+'\')" title="Não se aplica neste mês — sai do cálculo"></td>';
+    var naCell='<td style="text-align:center"><input type="checkbox" id="q-'+r.id+'-na-'+k.id+'"'+naCk+' onchange="naToggle(\''+r.id+'\',\''+k.id+'\')" title="Não se aplica neste mês — exige justificativa"></td>';
     return '<tr><td>'+k.label+'</td><td>'+metaCell+'</td><td><input type="number" step="any" id="q-'+r.id+'-'+k.id+'" value="'+esc(v)+'" oninput="recalcScore(\''+r.id+'\')"></td>'+naCell+'<td class="at" id="q-'+r.id+'-at-'+k.id+'">—</td></tr>'; }).join('');
   var cult=CULTURA_ITENS.map(function(c,i){ var ck=(s.cultura&&s.cultura[i])?' checked':''; return '<label><input type="checkbox" id="q-'+r.id+'-cult-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> '+c+'</label>'; }).join('');
   var disc=DISCIPLINA_ENTREGAS.map(function(e,i){ var ck=(s.disciplina&&s.disciplina[i]!=null)?(s.disciplina[i]?' checked':''):' checked'; return '<label><input type="checkbox" id="q-'+r.id+'-disc-'+i+'"'+ck+' onchange="recalcScore(\''+r.id+'\')"> <span>'+e.nome+'</span> <span class="peso">−'+e.peso+'</span></label>'; }).join('');
   var ralos=(s.ralos!=null)?esc(s.ralos):'';
   return '<div class="card"><div class="sec">🎯 Score QDACE® — 100 pontos</div>'+
+    '<div style="border:1px solid rgba(255,170,43,.35);background:rgba(255,170,43,.10);color:var(--warn);border-radius:8px;padding:9px 12px;margin-bottom:12px;font-size:.79rem;line-height:1.45"><strong>Resultado gerencial provisório.</strong> A pontuação e a premiação dependem da validação das regras oficiais pelo CEO.</div>'+
     (function(){
       var em = kpis.filter(function(k){ return k.status && k.status!=='ativo'; }).length;
       var at = kpis.filter(function(k){ return !k.status || k.status==='ativo'; }).length;
@@ -966,18 +1071,79 @@ function painelRodrigo(){
     '<div class="card"><div class="ct">🧾 Consolidado do dia </div><div class="rep-actions" style="margin-bottom:10px"><button class="btn-save" onclick="preencherConsolidado()">Gerar consolidado</button><button class="btn-save" style="background:var(--s3)" onclick="copiarConsolidado()">📋 Copiar</button><span class="rep-msg" id="cons-copy-msg"></span></div><textarea class="cons" id="cons-msg" placeholder="Clique em Gerar consolidado."></textarea></div>'+
     '<div class="grid2"><div class="card"><div class="ct">📝 Modelo do report diário</div><ul class="lst">'+report+'</ul></div><div class="card"><div class="ct">🗓️ As 5 Perguntas de Segunda</div><ul class="lst">'+perg+'</ul></div></div>';
 }
+var CONS_NUVEM = null;
+function consolidadoCarregar(iso, mes){
+  var base=(window.__QFOOD_SYNC_URL||CKP_SYNC_URL);
+  return Promise.all([
+    fetch(base+'?aba=DIARIO',{method:'GET'}).then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch(base+'?aba=QDACE_SCORE',{method:'GET'}).then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(res){
+    var reports={}, scores={};
+    if(res[0]&&res[0].ok&&res[0].registros){
+      res[0].registros.forEach(function(reg){
+        var g=String(reg.gestor_id||'').trim();
+        var d=String(reg.data_iso||reg.data||'').substring(0,10);
+        if(!g||d!==iso) return;
+        var ant=reports[g];
+        if(!ant || new Date(reg.salvo_em||0) >= new Date(ant.salvo_em||0)) reports[g]=reg;
+      });
+    }
+    if(res[1]&&res[1].ok&&res[1].registros){
+      res[1].registros.forEach(function(reg){
+        var g=String(reg.gestor_id||'').trim();
+        var m=String(reg.mes||'').substring(0,7);
+        if(!g||m!==mes) return;
+        var ant=scores[g];
+        if(!ant || new Date(reg.salvo_em||0) >= new Date(ant.salvo_em||0)) scores[g]=reg;
+      });
+    }
+    CONS_NUVEM={ iso:iso, mes:mes, reports:reports, scores:scores,
+                 okDiario:!!(res[0]&&res[0].ok), okScore:!!(res[1]&&res[1].ok) };
+    return CONS_NUVEM;
+  });
+}
+function consReport(id,iso){
+  if(CONS_NUVEM && CONS_NUVEM.iso===iso && CONS_NUVEM.reports[id]) return CONS_NUVEM.reports[id];
+  return loadReport(id,iso);
+}
+function consScore(id,mes){
+  if(CONS_NUVEM && CONS_NUVEM.mes===mes && CONS_NUVEM.scores[id]) return CONS_NUVEM.scores[id];
+  return loadScore(id,mes);
+}
 function gerarConsolidado(){
-  var iso=ontem(),mes=mesAtual(),L=[]; var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length;
+  var iso=ontem(),mes=mesAtual(),L=[];
+  var eg=ORG_A.responsaveis.filter(function(r){return !!consReport(r.id,iso);}).length;
   L.push('📊 CHECKPOINT DIÁRIO — Q FOOD GROUP'); L.push('📅 '+isoBR(iso)+'  ·  Enviado por: Rodrigo'); L.push('🎯 Reports do dia: '+eg+'/'+ORG_A.responsaveis.length); L.push('━━━━━━━━━━━━━━━');
+  if(CONS_NUVEM && (!CONS_NUVEM.okDiario)){ L.push('⚠ Não foi possível ler a base de dados. Os números abaixo são só deste aparelho.'); L.push('━━━━━━━━━━━━━━━'); }
   var _rec=recResumoConsolidado(); if(_rec){ _rec.forEach(function(l){ L.push(l); }); L.push('━━━━━━━━━━━━━━━'); }
-  ORG_A.responsaveis.forEach(function(r){ var d=loadReport(r.id,iso),sc=loadScore(r.id,mes);
+  ORG_A.responsaveis.forEach(function(r){ var d=consReport(r.id,iso),sc=consScore(r.id,mes);
     L.push((d?'🟢':'🔴')+' '+r.emoji+' '+r.nome.toUpperCase()+' — '+r.funcao); if(sc) L.push('📊 Score '+mes+': '+sc.total+'/100 ('+sc.faixa+')');
     if(d){ if(d.rep_result) L.push('• Resultado de ontem: '+d.rep_result); if(d.rep_plano) L.push('• Plano de hoje: '+d.rep_plano); if(d.rep_risco) L.push('• Risco/bloqueio: '+d.rep_risco); if(d.rep_acao) L.push('• Ação corretiva: '+d.rep_acao); } else { L.push('• (report não entregue)'); }
     L.push('━━━━━━━━━━━━━━━'); });
   L.push('Gerado via Painel QDACE® — Q Food Group'); return L.join('\n');
 }
-function preencherConsolidado(){ var t=el('cons-msg'); if(t) t.value=gerarConsolidado(); setTxt('cons-copy-msg',''); }
-function copiarConsolidado(){ var t=el('cons-msg'); if(!t) return; if(!t.value) t.value=gerarConsolidado(); t.focus(); t.select(); try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t.value); } else { document.execCommand('copy'); } setTxt('cons-copy-msg','✓ copiado'); }catch(e){ setTxt('cons-copy-msg','selecione e copie'); } }
+function preencherConsolidado(){
+  var t=el('cons-msg'); if(!t) return;
+  t.value='⏳ lendo a base de dados...';
+  setTxt('cons-copy-msg','');
+  var iso=ontem(), mes=mesAtual();
+  var pend=[consolidadoCarregar(iso,mes)];
+  if(RECEITA_CACHE===null) pend.push(recCarregarBase());
+  if(METAS_CACHE===null) pend.push(recCarregarMetas());
+  Promise.all(pend).then(function(){
+    t.value=gerarConsolidado();
+    setTxt('cons-copy-msg', (CONS_NUVEM&&CONS_NUVEM.okDiario)?'✓ lido da base de dados':'⚠ base indisponível — só deste aparelho');
+  });
+}
+function copiarConsolidado(){
+  var t=el('cons-msg'); if(!t) return;
+  if(!t.value || t.value.indexOf('⏳')===0){ preencherConsolidado(); setTxt('cons-copy-msg','gerando... clique de novo em seguida'); return; }
+  t.focus(); t.select();
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t.value); } else { document.execCommand('copy'); }
+    setTxt('cons-copy-msg','✓ copiado');
+  }catch(e){ setTxt('cons-copy-msg','selecione e copie'); }
+}
 
 var CEO_TRI=triAtual();
 function ceoTriMudar(){ CEO_TRI=el('ceo-tri').value; painelCEO(); }
@@ -1415,7 +1581,18 @@ function painelCEO(){
     '<div class="card"><div class="ct">📊 Painel de Cobrança — mínimo por setor (Q Food)</div><table class="st"><thead><tr><th>Setor</th><th>O que é cobrado</th></tr></thead><tbody>'+Object.keys(PAINEL_MINIMO).map(function(k){ var n=k.charAt(0).toUpperCase()+k.slice(1); return '<tr><td><strong>'+n+'</strong></td><td style="color:var(--mu)">'+PAINEL_MINIMO[k]+'</td></tr>'; }).join('')+'</tbody></table></div>';
 }
 
-(function init(){ el('badge-hoje').textContent=isoBR(hoje()); renderOrg(); renderNav(); irPara(primeiraView(),false); })();
+(function init(){
+  if(window.__NOSESS && !window.__DEVMODE){
+    telaBloqueio('Acesso restrito','Este painel exige login. Entre pelo menu do sistema para acessar o seu Checkpoint.',false);
+    return;
+  }
+  if(!temAcesso()){
+    telaBloqueio('Sem permissão neste painel','Seu usuário está autenticado, mas não está vinculado a nenhum gestor do Checkpoint. Fale com o Rodrigo para liberar o acesso.',true);
+    return;
+  }
+  el('badge-hoje').textContent=isoBR(hoje()); renderOrg(); renderNav(); irPara(primeiraView(),false);
+  avisoDevMode();
+})();
 </script>
 
 <script>
