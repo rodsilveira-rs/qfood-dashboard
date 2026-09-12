@@ -297,6 +297,24 @@ body.simples .ck{padding:18px;border-radius:16px;}
 body.simples .ck .t{font-size:1.12rem;line-height:1.3;}
 body.simples .ck .btn.sm{width:100%;height:54px;font-size:1.05rem;border-radius:13px;margin-top:4px;}
 body.simples .ck.concluido{opacity:.62;}
+
+/* ══ EXCEÇÕES (cockpit do gestor) ══ */
+.exc{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.exc .c{background:var(--surface);border:1.5px solid var(--line);border-left:6px solid var(--line);border-radius:14px;padding:14px 15px;text-align:left;box-shadow:var(--sh);}
+.exc .c .n{font-size:1.85rem;font-weight:800;line-height:1;}
+.exc .c .l{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin-top:6px;}
+.exc .c.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink) inset;}
+.exc .c.zero{opacity:.5;}
+.foco-bar{display:flex;align-items:center;gap:10px;background:#fdf2cc;border:1.5px solid #e6c200;border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:.87rem;font-weight:700;color:#6b5200;}
+.foco-bar button{margin-left:auto;border:0;background:var(--ink);color:#fff;border-radius:9px;padding:7px 13px;font-weight:700;font-size:.8rem;}
+.ck .semresp{display:inline-block;background:#f7e0da;color:#b3412c;font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:3px 8px;border-radius:6px;margin-top:6px;}
+.reinc{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:.86rem;}
+.reinc:last-child{border-bottom:0;}
+.reinc .q{background:#f7e0da;color:#b3412c;font-weight:800;border-radius:8px;padding:4px 9px;font-size:.8rem;min-width:34px;text-align:center;}
+.reinc .nm{font-weight:700;color:var(--ink);}
+.reinc .ck2{color:var(--muted);}
+@media(max-width:760px){.exc{grid-template-columns:repeat(2,1fr);}}
+body.simples .exc{display:none;}
 </style>
 </head>
 <body>
@@ -310,13 +328,12 @@ body.simples .ck.concluido{opacity:.62;}
   <button class="lnk" onclick="window.open('Guia_Checklist_Digital.html','_blank')">📖 Manual</button>
   <button class="lnk" onclick="location.href='Index_Menu.html'">Menu</button>
   <button class="lnk" onclick="recarregar()">↻ Atualizar</button>
-  <button class="lnk" onclick="alternarModo()" id="btnModo">🧩 Modo simples</button>
   <button class="lnk" onclick="recarregarVersao()" id="btnVersao" title="Baixa a versão mais nova do sistema">⟳ Nova versão</button>
 </div>
 
 <div class="tabs" id="tabs">
   <button class="tab on" data-t="exec" onclick="setTab('exec')">▶️ Executar</button>
-  <button class="tab" data-t="mod" onclick="setTab('mod')" id="tabMod">🛠️ Modelos</button>
+  <button class="tab" data-t="mod" onclick="setTab('mod')" id="tabMod">🛠️ Rotinas</button>
   <button class="tab" data-t="pan" onclick="setTab('pan')">📊 Painel</button>
   <button class="tab hidden" data-t="org" onclick="setTab('org')" id="tabOrg">🏛️ Organograma</button>
   <button class="tab hidden" data-t="tre" onclick="setTab('tre')" id="tabTre">🎓 Treinamento</button>
@@ -340,6 +357,8 @@ body.simples .ck.concluido{opacity:.62;}
       <div class="small muted"><span class="chip-dot" style="background:var(--ok)"></span>Concluído &nbsp;<span class="chip-dot" style="background:var(--pend)"></span>Pendente &nbsp;<span class="chip-dot" style="background:var(--late)"></span>Atrasado</div></div>
       <div class="mm-wrap" id="mindmap" style="margin-top:10px"></div>
     </div>
+    <div class="exc hidden" id="excBox"></div>
+    <div id="focoBar"></div>
     <div class="eu-box hidden" id="euBox">
       <span class="lb">👤 Sou:</span>
       <select id="execEu" onchange="euEscolher(this.value)"></select>
@@ -352,16 +371,16 @@ body.simples .ck.concluido{opacity:.62;}
   <!-- ============ MODELOS ============ -->
   <div class="panel" id="p-mod">
     <div class="subnav">
-      <button class="on" data-s="modelos" onclick="setSub('modelos')">Modelos</button>
+      <button class="on" data-s="modelos" onclick="setSub('modelos')">Rotinas</button>
       <button data-s="colab" onclick="setSub('colab')">Colaboradores</button>
       <button data-s="listas" onclick="setSub('listas')">Listas</button>
     </div>
 
     <div id="s-modelos">
       <div class="between" style="margin-bottom:14px">
-        <div><h2 class="sec">Modelos de checklist</h2><div class="sub">Monte os checklists que serão executados</div></div>
+        <div><h2 class="sec">Rotinas de checklist</h2><div class="sub">Monte as rotinas que a equipe executa no dia a dia</div></div>
         <div class="row">
-          <button class="btn" onclick="abrirModelo()">+ Novo modelo</button>
+          <button class="btn" onclick="abrirModelo()">+ Nova rotina</button>
         </div>
       </div>
       <div style="margin-bottom:14px"><input id="buscaModelo" class="inp" oninput="renderModelos()" placeholder="🔍 Buscar por nome, setor, momento, recorrência…"></div>
@@ -400,6 +419,11 @@ body.simples .ck.concluido{opacity:.62;}
     <div class="grid g2" style="margin-bottom:16px">
       <div class="card pad"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Ranking por setor</div><div id="rkSetor"></div></div>
       <div class="card pad"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Ranking por pessoa</div><div id="rkPessoa"></div></div>
+    </div>
+    <div class="card pad" style="margin-bottom:16px">
+      <div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">🔁 Reincidência de atraso</div>
+      <div class="small muted" style="margin-bottom:10px">Mesma pessoa atrasando o mesmo checklist no período. Padrão, não evento isolado.</div>
+      <div id="reincBox"></div>
     </div>
     <div class="card pad">
       <div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Respostas</div>
@@ -564,28 +588,8 @@ function rotuloRec(v){ var r=ST.listas.filter(function(l){return norm(l.tipo)===
 // ════════════════════════════════════════════════════════════
 function recarregar(){ carregarTudo(true); }
 
-// Modo de exibição — é contexto do APARELHO, não permissão.
-// Sem escolha salva, o padrão vem do perfil: quem não é editor entra no simples.
-function modoSimples(){
-  var v=null; try{ v=localStorage.getItem("qfood_ck_modo"); }catch(e){}
-  if(v==="simples") return true;
-  if(v==="completo") return false;
-  return !ehEditor();
-}
-function alternarModo(){
-  var novo = modoSimples() ? "completo" : "simples";
-  try{ localStorage.setItem("qfood_ck_modo", novo); }catch(e){}
-  renderTudo();
-  toast(novo==="simples" ? "Modo simples ativado neste aparelho." : "Modo completo ativado neste aparelho.");
-}
-function rotuloModo(){
-  var b=document.getElementById("btnModo"); if(!b) return;
-  b.textContent = modoSimples() ? "🧰 Modo completo" : "🧩 Modo simples";
-  b.title = modoSimples() ? "Mostrar filtros e ferramentas de gestão" : "Deixar a tela simples para operação/tablet";
-}
-
 // Versão do arquivo — ATUALIZE a cada publicação no GitHub
-var APP_VER = "2026-08-27b";
+var APP_VER = "2026-08-27c";
 
 // Recarrega o HTML do zero, furando o cache do navegador e do CDN.
 // É o "F5 forçado" — serve para tablet/celular, que não têm Ctrl+Shift+R.
@@ -646,8 +650,7 @@ function renderTudo(){
     renderMindmap([]); renderEmpresas(); renderTreino();
     return;
   }
-  var simples = modoSimples();
-  rotuloModo();
+  var simples = !ehEditor();
   document.body.classList.toggle("simples", simples);
   document.getElementById("euBox").classList.toggle("hidden", !simples);
   document.getElementById("progBox").classList.toggle("hidden", !simples);
@@ -873,6 +876,40 @@ function checklistsDeHoje(){
   });
 }
 
+var EXEC_FOCO="";
+function semResponsavel(m,r){
+  if(r && r.responsavel_nome) return false;
+  return !m.responsavel_colab;
+}
+function venceEmBreve(m,r){
+  if(r && r.conclusao) return false;
+  var w=janelaModelo(m); if(!w) return false;
+  var ag=agoraMin();
+  return ag<=w.fechaMin && (w.fechaMin-ag)<=60;
+}
+function setFoco(f){ EXEC_FOCO = (EXEC_FOCO===f ? "" : f); renderExec(); }
+function renderExcecoes(dados){
+  var box=document.getElementById("excBox"); if(!box) return;
+  if(document.body.classList.contains("simples")){ box.classList.add("hidden"); return; }
+  box.classList.remove("hidden");
+  var atras=dados.filter(function(d){return d.st==="atrasado";}).length;
+  var prox =dados.filter(function(d){return venceEmBreve(d.m,d.r);}).length;
+  var sresp=dados.filter(function(d){return semResponsavel(d.m,d.r);}).length;
+  var conc =dados.filter(function(d){return d.st==="concluido";}).length;
+  var card=function(f,n,rot,cor){
+    return '<button class="c'+(EXEC_FOCO===f?" on":"")+(n?"":" zero")+'" style="border-left-color:'+cor+'" onclick="setFoco('+JSON.stringify(f)+')">'
+      +'<div class="n" style="color:'+cor+'">'+n+'</div><div class="l">'+rot+'</div></button>';
+  };
+  box.innerHTML = card("atrasado",atras,"🔴 Atrasados","var(--late)")
+    + card("proximo",prox,"🟠 Vencem em 1h","var(--pend)")
+    + card("semresp",sresp,"👤 Sem responsável","var(--accent2)")
+    + card("concluido",conc,"🟢 Concluídos","var(--ok)");
+  var fb=document.getElementById("focoBar");
+  var rot={atrasado:"atrasados",proximo:"que vencem na próxima hora",semresp:"sem responsável definido",concluido:"concluídos"}[EXEC_FOCO];
+  fb.innerHTML = EXEC_FOCO
+    ? '<div class="foco-bar">Mostrando só os checklists '+rot+'.<button onclick="setFoco(\''+EXEC_FOCO+'\')">Ver todos</button></div>'
+    : "";
+}
 function renderExec(){
   document.getElementById("execData").textContent = brData(isoHoje())+" · "+diaSemanaExt()+" · "+empNome(ST.empresaAtiva);
   var lst=checklistsDeHoje();
@@ -883,7 +920,7 @@ function renderExec(){
     box.innerHTML = (simples && eu)
       ? '<div class="empty" style="text-align:center;line-height:1.8">🎉 <b style="font-size:1.05rem">Nada pendente para você hoje.</b><br><span class="small">Se esperava algum checklist aqui, toque em “Ver de todos”.</span></div>'
       : '<div class="empty">Nenhum checklist para hoje com os filtros selecionados.</div>';
-    renderProgresso([]); renderMindmap([]); return;
+    renderExcecoes([]); renderProgresso([]); renderMindmap([]); return;
   }
   var dados=lst.map(function(m){ var r=respDeHoje(m); return {m:m,r:r,st:statusDoDia(m,r)}; });
   var ordem={atrasado:0,pendente:1,concluido:2};
@@ -892,7 +929,18 @@ function renderExec(){
     var ha=String(a.m.horario_limite||"99:99"), hb=String(b.m.horario_limite||"99:99");
     return ha<hb?-1:ha>hb?1:0;
   });
+  renderExcecoes(dados);
   renderProgresso(dados);
+  if(EXEC_FOCO){
+    dados = dados.filter(function(d){
+      if(EXEC_FOCO==="atrasado")  return d.st==="atrasado";
+      if(EXEC_FOCO==="concluido") return d.st==="concluido";
+      if(EXEC_FOCO==="proximo")   return venceEmBreve(d.m,d.r);
+      if(EXEC_FOCO==="semresp")   return semResponsavel(d.m,d.r);
+      return true;
+    });
+    if(!dados.length){ box.innerHTML='<div class="empty">Nada nesta categoria agora. 👍</div>'; renderMindmap([]); return; }
+  }
   dados.forEach(function(d){
     var resp=d.colaborador = nomeResp(d.m,d.r);
     var pct=d.r && d.r.score!=null && d.r.conclusao ? Math.round(+d.r.score) : 0;
@@ -900,7 +948,8 @@ function renderExec(){
     div.innerHTML =
       '<div class="between"><div class="t">'+esc(d.m.nome)+'</div><span class="st '+d.st+'">'+rotStatus(d.st)+'</span></div>'+
       '<div class="meta">'+ (setorRot(d.m.setor)) +' · '+(momRot(d.m.momento))+' · '+rotuloRec(d.m.recorrencia)+horaLim(d.m.horario_limite)+'</div>'+
-      '<div class="meta"><span class="chip-dot" style="background:'+corDe(resp)+'"></span>'+esc(resp)+'</div>'+janelaInfo(d.m,d.r)+
+      '<div class="meta"><span class="chip-dot" style="background:'+corDe(resp)+'"></span>'+esc(resp)+'</div>'+
+      (semResponsavel(d.m,d.r)?'<span class="semresp">⚠ sem responsável definido</span>':'')+janelaInfo(d.m,d.r)+
       (d.r && d.r.conclusao ? '<div class="bar"><i style="width:'+pct+'%"></i></div><div class="small muted" style="margin-top:5px">Score '+pct+'% · concluído '+horaDe(d.r.conclusao)+'</div>' : '<div style="margin-top:10px"><button class="btn sm" onclick="iniciarExec(\''+d.m.id+'\')">Iniciar</button></div>');
     box.appendChild(div);
   });
@@ -1338,6 +1387,29 @@ function rmLista(tipo,valor){ if(!confirm("Remover "+valor+"?")) return; apiPost
 // ════════════════════════════════════════════════════════════
 // PAINEL
 // ════════════════════════════════════════════════════════════
+function nomeModelo(id){
+  var m=ST.modelos.filter(function(x){return String(x.id)===String(id);})[0];
+  return m?m.nome:"(rotina removida)";
+}
+function renderReincidencia(rs){
+  var box=document.getElementById("reincBox"); if(!box) return;
+  var mapa={};
+  rs.filter(function(r){ return String(r.status).indexOf("ATRASO")>=0; }).forEach(function(r){
+    var pessoa=r.responsavel_nome||"—";
+    var k=pessoa+"||"+r.modelo_id;
+    if(!mapa[k]) mapa[k]={pessoa:pessoa,modelo:r.modelo_id,n:0};
+    mapa[k].n++;
+  });
+  var lst=Object.keys(mapa).map(function(k){return mapa[k];})
+            .filter(function(x){return x.n>=2;})
+            .sort(function(a,b){return b.n-a.n;}).slice(0,12);
+  if(!lst.length){ box.innerHTML='<div class="small muted">Nenhuma reincidência no período — ninguém atrasou o mesmo checklist duas vezes. 👏</div>'; return; }
+  box.innerHTML=lst.map(function(x){
+    return '<div class="reinc"><span class="q">'+x.n+'x</span>'
+      +'<span class="nm">'+esc(x.pessoa)+'</span>'
+      +'<span class="ck2">· '+esc(nomeModelo(x.modelo))+'</span></div>';
+  }).join("");
+}
 function respFiltradas(){
   var per=document.getElementById("panPeriodo").value;
   var corte = per==="hoje"?isoHoje() : per==="7"?isoDelta(-7) : per==="30"?isoDelta(-30) : "0000-00-00";
@@ -1356,6 +1428,7 @@ function renderPainel(){
   document.getElementById("panKpis").innerHTML=
     kpi(fin,"Execuções","var(--ink)")+kpi(fin?Math.round(prazo/fin*100)+"%":"0%","No prazo","var(--ok)")+
     kpi(fin?Math.round(atras/fin*100)+"%":"0%","Com atraso","var(--late)")+kpi(scoreM+"%","Score médio","var(--accent)");
+  renderReincidencia(rs);
   // rankings
   rankBy("rkSetor",rs,function(r){return setorRot(r.setor);});
   rankBy("rkPessoa",rs,function(r){return r.responsavel_nome||"—";},true);
