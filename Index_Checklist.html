@@ -277,6 +277,26 @@ body.pv-tv .pv-top .hidetv{display:none;}
 .pv-video{width:min(1180px,94vw);max-height:82vh;border-radius:12px;background:#000;box-shadow:0 24px 70px rgba(0,0,0,.55);}
 @media(max-width:860px){.pv-sum{display:none;} .pv-nav{width:44px;height:44px;font-size:1.2rem;} .pv-nav.prev{left:6px;} .pv-nav.next{right:6px;}}
 
+
+/* ══ MODO SIMPLES (operação / tablet) ══ */
+.eu-box{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;box-shadow:var(--sh);}
+.eu-box .lb{font-weight:800;font-size:.95rem;color:var(--ink);}
+.eu-box select{flex:1;min-width:200px;height:52px;font-size:1.05rem;font-weight:700;border:1.5px solid var(--line);border-radius:12px;padding:0 12px;background:#fff;color:var(--ink);}
+.eu-box .todos{height:52px;padding:0 16px;border-radius:12px;border:1.5px solid var(--line);background:#fff;font-weight:700;font-size:.9rem;color:var(--muted);}
+.prog{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh);}
+.prog .tp{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
+.prog .n{font-size:1.5rem;font-weight:800;color:var(--ink);}
+.prog .n small{font-size:.9rem;font-weight:700;color:var(--muted);}
+.prog .tr{height:14px;border-radius:99px;background:#e7e1d6;overflow:hidden;display:flex;}
+.prog .tr i{display:block;height:100%;}
+.prog .lg{display:flex;gap:14px;margin-top:9px;font-size:.8rem;color:var(--muted);font-weight:700;flex-wrap:wrap;}
+body.simples #execFiltros{display:none;}
+body.simples #mmCard{display:none;}
+body.simples #execList{grid-template-columns:1fr;}
+body.simples .ck{padding:18px;border-radius:16px;}
+body.simples .ck .t{font-size:1.12rem;line-height:1.3;}
+body.simples .ck .btn.sm{width:100%;height:54px;font-size:1.05rem;border-radius:13px;margin-top:4px;}
+body.simples .ck.concluido{opacity:.62;}
 </style>
 </head>
 <body>
@@ -290,6 +310,8 @@ body.pv-tv .pv-top .hidetv{display:none;}
   <button class="lnk" onclick="window.open('Guia_Checklist_Digital.html','_blank')">📖 Manual</button>
   <button class="lnk" onclick="location.href='Index_Menu.html'">Menu</button>
   <button class="lnk" onclick="recarregar()">↻ Atualizar</button>
+  <button class="lnk" onclick="alternarModo()" id="btnModo">🧩 Modo simples</button>
+  <button class="lnk" onclick="recarregarVersao()" id="btnVersao" title="Baixa a versão mais nova do sistema">⟳ Nova versão</button>
 </div>
 
 <div class="tabs" id="tabs">
@@ -306,18 +328,24 @@ body.pv-tv .pv-top .hidetv{display:none;}
   <div class="panel on" id="p-exec">
     <div class="between" style="margin-bottom:14px">
       <div><h2 class="sec">Checklists de hoje</h2><div class="sub" id="execData">—</div></div>
-      <div class="row">
+      <div class="row" id="execFiltros">
         <select class="inp" id="execSetor" style="width:auto" onchange="renderExec()"></select>
         <select class="inp" id="execMomento" style="width:auto" onchange="renderExec()"></select>
         <select class="inp" id="execRec" style="width:auto" onchange="renderExec()"></select>
         <select class="inp" id="execColab" style="width:auto" onchange="renderExec()"></select>
       </div>
     </div>
-    <div class="card pad" style="margin-bottom:16px">
+    <div class="card pad" id="mmCard" style="margin-bottom:16px">
       <div class="between"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px">🧠 Mapa mental do dia</div>
       <div class="small muted"><span class="chip-dot" style="background:var(--ok)"></span>Concluído &nbsp;<span class="chip-dot" style="background:var(--pend)"></span>Pendente &nbsp;<span class="chip-dot" style="background:var(--late)"></span>Atrasado</div></div>
       <div class="mm-wrap" id="mindmap" style="margin-top:10px"></div>
     </div>
+    <div class="eu-box hidden" id="euBox">
+      <span class="lb">👤 Sou:</span>
+      <select id="execEu" onchange="euEscolher(this.value)"></select>
+      <button class="todos" onclick="euEscolher('')">Ver de todos</button>
+    </div>
+    <div class="prog hidden" id="progBox"></div>
     <div class="grid g2" id="execList"></div>
   </div>
 
@@ -535,6 +563,46 @@ function rotuloRec(v){ var r=ST.listas.filter(function(l){return norm(l.tipo)===
 // LOAD
 // ════════════════════════════════════════════════════════════
 function recarregar(){ carregarTudo(true); }
+
+// Modo de exibição — é contexto do APARELHO, não permissão.
+// Sem escolha salva, o padrão vem do perfil: quem não é editor entra no simples.
+function modoSimples(){
+  var v=null; try{ v=localStorage.getItem("qfood_ck_modo"); }catch(e){}
+  if(v==="simples") return true;
+  if(v==="completo") return false;
+  return !ehEditor();
+}
+function alternarModo(){
+  var novo = modoSimples() ? "completo" : "simples";
+  try{ localStorage.setItem("qfood_ck_modo", novo); }catch(e){}
+  renderTudo();
+  toast(novo==="simples" ? "Modo simples ativado neste aparelho." : "Modo completo ativado neste aparelho.");
+}
+function rotuloModo(){
+  var b=document.getElementById("btnModo"); if(!b) return;
+  b.textContent = modoSimples() ? "🧰 Modo completo" : "🧩 Modo simples";
+  b.title = modoSimples() ? "Mostrar filtros e ferramentas de gestão" : "Deixar a tela simples para operação/tablet";
+}
+
+// Versão do arquivo — ATUALIZE a cada publicação no GitHub
+var APP_VER = "2026-08-27b";
+
+// Recarrega o HTML do zero, furando o cache do navegador e do CDN.
+// É o "F5 forçado" — serve para tablet/celular, que não têm Ctrl+Shift+R.
+function recarregarVersao(){
+  try{
+    if(window.caches && caches.keys){
+      caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+    }
+  }catch(e){}
+  var u = location.href.split("#")[0].replace(/([?&])_v=\d+/, "$1").replace(/[?&]$/, "");
+  u += (u.indexOf("?") >= 0 ? "&" : "?") + "_v=" + Date.now();
+  location.replace(u);
+}
+(function(){
+  var b=document.getElementById("btnVersao");
+  if(b) b.title="Versão carregada: "+APP_VER+" — toque para buscar a mais nova";
+})();
 function carregarTudo(force){
   document.getElementById("execList").innerHTML = '<div class="loading">Carregando…</div>';
   return Promise.all([
@@ -578,7 +646,14 @@ function renderTudo(){
     renderMindmap([]); renderEmpresas(); renderTreino();
     return;
   }
-  renderEmpresas(); renderSetorFiltro(); renderExec(); renderPainel(); renderTreino();
+  var simples = modoSimples();
+  rotuloModo();
+  document.body.classList.toggle("simples", simples);
+  document.getElementById("euBox").classList.toggle("hidden", !simples);
+  document.getElementById("progBox").classList.toggle("hidden", !simples);
+  renderEmpresas(); renderSetorFiltro();
+  if(simples) euRestaurar();
+  renderExec(); renderPainel(); renderTreino();
 }
 var ORG_ADMINS=["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
 function ehAdminOrg(){ return ORG_ADMINS.indexOf((ST.user&&ST.user.email||"").toLowerCase())>=0; }
@@ -619,6 +694,8 @@ var ACESSO={
   "compras@qfoodcompany.com.br":       ["qfood"],
   "mariana@mercearialiberdade.com.br": ["mercearia"],
   "elizeu@mercearialiberdade.com.br":  ["mercearia"],
+  "matheus@mercearialiberdade.com.br": ["mercearia"],
+  "operacao@mercearialiberdade.com.br":["mercearia"],
   "tairine@mercearialiberdade.com.br": ["mercearia"],
   "marques@mercearialiberdade.com.br": ["mercearia"],
   "leorick@mercearialiberdade.com.br": ["mercearia"],
@@ -694,6 +771,27 @@ function renderSetorFiltro(){
   co.innerHTML='<option value="">Todos os colaboradores</option>';
   ST.colaboradores.filter(function(c){return c.empresa===ST.empresaAtiva;}).forEach(function(c){ var o=document.createElement("option"); o.value=c.id; o.textContent=c.nome; co.appendChild(o); });
   co.value=aco;
+  var eu=document.getElementById("execEu");
+  if(eu){
+    eu.innerHTML='<option value="">— escolha seu nome —</option>';
+    ST.colaboradores.filter(function(c){return c.empresa===ST.empresaAtiva;})
+      .forEach(function(c){ var o=document.createElement("option"); o.value=c.id; o.textContent=c.nome; eu.appendChild(o); });
+    eu.value=co.value;
+  }
+}
+function euEscolher(id){
+  document.getElementById("execColab").value=id;
+  var eu=document.getElementById("execEu"); if(eu) eu.value=id;
+  try{ if(id) localStorage.setItem("qfood_ck_eu",id); else localStorage.removeItem("qfood_ck_eu"); }catch(e){}
+  renderExec();
+}
+function euRestaurar(){
+  var id=""; try{ id=localStorage.getItem("qfood_ck_eu")||""; }catch(e){}
+  if(!id) return;
+  var ok=ST.colaboradores.some(function(c){ return String(c.id)===String(id) && c.empresa===ST.empresaAtiva; });
+  if(!ok) return;
+  document.getElementById("execColab").value=id;
+  var eu=document.getElementById("execEu"); if(eu) eu.value=id;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -779,8 +877,22 @@ function renderExec(){
   document.getElementById("execData").textContent = brData(isoHoje())+" · "+diaSemanaExt()+" · "+empNome(ST.empresaAtiva);
   var lst=checklistsDeHoje();
   var box=document.getElementById("execList"); box.innerHTML="";
-  if(!lst.length){ box.innerHTML='<div class="empty">Nenhum checklist para hoje com os filtros selecionados.</div>'; renderMindmap([]); return; }
+  if(!lst.length){
+    var simples=document.body.classList.contains("simples");
+    var eu=document.getElementById("execColab").value;
+    box.innerHTML = (simples && eu)
+      ? '<div class="empty" style="text-align:center;line-height:1.8">🎉 <b style="font-size:1.05rem">Nada pendente para você hoje.</b><br><span class="small">Se esperava algum checklist aqui, toque em “Ver de todos”.</span></div>'
+      : '<div class="empty">Nenhum checklist para hoje com os filtros selecionados.</div>';
+    renderProgresso([]); renderMindmap([]); return;
+  }
   var dados=lst.map(function(m){ var r=respDeHoje(m); return {m:m,r:r,st:statusDoDia(m,r)}; });
+  var ordem={atrasado:0,pendente:1,concluido:2};
+  dados.sort(function(a,b){
+    var da=ordem[a.st]-ordem[b.st]; if(da) return da;
+    var ha=String(a.m.horario_limite||"99:99"), hb=String(b.m.horario_limite||"99:99");
+    return ha<hb?-1:ha>hb?1:0;
+  });
+  renderProgresso(dados);
   dados.forEach(function(d){
     var resp=d.colaborador = nomeResp(d.m,d.r);
     var pct=d.r && d.r.score!=null && d.r.conclusao ? Math.round(+d.r.score) : 0;
@@ -793,6 +905,26 @@ function renderExec(){
     box.appendChild(div);
   });
   renderMindmap(dados);
+}
+function renderProgresso(dados){
+  var box=document.getElementById("progBox"); if(!box||box.classList.contains("hidden")) return;
+  var tot=dados.length;
+  if(!tot){ box.innerHTML='<div class="small muted" style="text-align:center;font-weight:700">Nenhum checklist para hoje.</div>'; return; }
+  var c=dados.filter(function(d){return d.st==="concluido";}).length;
+  var a=dados.filter(function(d){return d.st==="atrasado";}).length;
+  var p=tot-c-a;
+  var pc=function(n){ return tot? (n/tot*100) : 0; };
+  box.innerHTML=
+     '<div class="tp"><div class="n">'+c+' <small>de '+tot+' feitos hoje</small></div>'
+    +'<div class="n" style="font-size:1.1rem;color:'+(a?"var(--late)":"var(--ok)")+'">'+(a? a+" atrasado(s)" : (p? p+" a fazer" : "tudo em dia ✅"))+'</div></div>'
+    +'<div class="tr">'
+      +'<i style="width:'+pc(c)+'%;background:var(--ok)"></i>'
+      +'<i style="width:'+pc(p)+'%;background:var(--pend)"></i>'
+      +'<i style="width:'+pc(a)+'%;background:var(--late)"></i>'
+    +'</div>'
+    +'<div class="lg"><span><span class="chip-dot" style="background:var(--ok)"></span>'+c+' concluído</span>'
+      +'<span><span class="chip-dot" style="background:var(--pend)"></span>'+p+' pendente</span>'
+      +'<span><span class="chip-dot" style="background:var(--late)"></span>'+a+' atrasado</span></div>';
 }
 function nomeResp(m,r){
   if(r && r.responsavel_nome) return r.responsavel_nome;
