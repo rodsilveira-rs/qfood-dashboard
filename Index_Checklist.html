@@ -315,6 +315,22 @@ body.simples .ck.concluido{opacity:.62;}
 .reinc .ck2{color:var(--muted);}
 @media(max-width:760px){.exc{grid-template-columns:repeat(2,1fr);}}
 body.simples .exc{display:none;}
+
+/* ══ MENU "MAIS" ══ */
+.tab-oculta{display:none !important;}
+.mais-wrap{position:relative;display:inline-block;}
+.mais-menu{position:absolute;top:calc(100% + 6px);left:0;z-index:60;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 14px 40px rgba(0,0,0,.18);padding:6px;min-width:210px;}
+.mais-menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:11px 13px;border-radius:9px;font-size:.9rem;font-weight:700;color:var(--ink);}
+.mais-menu button:hover{background:var(--surface2);}
+
+/* ══ VELOCÍMETROS DO PAINEL ══ */
+.gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.gg{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 10px 12px;text-align:center;box-shadow:var(--sh);}
+.gg svg{display:block;margin:0 auto;}
+.gg .vl{font-size:2rem;font-weight:800;line-height:1;}
+.gg .un{font-size:.95rem;font-weight:800;}
+.gg .lb{font-size:.74rem;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:6px;}
+@media(max-width:760px){.gauges{grid-template-columns:repeat(2,1fr);}}
 </style>
 </head>
 <body>
@@ -327,6 +343,7 @@ body.simples .exc{display:none;}
   <span class="who" id="who">—</span>
   <button class="lnk" onclick="window.open('Guia_Checklist_Digital.html','_blank')">📖 Manual</button>
   <button class="lnk" onclick="location.href='Index_Menu.html'">Menu</button>
+  <button class="lnk" onclick="alternarModo()" id="btnModo">🧩 Modo simples</button>
   <button class="lnk" onclick="recarregar()">↻ Atualizar</button>
   <button class="lnk" onclick="recarregarVersao()" id="btnVersao" title="Baixa a versão mais nova do sistema">⟳ Nova versão</button>
 </div>
@@ -335,8 +352,15 @@ body.simples .exc{display:none;}
   <button class="tab on" data-t="exec" onclick="setTab('exec')">▶️ Executar</button>
   <button class="tab" data-t="mod" onclick="setTab('mod')" id="tabMod">🛠️ Rotinas</button>
   <button class="tab" data-t="pan" onclick="setTab('pan')">📊 Painel</button>
-  <button class="tab hidden" data-t="org" onclick="setTab('org')" id="tabOrg">🏛️ Organograma</button>
-  <button class="tab hidden" data-t="tre" onclick="setTab('tre')" id="tabTre">🎓 Treinamento</button>
+  <button class="tab hidden tab-oculta" data-t="org" onclick="setTab('org')" id="tabOrg">🏛️ Organograma</button>
+  <button class="tab hidden tab-oculta" data-t="tre" onclick="setTab('tre')" id="tabTre">🎓 Treinamento</button>
+  <div class="mais-wrap">
+    <button class="tab" id="tabMais" onclick="toggleMais(event)">⋯ Mais</button>
+    <div class="mais-menu hidden" id="maisMenu">
+      <button onclick="irMais('org')">🏛️ Organograma</button>
+      <button onclick="irMais('tre')">🎓 Treinamento</button>
+    </div>
+  </div>
 </div>
 
 <div class="wrap">
@@ -415,7 +439,7 @@ body.simples .exc{display:none;}
         <button class="btn ghost sm" onclick="exportarCSV()">⬇️ Exportar CSV</button>
       </div>
     </div>
-    <div class="grid g4" id="panKpis" style="margin-bottom:16px"></div>
+    <div class="gauges" id="panKpis"></div>
     <div class="grid g2" style="margin-bottom:16px">
       <div class="card pad"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Ranking por setor</div><div id="rkSetor"></div></div>
       <div class="card pad"><div class="small muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Ranking por pessoa</div><div id="rkPessoa"></div></div>
@@ -588,8 +612,28 @@ function rotuloRec(v){ var r=ST.listas.filter(function(l){return norm(l.tipo)===
 // ════════════════════════════════════════════════════════════
 function recarregar(){ carregarTudo(true); }
 
+// Modo de exibição — contexto do APARELHO, não permissão.
+// Sem escolha salva, o padrão vem do perfil: quem não é editor entra no simples.
+function modoSimples(){
+  var v=null; try{ v=localStorage.getItem("qfood_ck_modo"); }catch(e){}
+  if(v==="simples") return true;
+  if(v==="completo") return false;
+  return !ehEditor();
+}
+function alternarModo(){
+  var novo = modoSimples() ? "completo" : "simples";
+  try{ localStorage.setItem("qfood_ck_modo", novo); }catch(e){}
+  renderTudo();
+  toast(novo==="simples" ? "Modo simples ativado neste aparelho." : "Modo completo ativado neste aparelho.");
+}
+function rotuloModo(){
+  var b=document.getElementById("btnModo"); if(!b) return;
+  b.textContent = modoSimples() ? "🧰 Modo completo" : "🧩 Modo simples";
+  b.title = modoSimples() ? "Mostrar filtros e ferramentas de gestão" : "Deixar a tela simples para operação/tablet";
+}
+
 // Versão do arquivo — ATUALIZE a cada publicação no GitHub
-var APP_VER = "2026-08-27c";
+var APP_VER = "2026-08-27d";
 
 // Recarrega o HTML do zero, furando o cache do navegador e do CDN.
 // É o "F5 forçado" — serve para tablet/celular, que não têm Ctrl+Shift+R.
@@ -650,7 +694,8 @@ function renderTudo(){
     renderMindmap([]); renderEmpresas(); renderTreino();
     return;
   }
-  var simples = !ehEditor();
+  var simples = modoSimples();
+  rotuloModo();
   document.body.classList.toggle("simples", simples);
   document.getElementById("euBox").classList.toggle("hidden", !simples);
   document.getElementById("progBox").classList.toggle("hidden", !simples);
@@ -677,33 +722,29 @@ function podeEditarOrg(n){
 // ── Nível de acesso por empresa (edite aqui para liberar/bloquear) ──
 // Use os IDs das empresas: "qfood", "mercearia", "sushi"
 var ACESSO={
-  "rodrigo@qfoodcompany.com.br":       ["qfood","mercearia","sushi"],
-  "adilson@qfoodcompany.com.br":       ["qfood","mercearia","sushi"],
-  "gustavo@qfoodcompany.com.br":       ["qfood","mercearia","sushi"],
-  "barbara@qfoodcompany.com.br":       ["qfood","mercearia","sushi"],
-  "celio@qfoodcompany.com.br":         ["qfood"],
-  "maiko@qfoodcompany.com.br":         ["qfood"],
-  "lucas@qfoodcompany.com.br":         ["qfood"],
-  "vera@qfoodcompany.com.br":          ["qfood"],
-  "dayane@qfoodcompany.com.br":        ["qfood"],
-  "eliane@qfoodcompany.com.br":        ["qfood"],
-  "eder@qfoodcompany.com.br":          ["qfood"],
-  "claudia@qfoodcompany.com.br":       ["qfood"],
-  "roberta@qfoodcompany.com.br":       ["qfood"],
-  "kenyo@qfoodcompany.com.br":         ["qfood"],
-  "deane@qfoodcompany.com.br":         ["qfood"],
-  "jonathas@qfoodcompany.com.br":      ["qfood"],
-  "eduardo@qfoodcompany.com.br":       ["qfood"],
-  "compras@qfoodcompany.com.br":       ["qfood"],
-  "mariana@mercearialiberdade.com.br": ["mercearia"],
-  "elizeu@mercearialiberdade.com.br":  ["mercearia"],
-  "matheus@mercearialiberdade.com.br": ["mercearia"],
-  "operacao@mercearialiberdade.com.br":["mercearia"],
-  "tairine@mercearialiberdade.com.br": ["mercearia"],
-  "marques@mercearialiberdade.com.br": ["mercearia"],
-  "leorick@mercearialiberdade.com.br": ["mercearia"],
-  "fabricia@mercearialiberdade.com.br":["mercearia"],
-  "samara@sushitrip.com.br":           ["sushi"]
+  "rodrigo@qfoodcompany.com.br":        ["qfood","mercearia","sushi"],
+  "adilson@qfoodcompany.com.br":        ["qfood","mercearia","sushi"],
+  "celio@qfoodcompany.com.br":          ["qfood"],
+  "gustavo@qfoodcompany.com.br":        ["qfood","mercearia","sushi"],
+  "maiko@qfoodcompany.com.br":          ["qfood"],
+  "dayane@qfoodcompany.com.br":         ["qfood"],
+  "roberta@qfoodcompany.com.br":        ["qfood"],
+  "jonathas@qfoodcompany.com.br":       ["qfood"],
+  "expedicao@qfoodcompany.com.br":      ["qfood"],
+  "compras@qfoodcompany.com.br":        ["qfood"],
+  "barbara@qfoodcompany.com.br":        ["qfood","mercearia","sushi"],
+  "mariana@mercearialiberdade.com.br":  ["mercearia"],
+  "elizeu@mercearialiberdade.com.br":   ["mercearia"],
+  "samara@sushitrip.com.br":            ["sushi"],
+  "matheus@mercearialiberdade.com.br":  ["mercearia"],
+  "lelis@qfoodcompany.com.br":          ["qfood"],
+  "operacao@mercearialiberdade.com.br": ["mercearia"],
+  "gleydson@qfoodcompany.com.br":       ["qfood"],
+  "paulo@qfoodcompany.com.br":          ["qfood"],
+  "marques@mercearialiberdade.com.br":  ["mercearia"],
+  "leorick@mercearialiberdade.com.br":  ["mercearia"],
+  "tairine@mercearialiberdade.com.br":  ["mercearia"],
+  "fabricia@mercearialiberdade.com.br": ["mercearia"]
 };
 function empresasPermitidas(){
   var e=(ST.user&&ST.user.email||"").toLowerCase();
@@ -722,6 +763,18 @@ function diaSemanaExt(){ return ["domingo","segunda","terça","quarta","quinta",
 // ════════════════════════════════════════════════════════════
 // TABS
 // ════════════════════════════════════════════════════════════
+function toggleMais(e){
+  if(e) e.stopPropagation();
+  document.getElementById("maisMenu").classList.toggle("hidden");
+}
+function irMais(t){
+  document.getElementById("maisMenu").classList.add("hidden");
+  setTab(t);
+}
+document.addEventListener("click",function(e){
+  var w=document.querySelector(".mais-wrap");
+  if(w && !w.contains(e.target)) document.getElementById("maisMenu").classList.add("hidden");
+});
 function setTab(t){
   ["exec","mod","pan","org","tre"].forEach(function(x){
     document.getElementById("p-"+x).classList.toggle("on", x===t);
@@ -731,6 +784,8 @@ function setTab(t){
   if(t==="pan") renderPainel();
   if(t==="org"){ renderOrg(); setTimeout(orgFit,80); }
   if(t==="tre") renderTreino();
+  var bm=document.getElementById("tabMais");
+  if(bm) bm.classList.toggle("on", t==="org"||t==="tre");
 }
 function setSub(s){
   ["modelos","colab","listas"].forEach(function(x){ document.getElementById("s-"+x).classList.toggle("hidden", x!==s); });
@@ -1170,7 +1225,7 @@ function finalizarExec(){
   };
   toast("Salvando…");
   apiPost("salvarResposta",payload).then(function(r){
-    if(r.ok){ toast("✓ Checklist finalizado · score "+(r.resultado?r.resultado.score:"")+"%"); fecharOv(); EXEC=null; carregarTudo(); }
+    if(r.ok){ toast("✓ Checklist finalizado · score "+(r.resultado?r.resultado.score:"")+"%"); EXEC=null; fecharOv(true); carregarTudo(); }
     else toast("Erro: "+(r.error||"falha"));
   }).catch(function(e){ toast("Erro de conexão"); });
 }
@@ -1419,15 +1474,32 @@ function respFiltradas(){
     return d>=corte;
   });
 }
+function gauge(pct,rot,cor,sufixo,bruto){
+  pct=Math.max(0,Math.min(100,+pct||0));
+  var R=52, C=Math.PI*R;                    // semicírculo
+  var on=C*(pct/100);
+  return '<div class="gg">'
+    +'<svg viewBox="0 0 130 78" width="100%" style="max-width:150px">'
+      +'<path d="M13 68 A52 52 0 0 1 117 68" fill="none" stroke="#e7e1d6" stroke-width="13" stroke-linecap="round"/>'
+      +'<path d="M13 68 A52 52 0 0 1 117 68" fill="none" stroke="'+cor+'" stroke-width="13" stroke-linecap="round"'
+        +' stroke-dasharray="'+on.toFixed(1)+' '+C.toFixed(1)+'"/>'
+      +'<text x="65" y="60" text-anchor="middle" class="vl" fill="'+cor+'" style="font-size:25px;font-weight:800">'+(bruto!=null?bruto:Math.round(pct))+'</text>'
+      +(sufixo?'<text x="65" y="74" text-anchor="middle" style="font-size:11px;font-weight:800;fill:'+cor+'">'+sufixo+'</text>':'')
+    +'</svg>'
+    +'<div class="lb">'+rot+'</div></div>';
+}
 function renderPainel(){
   if(!document.getElementById("panKpis")) return;
   var rs=respFiltradas();
   var fin=rs.length, prazo=rs.filter(function(r){return String(r.status).indexOf("PRAZO")>=0;}).length;
   var atras=rs.filter(function(r){return String(r.status).indexOf("ATRASO")>=0;}).length;
   var scoreM=fin? Math.round(rs.reduce(function(a,r){return a+(+r.score||0);},0)/fin*10)/10 : 0;
+  var pPrazo=fin?prazo/fin*100:0, pAtras=fin?atras/fin*100:0;
   document.getElementById("panKpis").innerHTML=
-    kpi(fin,"Execuções","var(--ink)")+kpi(fin?Math.round(prazo/fin*100)+"%":"0%","No prazo","var(--ok)")+
-    kpi(fin?Math.round(atras/fin*100)+"%":"0%","Com atraso","var(--late)")+kpi(scoreM+"%","Score médio","var(--accent)");
+      gauge(100,"Execuções","var(--ink)","",fin)
+    + gauge(pPrazo,"No prazo","var(--ok)","%")
+    + gauge(pAtras,"Com atraso","var(--late)","%")
+    + gauge(scoreM,"Score médio","var(--accent)","%");
   renderReincidencia(rs);
   // rankings
   rankBy("rkSetor",rs,function(r){return setorRot(r.setor);});
@@ -1964,7 +2036,13 @@ function excluirOrgNode(id){
 }
 function criarEstruturaInicial(){ /* topo agora e fixo no frontend (ORG_FIXO) */ }
 
-function fecharOv(){ document.getElementById("ov").classList.remove("open"); }
+function fecharOv(forcar){
+  if(!forcar && EXEC && document.getElementById("ov").classList.contains("open")){
+    if(!confirm("Você está no meio de um checklist.\n\nSe sair agora, o que já foi marcado será perdido.\n\nSair mesmo assim?")) return;
+  }
+  EXEC=null;
+  document.getElementById("ov").classList.remove("open");
+}
 document.getElementById("ov").addEventListener("click",function(e){ if(e.target===this) fecharOv(); });
 document.addEventListener("keydown",function(e){ if(e.key==="Escape") fecharOv(); });
 
