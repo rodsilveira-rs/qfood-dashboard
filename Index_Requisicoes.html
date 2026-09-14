@@ -214,9 +214,9 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 
 /* ---- VELOCÍMETROS ---- */
 .gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0;}
-.gauge{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:22px 20px 18px;text-align:center;}
-.gauge svg{width:100%;max-width:260px;height:auto;display:block;margin:0 auto;}
-.g-pct{font-family:var(--fh);font-weight:800;font-size:2.9rem;line-height:1;}
+.gauge{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:16px 18px 14px;text-align:center;}
+.gauge svg{width:100%;max-width:186px;height:auto;display:block;margin:0 auto;}
+.g-pct{font-family:var(--fh);font-weight:800;font-size:3.4rem;line-height:1;}
 .g-sub{font-size:0.7rem;fill:var(--mu2);}
 .g-tit{font-family:var(--fh);font-weight:700;font-size:0.92rem;margin-top:10px;}
 .g-desc{font-size:0.74rem;color:var(--mu);margin-top:6px;line-height:1.55;}
@@ -891,6 +891,9 @@ var ReqAcoes = {
     // Comentário — todo mundo que enxerga a requisição
     if(p.comentar){
       h += '<div class="card"><div class="card-t">Comentar</div>' +
+           (r.status === "AGUARDANDO_INFORMACAO" && (r.responsavelAtual||"").toLowerCase() === (ReqState.sessao.email||"").toLowerCase()
+             ? '<div class="aguardando">Estão esperando uma informação sua. Ao responder aqui, a requisição volta automaticamente para a Cris.</div>'
+             : '') +
            '<div class="campo"><textarea class="inp" id="novo-coment" placeholder="Escreva aqui. Todo mundo que acompanha esta requisição vai ver."></textarea></div>' +
            '<div class="btns">' +
              '<button class="btn btn-p" onclick="ReqAcoes.comentar()">Enviar comentário</button>' +
@@ -2025,21 +2028,31 @@ var ReqKpi = {
            " A " + raio + " " + raio + " 0 " + grande + " 1 " + b[0].toFixed(2) + " " + b[1].toFixed(2);
   };
 
+  // O degradê acompanha o arco: vermelho na largada, âmbar no meio,
+  // verde na chegada. Como o arco é cortado no valor atual, o ponteiro
+  // só alcança o verde quando o indicador realmente chega lá.
+  var gid = "grad-" + String(titulo).toLowerCase().replace(/[^a-z]/g, "");
   var fim = inicio + (varredura * v / 100);
   var agulha = ponto(fim);
 
   return '<div class="gauge">' +
     '<svg viewBox="0 0 200 175" role="img" aria-label="' + esc(titulo) + ': ' +
       (vazio ? "sem dados" : v.toFixed(0) + "%") + '">' +
+      '<defs><linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="20" y1="100" x2="180" y2="100">' +
+        '<stop offset="0" stop-color="#ff4d4f"></stop>' +
+        '<stop offset="0.35" stop-color="#ff8c3a"></stop>' +
+        '<stop offset="0.65" stop-color="#ffd12b"></stop>' +
+        '<stop offset="1" stop-color="#36cfa0"></stop>' +
+      '</linearGradient></defs>' +
       '<path d="' + arco(inicio, inicio + varredura) + '" fill="none" stroke="var(--s3)" ' +
-        'stroke-width="16" stroke-linecap="round"></path>' +
-      (v > 0 ? '<path d="' + arco(inicio, fim) + '" fill="none" stroke="' + cor + '" ' +
-        'stroke-width="16" stroke-linecap="round"></path>' : '') +
+        'stroke-width="14" stroke-linecap="round"></path>' +
+      (v > 0 ? '<path d="' + arco(inicio, fim) + '" fill="none" stroke="url(#' + gid + ')" ' +
+        'stroke-width="14" stroke-linecap="round"></path>' : '') +
       (vazio ? '' : '<circle cx="' + agulha[0].toFixed(2) + '" cy="' + agulha[1].toFixed(2) +
-        '" r="7" fill="' + cor + '" stroke="var(--sf)" stroke-width="3"></circle>') +
-      '<text x="100" y="105" text-anchor="middle" class="g-pct" fill="' + cor + '">' +
+        '" r="6.5" fill="' + cor + '" stroke="var(--sf)" stroke-width="3"></circle>') +
+      '<text x="100" y="107" text-anchor="middle" class="g-pct" fill="' + cor + '">' +
         (vazio ? "—" : v.toFixed(0) + (unidade || "%")) + '</text>' +
-      '<text x="100" y="128" text-anchor="middle" class="g-sub">' + esc(base) + '</text>' +
+      '<text x="100" y="130" text-anchor="middle" class="g-sub">' + esc(base) + '</text>' +
     '</svg>' +
     '<div class="g-tit">' + esc(titulo) + '</div>' +
     '<div class="g-desc">' + esc(descricao) + '</div>' +
