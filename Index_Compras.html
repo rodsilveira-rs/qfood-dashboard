@@ -1298,7 +1298,7 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
 
       <!-- Aviso para quem só acompanha (Maiko, Célio, Cris) -->
       <div id="valal-aviso-radar" style="display:none;padding:9px 14px;background:rgba(77,142,245,.08);border:1px solid rgba(77,142,245,.28);border-radius:8px;font-size:.74rem;color:#4d8ef5;margin-bottom:12px">
-        &#128065; <b>Modo acompanhamento:</b> voc&#234; v&#234; todos os alertas, mas quem registra a a&#231;&#227;o &#233; o Jonathas.
+        &#128065; <b>Modo acompanhamento:</b> voc&#234; v&#234; todos os alertas e o saldo contado, mas quem registra a a&#231;&#227;o &#233; o C&#233;lio, a Cris ou o Rodrigo.
       </div>
 
       <!-- KPIs -->
@@ -6961,9 +6961,13 @@ async function valentDispararAlertaAgora() {
 // ALERTADO_90d = nomenclatura antiga | EM_CICLO / ENCERRADO_VENCIDO = ciclo de conferência
 var VALAL_STATUS_ACAO = ["ALERTADO_90d", "EM_CICLO", "ENCERRADO_VENCIDO"];
 
-// Quem pode MARCAR ação (além de perfil admin no UUSR).
-// Maiko e Célio ficam só de radar — veem tudo, não marcam.
-var VALAL_EMAILS_ACAO = ["jonathas@qfoodcompany.com.br"];
+// Quem pode MARCAR ação. Os demais veem tudo, mas não marcam.
+// A leitura do saldo é aberta a todo mundo que entra no módulo Compras.
+var VALAL_EMAILS_ACAO = [
+  "adm@qfoodcompany.com.br",       // Célio
+  "compras@qfoodcompany.com.br",   // Cris
+  "rodrigo@qfoodcompany.com.br"    // Rodrigo
+];
 
 var VALAL_ACOES = [
   { id: "COMUNICADO_COMERCIAL", label: "Comunicado ao Comercial", icone: "\uD83D\uDCE2", cor: "#4d8ef5" },
@@ -7059,9 +7063,7 @@ function valalPodeAgir() {
   if (!email) {
     try { email = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").toLowerCase().trim(); } catch (e) {}
   }
-  if (VALAL_EMAILS_ACAO.indexOf(email) >= 0) return true;
-  if (perfil && String(perfil.perfil || "").toLowerCase() === "admin") return true;
-  return false;
+  return VALAL_EMAILS_ACAO.indexOf(email) >= 0;
 }
 
 function valalUsuario() {
@@ -7087,6 +7089,7 @@ async function valalCarregarConferencias() {
 
   try {
     var url = VALIDADES_SYNC_URL + "?tipo=val_listar&unidade=qfood&escopo=todas" +
+              "&token=" + encodeURIComponent(VALIDADES_SYNC_TOKEN) +
               "&login=" + encodeURIComponent(login) + "&_=" + Date.now();
     var r = await fetch(url);
     var j = await r.json();
@@ -7423,7 +7426,7 @@ function valalRenderizar() {
         (r.observacoes ? '<div style="font-size:.68rem;color:var(--mu);margin-top:4px;font-style:italic">\u201C' + valalEsc(r.observacoes) + '\u201D</div>' : '') +
         '</div>';
     } else if (!podeAgir) {
-      html += '<div style="font-size:.7rem;color:var(--mu2);font-style:italic;padding:6px 0">Aguardando ação do Jonathas</div>';
+      html += '<div style="font-size:.7rem;color:var(--mu2);font-style:italic;padding:6px 0">Aguardando ação de Célio, Cris ou Rodrigo</div>';
     } else {
       html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">';
       VALAL_ACOES.forEach(function (a) {
@@ -7488,7 +7491,7 @@ async function valalAgir(idx, acaoId) {
   var r = VALAL.visiveis[idx];
   if (!r) return;
   if (!valalPodeAgir()) {
-    alert("Somente o Jonathas (ou um administrador) pode marcar ação nos alertas de validade.");
+    alert("Somente Célio, Cris ou Rodrigo podem marcar ação nos alertas de validade.");
     return;
   }
   if (r.acao) {
