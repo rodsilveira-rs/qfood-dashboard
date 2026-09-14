@@ -7426,7 +7426,9 @@ function valalRenderizar() {
         (r.observacoes ? '<div style="font-size:.68rem;color:var(--mu);margin-top:4px;font-style:italic">\u201C' + valalEsc(r.observacoes) + '\u201D</div>' : '') +
         '</div>';
     } else if (!podeAgir) {
-      html += '<div style="font-size:.7rem;color:var(--mu2);font-style:italic;padding:6px 0">Aguardando ação de Célio, Cris ou Rodrigo</div>';
+      html += '<div style="font-size:.7rem;color:var(--mu2);font-style:italic;padding:6px 0 4px">Aguardando ação de Célio, Cris ou Rodrigo</div>' +
+        '<button type="button" onclick="valalClientesProduto(' + i + ',false)" ' +
+        'style="background:rgba(255,255,255,.03);border:1px solid #8fa0c055;color:#8fa0c0;padding:5px 9px;border-radius:7px;font-size:.68rem;font-weight:600;cursor:pointer">\uD83D\uDCCB Clientes</button>';
     } else {
       html += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">';
       VALAL_ACOES.forEach(function (a) {
@@ -7435,6 +7437,9 @@ function valalRenderizar() {
           'onmouseover="this.style.background=\'' + a.cor + '22\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
           a.icone + ' ' + a.label + '</button>';
       });
+      html += '<button type="button" onclick="valalClientesProduto(' + i + ',false)" ' +
+        'style="background:rgba(255,255,255,.03);border:1px solid #8fa0c055;color:#8fa0c0;padding:5px 9px;border-radius:7px;font-size:.68rem;font-weight:600;cursor:pointer;white-space:nowrap" ' +
+        'title="Clientes que já compraram, sem registrar ação">\uD83D\uDCCB Clientes</button>';
       html += '</div>';
       html += '<input type="text" id="valal-obs-' + i + '" value="' + valalEsc(VALAL.obs[r.id] || '') + '" ' +
         'oninput="VALAL.obs[\'' + valalEsc(r.id) + '\']=this.value" ' +
@@ -7563,7 +7568,13 @@ async function valalAgir(idx, acaoId) {
       if (typeof v3ToastShow === 'function') v3ToastShow('Ação registrada: ' + meta.label, 'ok');
       valalPopularFornecedores();
       valalAtualizarBadge();
-      valalRenderizar();
+
+      // Comunicado ao Comercial já entrega a lista de clientes pronta
+      if (acaoId === "COMUNICADO_COMERCIAL") {
+        valalClientesProduto(idx, true).then(function () { valalRenderizar(); });
+      } else {
+        valalRenderizar();
+      }
     } else {
       throw new Error((resp && resp.erro) || "resposta sem ok");
     }
@@ -7575,6 +7586,136 @@ async function valalAgir(idx, acaoId) {
       statusEl.innerHTML = '\u274C Não foi possível gravar: ' + valalEsc(e.message) + '. Nada foi alterado — tente de novo.';
     }
   }
+}
+
+// ── Relatório de clientes que já compraram o produto (DINAMICO) ──
+
+async function valalClientesProduto(idx, aposAcao) {
+  var r = VALAL.visiveis[idx];
+  if (!r) return;
+
+  var st = document.getElementById('valal-status');
+  if (st) {
+    st.style.display = 'block';
+    st.style.background = 'var(--s2)';
+    st.style.color = 'var(--mu)';
+    st.style.border = '1px solid var(--br)';
+    st.innerHTML = '\u23F3 Buscando clientes que já compraram ' + valalEsc(r.descricao) + '...';
+  }
+
+  try {
+    var url = VALIDADES_SYNC_URL + "?tipo=val_clientes" +
+              "&token=" + encodeURIComponent(VALIDADES_SYNC_TOKEN) +
+              "&codigo=" + encodeURIComponent(r.codigo) +
+              "&descricao=" + encodeURIComponent(r.descricao) +
+              "&_=" + Date.now();
+    var resp = await fetch(url);
+    var j = await resp.json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || "resposta inválida");
+
+    if (!j.itens || j.itens.length === 0) {
+      if (st) {
+        st.style.background = 'rgba(255,170,43,.12)';
+        st.style.color = '#ffaa2b';
+        st.style.border = '1px solid rgba(255,170,43,.35)';
+        st.innerHTML = '\u26A0 Nenhum cliente comprou este produto no período do DINAMICO.' +
+          (aposAcao ? ' A ação foi gravada normalmente.' : '');
+      }
+      return;
+    }
+
+    valalAbrirRelatorioClientes(r, j);
+
+    if (st) {
+      st.style.background = 'rgba(54,207,160,.12)';
+      st.style.color = '#36cfa0';
+      st.style.border = '1px solid rgba(54,207,160,.35)';
+      st.innerHTML = '\u2705 Lista gerada: ' + j.total_clientes + ' cliente(s) em ' +
+        j.vendedores + ' vendedor(es).' + (aposAcao ? ' Ação registrada.' : '');
+    }
+  } catch (e) {
+    if (st) {
+      st.style.background = 'rgba(255,120,117,.12)';
+      st.style.color = '#ff7875';
+      st.style.border = '1px solid rgba(255,120,117,.35)';
+      st.innerHTML = '\u274C Não foi possível montar a lista de clientes: ' + valalEsc(e.message) +
+        (aposAcao ? ' (a ação foi gravada normalmente)' : '');
+    }
+  }
+}
+
+function valalAbrirRelatorioClientes(r, dados) {
+  var w = window.open('', '_blank');
+  if (!w) { alert("O navegador bloqueou a janela do relatório. Libere o pop-up e tente de novo."); return; }
+
+  var diasTxt = r.dias < 0 ? ('VENCIDO há ' + Math.abs(r.dias) + ' dias')
+                           : (r.dias === 0 ? 'vence hoje' : r.dias + ' dias');
+  var corDias = r.dias <= 30 ? '#b00020' : (r.dias <= 90 ? '#b35c00' : '#000');
+
+  var html = '<html><head><meta charset="utf-8"><title>Clientes — ' + valalEsc(r.descricao) + '</title>' +
+    '<style>body{font-family:Arial,sans-serif;padding:20px;max-width:960px;margin:0 auto;color:#000}' +
+    'h1{font-size:16px;margin:0 0 10px}' +
+    '.cab{border:1px solid #333;padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.7}' +
+    '.cab b{display:inline-block;min-width:130px}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px}' +
+    'th,td{border:1px solid #333;padding:4px 7px;text-align:left}' +
+    'th{background:#f0f0f0;font-weight:bold}' +
+    '.vend{background:#e6e6e6;font-weight:bold;font-size:11.5px}' +
+    '.right{text-align:right}.center{text-align:center}' +
+    '.st{font-size:9px;color:#b00020;font-weight:bold}' +
+    '.rod{margin-top:16px;font-size:10px;color:#555;font-style:italic;line-height:1.6}' +
+    '@media print{body{padding:0}}' +
+    '</style></head><body>' +
+    '<h1>Produto em validade — clientes para contato</h1>' +
+    '<div class="cab">' +
+      '<b>Código:</b> ' + valalEsc(r.codigo) + '<br>' +
+      '<b>Produto:</b> ' + valalEsc(r.descricao) + '<br>' +
+      '<b>Validade:</b> ' + valalFmtData(r.validade) + '<br>' +
+      '<b>Dias de validade:</b> <span style="color:' + corDias + ';font-weight:bold">' + diasTxt + '</span>' +
+    '</div>' +
+    '<table><thead><tr>' +
+      '<th style="width:26%">NOME FANTASIA</th>' +
+      '<th style="width:32%">RAZÃO SOCIAL</th>' +
+      '<th style="width:12%" class="center">MUNICÍPIO/UF</th>' +
+      '<th style="width:10%" class="right">QTDE</th>' +
+      '<th style="width:10%" class="right">MARCKUP</th>' +
+      '<th style="width:10%" class="right">MARGEM</th>' +
+    '</tr></thead><tbody>';
+
+  var vendAtual = null;
+  dados.itens.forEach(function (c) {
+    if (c.vendedor !== vendAtual) {
+      vendAtual = c.vendedor;
+      var qt = dados.itens.filter(function (x) { return x.vendedor === vendAtual; }).length;
+      html += '<tr><td class="vend" colspan="6">VENDEDOR: ' + valalEsc(vendAtual || '—') +
+              '  (' + qt + ' cliente' + (qt > 1 ? 's' : '') + ')</td></tr>';
+    }
+    var alerta = '';
+    var stC = String(c.status || '').toUpperCase();
+    if (stC.indexOf('INADIMPL') >= 0) alerta = ' <span class="st">[INADIMPLENTE]</span>';
+    else if (stC.indexOf('VISTA') >= 0) alerta = ' <span class="st">[À VISTA]</span>';
+
+    html += '<tr>' +
+      '<td>' + valalEsc(c.fantasia || '—') + alerta + '</td>' +
+      '<td>' + valalEsc(c.razao || '—') + '</td>' +
+      '<td class="center">' + valalEsc(c.municipio || '') + (c.uf ? '/' + valalEsc(c.uf) : '') + '</td>' +
+      '<td class="right">' + valalFmtQtde(c.qtde) + '</td>' +
+      '<td class="right">' + valalFmtQtde(c.markup) + '%</td>' +
+      '<td class="right">' + valalFmtQtde(c.margem) + '%</td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table>' +
+    '<div class="rod">' +
+      dados.total_clientes + ' cliente(s) sem repetição, em ' + dados.vendedores + ' vendedor(es). ' +
+      'Quantidade somada de todas as compras do cliente; marckup e margem são a média ponderada pela quantidade.<br>' +
+      'Origem: relatório DINÂMICO. Gerado em ' + new Date().toLocaleString('pt-BR') + ' — Q Food Company.' +
+    '</div>' +
+    '</body></html>';
+
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function () { w.print(); }, 500);
 }
 
 // ── Copiar lista crítica para WhatsApp ─────────────────────────
