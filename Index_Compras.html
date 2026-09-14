@@ -1322,6 +1322,13 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
           <option value="qtde">Maior quantidade</option>
           <option value="fornecedor">Por fornecedor</option>
         </select>
+        <select id="valal-f-conferencia" onchange="valalAplicarFiltros()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="">Toda confer&#234;ncia</option>
+          <option value="aguardando">&#9203; Aguardando confer&#234;ncia</option>
+          <option value="conferido">&#9989; J&#225; conferidos</option>
+          <option value="encerrada">&#128274; Encerradas sem resposta</option>
+          <option value="sem">&#8212; Sem rodada aberta</option>
+        </select>
         <input type="text" id="valal-f-busca" oninput="valalAplicarFiltros()" placeholder="&#128269; C&#243;digo ou nome do produto..." style="flex:1;min-width:180px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
       </div>
 
@@ -1335,6 +1342,8 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
         <button type="button" onclick="valalLimparFiltros()" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">Limpar filtros</button>
         <button type="button" onclick="valalCarregar(false)" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">&#128260; Recarregar</button>
       </div>
+
+      <div id="valal-aviso-conf" style="display:none;padding:8px 12px;background:rgba(255,170,43,.08);border:1px solid rgba(255,170,43,.28);border-radius:8px;font-size:.7rem;color:#ffaa2b;margin-bottom:10px"></div>
 
       <!-- Tabela -->
       <div id="valal-lista" style="max-height:520px;overflow:auto;border:1px solid var(--br);border-radius:8px;background:var(--s2)">
@@ -6970,8 +6979,12 @@ var VALAL = {
   registros: [],      // todos os que pedem ação (normalizados)
   visiveis: [],       // após filtro/ordenação — é o que a tabela mostra
   obs: {},            // { id_entrada: texto digitado }
+  conferencias: {},   // { id_entrada: última rodada do ciclo }
+  confDisponivel: false,
+  confErro: "",
   filtroForn: "",
   filtroUrg: "",
+  filtroConf: "",
   filtroBusca: "",
   ordem: "critico",
   mostrarTratados: false
@@ -7060,6 +7073,95 @@ function valalUsuario() {
   } catch (e) { return "desconhecido"; }
 }
 
+// ── Conferências (VAL_CONFERENCIAS) ────────────────────────────
+// Lê as rodadas do ciclo de validade e indexa a ÚLTIMA rodada por ID_Entrada.
+// Exige que o doGet do projeto de validades roteie tipo=val_listar.
+async function valalCarregarConferencias() {
+  var login = "";
+  try { login = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").trim(); } catch (e) {}
+  if (typeof USR_ATUAL !== 'undefined' && USR_ATUAL && USR_ATUAL.email) login = String(USR_ATUAL.email).trim();
+
+  VALAL.confDisponivel = false;
+  VALAL.confErro = "";
+  VALAL.conferencias = {};
+
+  try {
+    var url = VALIDADES_SYNC_URL + "?tipo=val_listar&unidade=qfood&escopo=todas" +
+              "&login=" + encodeURIComponent(login) + "&_=" + Date.now();
+    var r = await fetch(url);
+    var j = await r.json();
+    if (!j || !j.ok || !j.itens) {
+      VALAL.confErro = (j && j.erro) || "resposta inválida";
+      return;
+    }
+    var mapa = {};
+    j.itens.forEach(function (it) {
+      var k = String(it.id_entrada || "").trim();
+      if (!k) return;
+      var anterior = mapa[k];
+      if (!anterior || (Number(it.rodada) || 0) >= (Number(anterior.rodada) || 0)) {
+        mapa[k] = {
+          rodada: Number(it.rodada) || 1,
+          marco: it.marco,
+          status: String(it.status || "").toUpperCase(),
+          prazo_br: it.prazo_br || "",
+          qtd_atual: (it.qtd_atual === null || it.qtd_atual === undefined) ? null : it.qtd_atual,
+          qtd_anterior: it.qtd_anterior,
+          baixa: it.baixa_periodo,
+          conferido_por: it.conferido_por || "",
+          conferido_em_br: it.conferido_em_br || "",
+          unidade_medida: it.unidade_medida || "UN"
+        };
+      }
+    });
+    VALAL.conferencias = mapa;
+    VALAL.confDisponivel = true;
+  } catch (e) {
+    VALAL.confErro = e.message;
+  }
+}
+
+// Classifica a situação de conferência de um item
+function valalConfChave(c) {
+  if (!c) return 'sem';
+  if (c.status === 'PENDENTE' || c.status === 'ATRASADA') return 'aguardando';
+  if (c.qtd_atual !== null && c.qtd_atual !== undefined) return 'conferido';
+  return 'encerrada';
+}
+
+// Monta a célula da coluna Conferência
+function valalCelulaConferencia(r) {
+  if (!VALAL.confDisponivel) {
+    return '<span style="color:var(--mu2);font-size:.7rem">—</span>';
+  }
+  var c = VALAL.conferencias[r.id];
+  var chave = valalConfChave(c);
+
+  if (chave === 'sem') {
+    return '<span style="color:var(--mu2);font-size:.68rem;font-style:italic">sem rodada aberta</span>';
+  }
+  if (chave === 'aguardando') {
+    var atrasada = c.status === 'ATRASADA';
+    return '<div style="font-size:.7rem;font-weight:700;color:' + (atrasada ? '#ff4d4f' : '#ffaa2b') + '">' +
+      (atrasada ? '\u26A0 Atrasada' : '\u23F3 Aguardando') + '</div>' +
+      '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">rodada ' + c.rodada +
+      ' \u00b7 marco ' + (c.marco || '?') + 'd' + (c.prazo_br ? ' \u00b7 prazo ' + c.prazo_br : '') + '</div>';
+  }
+  if (chave === 'encerrada') {
+    return '<div style="font-size:.7rem;font-weight:700;color:var(--mu)">\uD83D\uDD12 Encerrada sem resposta</div>' +
+      '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">rodada ' + c.rodada + '</div>';
+  }
+  // conferido
+  var baixaTxt = (c.baixa === null || c.baixa === undefined || c.baixa === "") ? "" :
+    (parseFloat(c.baixa) > 0 ? ' \u00b7 baixa ' + valalFmtQtde(c.baixa) : ' \u00b7 sem baixa');
+  return '<div style="font-size:.72rem;font-weight:700;color:#36cfa0">\u2705 ' + valalFmtQtde(c.qtd_atual) +
+    ' <span style="font-size:.62rem;font-weight:400;color:var(--mu2)">' + valalEsc(c.unidade_medida) + '</span>' +
+    '<span style="font-size:.62rem;font-weight:400;color:var(--mu2)">' + baixaTxt + '</span></div>' +
+    '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">rodada ' + c.rodada +
+    (c.conferido_em_br ? ' \u00b7 ' + valalEsc(c.conferido_em_br) : '') +
+    (c.conferido_por ? ' \u00b7 ' + valalEsc(String(c.conferido_por).split('@')[0]) : '') + '</div>';
+}
+
 // ── Abrir/fechar ───────────────────────────────────────────────
 
 function toggleValAlertaPainel() {
@@ -7090,8 +7192,11 @@ async function valalCarregar(silencioso) {
     lista.innerHTML = '<div style="padding:26px;text-align:center;color:var(--mu)"><div class="spin" style="margin:0 auto 10px"></div>Carregando alertas de validade...</div>';
   }
   try {
-    var r = await fetch(VALIDADES_SYNC_URL + "?tipo=validade_entrada&_=" + Date.now());
-    var resp = await r.json();
+    var par = await Promise.all([
+      fetch(VALIDADES_SYNC_URL + "?tipo=validade_entrada&_=" + Date.now()).then(function (x) { return x.json(); }),
+      valalCarregarConferencias()
+    ]);
+    var resp = par[0];
     if (!resp || !resp.ok || !resp.registros) throw new Error((resp && resp.erro) || "resposta inválida do Apps Script");
 
     VALAL.registros = resp.registros.map(function (reg) {
@@ -7168,6 +7273,7 @@ function valalAtualizarBadge() {
 function valalAplicarFiltros() {
   VALAL.filtroForn = (document.getElementById('valal-f-fornecedor') || {}).value || "";
   VALAL.filtroUrg = (document.getElementById('valal-f-urgencia') || {}).value || "";
+  VALAL.filtroConf = (document.getElementById('valal-f-conferencia') || {}).value || "";
   VALAL.filtroBusca = ((document.getElementById('valal-f-busca') || {}).value || "").toLowerCase().trim();
   VALAL.ordem = (document.getElementById('valal-f-ordem') || {}).value || "critico";
   var chk = document.getElementById('valal-f-tratados');
@@ -7176,7 +7282,7 @@ function valalAplicarFiltros() {
 }
 
 function valalLimparFiltros() {
-  ['valal-f-fornecedor', 'valal-f-urgencia', 'valal-f-busca'].forEach(function (id) {
+  ['valal-f-fornecedor', 'valal-f-urgencia', 'valal-f-conferencia', 'valal-f-busca'].forEach(function (id) {
     var el = document.getElementById(id); if (el) el.value = "";
   });
   var ord = document.getElementById('valal-f-ordem'); if (ord) ord.value = "critico";
@@ -7189,6 +7295,7 @@ function valalCalcularVisiveis() {
     if (!VALAL.mostrarTratados && r.acao) return false;
     if (VALAL.filtroForn && r.fornecedor !== VALAL.filtroForn) return false;
     if (VALAL.filtroUrg && valalFaixa(r.dias).chave !== VALAL.filtroUrg) return false;
+    if (VALAL.filtroConf && valalConfChave(VALAL.conferencias[r.id]) !== VALAL.filtroConf) return false;
     if (VALAL.filtroBusca) {
       var alvo = (r.codigo + " " + r.descricao + " " + r.fornecedor).toLowerCase();
       if (alvo.indexOf(VALAL.filtroBusca) < 0) return false;
@@ -7223,6 +7330,17 @@ function valalRenderizar() {
   var avisoRadar = document.getElementById('valal-aviso-radar');
   if (avisoRadar) avisoRadar.style.display = podeAgir ? 'none' : 'block';
 
+  var avisoConf = document.getElementById('valal-aviso-conf');
+  if (avisoConf) {
+    if (VALAL.confDisponivel) {
+      avisoConf.style.display = 'none';
+    } else {
+      avisoConf.style.display = 'block';
+      avisoConf.innerHTML = '\u26A0 Coluna Confer\u00eancia indispon\u00edvel (' + valalEsc(VALAL.confErro || 'sem acesso') +
+        '). O card continua funcionando, mas sem mostrar as rodadas do ciclo.';
+    }
+  }
+
   var info = document.getElementById('valal-count-info');
   if (info) info.textContent = lista.length + ' de ' + VALAL.registros.length + ' registro(s)';
 
@@ -7234,13 +7352,14 @@ function valalRenderizar() {
     return;
   }
 
-  var html = '<table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:900px">' +
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:.8rem;min-width:1080px">' +
     '<thead><tr style="background:var(--s2);position:sticky;top:0;z-index:2">' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Urg.</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Produto</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Fornecedor</th>' +
     '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Qtde</th>' +
     '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Validade</th>' +
+    '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br);min-width:165px">Conferência</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br);min-width:330px">Ação</th>' +
     '</tr></thead><tbody>';
 
@@ -7276,6 +7395,9 @@ function valalRenderizar() {
       '<div style="color:var(--tx);font-weight:600">' + valalFmtData(r.validade) + '</div>' +
       '<div style="font-size:.64rem;color:' + fx.cor + ';font-weight:700;margin-top:2px">' + diasTxt + '</div>' +
       '</td>';
+
+    // Conferência
+    html += '<td style="padding:9px 8px;vertical-align:top">' + valalCelulaConferencia(r) + '</td>';
 
     // Ação
     html += '<td style="padding:9px 8px;vertical-align:top">';
@@ -7320,8 +7442,18 @@ function valalRenderizarKPIs() {
   var urgentes = pend.filter(function (r) { return r.dias > 7 && r.dias <= 30; }).length;
   var tratados = VALAL.registros.filter(function (r) { return !!r.acao; }).length;
 
-  var card = function (valor, rotulo, cor, filtro) {
-    return '<div onclick="' + (filtro ? "document.getElementById('valal-f-urgencia').value='" + filtro + "';valalAplicarFiltros()" : "") + '" ' +
+  var aguardando = 0, conferidos = 0;
+  if (VALAL.confDisponivel) {
+    VALAL.registros.forEach(function (r) {
+      var k = valalConfChave(VALAL.conferencias[r.id]);
+      if (k === 'aguardando') aguardando++;
+      else if (k === 'conferido') conferidos++;
+    });
+  }
+
+  var card = function (valor, rotulo, cor, campo, filtro) {
+    var onclick = filtro ? ("document.getElementById('" + campo + "').value='" + filtro + "';valalAplicarFiltros()") : "";
+    return '<div onclick="' + onclick + '" ' +
       'style="flex:1;min-width:110px;background:var(--s2);border:1px solid var(--br);border-left:3px solid ' + cor + ';border-radius:8px;padding:9px 12px' + (filtro ? ';cursor:pointer' : '') + '">' +
       '<div style="font-size:1.25rem;font-weight:800;color:' + cor + ';line-height:1.1">' + valor + '</div>' +
       '<div style="font-size:.62rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:2px">' + rotulo + '</div>' +
@@ -7329,11 +7461,13 @@ function valalRenderizarKPIs() {
   };
 
   box.innerHTML =
-    card(pend.length, 'Pendentes', '#ffaa2b', '') +
-    card(vencidos, 'Vencidos', '#ff4d4f', 'vencido') +
-    card(criticos, 'Até 7 dias', '#ff7875', 'critico') +
-    card(urgentes, '8 a 30 dias', '#ffd666', 'urgente') +
-    card(tratados, 'Já tratados', '#36cfa0', '');
+    card(pend.length, 'Pendentes', '#ffaa2b', '', '') +
+    card(vencidos, 'Vencidos', '#ff4d4f', 'valal-f-urgencia', 'vencido') +
+    card(criticos, 'Até 7 dias', '#ff7875', 'valal-f-urgencia', 'critico') +
+    card(urgentes, '8 a 30 dias', '#ffd666', 'valal-f-urgencia', 'urgente') +
+    (VALAL.confDisponivel ? card(aguardando, 'Aguardando conf.', '#4d8ef5', 'valal-f-conferencia', 'aguardando') : '') +
+    (VALAL.confDisponivel ? card(conferidos, 'Conferidos', '#a07cf6', 'valal-f-conferencia', 'conferido') : '') +
+    card(tratados, 'Já tratados', '#36cfa0', '', '');
 }
 
 // ── Gravar ação ────────────────────────────────────────────────
