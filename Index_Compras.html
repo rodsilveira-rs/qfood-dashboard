@@ -7357,7 +7357,7 @@ function valalRenderizar() {
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Urg.</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Produto</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Fornecedor</th>' +
-    '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Qtde</th>' +
+    '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Qtde / Saldo</th>' +
     '<th style="padding:9px 8px;text-align:center;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br)">Validade</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br);min-width:165px">Conferência</th>' +
     '<th style="padding:9px 8px;text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);border-bottom:1px solid var(--br);min-width:330px">Ação</th>' +
@@ -7386,9 +7386,21 @@ function valalRenderizar() {
     html += '<td style="padding:9px 8px;vertical-align:top;color:var(--mu);font-size:.72rem;max-width:180px">' +
       valalEsc(r.fornecedor.length > 34 ? r.fornecedor.substring(0, 34) + '…' : r.fornecedor) + '</td>';
 
-    // Qtde
-    html += '<td style="padding:9px 8px;vertical-align:top;text-align:center;white-space:nowrap;font-weight:600;color:var(--tx)">' +
-      valalFmtQtde(r.qtde) + ' <span style="font-size:.65rem;color:var(--mu2);font-weight:400">' + valalEsc(r.unidade) + '</span></td>';
+    // Qtde — mostra o saldo contado quando já houve conferência
+    var cQ = VALAL.confDisponivel ? VALAL.conferencias[r.id] : null;
+    var temSaldo = cQ && cQ.qtd_atual !== null && cQ.qtd_atual !== undefined;
+    html += '<td style="padding:9px 8px;vertical-align:top;text-align:center;white-space:nowrap">';
+    if (temSaldo) {
+      html += '<div style="font-weight:700;color:#36cfa0;font-size:.85rem">' + valalFmtQtde(cQ.qtd_atual) +
+        ' <span style="font-size:.65rem;color:var(--mu2);font-weight:400">' + valalEsc(r.unidade) + '</span></div>' +
+        '<div style="font-size:.6rem;color:#36cfa0;font-weight:600;letter-spacing:.3px">SALDO CONTADO</div>' +
+        '<div style="font-size:.6rem;color:var(--mu2);margin-top:2px">entrou ' + valalFmtQtde(r.qtde) + '</div>';
+    } else {
+      html += '<div style="font-weight:600;color:var(--tx);font-size:.85rem">' + valalFmtQtde(r.qtde) +
+        ' <span style="font-size:.65rem;color:var(--mu2);font-weight:400">' + valalEsc(r.unidade) + '</span></div>' +
+        '<div style="font-size:.6rem;color:var(--mu2);margin-top:2px">entrada, sem contagem</div>';
+    }
+    html += '</td>';
 
     // Validade
     html += '<td style="padding:9px 8px;vertical-align:top;text-align:center;white-space:nowrap">' +
