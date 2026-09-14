@@ -483,9 +483,14 @@ function desde(iso){
 
 function nomeDe(email){
   if(!email) return "—";
+  var alvo = String(email).toLowerCase();
   var u = (ReqState.config && ReqState.config.usuario) || {};
-  if(email.toLowerCase() === (u.email||"").toLowerCase()) return "você";
-  return email.split("@")[0];
+  if(alvo === (u.email||"").toLowerCase()) return "você";
+  var lista = (ReqState.config && ReqState.config.pessoas) || [];
+  for(var i = 0; i < lista.length; i++){
+    if(lista[i].email.toLowerCase() === alvo) return lista[i].nome;
+  }
+  return String(email).split("@")[0];
 }
 
 // Máscara de dinheiro: digita 12345 e vira R$ 123,45
@@ -665,9 +670,11 @@ var ReqDetalhe = {
     document.getElementById("v-detalhe").innerHTML = '<div class="carregando">Carregando ' + esc(id) + '…</div>';
     ReqAPI.get("detalhe", {id:id}).then(function(d){
       ReqDetalhe.render(d);
-      return ReqAPI.post("marcarComoLida", {id:id});
-    }).then(function(){
-      ReqNotif.atualizar();
+      // Marcar como lida é cosmético. Se falhar, a requisição continua
+      // na tela — só o badge de novidade fica errado.
+      ReqAPI.post("marcarComoLida", {id:id})
+        .then(function(){ ReqNotif.atualizar(); })
+        .catch(function(){});
     }).catch(function(e){
       document.getElementById("v-detalhe").innerHTML =
         '<div class="card"><div class="card-t">Não deu para abrir</div>' +
@@ -1578,8 +1585,14 @@ var ReqForm = {
         '<div class="campo"><label class="lbl" for="n-setor">Setor <i>opcional</i></label>' +
           '<select class="sel" id="n-setor"><option value="">—</option>' + setores + '</select></div>' +
       '</div>' +
-      '<div class="campo"><label class="lbl" for="n-solic">Quem pediu, se não foi você <i>opcional</i></label>' +
-        '<input class="inp" id="n-solic" placeholder="Nome ou e-mail de quem precisa"></div>' +
+      '<div class="campo"><label class="lbl" for="n-solic">Para quem é <span class="obrig">*</span></label>' +
+        '<select class="sel" id="n-solic">' +
+          ((ReqState.config && ReqState.config.pessoas) || []).map(function(p){
+            return '<option value="' + esc(p.email) + '"' +
+                   (p.email === ReqState.sessao.email ? ' selected' : '') + '>' +
+                   esc(p.nome) + '</option>';
+          }).join("") +
+        '</select></div>' +
       '<div id="aviso-aprov"></div>' +
     '</div>' +
 
@@ -1766,6 +1779,7 @@ var ReqForm = {
     if(!emp){    toast("Escolha a empresa.", true); return; }
     if(!uni){    toast("Escolha a unidade.", true); return; }
     if(!desc && !iDesc){ toast("Explique o que você precisa ou preencha o item.", true); return; }
+    if(!document.getElementById("n-solic").value){ toast("Escolha para quem é a requisição.", true); return; }
 
     var itens = [];
     if(iDesc){
@@ -1809,7 +1823,7 @@ var ReqForm = {
       empresa:             emp,
       unidade:             uni,
       setor:               document.getElementById("n-setor").value,
-      solicitanteOriginal: document.getElementById("n-solic").value.trim(),
+      solicitanteOriginal: document.getElementById("n-solic").value,
       urgencia:            document.getElementById("n-urg").value,
       dataNecessidade:     document.getElementById("n-quando").value,
       itens:               itens,
