@@ -1275,6 +1275,90 @@ body.is-aprovador .aprovador-only-inline{display:inline-flex;}
     </div>
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       🚨 ALERTAS DE VALIDADE (Jonathas)
+       Card recolhível, começa fechado. Lê/grava em Estoque_Validades_Entrada.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="valal-painel" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;margin-bottom:20px;overflow:hidden;transition:all .25s">
+    <div id="valal-toggle" onclick="toggleValAlertaPainel()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;user-select:none;background:linear-gradient(90deg,rgba(255,77,79,.10),rgba(255,170,43,.06))">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:1.2rem">&#128680;</span>
+        <div>
+          <div style="font-size:.9rem;font-weight:700;color:var(--tx);letter-spacing:.3px">
+            Alertas de Validade
+            <span id="valal-badge" style="display:none;margin-left:8px;font-size:.62rem;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.3px;vertical-align:middle"></span>
+          </div>
+          <div id="valal-subtitulo" style="font-size:.7rem;color:var(--mu);margin-top:2px">Produtos perto do vencimento esperando a&#231;&#227;o (clique para abrir)</div>
+        </div>
+      </div>
+      <span id="valal-arrow" style="font-size:1.1rem;color:var(--mu);transition:transform .25s">&#9656;</span>
+    </div>
+
+    <div id="valal-content" style="display:none;padding:18px 20px 20px;border-top:1px solid var(--br)">
+
+      <!-- Aviso para quem só acompanha (Maiko, Célio, Cris) -->
+      <div id="valal-aviso-radar" style="display:none;padding:9px 14px;background:rgba(77,142,245,.08);border:1px solid rgba(77,142,245,.28);border-radius:8px;font-size:.74rem;color:#4d8ef5;margin-bottom:12px">
+        &#128065; <b>Modo acompanhamento:</b> voc&#234; v&#234; todos os alertas e o saldo contado, mas quem registra a a&#231;&#227;o &#233; o C&#233;lio, a Cris ou o Rodrigo.
+      </div>
+
+      <!-- KPIs -->
+      <div id="valal-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+      <!-- Filtros -->
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+        <select id="valal-f-fornecedor" onchange="valalAplicarFiltros()" style="flex:1;min-width:200px;max-width:340px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="">Todos os fornecedores</option>
+        </select>
+        <select id="valal-f-urgencia" onchange="valalAplicarFiltros()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="">Toda urg&#234;ncia</option>
+          <option value="vencido">&#128308; Vencidos</option>
+          <option value="critico">&#128308; At&#233; 7 dias</option>
+          <option value="urgente">&#128992; 8 a 30 dias</option>
+          <option value="atencao">&#128993; 31 a 90 dias</option>
+        </select>
+        <select id="valal-f-ordem" onchange="valalAplicarFiltros()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="critico">Mais cr&#237;tico primeiro</option>
+          <option value="folga">Mais folga primeiro</option>
+          <option value="qtde">Maior quantidade</option>
+          <option value="fornecedor">Por fornecedor</option>
+        </select>
+        <select id="valal-f-conferencia" onchange="valalAplicarFiltros()" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+          <option value="">Toda confer&#234;ncia</option>
+          <option value="aguardando">&#9203; Aguardando confer&#234;ncia</option>
+          <option value="conferido">&#9989; J&#225; conferidos</option>
+          <option value="encerrada">&#128274; Encerradas sem resposta</option>
+          <option value="sem">&#8212; Sem rodada aberta</option>
+        </select>
+        <input type="text" id="valal-f-busca" oninput="valalAplicarFiltros()" placeholder="&#128269; C&#243;digo ou nome do produto..." style="flex:1;min-width:180px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:7px 10px;color:var(--tx);font-size:.78rem">
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--mu);cursor:pointer">
+          <input type="checkbox" id="valal-f-tratados" onchange="valalAplicarFiltros()" style="cursor:pointer"> Mostrar itens j&#225; tratados
+        </label>
+        <span id="valal-count-info" style="font-size:.7rem;color:var(--mu2);font-weight:600"></span>
+        <div style="flex:1"></div>
+        <button type="button" onclick="valalCopiarCriticos()" style="background:rgba(54,207,160,.12);border:1px solid rgba(54,207,160,.32);color:#36cfa0;padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">&#128241; Copiar cr&#237;ticos</button>
+        <button type="button" onclick="valalLimparFiltros()" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">Limpar filtros</button>
+        <button type="button" onclick="valalCarregar(false)" style="background:var(--s2);border:1px solid var(--br);color:var(--mu);padding:6px 12px;border-radius:8px;font-size:.72rem;font-weight:600;cursor:pointer">&#128260; Recarregar</button>
+      </div>
+
+      <div id="valal-aviso-conf" style="display:none;padding:8px 12px;background:rgba(255,170,43,.08);border:1px solid rgba(255,170,43,.28);border-radius:8px;font-size:.7rem;color:#ffaa2b;margin-bottom:10px"></div>
+
+      <!-- Tabela -->
+      <div id="valal-lista" style="max-height:520px;overflow:auto;border:1px solid var(--br);border-radius:8px;background:var(--s2)">
+        <div style="padding:26px;text-align:center;color:var(--mu);font-size:.82rem">Clique em recarregar para buscar os alertas.</div>
+      </div>
+
+      <div id="valal-status" style="margin-top:12px;font-size:.78rem;padding:10px;border-radius:8px;display:none"></div>
+
+      <div style="margin-top:12px;font-size:.66rem;color:var(--mu2);font-style:italic">
+        A&#231;&#245;es dispon&#237;veis: Comunicado ao Comercial &#183; Sem Estoque &#183; Promo&#231;&#227;o &#183; Outros. Depois de gravada, a linha fica bloqueada.
+      </div>
+
+    </div>
+  </div>
+
   <div id="cmp-step1">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
       <div class="sec" style="margin:0">&#128722; Cota&#231;&#227;o de Compras</div>
@@ -3276,6 +3360,9 @@ async function v3Init(){
   // Só renderiza cards de Aprovação/Designação para aprovadores
   V3._state.operacionalCarregado = true;
   await v3CarregarOperacional();
+
+  // Alertas de Validade: carrega em background só para pintar o badge do card
+  valalCarregar(true);
 }
 
 // ============================================================
@@ -6780,6 +6867,17 @@ function valentImprimir() {
     c = { fornecedor: forn, data: data, conferidoPor: conferidoPor, entradas: entradas };
   }
 
+  // Dias entre a data da conferência e a validade (ambas em "yyyy-mm-dd")
+  var diasEntre = function(ini, fim) {
+    if (!ini || !fim) return null;
+    var a = String(ini).split('-'), b = String(fim).split('-');
+    if (a.length !== 3 || b.length !== 3) return null;
+    var d1 = new Date(+a[0], +a[1] - 1, +a[2]);
+    var d2 = new Date(+b[0], +b[1] - 1, +b[2]);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null;
+    return Math.round((d2 - d1) / 86400000);
+  };
+
   var w = window.open('', '_blank');
   var dataBR = c.data.split('-').reverse().join('/');
   var html = '<html><head><title>Conferência ' + c.fornecedor + ' - ' + dataBR + '</title>' +
@@ -6790,22 +6888,35 @@ function valentImprimir() {
     'th{background:#f0f0f0;font-weight:bold}' +
     '.right{text-align:right}.center{text-align:center}' +
     '.footer{margin-top:20px;font-size:11px;color:#666;text-align:center;font-style:italic}' +
+    '.nota{margin-top:14px;font-size:10px;color:#555;font-style:italic}' +
     '@media print{body{padding:0}}' +
     '</style></head><body>' +
     '<h1>Entrada de Produtos Conferidos na data*</h1>' +
     '<h2>Data da Conferência: ' + dataBR + ', Fabricante: ' + c.fornecedor + '</h2>' +
-    '<table><thead><tr><th style="width:60px">Código</th><th>Descrição</th><th style="width:40px" class="center">UN</th><th style="width:80px" class="right">Qtde</th><th style="width:100px" class="center">Validade</th></tr></thead><tbody>';
+    '<table><thead><tr><th style="width:60px">Código</th><th>Descrição</th><th style="width:40px" class="center">UN</th><th style="width:80px" class="right">Qtde</th><th style="width:100px" class="center">Validade</th><th style="width:90px" class="center">Dias de Validade</th></tr></thead><tbody>';
   // Ordena por validade crescente (vence mais cedo primeiro)
   var entradasOrdenadas = c.entradas.slice().sort(function(a, b) {
     var va = String(a.validade || '9999-12-31');
     var vb = String(b.validade || '9999-12-31');
     return va.localeCompare(vb);
   });
+  var qtCurtos = 0;
   entradasOrdenadas.forEach(function(e) {
     var valBR = (e.validade || '').split('-').reverse().join('/');
-    html += '<tr><td>' + e.codigo_produto + '</td><td>' + e.descricao + '</td><td class="center">' + (e.unidade || 'UN') + '</td><td class="right">' + parseFloat(e.qtde).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td><td class="center">' + valBR + '</td></tr>';
+    var dias = diasEntre(c.data, e.validade);
+    var diasTxt = '—', estilo = '';
+    if (dias !== null) {
+      if (dias < 0) { diasTxt = 'VENCIDO (' + Math.abs(dias) + ' d)'; estilo = 'color:#b00020;font-weight:bold'; qtCurtos++; }
+      else if (dias === 0) { diasTxt = 'vence hoje'; estilo = 'color:#b00020;font-weight:bold'; qtCurtos++; }
+      else { diasTxt = dias + ' dias'; }
+      if (dias > 0 && dias <= 30) { estilo = 'color:#b00020;font-weight:bold'; qtCurtos++; }
+      else if (dias > 30 && dias <= 90) { estilo = 'color:#b35c00;font-weight:bold'; qtCurtos++; }
+    }
+    html += '<tr><td>' + e.codigo_produto + '</td><td>' + e.descricao + '</td><td class="center">' + (e.unidade || 'UN') + '</td><td class="right">' + parseFloat(e.qtde).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td><td class="center">' + valBR + '</td><td class="center" style="' + estilo + '">' + diasTxt + '</td></tr>';
   });
   html += '</tbody></table>' +
+    '<div class="nota">* Dias de validade contados a partir da data da conferência (' + dataBR + ').' +
+    (qtCurtos > 0 ? ' Destacados: ' + qtCurtos + ' item(ns) com 90 dias ou menos de validade.' : '') + '</div>' +
     '<div class="footer">' + c.fornecedor.split(' ')[0] + ' em estoque</div>' +
     '<div class="footer" style="margin-top:8px">Conferido por: ' + (c.conferidoPor || '—') + ' | Q Food Company</div>' +
     '</body></html>';
@@ -6815,7 +6926,10 @@ function valentImprimir() {
 }
 
 function valentAbrirHistorico() {
-  alert("📋 Histórico de Conferências\n\nEsta funcionalidade estará disponível na próxima entrega (Mensagem 4).\n\nPor enquanto, consulte diretamente na aba Estoque_Validades_Entrada do Google Sheets.");
+  if (!VALAL.aberto) toggleValAlertaPainel();
+  var chk = document.getElementById('valal-f-tratados');
+  if (chk) { chk.checked = true; valalAplicarFiltros(); }
+  document.getElementById('valal-painel').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 async function valentDispararAlertaAgora() {
@@ -6835,6 +6949,945 @@ async function valentDispararAlertaAgora() {
   } catch (e) {
     alert("❌ Falha de rede: " + e.message);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ALERTAS DE VALIDADE (Jonathas) — v6.2
+// Lê Estoque_Validades_Entrada via GET tipo=validade_entrada
+// Grava ação via POST tipo=validade_acao
+// ═══════════════════════════════════════════════════════════════
+
+// Status que exigem ação do Jonathas.
+// ALERTADO_90d = nomenclatura antiga | EM_CICLO / ENCERRADO_VENCIDO = ciclo de conferência
+var VALAL_STATUS_ACAO = ["ALERTADO_90d", "EM_CICLO", "ENCERRADO_VENCIDO"];
+
+// Quem pode MARCAR ação. Os demais veem tudo, mas não marcam.
+// A leitura do saldo é aberta a todo mundo que entra no módulo Compras.
+// Compara só a parte antes do @ do login da UUSR — o login nem sempre
+// é a caixa que recebe e-mail (rodrigo@ loga, comercial.rodrigo@ recebe).
+var VALAL_LOGINS_ACAO = [
+  "rodrigo",   // rodrigo@qfoodcompany.com.br
+  "celio",     // celio@qfoodcompany.com.br
+  "compras"    // compras@qfoodcompany.com.br — Cris
+];
+
+var VALAL_ACOES = [
+  { id: "COMUNICADO_COMERCIAL", label: "Comunicado ao Comercial", icone: "\uD83D\uDCE2", cor: "#4d8ef5",
+    ajuda: "Grava a ação e gera o PDF com os clientes que já compraram este produto" },
+  { id: "PROMOCAO",             label: "Promoção",                icone: "\uD83C\uDFF7\uFE0F", cor: "#36cfa0",
+    ajuda: "Grava a ação e baixa a planilha de controle de promoção, com as fórmulas prontas" },
+  { id: "SEM_ESTOQUE",          label: "Sem Estoque",             icone: "\uD83D\uDCE6", cor: "#8fa0c0",
+    ajuda: "Use quando já vendeu tudo sem passar por contagem — contagem zerada marca isso sozinha" },
+  { id: "OUTROS",               label: "Outros",                  icone: "\uD83D\uDCDD", cor: "#a07cf6",
+    ajuda: "Exige observação escrita" }
+];
+
+var VALAL = {
+  aberto: false,
+  carregando: false,
+  carregado: false,
+  registros: [],      // todos os que pedem ação (normalizados)
+  visiveis: [],       // após filtro/ordenação — é o que a tabela mostra
+  obs: {},            // { id_entrada: texto digitado }
+  conferencias: {},   // { id_entrada: última rodada do ciclo }
+  confDisponivel: false,
+  confErro: "",
+  filtroForn: "",
+  filtroUrg: "",
+  filtroConf: "",
+  filtroBusca: "",
+  ordem: "critico",
+  mostrarTratados: false
+};
+
+// ── Helpers ────────────────────────────────────────────────────
+
+// Converte qualquer formato de data vindo do Sheets em "yyyy-mm-dd"
+function valalParseData(v) {
+  if (!v && v !== 0) return "";
+  if (typeof v === 'string') {
+    if (v.indexOf('T') > 0) {
+      var d1 = new Date(v);
+      if (!isNaN(d1.getTime())) {
+        return d1.getUTCFullYear() + '-' + String(d1.getUTCMonth() + 1).padStart(2, '0') + '-' + String(d1.getUTCDate()).padStart(2, '0');
+      }
+    }
+    if (/^\d{4}-\d{2}-\d{2}/.test(v)) return v.substring(0, 10);
+    var m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return m[3] + '-' + m[2] + '-' + m[1];
+    return v.substring(0, 10);
+  }
+  if (v instanceof Date) {
+    return v.getUTCFullYear() + '-' + String(v.getUTCMonth() + 1).padStart(2, '0') + '-' + String(v.getUTCDate()).padStart(2, '0');
+  }
+  if (typeof v === 'number') {
+    var dt = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-' + String(dt.getUTCDate()).padStart(2, '0');
+  }
+  return "";
+}
+
+// Dias até vencer (negativo = já venceu)
+function valalDiasAteVencer(yyyymmdd) {
+  if (!yyyymmdd) return 9999;
+  var p = yyyymmdd.split('-');
+  var val = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  var hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  return Math.floor((val - hoje) / 86400000);
+}
+
+function valalFaixa(dias) {
+  if (dias < 0)   return { chave: "vencido",  label: "VENCIDO",  cor: "#ff4d4f", bola: "\uD83D\uDD34" };
+  if (dias <= 7)  return { chave: "critico",  label: "CRÍTICO",  cor: "#ff7875", bola: "\uD83D\uDD34" };
+  if (dias <= 30) return { chave: "urgente",  label: "URGENTE",  cor: "#ffaa2b", bola: "\uD83D\uDFE0" };
+  if (dias <= 90) return { chave: "atencao",  label: "ATENÇÃO",  cor: "#ffd666", bola: "\uD83D\uDFE1" };
+  return            { chave: "monitorar", label: "MONITORAR", cor: "#8fa0c0", bola: "\u26AA" };
+}
+
+function valalFmtData(yyyymmdd) {
+  if (!yyyymmdd) return "—";
+  var p = yyyymmdd.split('-');
+  if (p.length !== 3) return yyyymmdd;
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+function valalFmtQtde(n) {
+  var v = parseFloat(n);
+  if (isNaN(v)) return "—";
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+}
+
+function valalEsc(s) {
+  return String(s == null ? "" : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// Só Jonathas + admins marcam ação. Os demais veem em modo radar.
+function valalPodeAgir() {
+  var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
+  var email = "";
+  if (perfil && perfil.email) email = String(perfil.email).toLowerCase().trim();
+  if (!email) {
+    try { email = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").toLowerCase().trim(); } catch (e) {}
+  }
+  return VALAL_LOGINS_ACAO.indexOf(String(email).split("@")[0]) >= 0;
+}
+
+function valalUsuario() {
+  var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
+  if (perfil && (perfil.nome || perfil.email)) return perfil.nome || perfil.email;
+  try {
+    var s = JSON.parse(localStorage.getItem("qfood_session") || "{}");
+    return s.nome || s.email || "desconhecido";
+  } catch (e) { return "desconhecido"; }
+}
+
+// ── Conferências (VAL_CONFERENCIAS) ────────────────────────────
+// Lê as rodadas do ciclo de validade e indexa a ÚLTIMA rodada por ID_Entrada.
+// Exige que o doGet do projeto de validades roteie tipo=val_listar.
+async function valalCarregarConferencias() {
+  var login = "";
+  try { login = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").trim(); } catch (e) {}
+  if (typeof USR_ATUAL !== 'undefined' && USR_ATUAL && USR_ATUAL.email) login = String(USR_ATUAL.email).trim();
+
+  VALAL.confDisponivel = false;
+  VALAL.confErro = "";
+  VALAL.conferencias = {};
+
+  try {
+    var url = VALIDADES_SYNC_URL + "?tipo=val_listar&unidade=qfood&escopo=todas" +
+              "&token=" + encodeURIComponent(VALIDADES_SYNC_TOKEN) +
+              "&login=" + encodeURIComponent(login) + "&_=" + Date.now();
+    var r = await fetch(url);
+    var j = await r.json();
+    if (!j || !j.ok || !j.itens) {
+      VALAL.confErro = (j && j.erro) || "resposta inválida";
+      return;
+    }
+    var mapa = {};
+    j.itens.forEach(function (it) {
+      var k = String(it.id_entrada || "").trim();
+      if (!k) return;
+      var anterior = mapa[k];
+      if (!anterior || (Number(it.rodada) || 0) >= (Number(anterior.rodada) || 0)) {
+        mapa[k] = {
+          rodada: Number(it.rodada) || 1,
+          marco: it.marco,
+          status: String(it.status || "").toUpperCase(),
+          prazo_br: it.prazo_br || "",
+          qtd_atual: (it.qtd_atual === null || it.qtd_atual === undefined) ? null : it.qtd_atual,
+          qtd_anterior: it.qtd_anterior,
+          baixa: it.baixa_periodo,
+          conferido_por: it.conferido_por || "",
+          conferido_em_br: it.conferido_em_br || "",
+          unidade_medida: it.unidade_medida || "UN"
+        };
+      }
+    });
+    VALAL.conferencias = mapa;
+    VALAL.confDisponivel = true;
+  } catch (e) {
+    VALAL.confErro = e.message;
+  }
+}
+
+// Classifica a situação de conferência de um item
+function valalConfChave(c) {
+  if (!c) return 'sem';
+  if (c.status === 'PENDENTE' || c.status === 'ATRASADA') return 'aguardando';
+  if (c.qtd_atual !== null && c.qtd_atual !== undefined) return 'conferido';
+  return 'encerrada';
+}
+
+// Monta a célula da coluna Conferência
+function valalCelulaConferencia(r) {
+  if (!VALAL.confDisponivel) {
+    return '<span style="color:var(--mu2);font-size:.7rem">—</span>';
+  }
+  var c = VALAL.conferencias[r.id];
+  var chave = valalConfChave(c);
+
+  if (chave === 'sem') {
+    return '<span style="color:var(--mu2);font-size:.68rem;font-style:italic">sem rodada aberta</span>';
+  }
+  if (chave === 'aguardando') {
+    var atrasada = c.status === 'ATRASADA';
+    return '<div style="font-size:.7rem;font-weight:700;color:' + (atrasada ? '#ff4d4f' : '#ffaa2b') + '">' +
+      (atrasada ? '\u26A0 Atrasada' : '\u23F3 Aguardando') + '</div>' +
+      '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">rodada ' + c.rodada +
+      ' \u00b7 marco ' + (c.marco || '?') + 'd' + (c.prazo_br ? ' \u00b7 prazo ' + c.prazo_br : '') + '</div>';
+  }
+  if (chave === 'encerrada') {
+    return '<div style="font-size:.7rem;font-weight:700;color:var(--mu)">\uD83D\uDD12 Encerrada sem resposta</div>' +
+      '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">rodada ' + c.rodada + '</div>';
+  }
+  // conferido
+  var baixaTxt = (c.baixa === null || c.baixa === undefined || c.baixa === "") ? "" :
+    (parseFloat(c.baixa) > 0 ? ' \u00b7 baixa ' + valalFmtQtde(c.baixa) : ' \u00b7 sem baixa');
+  return '<div style="font-size:.72rem;font-weight:700;color:#36cfa0">\u2705 ' + valalFmtQtde(c.qtd_atual) +
+    ' <span style="font-size:.62rem;font-weight:400;color:var(--mu2)">' + valalEsc(c.unidade_medida) + '</span>' +
+    '<span style="font-size:.62rem;font-weight:400;color:var(--mu2)">' + baixaTxt + '</span></div>' +
+    '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">rodada ' + c.rodada +
+    (c.conferido_em_br ? ' \u00b7 ' + valalEsc(c.conferido_em_br) : '') +
+    (c.conferido_por ? ' \u00b7 ' + valalEsc(String(c.conferido_por).split('@')[0]) : '') + '</div>';
+}
+
+// ── Abrir/fechar ───────────────────────────────────────────────
+
+function toggleValAlertaPainel() {
+  var content = document.getElementById('valal-content');
+  var arrow = document.getElementById('valal-arrow');
+  var sub = document.getElementById('valal-subtitulo');
+  VALAL.aberto = !VALAL.aberto;
+  if (VALAL.aberto) {
+    content.style.display = 'block';
+    arrow.style.transform = 'rotate(90deg)';
+    sub.textContent = 'Marque a ação tomada em cada produto';
+    if (!VALAL.carregado) valalCarregar(false);
+    else valalRenderizar();
+  } else {
+    content.style.display = 'none';
+    arrow.style.transform = 'rotate(0deg)';
+    sub.textContent = 'Produtos perto do vencimento esperando ação (clique para abrir)';
+  }
+}
+
+// ── Carregamento ───────────────────────────────────────────────
+
+async function valalCarregar(silencioso) {
+  if (VALAL.carregando) return;
+  VALAL.carregando = true;
+  var lista = document.getElementById('valal-lista');
+  if (!silencioso && lista) {
+    lista.innerHTML = '<div style="padding:26px;text-align:center;color:var(--mu)"><div class="spin" style="margin:0 auto 10px"></div>Carregando alertas de validade...</div>';
+  }
+  try {
+    var par = await Promise.all([
+      fetch(VALIDADES_SYNC_URL + "?tipo=validade_entrada&_=" + Date.now()).then(function (x) { return x.json(); }),
+      valalCarregarConferencias()
+    ]);
+    var resp = par[0];
+    if (!resp || !resp.ok || !resp.registros) throw new Error((resp && resp.erro) || "resposta inválida do Apps Script");
+
+    VALAL.registros = resp.registros.map(function (reg) {
+      var validade = valalParseData(reg["Validade"]);
+      var acao = String(reg["Acao_Tomada"] || "").trim();
+      return {
+        id:         String(reg["ID_Entrada"] || "").trim(),
+        fornecedor: String(reg["Fornecedor"] || "").trim(),
+        codigo:     String(reg["Codigo_Produto"] || "").trim(),
+        descricao:  String(reg["Descricao"] || "").trim(),
+        unidade:    String(reg["Unidade"] || "UN").trim() || "UN",
+        qtde:       reg["Qtde"],
+        validade:   validade,
+        dias:       valalDiasAteVencer(validade),
+        status:     String(reg["Status_Alerta"] || "").trim(),
+        dataAlerta: valalParseData(reg["Data_Alerta_Enviado"]),
+        acao:       acao,
+        acaoPor:    String(reg["Acao_por"] || "").trim(),
+        acaoEm:     String(reg["Acao_em"] || "").trim(),
+        observacoes: String(reg["Observacoes"] || "").trim()
+      };
+    }).filter(function (x) {
+      return x.id && VALAL_STATUS_ACAO.indexOf(x.status) >= 0;
+    });
+
+    VALAL.carregado = true;
+    valalPopularFornecedores();
+    valalAtualizarBadge();
+    if (VALAL.aberto || !silencioso) valalRenderizar();
+  } catch (e) {
+    console.warn("[valal] Erro ao carregar alertas:", e.message);
+    if (lista) {
+      lista.innerHTML = '<div style="padding:20px;text-align:center;color:#ff7875;font-size:.82rem">\u274C Não foi possível carregar os alertas: ' + valalEsc(e.message) +
+        '<br><button type="button" onclick="valalCarregar(false)" style="margin-top:10px;background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:6px 14px;border-radius:8px;font-size:.75rem;cursor:pointer">Tentar de novo</button></div>';
+    }
+  } finally {
+    VALAL.carregando = false;
+  }
+}
+
+function valalPopularFornecedores() {
+  var sel = document.getElementById('valal-f-fornecedor');
+  if (!sel) return;
+  var atual = sel.value;
+  var set = {};
+  VALAL.registros.forEach(function (r) { if (r.fornecedor) set[r.fornecedor] = true; });
+  var nomes = Object.keys(set).sort();
+  sel.innerHTML = '<option value="">Todos os fornecedores (' + nomes.length + ')</option>' +
+    nomes.map(function (n) {
+      var qt = VALAL.registros.filter(function (r) { return r.fornecedor === n && !r.acao; }).length;
+      return '<option value="' + valalEsc(n) + '">' + valalEsc(n.length > 42 ? n.substring(0, 42) + '…' : n) + ' (' + qt + ')</option>';
+    }).join('');
+  if (atual) sel.value = atual;
+}
+
+function valalAtualizarBadge() {
+  var badge = document.getElementById('valal-badge');
+  if (!badge) return;
+  var pendentes = VALAL.registros.filter(function (r) { return !r.acao; });
+  var criticos = pendentes.filter(function (r) { return r.dias <= 7; }).length;
+  if (pendentes.length === 0) {
+    badge.style.display = 'none';
+    return;
+  }
+  badge.style.display = 'inline-block';
+  badge.style.background = criticos > 0 ? 'rgba(255,77,79,.18)' : 'rgba(255,170,43,.18)';
+  badge.style.color = criticos > 0 ? '#ff4d4f' : '#ffaa2b';
+  badge.style.border = '1px solid ' + (criticos > 0 ? 'rgba(255,77,79,.4)' : 'rgba(255,170,43,.4)');
+  badge.textContent = pendentes.length + ' pendente' + (pendentes.length > 1 ? 's' : '') + (criticos > 0 ? ' · ' + criticos + ' crítico' + (criticos > 1 ? 's' : '') : '');
+}
+
+// ── Filtros / ordenação ────────────────────────────────────────
+
+function valalAplicarFiltros() {
+  VALAL.filtroForn = (document.getElementById('valal-f-fornecedor') || {}).value || "";
+  VALAL.filtroUrg = (document.getElementById('valal-f-urgencia') || {}).value || "";
+  VALAL.filtroConf = (document.getElementById('valal-f-conferencia') || {}).value || "";
+  VALAL.filtroBusca = ((document.getElementById('valal-f-busca') || {}).value || "").toLowerCase().trim();
+  VALAL.ordem = (document.getElementById('valal-f-ordem') || {}).value || "critico";
+  var chk = document.getElementById('valal-f-tratados');
+  VALAL.mostrarTratados = chk ? chk.checked : false;
+  valalRenderizar();
+}
+
+function valalLimparFiltros() {
+  ['valal-f-fornecedor', 'valal-f-urgencia', 'valal-f-conferencia', 'valal-f-busca'].forEach(function (id) {
+    var el = document.getElementById(id); if (el) el.value = "";
+  });
+  var ord = document.getElementById('valal-f-ordem'); if (ord) ord.value = "critico";
+  var chk = document.getElementById('valal-f-tratados'); if (chk) chk.checked = false;
+  valalAplicarFiltros();
+}
+
+function valalCalcularVisiveis() {
+  var lista = VALAL.registros.filter(function (r) {
+    if (!VALAL.mostrarTratados && r.acao) return false;
+    if (VALAL.filtroForn && r.fornecedor !== VALAL.filtroForn) return false;
+    if (VALAL.filtroUrg && valalFaixa(r.dias).chave !== VALAL.filtroUrg) return false;
+    if (VALAL.filtroConf && valalConfChave(VALAL.conferencias[r.id]) !== VALAL.filtroConf) return false;
+    if (VALAL.filtroBusca) {
+      var alvo = (r.codigo + " " + r.descricao + " " + r.fornecedor).toLowerCase();
+      if (alvo.indexOf(VALAL.filtroBusca) < 0) return false;
+    }
+    return true;
+  });
+
+  var ord = VALAL.ordem;
+  lista.sort(function (a, b) {
+    if (ord === "critico")   return a.dias - b.dias;
+    if (ord === "folga")     return b.dias - a.dias;
+    if (ord === "qtde")      return (parseFloat(b.qtde) || 0) - (parseFloat(a.qtde) || 0);
+    if (ord === "fornecedor") {
+      var c = a.fornecedor.localeCompare(b.fornecedor, 'pt-BR');
+      return c !== 0 ? c : a.dias - b.dias;
+    }
+    return a.dias - b.dias;
+  });
+  VALAL.visiveis = lista;
+  return lista;
+}
+
+// ── Render ─────────────────────────────────────────────────────
+
+function valalRenderizar() {
+  valalRenderizarKPIs();
+  var lista = valalCalcularVisiveis();
+  var el = document.getElementById('valal-lista');
+  if (!el) return;
+
+  var podeAgir = valalPodeAgir();
+  var avisoRadar = document.getElementById('valal-aviso-radar');
+  if (avisoRadar) avisoRadar.style.display = podeAgir ? 'none' : 'block';
+
+  var avisoConf = document.getElementById('valal-aviso-conf');
+  if (avisoConf) {
+    if (VALAL.confDisponivel) {
+      avisoConf.style.display = 'none';
+    } else {
+      avisoConf.style.display = 'block';
+      avisoConf.innerHTML = '\u26A0 Dados de confer\u00eancia indispon\u00edveis (' + valalEsc(VALAL.confErro || 'sem acesso') +
+        '). O card continua funcionando, mas sem mostrar o saldo contado.';
+    }
+  }
+
+  var info = document.getElementById('valal-count-info');
+  if (info) info.textContent = lista.length + ' de ' + VALAL.registros.length + ' registro(s)';
+
+  if (lista.length === 0) {
+    el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--mu);font-size:.85rem">' +
+      (VALAL.registros.length === 0
+        ? '\u2705 Nenhum produto aguardando ação no momento.'
+        : '\uD83D\uDD0D Nenhum produto bate com os filtros atuais.') + '</div>';
+    return;
+  }
+
+  var th = function (txt, largura, alinha) {
+    return '<th style="padding:8px 7px;text-align:' + (alinha || 'left') + ';font-size:.62rem;text-transform:uppercase;' +
+      'letter-spacing:.4px;color:var(--mu);border-bottom:1px solid var(--br)' +
+      (largura ? ';width:' + largura + 'px' : '') + '">' + txt + '</th>';
+  };
+
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:.78rem;table-layout:fixed">' +
+    '<thead><tr style="background:var(--s2);position:sticky;top:0;z-index:2">' +
+    th('Urg.', 46) + th('Produto') + th('Fornecedor', 108) +
+    th('Estoque / Conferência', 146, 'center') + th('Validade', 86, 'center') + th('Ação', 286) +
+    '</tr></thead><tbody>';
+
+  lista.forEach(function (r, i) {
+    var fx = valalFaixa(r.dias);
+    var diasTxt = r.dias < 0 ? ('vencido há ' + Math.abs(r.dias) + 'd') : (r.dias === 0 ? 'vence HOJE' : 'faltam ' + r.dias + 'd');
+    var bloqueado = !!r.acao;
+
+    html += '<tr style="border-bottom:1px solid var(--br)' + (bloqueado ? ';opacity:.62' : '') + '">';
+
+    // Urgência
+    html += '<td style="padding:8px 6px;vertical-align:top">' +
+      '<div style="font-size:.85rem">' + fx.bola + '</div>' +
+      '<div style="font-size:.55rem;font-weight:700;color:' + fx.cor + ';letter-spacing:.3px">' + fx.label + '</div>' +
+      '</td>';
+
+    // Produto
+    html += '<td style="padding:8px 7px;vertical-align:top;word-break:break-word">' +
+      '<div style="font-weight:600;color:var(--tx);line-height:1.25">' + valalEsc(r.descricao || '—') + '</div>' +
+      '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">cód. ' + valalEsc(r.codigo) + '</div>' +
+      '</td>';
+
+    // Fornecedor
+    html += '<td style="padding:8px 7px;vertical-align:top;color:var(--mu);font-size:.68rem;line-height:1.25;word-break:break-word">' +
+      valalEsc(r.fornecedor.length > 30 ? r.fornecedor.substring(0, 30) + '…' : r.fornecedor) + '</td>';
+
+    // Estoque / Conferência — saldo contado e rastro da rodada no mesmo lugar
+    html += '<td style="padding:8px 6px;vertical-align:top;text-align:center">' + valalCelulaEstoque(r) + '</td>';
+
+    // Validade
+    html += '<td style="padding:8px 6px;vertical-align:top;text-align:center;white-space:nowrap">' +
+      '<div style="color:var(--tx);font-weight:600;font-size:.74rem">' + valalFmtData(r.validade) + '</div>' +
+      '<div style="font-size:.6rem;color:' + fx.cor + ';font-weight:700;margin-top:2px">' + diasTxt + '</div>' +
+      '</td>';
+
+    // Ação
+    html += '<td style="padding:8px 7px;vertical-align:top">';
+    if (bloqueado) {
+      var meta = VALAL_ACOES.filter(function (a) { return a.id === r.acao; })[0] ||
+                 { label: r.acao, icone: "\u2705", cor: "#36cfa0" };
+      html += '<div style="background:rgba(54,207,160,.08);border:1px solid rgba(54,207,160,.28);border-radius:8px;padding:7px 9px">' +
+        '<div style="font-weight:700;color:' + meta.cor + ';font-size:.72rem">' + meta.icone + ' ' + valalEsc(meta.label) + '</div>' +
+        '<div style="font-size:.62rem;color:var(--mu2);margin-top:3px">por ' + valalEsc(r.acaoPor || '—') +
+          (r.acaoEm ? ' em ' + valalEsc(valalFmtData(valalParseData(r.acaoEm))) : '') + ' \u00b7 \uD83D\uDD12</div>' +
+        (r.observacoes ? '<div style="font-size:.64rem;color:var(--mu);margin-top:4px;font-style:italic">\u201C' + valalEsc(r.observacoes) + '\u201D</div>' : '') +
+        '</div>';
+    } else if (!podeAgir) {
+      html += '<div style="font-size:.68rem;color:var(--mu2);font-style:italic;padding:5px 0">Aguardando ação de Célio, Cris ou Rodrigo</div>';
+    } else {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">';
+      VALAL_ACOES.forEach(function (a) {
+        html += '<button type="button" onclick="valalAgir(' + i + ',\'' + a.id + '\')" ' +
+          'title="' + valalEsc(a.ajuda || a.label) + '" ' +
+          'style="background:rgba(255,255,255,.03);border:1px solid ' + a.cor + '55;color:' + a.cor + ';padding:4px 8px;border-radius:7px;font-size:.66rem;font-weight:600;cursor:pointer;white-space:nowrap" ' +
+          'onmouseover="this.style.background=\'' + a.cor + '22\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
+          a.icone + ' ' + a.label + '</button>';
+      });
+      html += '</div>';
+      html += '<input type="text" id="valal-obs-' + i + '" value="' + valalEsc(VALAL.obs[r.id] || '') + '" ' +
+        'oninput="VALAL.obs[\'' + valalEsc(r.id) + '\']=this.value" ' +
+        'placeholder="Observação (opcional)" ' +
+        'style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:5px 8px;color:var(--tx);font-size:.68rem;box-sizing:border-box">';
+    }
+    html += '</td></tr>';
+  });
+
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+/* Estoque e conferência numa coluna só: o saldo em destaque e, abaixo,
+   de onde ele veio. Sem isso a tabela não cabe na tela sem rolagem. */
+function valalCelulaEstoque(r) {
+  var c = VALAL.confDisponivel ? VALAL.conferencias[r.id] : null;
+  var chave = valalConfChave(c);
+  var un = '<span style="font-size:.6rem;color:var(--mu2);font-weight:400">' + valalEsc(r.unidade) + '</span>';
+
+  if (chave === 'conferido') {
+    var baixa = (c.baixa === null || c.baixa === undefined || c.baixa === "") ? "" :
+      (parseFloat(c.baixa) > 0 ? 'baixa ' + valalFmtQtde(c.baixa) : 'sem baixa');
+    return '<div style="font-weight:700;color:#36cfa0;font-size:.86rem;line-height:1.2">' + valalFmtQtde(c.qtd_atual) + ' ' + un + '</div>' +
+      '<div style="font-size:.55rem;color:#36cfa0;font-weight:700;letter-spacing:.3px">SALDO CONTADO</div>' +
+      '<div style="font-size:.58rem;color:var(--mu2);margin-top:3px;line-height:1.3">entrou ' + valalFmtQtde(r.qtde) +
+        (baixa ? ' \u00b7 ' + baixa : '') + '</div>' +
+      '<div style="font-size:.58rem;color:var(--mu2);line-height:1.3">' +
+        (c.conferido_em_br ? valalEsc(c.conferido_em_br.split(' ')[0]) : 'rodada ' + c.rodada) +
+        (c.conferido_por ? ' \u00b7 ' + valalEsc(String(c.conferido_por).split('@')[0]) : '') + '</div>';
+  }
+
+  var base = '<div style="font-weight:600;color:var(--tx);font-size:.82rem;line-height:1.2">' + valalFmtQtde(r.qtde) + ' ' + un + '</div>';
+
+  if (chave === 'aguardando') {
+    var atrasada = c.status === 'ATRASADA';
+    return base +
+      '<div style="font-size:.58rem;color:var(--mu2);letter-spacing:.2px">entrada</div>' +
+      '<div style="font-size:.6rem;font-weight:700;margin-top:3px;color:' + (atrasada ? '#ff4d4f' : '#ffaa2b') + '">' +
+        (atrasada ? '\u26A0 conferência atrasada' : '\u23F3 aguardando contagem') + '</div>' +
+      (c.prazo_br ? '<div style="font-size:.57rem;color:var(--mu2)">prazo ' + valalEsc(c.prazo_br) + '</div>' : '');
+  }
+  if (chave === 'encerrada') {
+    return base + '<div style="font-size:.58rem;color:var(--mu2);letter-spacing:.2px">entrada</div>' +
+      '<div style="font-size:.6rem;color:var(--mu);font-weight:600;margin-top:3px">\uD83D\uDD12 rodada sem resposta</div>';
+  }
+  return base + '<div style="font-size:.58rem;color:var(--mu2);letter-spacing:.2px">entrada, sem contagem</div>';
+}
+
+function valalRenderizarKPIs() {
+  var box = document.getElementById('valal-kpis');
+  if (!box) return;
+  var pend = VALAL.registros.filter(function (r) { return !r.acao; });
+  var vencidos = pend.filter(function (r) { return r.dias < 0; }).length;
+  var criticos = pend.filter(function (r) { return r.dias >= 0 && r.dias <= 7; }).length;
+  var urgentes = pend.filter(function (r) { return r.dias > 7 && r.dias <= 30; }).length;
+  var tratados = VALAL.registros.filter(function (r) { return !!r.acao; }).length;
+
+  var aguardando = 0, conferidos = 0;
+  if (VALAL.confDisponivel) {
+    VALAL.registros.forEach(function (r) {
+      var k = valalConfChave(VALAL.conferencias[r.id]);
+      if (k === 'aguardando') aguardando++;
+      else if (k === 'conferido') conferidos++;
+    });
+  }
+
+  var card = function (valor, rotulo, cor, campo, filtro) {
+    var onclick = filtro ? ("document.getElementById('" + campo + "').value='" + filtro + "';valalAplicarFiltros()") : "";
+    return '<div onclick="' + onclick + '" ' +
+      'style="flex:1;min-width:110px;background:var(--s2);border:1px solid var(--br);border-left:3px solid ' + cor + ';border-radius:8px;padding:9px 12px' + (filtro ? ';cursor:pointer' : '') + '">' +
+      '<div style="font-size:1.25rem;font-weight:800;color:' + cor + ';line-height:1.1">' + valor + '</div>' +
+      '<div style="font-size:.62rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600;margin-top:2px">' + rotulo + '</div>' +
+      '</div>';
+  };
+
+  box.innerHTML =
+    card(pend.length, 'Pendentes', '#ffaa2b', '', '') +
+    card(vencidos, 'Vencidos', '#ff4d4f', 'valal-f-urgencia', 'vencido') +
+    card(criticos, 'Até 7 dias', '#ff7875', 'valal-f-urgencia', 'critico') +
+    card(urgentes, '8 a 30 dias', '#ffd666', 'valal-f-urgencia', 'urgente') +
+    (VALAL.confDisponivel ? card(aguardando, 'Aguardando conf.', '#4d8ef5', 'valal-f-conferencia', 'aguardando') : '') +
+    (VALAL.confDisponivel ? card(conferidos, 'Conferidos', '#a07cf6', 'valal-f-conferencia', 'conferido') : '') +
+    card(tratados, 'Já tratados', '#36cfa0', '', '');
+}
+
+// ── Gravar ação ────────────────────────────────────────────────
+
+async function valalAgir(idx, acaoId) {
+  var r = VALAL.visiveis[idx];
+  if (!r) return;
+  if (!valalPodeAgir()) {
+    alert("Somente Célio, Cris ou Rodrigo podem marcar ação nos alertas de validade.");
+    return;
+  }
+  if (r.acao) {
+    alert("Este item já teve ação registrada e está bloqueado para edição.");
+    return;
+  }
+
+  var meta = VALAL_ACOES.filter(function (a) { return a.id === acaoId; })[0];
+  var campoObs = document.getElementById('valal-obs-' + idx);
+  var obs = campoObs ? String(campoObs.value || "").trim() : "";
+
+  if (acaoId === "OUTROS" && !obs) {
+    alert("Para a ação \"Outros\", descreva o que foi feito no campo de observação.");
+    if (campoObs) campoObs.focus();
+    return;
+  }
+
+  var ok = confirm(
+    "Confirmar ação?\n\n" +
+    "Produto: " + r.descricao + "\n" +
+    "Validade: " + valalFmtData(r.validade) + (r.dias < 0 ? " (vencido há " + Math.abs(r.dias) + " dias)" : " (faltam " + r.dias + " dias)") + "\n" +
+    "Ação: " + meta.label + "\n" +
+    (obs ? "Obs: " + obs + "\n" : "") +
+    "\nDepois de gravada, esta linha fica BLOQUEADA para novas edições."
+  );
+  if (!ok) return;
+
+  var statusEl = document.getElementById('valal-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--s2)';
+    statusEl.style.color = 'var(--mu)';
+    statusEl.style.border = '1px solid var(--br)';
+    statusEl.innerHTML = '\u23F3 Gravando ação em ' + valalEsc(r.id) + '...';
+  }
+
+  try {
+    var payload = {
+      token: VALIDADES_SYNC_TOKEN,
+      tipo: "validade_acao",
+      dado: {
+        id_entrada: r.id,
+        acao_tomada: acaoId,
+        acao_por: valalUsuario(),
+        observacoes: obs
+      }
+    };
+    var resposta = await fetch(VALIDADES_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    var resp = await resposta.json();
+
+    if (resp && resp.ok) {
+      // Trava localmente sem esperar novo GET
+      r.acao = acaoId;
+      r.acaoPor = valalUsuario();
+      r.acaoEm = new Date().toISOString();
+      r.observacoes = obs;
+      delete VALAL.obs[r.id];
+
+      if (statusEl) {
+        statusEl.style.background = 'rgba(54,207,160,.12)';
+        statusEl.style.color = '#36cfa0';
+        statusEl.style.border = '1px solid rgba(54,207,160,.35)';
+        statusEl.innerHTML = '\u2705 <b>' + valalEsc(meta.label) + '</b> registrado para ' + valalEsc(r.descricao) + '.';
+      }
+      if (typeof v3ToastShow === 'function') v3ToastShow('Ação registrada: ' + meta.label, 'ok');
+      valalPopularFornecedores();
+      valalAtualizarBadge();
+
+      // Cada ação entrega o seu artefato junto
+      if (acaoId === "COMUNICADO_COMERCIAL") {
+        valalClientesProduto(idx, true).then(function () { valalRenderizar(); });
+      } else if (acaoId === "PROMOCAO") {
+        valalPlanilhaPromocao(r).catch(function (e) {
+          if (statusEl) statusEl.innerHTML += ' \u26A0 A planilha não foi gerada: ' + valalEsc(e.message);
+        });
+        valalRenderizar();
+      } else {
+        valalRenderizar();
+      }
+    } else {
+      throw new Error((resp && resp.erro) || "resposta sem ok");
+    }
+  } catch (e) {
+    if (statusEl) {
+      statusEl.style.background = 'rgba(255,120,117,.12)';
+      statusEl.style.color = '#ff7875';
+      statusEl.style.border = '1px solid rgba(255,120,117,.35)';
+      statusEl.innerHTML = '\u274C Não foi possível gravar: ' + valalEsc(e.message) + '. Nada foi alterado — tente de novo.';
+    }
+  }
+}
+
+// ── Planilha de controle de promoção (Excel com fórmulas) ──────
+// Carrega o SheetJS só quando alguém aperta Promoção. Se a CDN
+// estiver fora, cai para CSV — sem fórmula, mas sem travar o Célio.
+
+var VALAL_LINHAS_PROMO = 30;   // linhas já com fórmula prontas para o Célio continuar
+
+function valalCarregarSheetJS() {
+  if (typeof XLSX !== 'undefined') return Promise.resolve(true);
+  return new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = function () { resolve(true); };
+    s.onerror = function () { reject(new Error('biblioteca de planilha indisponível')); };
+    document.head.appendChild(s);
+  });
+}
+
+function valalNomeArquivo(r, ext) {
+  var base = 'Promocao_' + (r.codigo || 's-cod') + '_' + (r.descricao || 'item');
+  return base.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '').substring(0, 60) + '.' + ext;
+}
+
+async function valalPlanilhaPromocao(r) {
+  var c = VALAL.confDisponivel ? VALAL.conferencias[r.id] : null;
+  var saldo = (c && c.qtd_atual !== null && c.qtd_atual !== undefined) ? c.qtd_atual : r.qtde;
+
+  try {
+    await valalCarregarSheetJS();
+  } catch (e) {
+    valalPromocaoCSV(r, saldo);
+    return;
+  }
+
+  var ws = {};
+  var por = function (col, lin, celula) { ws[col + lin] = celula; };
+  var txt = function (v) { return { t: 's', v: v }; };
+  var nm = function (v, z) { var o = { t: 'n', v: v }; if (z) o.z = z; return o; };
+  var fml = function (f, z) { var o = { t: 'n', f: f }; if (z) o.z = z; return o; };
+
+  var PCT = '0.0%';
+  var RS = 'R$ #,##0.00';
+
+  por('A', 1, txt('CONTROLE DE PROMOÇÃO — ITEM COM VALIDADE CRÍTICA'));
+  por('A', 2, txt('Preencha SOMENTE Custo, Preço de venda e Preço promocional. Margem e markup calculam sozinhos.'));
+  por('A', 3, txt('Margem = (Preço − Custo) ÷ Preço   ·   Markup = (Preço − Custo) ÷ Custo'));
+
+  var cab = ['Código', 'Descrição do item', 'Validade', 'Qtd inicial', 'Qtd em estoque',
+             'Custo', 'Preço de venda', 'Margem', 'Markup',
+             'Preço promocional', 'Margem promo.', 'Markup promo.'];
+  var letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
+  cab.forEach(function (t, k) { por(letras[k], 5, txt(t)); });
+
+  // Linha 6 = o item que veio do card. As demais ficam prontas para uso manual.
+  por('A', 6, txt(String(r.codigo || '')));
+  por('B', 6, txt(r.descricao || ''));
+  por('C', 6, txt(valalFmtData(r.validade)));
+  por('D', 6, nm(parseFloat(r.qtde) || 0));
+  por('E', 6, nm(parseFloat(saldo) || 0));
+
+  for (var L = 6; L < 6 + VALAL_LINHAS_PROMO; L++) {
+    por('H', L, fml('IFERROR((G' + L + '-F' + L + ')/G' + L + ',"")', PCT));
+    por('I', L, fml('IFERROR((G' + L + '-F' + L + ')/F' + L + ',"")', PCT));
+    por('K', L, fml('IFERROR((J' + L + '-F' + L + ')/J' + L + ',"")', PCT));
+    por('L', L, fml('IFERROR((J' + L + '-F' + L + ')/F' + L + ',"")', PCT));
+    ['F', 'G', 'J'].forEach(function (col) {
+      if (!ws[col + L]) ws[col + L] = { t: 'n', z: RS, v: null, w: '' };
+    });
+  }
+  // células de preço vazias não podem ir como número nulo
+  Object.keys(ws).forEach(function (k) {
+    if (ws[k] && ws[k].v === null && !ws[k].f) delete ws[k];
+  });
+
+  ws['!ref'] = 'A1:L' + (5 + VALAL_LINHAS_PROMO);
+  ws['!cols'] = [{ wch: 9 }, { wch: 42 }, { wch: 11 }, { wch: 11 }, { wch: 13 },
+                 { wch: 11 }, { wch: 13 }, { wch: 10 }, { wch: 10 },
+                 { wch: 16 }, { wch: 13 }, { wch: 13 }];
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } }
+  ];
+
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Promocao');
+  XLSX.writeFile(wb, valalNomeArquivo(r, 'xlsx'));
+}
+
+/* Plano B sem internet para a CDN: mesmo conteúdo, fórmulas em texto
+   que o Excel entende quando o arquivo é aberto. */
+function valalPromocaoCSV(r, saldo) {
+  var linhas = [];
+  linhas.push('CONTROLE DE PROMOCAO - ITEM COM VALIDADE CRITICA');
+  linhas.push('Preencha Custo (F), Preco de venda (G) e Preco promocional (J)');
+  linhas.push('');
+  linhas.push('');
+  linhas.push('Codigo;Descricao do item;Validade;Qtd inicial;Qtd em estoque;Custo;Preco de venda;Margem;Markup;Preco promocional;Margem promo.;Markup promo.');
+  for (var L = 6; L < 6 + VALAL_LINHAS_PROMO; L++) {
+    var d = (L === 6)
+      ? [r.codigo, String(r.descricao || '').replace(/;/g, ','), valalFmtData(r.validade), r.qtde, saldo]
+      : ['', '', '', '', ''];
+    linhas.push(d.join(';') + ';;;' +
+      '=IFERROR((G' + L + '-F' + L + ')/G' + L + ',"");' +
+      '=IFERROR((G' + L + '-F' + L + ')/F' + L + ',"");;' +
+      '=IFERROR((J' + L + '-F' + L + ')/J' + L + ',"");' +
+      '=IFERROR((J' + L + '-F' + L + ')/F' + L + ',"")');
+  }
+  var blob = new Blob(["\uFEFF" + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = valalNomeArquivo(r, 'csv');
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+// ── Relatório de clientes que já compraram o produto (DINAMICO) ──
+
+async function valalClientesProduto(idx, aposAcao) {
+  var r = VALAL.visiveis[idx];
+  if (!r) return;
+
+  var st = document.getElementById('valal-status');
+  if (st) {
+    st.style.display = 'block';
+    st.style.background = 'var(--s2)';
+    st.style.color = 'var(--mu)';
+    st.style.border = '1px solid var(--br)';
+    st.innerHTML = '\u23F3 Buscando clientes que já compraram ' + valalEsc(r.descricao) + '...';
+  }
+
+  try {
+    var url = VALIDADES_SYNC_URL + "?tipo=val_clientes" +
+              "&token=" + encodeURIComponent(VALIDADES_SYNC_TOKEN) +
+              "&codigo=" + encodeURIComponent(r.codigo) +
+              "&descricao=" + encodeURIComponent(r.descricao) +
+              "&_=" + Date.now();
+    var resp = await fetch(url);
+    var j = await resp.json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || "resposta inválida");
+
+    if (!j.itens || j.itens.length === 0) {
+      if (st) {
+        st.style.background = 'rgba(255,170,43,.12)';
+        st.style.color = '#ffaa2b';
+        st.style.border = '1px solid rgba(255,170,43,.35)';
+        st.innerHTML = '\u26A0 Nenhum cliente comprou este produto no período do DINAMICO.' +
+          (aposAcao ? ' A ação foi gravada normalmente.' : '');
+      }
+      return;
+    }
+
+    valalAbrirRelatorioClientes(r, j);
+
+    if (st) {
+      st.style.background = 'rgba(54,207,160,.12)';
+      st.style.color = '#36cfa0';
+      st.style.border = '1px solid rgba(54,207,160,.35)';
+      st.innerHTML = '\u2705 Lista gerada: ' + j.total_clientes + ' cliente(s) em ' +
+        j.vendedores + ' vendedor(es).' + (aposAcao ? ' Ação registrada.' : '');
+    }
+  } catch (e) {
+    if (st) {
+      st.style.background = 'rgba(255,120,117,.12)';
+      st.style.color = '#ff7875';
+      st.style.border = '1px solid rgba(255,120,117,.35)';
+      st.innerHTML = '\u274C Não foi possível montar a lista de clientes: ' + valalEsc(e.message) +
+        (aposAcao ? ' (a ação foi gravada normalmente)' : '');
+    }
+  }
+}
+
+function valalAbrirRelatorioClientes(r, dados) {
+  var w = window.open('', '_blank');
+  if (!w) { alert("O navegador bloqueou a janela do relatório. Libere o pop-up e tente de novo."); return; }
+
+  var diasTxt = r.dias < 0 ? ('VENCIDO há ' + Math.abs(r.dias) + ' dias')
+                           : (r.dias === 0 ? 'vence hoje' : r.dias + ' dias');
+  var corDias = r.dias <= 30 ? '#b00020' : (r.dias <= 90 ? '#b35c00' : '#000');
+
+  var html = '<html><head><meta charset="utf-8"><title>Clientes — ' + valalEsc(r.descricao) + '</title>' +
+    '<style>body{font-family:Arial,sans-serif;padding:20px;max-width:960px;margin:0 auto;color:#000}' +
+    'h1{font-size:16px;margin:0 0 10px}' +
+    '.cab{border:1px solid #333;padding:10px 12px;margin-bottom:14px;font-size:12px;line-height:1.7}' +
+    '.cab b{display:inline-block;min-width:130px}' +
+    'table{width:100%;border-collapse:collapse;font-size:11px}' +
+    'th,td{border:1px solid #333;padding:4px 7px;text-align:left}' +
+    'th{background:#f0f0f0;font-weight:bold}' +
+    '.vend{background:#e6e6e6;font-weight:bold;font-size:11.5px}' +
+    '.right{text-align:right}.center{text-align:center}' +
+    '.st{font-size:9px;color:#b00020;font-weight:bold}' +
+    '.rod{margin-top:16px;font-size:10px;color:#555;font-style:italic;line-height:1.6}' +
+    '@media print{body{padding:0}}' +
+    '</style></head><body>' +
+    '<h1>Produto em validade — clientes para contato</h1>' +
+    '<div class="cab">' +
+      '<b>Código:</b> ' + valalEsc(r.codigo) + '<br>' +
+      '<b>Produto:</b> ' + valalEsc(r.descricao) + '<br>' +
+      '<b>Validade:</b> ' + valalFmtData(r.validade) + '<br>' +
+      '<b>Dias de validade:</b> <span style="color:' + corDias + ';font-weight:bold">' + diasTxt + '</span>' +
+    '</div>' +
+    '<table><thead><tr>' +
+      '<th style="width:26%">NOME FANTASIA</th>' +
+      '<th style="width:32%">RAZÃO SOCIAL</th>' +
+      '<th style="width:12%" class="center">MUNICÍPIO/UF</th>' +
+      '<th style="width:10%" class="right">QTDE</th>' +
+      '<th style="width:10%" class="right">MARCKUP</th>' +
+      '<th style="width:10%" class="right">MARGEM</th>' +
+    '</tr></thead><tbody>';
+
+  var vendAtual = null;
+  dados.itens.forEach(function (c) {
+    if (c.vendedor !== vendAtual) {
+      vendAtual = c.vendedor;
+      var qt = dados.itens.filter(function (x) { return x.vendedor === vendAtual; }).length;
+      html += '<tr><td class="vend" colspan="6">VENDEDOR: ' + valalEsc(vendAtual || '—') +
+              '  (' + qt + ' cliente' + (qt > 1 ? 's' : '') + ')</td></tr>';
+    }
+    var alerta = '';
+    var stC = String(c.status || '').toUpperCase();
+    if (stC.indexOf('INADIMPL') >= 0) alerta = ' <span class="st">[INADIMPLENTE]</span>';
+    else if (stC.indexOf('VISTA') >= 0) alerta = ' <span class="st">[À VISTA]</span>';
+
+    html += '<tr>' +
+      '<td>' + valalEsc(c.fantasia || '—') + alerta + '</td>' +
+      '<td>' + valalEsc(c.razao || '—') + '</td>' +
+      '<td class="center">' + valalEsc(c.municipio || '') + (c.uf ? '/' + valalEsc(c.uf) : '') + '</td>' +
+      '<td class="right">' + valalFmtQtde(c.qtde) + '</td>' +
+      '<td class="right">' + valalFmtQtde(c.markup) + '%</td>' +
+      '<td class="right">' + valalFmtQtde(c.margem) + '%</td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table>' +
+    '<div class="rod">' +
+      dados.total_clientes + ' cliente(s) sem repetição, em ' + dados.vendedores + ' vendedor(es). ' +
+      'Quantidade somada de todas as compras do cliente; marckup e margem são a média ponderada pela quantidade.<br>' +
+      'Origem: relatório DINÂMICO. Gerado em ' + new Date().toLocaleString('pt-BR') + ' — Q Food Company.' +
+    '</div>' +
+    '</body></html>';
+
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function () { w.print(); }, 500);
+}
+
+// ── Copiar lista crítica para WhatsApp ─────────────────────────
+
+function valalCopiarCriticos() {
+  var lista = valalCalcularVisiveis().filter(function (r) { return !r.acao && r.dias <= 30; }).slice(0, 15);
+  if (lista.length === 0) { alert("Nenhum item crítico (até 30 dias) na visão atual."); return; }
+  var txt = "*ALERTA DE VALIDADE - Q FOOD*\n_" + new Date().toLocaleDateString('pt-BR') + "_\n\n";
+  lista.forEach(function (r, i) {
+    var fx = valalFaixa(r.dias);
+    txt += fx.bola + " *" + r.descricao + "*\n";
+    txt += "   " + valalFmtQtde(r.qtde) + " " + r.unidade + " | val. " + valalFmtData(r.validade) +
+      (r.dias < 0 ? " (vencido há " + Math.abs(r.dias) + "d)" : " (faltam " + r.dias + "d)") + "\n";
+    txt += "   " + r.fornecedor + "\n\n";
+  });
+  txt += "_Marque a ação tomada no módulo Compras > Alertas de Validade._";
+
+  var copiar = function () {
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).catch(copiar);
+  } else { copiar(); }
+  if (typeof v3ToastShow === 'function') v3ToastShow(lista.length + ' item(ns) copiados para o WhatsApp', 'ok');
+  else alert("Lista copiada!");
 }
 
 // ============================================================

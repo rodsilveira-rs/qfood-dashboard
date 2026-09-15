@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Contagem</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --qf:#e63329;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);padding-bottom:90px;}
+
+/* ---------- topo ---------- */
+.top{position:sticky;top:0;z-index:60;background:var(--sf);border-bottom:1px solid var(--br);padding:10px 14px;}
+.top-in{max-width:1180px;margin:0 auto;}
+.top-r1{display:flex;align-items:center;gap:10px;}
+.back{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:9px;padding:7px 11px;font-size:0.8rem;cursor:pointer;font-family:var(--fb);}
+.ttl{font-family:var(--fh);font-weight:700;font-size:1rem;flex:1;}
+.who{font-size:0.68rem;color:var(--mu2);text-align:right;line-height:1.3;}
+
+.tabs{display:flex;gap:6px;margin-top:10px;}
+.tab{flex:1;background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:9px;padding:9px;font-size:0.78rem;font-weight:500;cursor:pointer;font-family:var(--fb);}
+.tab.on{background:var(--qf);border-color:var(--qf);color:#fff;}
+
+.bar{margin-top:10px;height:6px;background:var(--s2);border-radius:99px;overflow:hidden;}
+.bar > i{display:block;height:100%;background:var(--ok);width:0;transition:width .3s;}
+.bar-lbl{display:flex;justify-content:space-between;font-size:0.7rem;color:var(--mu);margin-top:5px;}
+
+.wrap{max-width:1180px;margin:0 auto;padding:14px;}
+.wrap.narrow{max-width:760px;}
+
+/* ---------- avisos ---------- */
+.alert{border-radius:11px;padding:12px 14px;font-size:0.8rem;line-height:1.45;margin-bottom:12px;border:1px solid;}
+.alert.warn{background:rgba(255,170,43,.10);border-color:rgba(255,170,43,.4);color:#ffce80;}
+.alert.err{background:rgba(255,77,79,.10);border-color:rgba(255,77,79,.4);color:#ff9b9c;}
+.alert.ok{background:rgba(54,207,160,.10);border-color:rgba(54,207,160,.4);color:#7fe4c4;}
+.alert.info{background:rgba(77,142,245,.10);border-color:rgba(77,142,245,.4);color:#a9c7fb;}
+
+/* ---------- controles ---------- */
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
+.inp{background:var(--bg);border:1px solid var(--b2);border-radius:10px;padding:11px 13px;color:var(--tx);font-size:0.88rem;font-family:var(--fb);outline:none;width:100%;}
+.inp:focus{border-color:var(--qf);}
+.btn{background:var(--qf);border:none;border-radius:10px;padding:12px 16px;color:#fff;font-size:0.85rem;font-weight:600;font-family:var(--fh);cursor:pointer;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+.btn.sec{background:var(--s2);border:1px solid var(--b2);color:var(--tx);}
+.btn.ghost{background:transparent;border:1px solid var(--b2);color:var(--mu);}
+.btn.ok{background:var(--ok);color:#08251c;}
+.btn.wide{width:100%;}
+
+/* ---------- itens ---------- */
+.sec-h{font-family:var(--fh);font-size:0.75rem;color:var(--mu2);letter-spacing:.6px;text-transform:uppercase;margin:16px 0 8px;}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px 13px;margin-bottom:8px;}
+.card.done{border-left:3px solid var(--ok);}
+.card.pend{border-left:3px solid var(--warn);}
+.card.tap{cursor:pointer;}
+.card.tap:active{background:var(--s2);}
+.it-top{display:flex;align-items:flex-start;gap:9px;}
+.it-nm{flex:1;font-size:0.86rem;line-height:1.35;font-weight:500;}
+.it-cd{font-size:0.95rem;color:var(--cyan);font-family:ui-monospace,monospace;
+  font-weight:600;letter-spacing:.5px;margin-top:5px;}
+.it-sub{font-size:0.68rem;color:var(--mu2);font-family:ui-monospace,monospace;margin-top:3px;}
+.tag{font-size:0.6rem;padding:3px 7px;border-radius:99px;font-weight:600;letter-spacing:.4px;white-space:nowrap;}
+.tag.a{background:rgba(255,77,79,.16);color:#ff9b9c;}
+.tag.r{background:rgba(160,124,246,.16);color:#c4aef9;}
+.tag.s{background:rgba(34,211,238,.16);color:#8fe6f5;}
+.it-res{margin-top:9px;padding-top:9px;border-top:1px dashed var(--br);display:flex;gap:14px;font-size:0.76rem;flex-wrap:wrap;}
+.it-res b{font-family:var(--fh);font-size:0.9rem;}
+.g{color:var(--ok);} .r{color:var(--red);} .y{color:var(--warn);} .m{color:var(--mu);}
+
+/* ---------- lançamento inline (Célio) ---------- */
+.pl-row{display:flex;gap:7px;margin-top:10px;}
+.pl-in{flex:1;background:var(--bg);border:1px solid var(--b2);border-radius:9px;padding:11px 12px;color:var(--tx);font-size:1rem;font-family:var(--fh);font-weight:600;text-align:center;outline:none;min-width:0;}
+.pl-in:focus{border-color:var(--qf);}
+.pl-in.done{border-color:var(--ok);color:var(--ok);}
+.pl-bt{background:var(--s2);border:1px solid var(--b2);color:var(--tx);border-radius:9px;padding:0 14px;font-size:0.78rem;font-weight:600;font-family:var(--fb);cursor:pointer;white-space:nowrap;}
+.pl-bt.ok{background:var(--ok);border-color:var(--ok);color:#08251c;}
+.pl-bt.zero{color:var(--warn);border-color:rgba(255,170,43,.4);}
+.pl-msg{font-size:0.7rem;margin-top:6px;min-height:14px;}
+
+/* ---------- KPIs ---------- */
+.per{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px;}
+.per button{background:var(--s2);border:1px solid var(--br);color:var(--mu);border-radius:9px;padding:9px 14px;font-size:0.8rem;cursor:pointer;font-family:var(--fb);}
+.per button.on{background:var(--qf);border-color:var(--qf);color:#fff;font-weight:600;}
+.per input[type=date]{background:var(--bg);border:1px solid var(--b2);border-radius:9px;padding:8px 11px;color:var(--tx);font-size:0.8rem;font-family:var(--fb);}
+
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:18px;}
+.gz{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 14px 14px;text-align:center;}
+.gz svg{width:100%;max-width:228px;height:auto;}
+.gz-nm{font-family:var(--fh);font-size:0.82rem;font-weight:700;letter-spacing:.3px;margin-top:2px;}
+.gz-hint{font-size:0.68rem;color:var(--mu2);margin-top:5px;line-height:1.4;}
+
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin-bottom:22px;}
+.nm{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px;}
+.nm small{display:block;font-size:0.66rem;color:var(--mu2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:7px;}
+.nm b{font-family:var(--fh);font-size:1.5rem;font-weight:700;}
+.nm .sub{font-size:0.68rem;color:var(--mu);margin-top:4px;}
+
+.panel{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:16px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.8rem;}
+th{text-align:left;font-family:var(--fh);font-size:0.68rem;color:var(--mu2);letter-spacing:.4px;text-transform:uppercase;padding:8px 9px;border-bottom:1px solid var(--b2);white-space:nowrap;}
+td{padding:9px;border-bottom:1px solid var(--br);}
+tr:last-child td{border-bottom:none;}
+td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.cd{font-family:ui-monospace,monospace;font-size:0.72rem;color:var(--mu2);}
+
+.mb{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.mb-l{width:78px;font-size:0.76rem;color:var(--mu);}
+.mb-t{flex:1;height:22px;background:var(--s2);border-radius:6px;overflow:hidden;}
+.mb-t > i{display:block;height:100%;}
+.mb-v{width:82px;text-align:right;font-size:0.76rem;font-variant-numeric:tabular-nums;}
+
+/* ---------- cartões de destaque ---------- */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px;}
+.st{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;position:relative;overflow:hidden;}
+.st-top{display:flex;align-items:center;gap:9px;margin-bottom:9px;}
+.st-ic{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+.st-lb{font-size:0.72rem;color:var(--mu);line-height:1.25;}
+.st-vl{font-family:var(--fh);font-size:1.75rem;font-weight:800;line-height:1;}
+.st-ft{display:flex;align-items:flex-end;justify-content:space-between;gap:8px;margin-top:8px;}
+.st-dl{font-size:0.68rem;line-height:1.3;}
+.st-dl b{font-family:var(--fh);font-size:0.78rem;}
+.st-sp{opacity:.85;flex-shrink:0;}
+
+.kpi-main{display:grid;grid-template-columns:2fr 1fr;gap:12px;align-items:start;margin-bottom:16px;}
+@media(max-width:860px){.kpi-main{grid-template-columns:1fr;}}
+
+.comp{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:14px;}
+.comp h4{font-family:var(--fh);font-size:0.8rem;margin-bottom:11px;font-weight:700;}
+.comp-i{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--br);}
+.comp-i:last-child{border-bottom:none;}
+.comp-ic{width:28px;height:28px;border-radius:8px;background:var(--s2);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.comp-tx{flex:1;font-size:0.73rem;color:var(--mu);line-height:1.3;}
+.comp-vl{text-align:right;white-space:nowrap;}
+.comp-vl b{display:block;font-family:var(--fh);font-size:0.95rem;}
+.comp-vl small{font-size:0.62rem;color:var(--mu2);}
+
+/* ---------- contagens por hora ---------- */
+.hbar{display:flex;align-items:flex-end;gap:3px;height:150px;padding-top:8px;}
+.hbar-c{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;}
+.hbar-b{width:100%;background:linear-gradient(180deg,#4d8ef5,#2f6ad4);border-radius:4px 4px 0 0;min-height:2px;transition:height .3s;}
+.hbar-b.pico{background:linear-gradient(180deg,#36cfa0,#1f9e77);}
+.hbar-l{font-size:0.6rem;color:var(--mu2);white-space:nowrap;}
+.hbar-v{font-size:0.6rem;color:var(--mu);font-variant-numeric:tabular-nums;}
+
+/* ---------- ranking por setor ---------- */
+.rk{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--br);}
+.rk:last-child{border-bottom:none;}
+.rk-n{width:22px;height:22px;border-radius:50%;background:var(--s2);color:var(--mu);display:flex;align-items:center;justify-content:center;font-size:0.66rem;font-weight:700;font-family:var(--fh);flex-shrink:0;}
+.rk-n.top{background:rgba(54,207,160,.18);color:var(--ok);}
+.rk-nm{flex:1;font-size:0.78rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rk-tr{width:90px;height:7px;background:var(--s2);border-radius:99px;overflow:hidden;flex-shrink:0;}
+.rk-tr>i{display:block;height:100%;border-radius:99px;}
+.rk-q{width:44px;text-align:right;font-size:0.73rem;font-variant-numeric:tabular-nums;color:var(--mu);}
+.rk-p{width:52px;text-align:right;font-size:0.76rem;font-variant-numeric:tabular-nums;font-weight:600;}
+
+/* ---------- aba de ajustes ---------- */
+.aj{background:var(--sf);border:1px solid var(--br);border-radius:13px;padding:14px;margin-bottom:10px;border-left:3px solid var(--mu2);}
+.aj.c-ATENCAO{border-left-color:var(--red);}
+.aj.c-CONVERSAO{border-left-color:var(--pur);}
+.aj.c-AJUSTE{border-left-color:var(--ok);}
+.aj.c-INSTAVEL{border-left-color:var(--warn);}
+.aj.c-OBSERVAR{border-left-color:var(--cyan);}
+.aj-top{display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;}
+.aj-nm{flex:1;font-size:0.9rem;font-weight:500;line-height:1.3;}
+.aj-nm .cd{display:block;margin-top:3px;}
+.aj-pill{font-size:0.62rem;font-weight:700;font-family:var(--fh);letter-spacing:.4px;padding:4px 10px;border-radius:99px;white-space:nowrap;}
+.p-ATENCAO{background:rgba(255,77,79,.18);color:#ff9b9c;}
+.p-CONVERSAO{background:rgba(160,124,246,.18);color:#c4aef9;}
+.p-AJUSTE{background:rgba(54,207,160,.18);color:#7fe4c4;}
+.p-INSTAVEL{background:rgba(255,170,43,.18);color:#ffce80;}
+.p-OBSERVAR{background:rgba(34,211,238,.16);color:#8fe6f5;}
+.aj-mot{font-size:0.78rem;color:var(--mu);line-height:1.5;}
+.aj-acao{font-size:0.78rem;line-height:1.5;margin-top:8px;padding:9px 11px;background:var(--bg);border-radius:9px;}
+.aj-hist{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.aj-h{background:var(--bg);border:1px solid var(--br);border-radius:8px;padding:6px 9px;text-align:center;min-width:62px;}
+.aj-h small{display:block;font-size:0.58rem;color:var(--mu2);}
+.aj-h b{font-family:var(--fh);font-size:0.82rem;}
+.aj-bt{margin-top:11px;background:var(--ok);border:none;border-radius:9px;padding:10px 16px;color:#08251c;font-size:0.79rem;font-weight:700;font-family:var(--fh);cursor:pointer;}
+.aj-bt.sec{background:var(--s2);border:1px solid var(--b2);color:var(--mu);}
+.aj-bt:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ---------- barra fixa ---------- */
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:70;background:var(--sf);border-top:1px solid var(--br);padding:10px 14px;display:flex;gap:8px;max-width:760px;margin:0 auto;}
+.dock .btn{flex:1;padding:14px;font-size:0.9rem;}
+
+/* ---------- modal ---------- */
+.ov{position:fixed;inset:0;background:rgba(10,13,22,.86);z-index:100;display:none;align-items:flex-end;justify-content:center;}
+.ov.open{display:flex;}
+.sheet{background:var(--sf);border:1px solid var(--b2);border-radius:18px 18px 0 0;width:100%;max-width:760px;padding:20px 18px 26px;max-height:92vh;overflow-y:auto;}
+.sheet h3{font-family:var(--fh);font-size:1rem;margin-bottom:4px;line-height:1.3;}
+.sheet .sub{font-size:0.72rem;color:var(--mu2);margin-bottom:16px;font-family:ui-monospace,monospace;}
+.qty{width:100%;background:var(--bg);border:2px solid var(--b2);border-radius:14px;padding:20px;color:var(--tx);font-size:2.1rem;font-family:var(--fh);font-weight:700;text-align:center;outline:none;}
+.qty:focus{border-color:var(--qf);}
+.lbl{font-size:0.7rem;color:var(--mu2);margin:14px 0 6px;letter-spacing:.3px;}
+
+.rev{border-radius:14px;padding:18px;text-align:center;margin-bottom:14px;}
+.rev.ok{background:rgba(54,207,160,.13);border:1px solid rgba(54,207,160,.45);}
+.rev.bad{background:rgba(255,77,79,.13);border:1px solid rgba(255,77,79,.45);}
+.rev.non{background:rgba(143,160,192,.10);border:1px solid var(--b2);}
+.rev-t{font-family:var(--fh);font-size:1.15rem;font-weight:700;margin-bottom:12px;}
+.rev-g{display:flex;justify-content:center;gap:26px;}
+.rev-c{text-align:center;}
+.rev-c small{display:block;font-size:0.64rem;color:var(--mu2);margin-bottom:3px;letter-spacing:.4px;}
+.rev-c b{font-family:var(--fh);font-size:1.5rem;}
+
+#cam{width:100%;border-radius:14px;overflow:hidden;background:#000;min-height:230px;}
+.cam-tip{font-size:0.74rem;color:var(--mu);text-align:center;margin-top:12px;line-height:1.5;}
+
+.empty{text-align:center;color:var(--mu2);font-size:0.82rem;padding:34px 16px;line-height:1.6;}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid var(--b2);border-top-color:var(--qf);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hide{display:none !important;}
+.only-print{display:none;}
+
+/* ══════════ IMPRESSÃO / PDF ══════════
+   Sem biblioteca: o botão chama window.print() e o navegador oferece
+   "Salvar como PDF". Sai melhor que jsPDF, não quebra acento, e os
+   velocímetros saem nítidos porque são SVG, não imagem. */
+@media print{
+  @page{size:A4 portrait;margin:14mm 12mm 16mm;}
+  body{background:#fff !important;color:#1f2937 !important;padding:0;font-size:10px;}
+  .top,.per,.dock,.ov,.no-print,.st-sp,.st-ic,.comp-ic{display:none !important;}
+  .only-print{display:block;}
+  .wrap{max-width:100%;padding:0;}
+
+  /* Cabeçalho da marca */
+  .prt-h{border-bottom:3px solid #e63329;padding-bottom:9px;margin-bottom:14px;}
+  .prt-h h1{font-family:'Syne',sans-serif;font-size:19px;color:#111827;letter-spacing:-.3px;}
+  .prt-h p{font-size:9.5px;color:#6b7280;margin-top:3px;}
+
+  /* Rodapé repetido em todas as páginas */
+  .pfoot{display:flex !important;justify-content:space-between;
+    position:fixed;bottom:0;left:0;right:0;
+    border-top:1px solid #e5e7eb;padding-top:5px;font-size:8px;color:#9ca3af;}
+
+  /* Títulos nunca ficam órfãos no fim da página */
+  .sec-h{color:#374151 !important;font-size:9px;margin:14px 0 6px;
+    break-after:avoid;page-break-after:avoid;}
+  .sec-h + .panel,.sec-h + .gauges{break-before:avoid;page-break-before:avoid;}
+
+  .gz,.nm,.st,.comp,.panel,.aj{background:#fff !important;border:1px solid #e5e7eb !important;
+    break-inside:avoid;page-break-inside:avoid;}
+  .aj-mot,.aj-acao{color:#374151 !important;}
+  .aj-acao{background:#f8fafc !important;}
+  .aj-h{background:#f8fafc !important;border-color:#e5e7eb !important;}
+  .aj-nm{color:#111827 !important;}
+  .aj-bt{display:none !important;}
+  .gauges{grid-template-columns:repeat(3,1fr);gap:8px;}
+  .kpi-row{grid-template-columns:repeat(4,1fr);gap:8px;}
+  .kpi-main{grid-template-columns:1fr;}
+  .st-vl{font-size:20px;color:#111827 !important;}
+  .st-lb,.comp-tx{color:#4b5563 !important;}
+
+  /* Tabelas: cabeçalho repetido, zebra, linha inteira na mesma página */
+  table{font-size:8.5px;}
+  thead{display:table-header-group;}
+  tfoot{display:table-footer-group;}
+  tr{break-inside:avoid;page-break-inside:avoid;}
+  th{background:#1a2638 !important;color:#fff !important;padding:6px 5px;
+    border-bottom:none !important;font-size:7.5px;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  td{padding:5px;border-bottom:1px solid #eef1f5 !important;vertical-align:top;}
+  tbody tr:nth-child(even) td{background:#f8fafc;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .cd{color:#9ca3af !important;font-size:7.5px;}
+
+  .m{color:#6b7280 !important;}
+  .g{color:#0a7f5c !important;} .r{color:#c0231f !important;} .y{color:#a06a00 !important;}
+  .gz-nm{color:#111827 !important;font-size:10px;}
+  .gz-hint,.nm small,.nm .sub,.comp-vl small{color:#6b7280 !important;font-size:8px;}
+  .comp h4{color:#111827 !important;}
+  .brk{page-break-before:always;}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="top-in">
+    <div class="top-r1">
+      <button class="back" onclick="location.href='Index_Menu.html'">←</button>
+      <div class="ttl">Contagem</div>
+      <button class="back" onclick="location.reload()" title="Recarregar a tela">⟳</button>
+      <div class="who" id="who">—</div>
+    </div>
+    <div class="tabs hide" id="tabs"></div>
+    <div id="barbox">
+      <div class="bar"><i id="bar"></i></div>
+      <div class="bar-lbl"><span id="bar-l">—</span><span id="bar-r"></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap narrow" id="wrap">
+  <div class="only-print prt-h">
+    <h1>Contagem de Estoque</h1>
+    <p id="prt-sub">—</p>
+  </div>
+  <div class="pfoot hide" id="pfoot">
+    <span id="pfoot-l">Q Food Company · Contagem</span>
+    <span id="pfoot-r">—</span>
+  </div>
+  <div id="app"><div class="empty"><span class="spin"></span> Carregando…</div></div>
+</div>
+
+<div class="dock hide" id="dock"></div>
+
+<!-- modal quantidade -->
+<div class="ov" id="ov-qty">
+  <div class="sheet">
+    <div id="qty-rev"></div>
+    <h3 id="qty-nm">—</h3>
+    <div class="sub" id="qty-cd">—</div>
+    <div id="qty-form">
+      <input class="qty" id="qty-in" type="text" inputmode="decimal" placeholder="0">
+      <div id="qty-just" class="hide">
+        <div class="lbl">JUSTIFICATIVA DA RECONTAGEM (obrigatória)</div>
+        <input class="inp" id="qty-obs" placeholder="Por que está recontando este item?">
+      </div>
+      <div class="row" style="margin:16px 0 0;">
+        <button class="btn ok" style="flex:2" onclick="salvarQtd()">Gravar contagem</button>
+        <button class="btn ghost" style="flex:1" onclick="salvarQtd(true)">Não localizado</button>
+      </div>
+      <button class="btn sec wide" style="margin-top:8px" onclick="fecharQty()">Cancelar</button>
+    </div>
+    <button class="btn wide hide" id="qty-close" style="margin-top:4px" onclick="fecharQty()">Continuar</button>
+  </div>
+</div>
+
+<!-- modal câmera -->
+<div class="ov" id="ov-cam">
+  <div class="sheet">
+    <h3>Ler código de barras</h3>
+    <div class="sub">Aponte para o código do produto</div>
+    <div id="cam"></div>
+    <div class="cam-tip">Etiqueta amassada ou sem código? Feche e use a busca por nome.</div>
+    <button class="btn sec wide" style="margin-top:14px" onclick="fecharCam()">Fechar câmera</button>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Q FOOD — Index_Contagem.html  v2.0
+   Três abas em um arquivo: Preparar · Contar · KPIs
+
+   Backend: Code.gs mestre, ?modulo=contagem
+   Sessão:  localStorage "qfood_session" (mesma do Index_Menu)
+
+   ⚠ CONTAGEM CEGA
+   Esta tela NUNCA recebe o saldo do sistema de um item ainda não
+   contado — o backend não envia. Não há nada aqui para esconder,
+   e por isso F12 não revela nada. O saldo só chega na resposta
+   de salvarContagem, com a contagem já gravada e travada.
+   ══════════════════════════════════════════════════════════════ */
+
+var API="https://script.google.com/macros/s/AKfycbzrrsO9rj3Tu1BtB449g0rAli6zpgxcdLZ9ydFaq6rfvMH_jTh194CtbPzArRM52qLkKA/exec";
+
+/* Nada manual aqui: a tela pergunta ao servidor quando o arquivo foi
+   modificado. O GitHub responde no cabeçalho ETag/Last-Modified, que
+   muda sozinho a cada publicação. Um HEAD é uma requisição minúscula,
+   sem baixar o arquivo. */
+var VERSAO=null;
+var ABERTA_EM=Date.now();
+
+function checarVersao(){
+  fetch(location.pathname+"?v="+Date.now(),{method:"HEAD",cache:"no-store"})
+    .then(function(r){
+      var marca=r.headers.get("etag")||r.headers.get("last-modified");
+      if(!marca) return;
+      if(VERSAO===null){ VERSAO=marca; return; }   // primeira leitura: referência
+      if(marca!==VERSAO) avisarVersao();
+    }).catch(function(){});
+}
+
+function avisarVersao(){
+  if(document.getElementById("av-versao")) return;
+  var d=document.createElement("div");
+  d.id="av-versao";
+  d.style.cssText="position:fixed;left:0;right:0;top:0;z-index:200;background:#e63329;"+
+    "color:#fff;padding:13px 14px;font-size:0.82rem;text-align:center;line-height:1.4;"+
+    "font-family:'DM Sans',sans-serif";
+  d.innerHTML='<b>Versão nova disponível.</b><br>'+
+    '<span style="font-size:0.75rem;opacity:.9">Esta tela está desatualizada.</span><br>'+
+    '<button onclick="location.reload(true)" style="margin-top:8px;background:#fff;color:#c0231f;'+
+    'border:none;border-radius:8px;padding:9px 20px;font-weight:700;font-size:0.82rem;'+
+    'font-family:Syne,sans-serif;cursor:pointer">Atualizar agora</button>';
+  document.body.insertBefore(d, document.body.firstChild);
+}
+
+/* Confere ao abrir, a cada 30 min, e sempre que a pessoa volta ao app.
+   O visibilitychange é o que pega o caso real: celular no bolso o dia
+   inteiro, e a checagem periódica nem sempre roda em aba suspensa. */
+checarVersao();
+setInterval(checarVersao, 30*60*1000);
+document.addEventListener("visibilitychange", function(){
+  if(!document.hidden){
+    checarVersao();
+    if(Date.now()-ABERTA_EM > 12*60*60*1000) location.reload(true);
+  }
+});
+
+var UNI=(new URLSearchParams(location.search).get("u")||"qfood").toLowerCase();
+/* Cache e fila por unidade — sem isso a base da VIX sobrescreve a do Q Food */
+var BASE_CACHE_KEY="qfood_contagem_base_v1_"+UNI;
+var BASE_TTL_MS=7*24*60*60*1000;
+var FILA_KEY="qfood_contagem_fila_v1_"+UNI;
+
+var USER=null, MODO=null, DATA=null, SESSAO=null, PERFIL={}, BASE=null, MAPA_GTIN={};
+var ITEM_SEL=null, SCANNER=null, FILTRO="", VER_FEITOS=false;
+var KDE=null, KATE=null, KPI=null, KPER="7", KPI_ANT=null;
+
+/* Meta de acuracidade — vale para Q Food e Mercearia */
+var META_ACURACIDADE=98;
+
+/* ---------- init ---------- */
+(function(){
+  var s=null;
+  try{ s=JSON.parse(localStorage.getItem("qfood_session")||"null"); }catch(e){}
+  if(!s||!s.email||(Date.now()-(s.ts||0))>8*60*60*1000){
+    localStorage.removeItem("qfood_session");
+    location.href="Index_Menu.html"; return;
+  }
+  USER=s;
+  document.getElementById("who").innerHTML=(s.nome||s.email)+"<br>"+(s.role||"");
+  DATA=hojeIso();
+  carregarBase(function(){ carregarSessao(); });
+})();
+
+/* ---------- utilidades ---------- */
+function hojeIso(){ var d=new Date(),o=d.getTimezoneOffset(); return new Date(d.getTime()-o*60000).toISOString().slice(0,10); }
+function isoDe(d){ var o=d.getTimezoneOffset(); return new Date(d.getTime()-o*60000).toISOString().slice(0,10); }
+function proxDia(){ var d=new Date(); d.setDate(d.getDate()+1); if(d.getDay()===0) d.setDate(d.getDate()+1); return isoDe(d); }
+function fmtBr(iso){
+  if(!iso) return "—";
+  var p=String(iso).split("-"), dias=["dom","seg","ter","qua","qui","sex","sáb"];
+  var dt=new Date(+p[0],+p[1]-1,+p[2]);
+  return p[2]+"/"+p[1]+" ("+dias[dt.getDay()]+")";
+}
+function fmtData(s){ if(!s) return "—"; var p=String(s).split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
+function rs(v){ return "R$ "+(Number(v)||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function padCod(v){ var s=String(v==null?"":v).replace(/\D/g,""); return !s?"":(s.length>=5?s:("00000"+s).slice(-5)); }
+function padGtin(v){ var s=String(v==null?"":v).replace(/\D/g,""); return (!s||s.length<8||s.length>14)?"":("00000000000000"+s).slice(-14); }
+function norm(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+function num(v){ if(v===""||v==null) return null; var n=parseFloat(String(v).replace(",",".")); return isFinite(n)?n:null; }
+
+/* ---------- rede ---------- */
+function api(action,params,cb){
+  var q=API+"?modulo=contagem&unidade="+UNI+"&action="+encodeURIComponent(action)+"&autorEmail="+encodeURIComponent(USER.email);
+  Object.keys(params||{}).forEach(function(k){ q+="&"+k+"="+encodeURIComponent(params[k]); });
+  fetch(q).then(function(r){ return r.json(); })
+    .then(function(j){
+      /* O cb roda fora da cadeia de promises. Sem isso, um erro de
+         renderização cairia no catch abaixo e apareceria como falha de
+         rede — mandando você caçar internet quando o problema é a tela. */
+      setTimeout(function(){ cb(null,j); },0);
+    })
+    .catch(function(e){ cb(e); });
+}
+/* form-urlencoded evita preflight CORS a partir do GitHub Pages */
+function apiPost(action,payload,cb){
+  payload=payload||{}; payload.autorEmail=USER.email; payload.unidade=UNI;
+  var body=new URLSearchParams();
+  body.append("action",action); body.append("payload",JSON.stringify(payload));
+  fetch(API+"?modulo=contagem",{method:"POST",body:body})
+    .then(function(r){return r.json();}).then(function(j){cb(null,j);}).catch(function(e){cb(e);});
+}
+
+/* ---------- base de produtos (cache local) ---------- */
+function carregarBase(done){
+  var c=null;
+  try{ c=JSON.parse(localStorage.getItem(BASE_CACHE_KEY)||"null"); }catch(e){}
+  if(c&&c.base&&(Date.now()-c.ts)<BASE_TTL_MS){ aplicarBase(c.base); return done(); }
+  api("base",{},function(err,j){
+    if(err||!j||!j.ok){ aplicarBase([]); return done(); }
+    try{ localStorage.setItem(BASE_CACHE_KEY,JSON.stringify({ts:Date.now(),base:j.base})); }catch(e){}
+    aplicarBase(j.base); done();
+  });
+}
+function aplicarBase(arr){
+  BASE=arr||[]; MAPA_GTIN={};
+  /* Um item pode ter vários códigos, e um código pode servir a mais de
+     um item (108 casos na VIX). Por isso o valor é sempre uma lista. */
+  BASE.forEach(function(r){
+    String(r[2]||"").split(/\s+/).forEach(function(g){
+      if(!g) return;
+      (MAPA_GTIN[g]=MAPA_GTIN[g]||[]).push(r[0]);
+    });
+  });
+}
+function nomeDe(cod){
+  cod=padCod(cod);
+  for(var i=0;i<BASE.length;i++) if(BASE[i][0]===cod) return BASE[i][1];
+  return "";
+}
+
+/* ---------- sessão ---------- */
+function carregarSessao(){
+  /* Mais de 12h aberta: recarrega em vez de arriscar rodar código velho */
+  if(Date.now()-ABERTA_EM > 12*60*60*1000){ location.reload(true); return; }
+  /* Só limpa a tela na primeira carga. Num refresh, mantém o que está
+     visível e troca só quando a resposta chegar. */
+  if(!SESSAO||!SESSAO.existe){
+    document.getElementById("app").innerHTML='<div class="empty"><span class="spin"></span> Carregando contagem…</div>';
+  } else {
+    var bt=document.getElementById("bt-atualizar");
+    if(bt){ bt.disabled=true; bt.textContent="Atualizando…"; }
+  }
+  api("sessao",{data:DATA},function(err,j){
+    if(err) return erro("Falha de conexão. Verifique a internet e tente de novo.");
+    if(!j.ok) return erro(j.error||"Erro ao carregar a sessão.");
+    SESSAO=j.sessao; PERFIL=SESSAO.perfil||{};
+    if(SESSAO.nomeUnidade) document.querySelector(".ttl").textContent="Contagem · "+SESSAO.nomeUnidade;
+    montarTabs();
+    if(!MODO) MODO=(PERFIL.preparador||PERFIL.admin)?"prep":"cont";
+    sincTabs(); render(); escoarFila();
+  });
+}
+/* Se já temos a sessão em memória, um erro de rede não pode apagar a
+   tela — a pessoa está no meio do trabalho. Mostra o aviso por cima e
+   mantém a lista funcionando. */
+function erro(m){
+  if(SESSAO && SESSAO.existe){
+    render();
+    var app=document.getElementById("app");
+    var av=document.createElement("div");
+    av.className="alert err";
+    av.innerHTML='<b>'+esc(m)+'</b><br>Suas contagens já foram gravadas — nada foi perdido. '+
+      'Continue contando normalmente.<br><br>'+
+      '<button class="btn sec" onclick="carregarSessao()">Tentar atualizar de novo</button>';
+    app.insertBefore(av, app.firstChild);
+    return;
+  }
+  document.getElementById("app").innerHTML='<div class="alert err">'+esc(m)+
+    '<br><br><button class="btn sec" onclick="carregarSessao()">Tentar de novo</button></div>';
+  document.getElementById("dock").classList.add("hide");
+}
+
+/* ---------- abas ---------- */
+function montarTabs(){
+  var t=[];
+  if(PERFIL.preparador||PERFIL.admin) t.push(["prep","Preparar"]);
+  if(PERFIL.contador||PERFIL.admin)   t.push(["cont","Contar"]);
+  t.push(["kpi","KPIs"]);
+  if(PERFIL.admin) t.push(["aj","Ajustes"]);
+  var box=document.getElementById("tabs");
+  if(t.length<2){ box.classList.add("hide"); return; }
+  box.classList.remove("hide");
+  box.innerHTML=t.map(function(x){
+    return '<button class="tab" id="tab-'+x[0]+'" onclick="setModo(\''+x[0]+'\')">'+x[1]+'</button>';
+  }).join("");
+}
+function sincTabs(){
+  ["prep","cont","kpi","aj"].forEach(function(m){
+    var el=document.getElementById("tab-"+m);
+    if(el) el.className="tab"+(MODO===m?" on":"");
+  });
+}
+function setModo(m){
+  MODO=m; sincTabs();
+  document.getElementById("wrap").className=(m==="kpi")?"wrap":"wrap narrow";
+  document.getElementById("barbox").className=(m==="kpi")?"hide":"";
+  if(m==="kpi"){
+    document.getElementById("dock").classList.add("hide");
+    if(!KPI) periodo("7"); else renderKpi();
+  } else if(m==="aj"){
+    document.getElementById("dock").classList.add("hide");
+    if(!ANALISE) carregarAnalise(); else renderAjustes();
+  } else render();
+}
+function render(){
+  if(MODO==="prep") renderPrep();
+  else if(MODO==="cont") renderCont();
+  else if(MODO==="aj"){ if(ANALISE) renderAjustes(); else carregarAnalise(); }
+  else renderKpi();
+}
+
+function progresso(feito,total,label){
+  var pct=total?Math.round(feito/total*100):0;
+  document.getElementById("bar").style.width=pct+"%";
+  document.getElementById("bar-l").textContent=label;
+  document.getElementById("bar-r").textContent=feito+" de "+total;
+}
+
+/* ══════════ ABA PREPARAR (Célio) ══════════ */
+function renderPrep(){
+  var s=SESSAO,h="";
+  h+='<div class="row">'+
+       '<input class="inp" type="date" id="dt" value="'+DATA+'" style="flex:1;min-width:150px" onchange="trocarData(this.value)">'+
+       '<button class="btn sec" onclick="trocarData(\''+proxDia()+'\')">Amanhã</button>'+
+     '</div>';
+
+  if(!s.existe){
+    progresso(0,1,"Contagem de "+fmtBr(DATA));
+    h+='<div class="alert info">Nenhuma contagem preparada para <b>'+fmtBr(DATA)+'</b>.<br>'+
+       'Ao preparar, o sistema monta a lista sozinho: os itens fixos de maior giro mais os aleatórios do dia.</div>'+
+       '<button class="btn wide" onclick="prepararSessao(this)">Preparar contagem de '+fmtBr(DATA)+'</button>';
+    document.getElementById("app").innerHTML=h;
+    document.getElementById("dock").classList.add("hide");
+    return;
+  }
+
+  var itens=s.itens||[];
+  var pend=itens.filter(function(i){return i.qtdSistema==null;});
+  var ok=itens.filter(function(i){return i.qtdSistema!=null;});
+  progresso(ok.length,itens.length,"Saldos · "+fmtBr(DATA));
+
+  var _cont=s.contados||0, _tot=itens.length;
+  var _estado={
+    LIBERADA:   {cls:"ok",   txt:"<b>Liberada para a expedição.</b> Saldos lançados e conferência disponível."},
+    EM_CONTAGEM:{cls:"info", txt:"<b>Contagem em andamento.</b> "+_cont+" de "+_tot+" itens já conferidos."},
+    FECHADA:    {cls:"ok",   txt:"<b>Contagem encerrada.</b> "+_cont+" de "+_tot+" itens conferidos."}
+  }[s.status] || {cls:"info", txt:"<b>Situação:</b> "+esc(s.status)};
+
+  h+= (s.status==="PREPARANDO")
+    ? '<div class="alert warn">Faltam <b>'+pend.length+'</b> saldos. Digite o saldo do Live Work e tecle <b>Enter</b> — '+
+      'o cursor pula sozinho para o próximo. Se o item estiver zerado no sistema, use <b>Zerado</b> e o próximo do ranking entra no lugar.</div>'
+    : '<div class="alert '+_estado.cls+'">'+_estado.txt+'</div>';
+
+  if(pend.length){ h+='<div class="sec-h">Pendentes ('+pend.length+')</div>'; pend.forEach(function(i){h+=cardPrep(i);}); }
+  if(ok.length){ h+='<div class="sec-h">Lançados ('+ok.length+')</div>'; ok.forEach(function(i){h+=cardPrep(i);}); }
+
+  document.getElementById("app").innerHTML=h;
+  var d=document.getElementById("dock");
+  d.classList.remove("hide");
+  d.innerHTML=(s.status==="PREPARANDO")
+    ? '<button class="btn ok" onclick="liberar()" '+(pend.length?"disabled":"")+'>'+
+      (pend.length?"Faltam "+pend.length+" saldos":"Liberar para a expedição")+'</button>'
+    : '<button class="btn sec" onclick="carregarSessao()">Atualizar</button>';
+}
+
+function cardPrep(i){
+  var t=i.origem==="BAIXO"?'<span class="tag r">ALEATÓRIO</span>'
+      :i.origem==="SUBSTITUTO"?'<span class="tag s">SUBSTITUTO</span>'
+      :'<span class="tag a">FIXO</span>';
+  var feito=i.qtdSistema!=null;
+  var sub=i.substituiu?'<div class="it-sub">substituiu '+esc(i.substituiu)+'</div>':'';
+  return '<div class="card '+(feito?"done":"pend")+'" id="row-'+i.codigo+'">'+
+    '<div class="it-top"><div class="it-nm">'+esc(i.nome)+
+      '<div class="it-cd">'+esc(i.codigo)+'</div>'+sub+'</div>'+t+'</div>'+
+    '<div class="pl-row">'+
+      '<input class="pl-in'+(feito?" done":"")+'" id="in-'+i.codigo+'" type="text" inputmode="decimal" '+
+        'placeholder="saldo" value="'+(feito?i.qtdSistema:"")+'" onkeydown="teclaSaldo(event,\''+i.codigo+'\')">'+
+      '<button class="pl-bt ok" onclick="salvarInline(\''+i.codigo+'\')">Lançar</button>'+
+      '<button class="pl-bt zero" onclick="pularInline(\''+i.codigo+'\')">Zerado</button>'+
+    '</div><div class="pl-msg" id="msg-'+i.codigo+'"></div></div>';
+}
+
+function trocarData(v){ DATA=v; SESSAO=null; carregarSessao(); }
+
+/* Enter grava e pula para o próximo pendente — lançamento em série no teclado */
+function teclaSaldo(e,cod){ if(e.key!=="Enter") return; e.preventDefault(); salvarInline(cod,true); }
+
+function salvarInline(cod,irProximo){
+  var el=document.getElementById("in-"+cod), msg=document.getElementById("msg-"+cod);
+  var q=num(el.value);
+  if(q==null){ msg.className="pl-msg r"; msg.textContent="Informe o saldo."; el.focus(); return; }
+  msg.className="pl-msg m"; msg.textContent="Salvando…";
+  apiPost("lancarSaldo",{data:DATA,codigo:cod,qtdSistema:q},function(err,j){
+    if(err||!j.ok){ msg.className="pl-msg r"; msg.textContent="Erro: "+((j&&j.error)||"sem conexão"); return; }
+    msg.className="pl-msg g"; msg.textContent="✓ lançado";
+    el.classList.add("done");
+    var row=document.getElementById("row-"+cod);
+    if(row){ row.classList.remove("pend"); row.classList.add("done"); }
+    var it=(SESSAO.itens||[]).filter(function(x){return x.codigo===cod;})[0];
+    if(it) it.qtdSistema=q;
+    atualizarPend();
+    if(irProximo) focarProximo(cod);
+  });
+}
+
+function pularInline(cod){
+  var it=(SESSAO.itens||[]).filter(function(x){return x.codigo===cod;})[0];
+  if(!it) return;
+  if(!confirm("Marcar "+it.nome+" como zerado no sistema?\n\nEle sai da contagem e o próximo do ranking entra no lugar.")) return;
+  var msg=document.getElementById("msg-"+cod);
+  msg.className="pl-msg m"; msg.textContent="Substituindo…";
+  apiPost("pularItem",{data:DATA,codigo:cod},function(err,j){
+    if(err||!j.ok){ msg.className="pl-msg r"; msg.textContent="Erro: "+((j&&j.error)||"sem conexão"); return; }
+    carregarSessao();
+  });
+}
+
+function focarProximo(cod){
+  var itens=(SESSAO.itens||[]).filter(function(i){return String(i.origem||"").indexOf("_PULADO")<0;});
+  var passou=false,k;
+  for(k=0;k<itens.length;k++){
+    if(itens[k].codigo===cod){ passou=true; continue; }
+    if(passou&&itens[k].qtdSistema==null) return focar(itens[k].codigo);
+  }
+  for(k=0;k<itens.length;k++){ if(itens[k].qtdSistema==null) return focar(itens[k].codigo); }
+}
+function focar(cod){
+  var n=document.getElementById("in-"+cod);
+  if(n){ n.focus(); n.scrollIntoView({block:"center",behavior:"smooth"}); }
+}
+
+/* Atualiza contador e botão sem re-renderizar a lista (não perde o foco) */
+function atualizarPend(){
+  var itens=SESSAO.itens||[];
+  var pend=itens.filter(function(i){return i.qtdSistema==null;}).length;
+  progresso(itens.length-pend,itens.length,"Saldos · "+fmtBr(DATA));
+  var d=document.getElementById("dock");
+  if(d&&SESSAO.status==="PREPARANDO"){
+    d.innerHTML='<button class="btn ok" onclick="liberar()" '+(pend?"disabled":"")+'>'+
+      (pend?"Faltam "+pend+" saldos":"Liberar para a expedição")+'</button>';
+  }
+}
+
+function prepararSessao(b){
+  b.disabled=true; b.textContent="Montando lista…";
+  apiPost("prepararSessao",{data:DATA},function(err,j){
+    if(err||!j.ok){ alert("Erro: "+((j&&j.error)||err)); b.disabled=false; b.textContent="Tentar de novo"; return; }
+    var r=j.resultado;
+    var msg="Lista pronta: "+r.totalItens+" itens ("+r.fixos+" fixos + "+r.aleatorios+" aleatórios).";
+    if(r.orfaosNoRank) msg+="\n\n"+r.orfaosNoRank+" itens do ranking não têm cadastro na base e foram ignorados.";
+    alert(msg); carregarSessao();
+  });
+}
+
+function liberar(){
+  apiPost("liberarSessao",{data:DATA},function(err,j){
+    if(err||!j.ok){ alert("Erro: "+((j&&j.error)||err)); return; }
+    alert("Contagem liberada. A expedição já pode começar.");
+    carregarSessao();
+  });
+}
+
+/* ══════════ ABA CONTAR (Jonathas / Expedição) ══════════ */
+function renderCont(){
+  var s=SESSAO,h="";
+  if(!s.existe){
+    progresso(0,1,"Contagem de "+fmtBr(DATA));
+    document.getElementById("app").innerHTML=
+      '<div class="alert warn"><b>A contagem de hoje ainda não foi preparada.</b><br>'+
+      'Os itens aparecem aqui assim que os saldos forem lançados e a lista liberada.</div>'+
+      '<button class="btn sec wide" onclick="carregarSessao()">Verificar de novo</button>';
+    document.getElementById("dock").classList.add("hide");
+    return;
+  }
+
+  var itens=s.itens||[];
+  var pend=itens.filter(function(i){return !i.contado;});
+  var fei=itens.filter(function(i){return i.contado;});
+  progresso(fei.length,itens.length,"Contagem · "+fmtBr(DATA));
+
+  if(s.status==="PREPARANDO"){
+    h+='<div class="alert warn">Lançamento de saldos em andamento ('+s.saldosPendentes+' pendentes'+
+       (s.preparadoPor?' · '+esc(String(s.preparadoPor).split("@")[0]):'')+'). '+
+       'Você já pode contar normalmente — a comparação aparece quando o saldo entrar.</div>';
+  }
+  var fila=lerFila();
+  if(fila.length){
+    h+='<div class="alert warn"><b>'+fila.length+' contagem(ns) aguardando envio.</b> '+
+       'Ficam salvas no aparelho e sobem sozinhas quando a internet voltar. Não feche a página.</div>';
+  }
+
+  h+='<div class="row"><input class="inp" id="busca" placeholder="Buscar por nome ou código…" value="'+esc(FILTRO)+'" oninput="filtrar(this.value)"></div>';
+
+  var f=norm(FILTRO).split(/\s+/).filter(Boolean);
+  function bate(i){
+    if(!f.length) return true;
+    var alvo=norm(i.nome)+" "+i.codigo+" "+(i.gtin||"");
+    return f.every(function(t){ return alvo.indexOf(t)>=0; });
+  }
+  var pf=pend.filter(bate), ff=fei.filter(bate);
+
+  if(!pf.length&&!ff.length) h+='<div class="empty">Nenhum item encontrado para "'+esc(FILTRO)+'".</div>';
+  if(pf.length){ h+='<div class="sec-h">A contar ('+pf.length+')</div>'; pf.forEach(function(i){h+=cardCont(i);}); }
+  if(!pf.length&&pend.length===0&&itens.length){
+    h+='<div class="alert ok"><b>Contagem do dia concluída.</b> '+itens.length+' itens contados. '+
+       'Pode fechar — os dados já subiram.</div>';
+  }
+  if(ff.length){
+    h+='<div class="sec-h" style="cursor:pointer" onclick="VER_FEITOS=!VER_FEITOS;render()">'+
+       'Contados ('+ff.length+') &nbsp;'+(VER_FEITOS?"▾ ocultar":"▸ mostrar")+'</div>';
+    if(VER_FEITOS) ff.forEach(function(i){h+=cardCont(i);});
+  }
+
+  document.getElementById("app").innerHTML=h;
+  var d=document.getElementById("dock");
+  d.classList.remove("hide");
+  d.innerHTML='<button class="btn" onclick="abrirCam()">📷 Escanear</button>'+
+              '<button class="btn sec" id="bt-atualizar" onclick="carregarSessao()" '+
+              'title="Puxa mudanças feitas por outras pessoas. Os itens que você contou já somem sozinhos.">'+
+              '🔄 Buscar novidades</button>';
+}
+
+function cardCont(i){
+  var t=i.origem==="BAIXO"?'<span class="tag r">ALEATÓRIO</span>'
+      :i.origem==="SUBSTITUTO"?'<span class="tag s">SUBSTITUTO</span>'
+      :'<span class="tag a">FIXO</span>';
+  var res="";
+  if(i.contado){
+    var hist=i.historico||[];
+    var u=hist[hist.length-1]||{};
+    var q=(u.qtd==null)?"—":u.qtd;
+    res='<div class="it-res"><span class="m">Contado</span><b>'+q+'</b>';
+    if(i.qtdSistema!=null){
+      var dv=i.divergencia;
+      res+='<span class="m">Sistema</span><b>'+i.qtdSistema+'</b>'+
+           '<span class="m">Divergência</span><b class="'+(dv===0?"g":"r")+'">'+(dv>0?"+":"")+dv+'</b>';
+    }
+    res+='</div>';
+  }
+  return '<div class="card tap '+(i.contado?"done":"pend")+'" onclick="abrirQty(\''+i.codigo+'\')">'+
+    '<div class="it-top"><div class="it-nm">'+esc(i.nome)+
+    '<div class="it-cd">'+esc(i.codigo)+'</div></div>'+t+'</div>'+res+'</div>';
+}
+
+function filtrar(v){
+  FILTRO=v;
+  var el=document.getElementById("busca"), pos=el?el.selectionStart:0;
+  render();
+  var n=document.getElementById("busca");
+  if(n){ n.focus(); try{ n.setSelectionRange(pos,pos); }catch(e){} }
+}
+
+/* ---------- modal de quantidade ---------- */
+function abrirQty(cod){
+  var i=(SESSAO.itens||[]).filter(function(x){return x.codigo===cod;})[0];
+  if(!i) return;
+  ITEM_SEL=i;
+  document.getElementById("qty-rev").innerHTML="";
+  document.getElementById("qty-form").classList.remove("hide");
+  document.getElementById("qty-close").classList.add("hide");
+  document.getElementById("qty-nm").textContent=i.nome;
+  document.getElementById("qty-cd").textContent=i.codigo+(i.gtin?" · "+i.gtin:"");
+  document.getElementById("qty-in").value="";
+  document.getElementById("qty-obs").value="";
+  document.getElementById("qty-just").className=i.contado?"":"hide";
+  document.getElementById("ov-qty").classList.add("open");
+  setTimeout(function(){ document.getElementById("qty-in").focus(); },120);
+}
+function fecharQty(){ document.getElementById("ov-qty").classList.remove("open"); ITEM_SEL=null; render(); }
+
+function salvarQtd(naoLoc){
+  var i=ITEM_SEL; if(!i) return;
+  var q=naoLoc?null:num(document.getElementById("qty-in").value);
+  if(!naoLoc&&q==null){ alert("Informe a quantidade contada."); return; }
+  if(!naoLoc&&q<0){ alert("Quantidade não pode ser negativa."); return; }
+  var obs=document.getElementById("qty-obs").value.trim();
+  if(i.contado){
+    if(!obs){ alert("Recontagem exige justificativa."); return; }
+    var hist=i.historico||[];
+    var ant=hist[hist.length-1]||{};
+    if(!confirm("Este item já foi contado hoje com "+(ant.qtd==null?"—":ant.qtd)+".\n\n"+
+       "A nova contagem de "+(naoLoc?"NÃO LOCALIZADO":q)+" substitui a anterior.\n"+
+       "A contagem antiga sai do relatório, mas fica registrada.\n\nDeseja continuar?")) return;
+  }
+
+  var pl={data:DATA,codigo:i.codigo,qtd:q,naoLocalizado:!!naoLoc,
+          metodo:(i.__viaCam?"CAMERA":(FILTRO?"BUSCA":"MANUAL")),obs:obs};
+  apiPost("salvarContagem",pl,function(err,j){
+    if(err){ enfileirar(pl); mostrarOffline(); return; }
+    if(!j.ok){ alert("Erro: "+j.error); return; }
+    revelar(j.resultado);
+  });
+}
+
+/* ---------- a revelação (só depois de gravado) ---------- */
+function revelar(r){
+  var h="";
+  if(r.naoLocalizado){
+    h='<div class="rev non"><div class="rev-t">Registrado como não localizado</div>'+
+      '<div class="cam-tip">Fica registrado para conferência posterior.</div></div>';
+  } else if(r.semSaldoLancado){
+    h='<div class="rev non"><div class="rev-t">Contagem gravada: '+r.qtdContada+'</div>'+
+      '<div class="cam-tip">O saldo do sistema ainda não foi lançado. A comparação sai no relatório.</div></div>';
+  } else if(r.bateu){
+    h='<div class="rev ok"><div class="rev-t">✓ Bateu certo</div><div class="rev-g">'+
+      '<div class="rev-c"><small>CONTADO</small><b>'+r.qtdContada+'</b></div>'+
+      '<div class="rev-c"><small>SISTEMA</small><b>'+r.qtdSistema+'</b></div></div></div>';
+  } else {
+    var d=r.divergencia;
+    h='<div class="rev bad"><div class="rev-t">Divergência de '+(d>0?"+":"")+d+'</div><div class="rev-g">'+
+      '<div class="rev-c"><small>CONTADO</small><b>'+r.qtdContada+'</b></div>'+
+      '<div class="rev-c"><small>SISTEMA</small><b>'+r.qtdSistema+'</b></div>'+
+      '<div class="rev-c"><small>DIFERENÇA</small><b class="r">'+(d>0?"+":"")+d+'</b></div></div>'+
+      (r.valorDivergencia!=null?'<div class="cam-tip">Impacto aproximado: '+rs(Math.abs(r.valorDivergencia))+'</div>':'')+
+      '</div>';
+  }
+  h+='<div class="alert info" style="margin-top:12px">Contagem gravada e travada. '+
+     'Para recontar, é preciso justificar — e as duas contagens ficam no histórico.</div>';
+  document.getElementById("qty-rev").innerHTML=h;
+  document.getElementById("qty-form").classList.add("hide");
+  document.getElementById("qty-close").classList.remove("hide");
+
+  var i=ITEM_SEL;
+  if(i){
+    i.contado=true; i.qtdSistema=r.qtdSistema; i.divergencia=r.divergencia;
+    i.historico=(i.historico||[]).concat([{qtd:r.qtdContada,tipo:r.tipo,por:USER.email}]);
+  }
+}
+
+/* ---------- fila offline ---------- */
+function lerFila(){ try{ return JSON.parse(localStorage.getItem(FILA_KEY)||"[]"); }catch(e){ return []; } }
+function gravarFila(f){ try{ localStorage.setItem(FILA_KEY,JSON.stringify(f)); }catch(e){} }
+function enfileirar(pl){ var f=lerFila(); f.push(pl); gravarFila(f); }
+function mostrarOffline(){
+  document.getElementById("qty-rev").innerHTML=
+    '<div class="rev non"><div class="rev-t">Salvo no aparelho</div>'+
+    '<div class="cam-tip">Sem internet agora. A contagem sobe sozinha quando a conexão voltar — '+
+    'pode continuar contando normalmente.</div></div>';
+  document.getElementById("qty-form").classList.add("hide");
+  document.getElementById("qty-close").classList.remove("hide");
+}
+function escoarFila(){
+  var f=lerFila(); if(!f.length) return;
+  apiPost("salvarContagem",f[0],function(err,j){
+    if(err) return;
+    var g=lerFila(); g.shift(); gravarFila(g);
+    if(g.length) escoarFila(); else if(MODO==="cont") carregarSessao();
+  });
+}
+setInterval(escoarFila,15000);
+window.addEventListener("online",escoarFila);
+
+/* ---------- câmera ---------- */
+function abrirCam(){
+  document.getElementById("ov-cam").classList.add("open");
+  if(typeof Html5Qrcode==="undefined"){
+    document.getElementById("cam").innerHTML='<div class="empty">Leitor não carregou. Use a busca por nome.</div>';
+    return;
+  }
+  SCANNER=new Html5Qrcode("cam");
+  SCANNER.start({facingMode:"environment"},
+    { fps:10, qrbox:{width:260,height:150},
+      /* limitar formatos acelera muito a decodificação em celular fraco */
+      formatsToSupport:[
+        Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.ITF,Html5QrcodeSupportedFormats.CODE_128]},
+    function(txt){ fecharCam(); tratarLeitura(txt); }, function(){}
+  ).catch(function(e){
+    var iosWebview=/iPhone|iPad/.test(navigator.userAgent)&&!/Safari/.test(navigator.userAgent);
+    document.getElementById("cam").innerHTML='<div class="empty">Não consegui abrir a câmera.<br><br>'+
+      (iosWebview?'Abra esta página no <b>Safari</b>. Dentro do WhatsApp ou Instagram o iPhone bloqueia a câmera.'
+                 :'Verifique a permissão de câmera do navegador.')+
+      '<br><br>Enquanto isso, use a busca por nome.<br><br><small>'+esc(String(e||""))+'</small></div>';
+  });
+}
+function fecharCam(){
+  document.getElementById("ov-cam").classList.remove("open");
+  if(SCANNER){ try{ SCANNER.stop().then(function(){SCANNER.clear();SCANNER=null;}); }catch(e){ SCANNER=null; } }
+}
+function tratarLeitura(txt){
+  var g=padGtin(txt), achados=(g?MAPA_GTIN[g]:null)||[];
+
+  if(achados.length>1){
+    /* Código usado por mais de um produto: prioriza os que estão na
+       lista de hoje; se ainda houver dúvida, quem conta escolhe. */
+    var naLista=achados.filter(function(c){
+      return (SESSAO.itens||[]).some(function(x){return x.codigo===c;});
+    });
+    if(naLista.length===1){ achados=naLista; }
+    else{
+      var opts=(naLista.length?naLista:achados);
+      FILTRO=""; render();
+      alert("Este código serve a "+opts.length+" produtos diferentes.\n\n"+
+            opts.map(function(c){return "• "+nomeDe(c);}).join("\n")+
+            "\n\nToque no item certo na lista.");
+      FILTRO=opts.map(function(c){return c;}).join(" ");
+      return;
+    }
+  }
+  var cod=achados[0]||null;
+  if(!cod){
+    FILTRO=""; render();
+    alert("Código não encontrado na base:\n"+txt+"\n\nUse a busca por nome para achar o item.");
+    return;
+  }
+  var naLista=(SESSAO.itens||[]).filter(function(x){return x.codigo===cod;})[0];
+  if(!naLista){
+    var nm=nomeDe(cod);
+    alert("Este item não está na contagem de hoje:\n\n"+nm+"\n\nSe quiser registrar mesmo assim, ele entra como contagem EXTRA.");
+    SESSAO.itens.push({codigo:cod,nome:nm,gtin:g,origem:"EXTRA",curva:"",contado:false,historico:[]});
+    naLista=SESSAO.itens[SESSAO.itens.length-1];
+  }
+  naLista.__viaCam=true; render(); abrirQty(cod);
+}
+
+/* ══════════ ABA KPIs ══════════ */
+function periodo(p,btn){
+  var hj=new Date(),d1=new Date(),d2=new Date();
+  if(p==="hoje"){}
+  else if(p==="7"){ d1.setDate(hj.getDate()-6); }
+  else if(p==="30"){ d1.setDate(hj.getDate()-29); }
+  else if(p==="mes"){ d1=new Date(hj.getFullYear(),hj.getMonth(),1); }
+  else if(p==="ant"){ d1=new Date(hj.getFullYear(),hj.getMonth()-1,1); d2=new Date(hj.getFullYear(),hj.getMonth(),0); }
+  else if(p==="custom"){
+    var a=document.getElementById("kde").value,b=document.getElementById("kate").value;
+    if(!a||!b){ alert("Escolha as duas datas."); return; }
+    KDE=a; KATE=b; KPER="custom"; return carregarKpi();
+  }
+  KDE=isoDe(d1); KATE=isoDe(d2); KPER=p; carregarKpi();
+}
+
+function carregarKpi(){
+  document.getElementById("app").innerHTML='<div class="empty"><span class="spin"></span> Calculando…</div>';
+
+  /* Período anterior de mesma duração, para calcular as variações */
+  var d1=new Date(KDE+"T12:00:00"), d2=new Date(KATE+"T12:00:00");
+  var dur=Math.max(1,Math.round((d2-d1)/86400000)+1);
+  var a2=new Date(d1.getTime()-86400000), a1=new Date(a2.getTime()-(dur-1)*86400000);
+
+  var pend=2;
+  function pronto(){ if(--pend===0 && KPI) renderKpi(); }
+
+  api("kpis",{de:KDE,ate:KATE},function(err,j){
+    if(err) return erro("Falha de conexão.");
+    if(!j.ok) return erro(j.error||"Erro ao calcular KPIs.");
+    KPI=j.kpis; pronto();
+  });
+  api("kpis",{de:isoDe(a1),ate:isoDe(a2)},function(err,j){
+    KPI_ANT=(!err&&j&&j.ok)?j.kpis:null; pronto();
+  });
+}
+
+function renderKpi(){
+  if(!KPI){ periodo("7"); return; }
+  var k=KPI,h="";
+  var uniNome=(SESSAO&&SESSAO.nomeUnidade)||(UNI==="vix"?"Mercearia Liberdade VIX":"Q Food Company");
+  document.querySelector(".prt-h h1").textContent="Contagem de Estoque — "+uniNome;
+  document.getElementById("prt-sub").textContent=
+    (k.periodo.de===k.periodo.ate
+      ? fmtData(k.periodo.de)
+      : "Período de "+fmtData(k.periodo.de)+" a "+fmtData(k.periodo.ate))+
+    " · emitido por "+(USER.nome||USER.email)+" em "+fmtData(hojeIso());
+  document.getElementById("pfoot-l").textContent=uniNome+" · Contagem";
+  document.getElementById("pfoot-r").textContent=fmtData(hojeIso());
+
+  h+='<div class="per no-print">'+
+     ['hoje|Hoje','7|7 dias','30|30 dias','mes|Mês atual','ant|Mês anterior'].map(function(x){
+       var p=x.split("|");
+       return '<button class="'+(KPER===p[0]?"on":"")+'" onclick="periodo(\''+p[0]+'\',this)">'+p[1]+'</button>';
+     }).join("")+
+     '<input type="date" id="kde" value="'+(KDE||"")+'"><input type="date" id="kate" value="'+(KATE||"")+'">'+
+     '<button onclick="periodo(\'custom\',this)">Aplicar</button>'+
+     '<button onclick="gerarPdf()" style="background:var(--qf);border-color:var(--qf);color:#fff;font-weight:600">Gerar PDF</button>'+
+     '</div>';
+
+  if(!k.totalContagens){
+    document.getElementById("app").innerHTML=h+'<div class="empty">Nenhuma contagem registrada neste período.</div>';
+    return;
+  }
+
+  var ka=KPI_ANT, sd=k.serieDiaria||[];
+  var acertos=k.comSaldoParaConfronto?Math.round(k.acuracidadePct/100*k.comSaldoParaConfronto):0;
+
+  h+='<div class="kpi-row">'+
+    stat("📦","#4d8ef5","Contagens no período",k.totalContagens,
+         k.totalContagens, ka?ka.totalContagens:null, sd.map(function(s){return s.contagens;}))+
+    stat("✅","#36cfa0","Bateram exato",acertos,
+         k.acuracidadePct, ka?ka.acuracidadePct:null, sd.map(function(s){return s.acuracidade;}))+
+    stat("⚠️","#ffaa2b","Divergência em unidades",k.divergenciaAbsolutaUn,
+         k.divergenciaAbsolutaUn, ka?ka.divergenciaAbsolutaUn:null, sd.map(function(s){return s.contagens;}))+
+    stat("🔎","#a07cf6","Itens não localizados",k.naoLocalizados,
+         k.naoLocalizados, ka?ka.naoLocalizados:null, sd.map(function(s){return s.contagens;}))+
+    '</div>';
+
+  var rotPer=(KPER==="hoje")?"do dia":(KPER==="mes"?"do mês":(KPER==="ant"?"do mês anterior":"do período"));
+  h+='<div class="kpi-main"><div><div class="gauges">'+
+    gauge(k.acuracidadePct,"Acuracidade","Itens em que o físico bateu exato com o sistema",true,[90,97])+
+    gaugeMeta(k,rotPer)+
+    gauge(k.coberturaPct,"Cobertura",k.totalContagens+" contados de "+k.itensPlanejados+" planejados",true,[85,95])+
+    gaugeBalanco(k)+
+    '</div></div>'+complementares(k,ka)+'</div>';
+
+  var pc=k.porCurva||{}, cA=pc.A||{}, cAl=pc.ALEATORIO||{}, cEx=pc.EXTRA||{};
+  if((cA.contagens||0)+(cAl.contagens||0)>0){
+    h+='<div class="sec-h">Acuracidade por categoria</div><div class="gauges">'+
+      gauge(cA.acuracidade,"Curva A · fixos",
+        (cA.contagens||0)+" contagens · "+(cA.comSaldo||0)+" confrontadas",true,[90,97])+
+      gauge(cAl.acuracidade,"Aleatórios",
+        (cAl.contagens||0)+" contagens · "+(cAl.comSaldo||0)+" confrontadas",true,[90,97])+
+      gauge(k.recontagemPct,"Taxa de recontagem",
+        "Quanto menor, melhor. Taxa alta pede investigação",false,[5,15])+
+      '</div>';
+
+    var dif=(cA.acuracidade!=null&&cAl.acuracidade!=null)?(cA.acuracidade-cAl.acuracidade):null;
+    var leitura;
+    if(dif==null) leitura="Ainda sem confronto suficiente nas duas categorias.";
+    else if(dif>=10) leitura="A curva A está "+dif.toFixed(1).replace(".",",")+
+      " pontos acima dos aleatórios. O que você vigia todo dia está sob controle; "+
+      "o erro mora no estoque que ninguém olha.";
+    else if(dif<=-10) leitura="Os aleatórios estão "+Math.abs(dif).toFixed(1).replace(".",",")+
+      " pontos acima da curva A. Item de alto giro errando mais que item parado é sinal de "+
+      "contagem no automático — vale olhar as recontagens desses itens.";
+    else leitura="As duas categorias estão próximas ("+
+      Math.abs(dif).toFixed(1).replace(".",",")+" pontos de diferença). "+
+      "O comportamento do estoque é uniforme, sem bolsão de erro concentrado.";
+
+    h+='<div class="panel"><div class="gz-hint" style="font-size:0.76rem">'+esc(leitura)+'</div>';
+    if(cEx.contagens){
+      h+='<div class="gz-hint" style="margin-top:8px">'+cEx.contagens+
+         ' contagem(ns) EXTRA — itens bipados fora da lista do dia. Não entram em nenhuma '+
+         'das duas categorias e ficam fora do KPI de cobertura.</div>';
+    }
+    h+='</div>';
+  }
+
+  if(k.porHora) h+='<div class="sec-h">Contagens por hora</div><div class="panel">'+barrasHora(k.porHora)+'</div>';
+  h+=rankSetor(k.porSetor);
+
+  var met=k.porMetodo||{},somaM=0;
+  Object.keys(met).forEach(function(x){ somaM+=met[x]; });
+  if(somaM){
+    var cores={CAMERA:"#22d3ee",BUSCA:"#a07cf6",MANUAL:"#8fa0c0"};
+    h+='<div class="sec-h">Como os itens foram localizados</div><div class="panel">';
+    ["CAMERA","BUSCA","MANUAL"].forEach(function(x){
+      var q=met[x]||0,p=somaM?(q/somaM*100):0;
+      h+='<div class="mb"><div class="mb-l">'+(x==="CAMERA"?"Câmera":x==="BUSCA"?"Busca":"Manual")+'</div>'+
+         '<div class="mb-t"><i style="width:'+p.toFixed(1)+'%;background:'+cores[x]+'"></i></div>'+
+         '<div class="mb-v">'+q+' · '+p.toFixed(0)+'%</div></div>';
+    });
+    h+='<div class="gz-hint" style="margin-top:8px">Se a câmera ficar abaixo de 50%, a leitura por foto não está '+
+       'dando conta e vale avaliar um leitor Bluetooth.</div></div>';
+  }
+
+  if((k.serieDiaria||[]).length>1)
+    h+='<div class="sec-h">Evolução diária</div><div class="panel">'+linha(k.serieDiaria)+'</div>';
+
+  var itens=(k.porItem||[]).filter(function(i){return i.acuracidade!=null;});
+  if(itens.length){
+    h+='<div class="sec-h brk">Itens por acuracidade (pior primeiro)</div><div class="panel"><table><thead>'+
+       '<tr><th>Item</th><th class="n">Contagens</th><th class="n">Acuracidade</th>'+
+       '<th class="n">Diverg. un</th><th class="n">Diverg. R$</th><th class="n">Última</th></tr>'+
+       '</thead><tbody>';
+    itens.slice(0,40).forEach(function(i){
+      var c=i.acuracidade>=97?"g":(i.acuracidade>=90?"y":"r");
+      h+='<tr><td>'+esc(i.nome)+'<div class="cd">'+esc(i.codigo)+'</div></td>'+
+         '<td class="n">'+i.contagens+'</td><td class="n '+c+'">'+i.acuracidade.toFixed(1).replace(".",",")+'%</td>'+
+         '<td class="n">'+i.divergenciaAbs+'</td>'+
+         '<td class="n '+(i.valorDivergencia?"r":"m")+'">'+rs(i.valorDivergencia)+'</td>'+
+         '<td class="n m">'+fmtData(i.ultimaContagem)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+
+  if((k.top20Divergencias||[]).length){
+    h+='<div class="sec-h">Maiores divergências do período</div><div class="panel"><table>'+
+       '<thead><tr><th>Data</th><th>Item</th><th class="n">Diferença</th><th class="n">Impacto</th><th>Quem contou</th></tr></thead><tbody>';
+    k.top20Divergencias.forEach(function(d){
+      h+='<tr><td class="m">'+fmtData(d.data)+'</td>'+
+         '<td>'+esc(d.nome)+'<div class="cd">'+esc(d.codigo)+'</div></td>'+
+         '<td class="n '+(d.divergencia>0?"y":"r")+'">'+(d.divergencia>0?"+":"")+d.divergencia+'</td>'+
+         '<td class="n r">'+rs(Math.abs(d.valor))+'</td>'+
+         '<td class="m">'+esc(String(d.usuario).split("@")[0])+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+
+  var us=k.porUsuario||{};
+  if(Object.keys(us).length && (PERFIL.admin||PERFIL.preparador)){
+    h+='<div class="sec-h">Por operador</div><div class="panel"><table>'+
+       '<thead><tr><th>Operador</th><th class="n">Contagens</th><th class="n">Acuracidade</th>'+
+       '<th class="n">Recontagens</th><th class="n">% recontagem</th></tr></thead><tbody>';
+    Object.keys(us).forEach(function(u){
+      var a=us[u];
+      var ac=a.comSaldo?(a.exatos/a.comSaldo*100):null;
+      var pr=a.contagens?(a.recontagens/a.contagens*100):0;
+      h+='<tr><td>'+esc(u.split("@")[0])+'</td><td class="n">'+a.contagens+'</td>'+
+         '<td class="n '+(ac==null?"m":(ac>=97?"g":ac>=90?"y":"r"))+'">'+(ac==null?"—":ac.toFixed(1).replace(".",",")+"%")+'</td>'+
+         '<td class="n">'+a.recontagens+'</td>'+
+         '<td class="n '+(pr>15?"r":pr>5?"y":"m")+'">'+pr.toFixed(0)+'%</td></tr>';
+    });
+    h+='</tbody></table><div class="gz-hint" style="margin-top:10px">Acuracidade muito alta somada a recontagem alta '+
+       'no mesmo operador é o padrão a investigar: pode indicar recontagem feita depois de ver o saldo.</div></div>';
+  }
+
+  h+='<div class="only-print" style="margin-top:18px;font-size:0.65rem;color:#888">'+
+     'Contagem cega — o saldo do sistema é lançado previamente e só é revelado ao operador após a gravação '+
+     'da contagem física. Recontagens exigem justificativa e preservam o registro original.</div>';
+
+  document.getElementById("app").innerHTML=h;
+  document.getElementById("dock").classList.add("hide");
+}
+
+function ncard(t,v,s){ return '<div class="nm"><small>'+esc(t)+'</small>'+v+'<div class="sub">'+esc(s)+'</div></div>'; }
+
+/* ══════════ ABA AJUSTES ══════════ */
+var ANALISE=null, AJ_DIAS=30, AJ_FILTRO="todos";
+
+function carregarAnalise(){
+  document.getElementById("app").innerHTML='<div class="empty"><span class="spin"></span> Analisando padrões…</div>';
+  var d=new Date(); d.setDate(d.getDate()-(AJ_DIAS-1));
+  api("analise",{de:isoDe(d),ate:hojeIso()},function(err,j){
+    if(err) return erro("Falha de conexão.");
+    if(!j.ok) return erro(j.error||"Erro na análise.");
+    ANALISE=j.analise; renderAjustes();
+  });
+}
+
+function ajPeriodo(d){ AJ_DIAS=d; ANALISE=null; carregarAnalise(); }
+function ajFiltro(f){ AJ_FILTRO=f; renderAjustes(); }
+
+function renderAjustes(){
+  if(!ANALISE){ carregarAnalise(); return; }
+  var a=ANALISE, r=a.resumo||{}, h="";
+
+  h+='<div class="per no-print">'+[30,60,90].map(function(d){
+      return '<button class="'+(AJ_DIAS===d?"on":"")+'" onclick="ajPeriodo('+d+')">'+d+' dias</button>';
+    }).join("")+
+    '<button onclick="pdfAjustes()" style="background:var(--qf);border-color:var(--qf);color:#fff;font-weight:600">Gerar PDF</button>'+
+    '</div>';
+
+  h+='<div class="alert info">A análise olha o histórico de cada item e aponta o padrão. '+
+     'Ela <b>sugere</b> — o ajuste é feito por você no Live Work, e aqui você registra que foi feito.</div>';
+
+  var tot=(r.ATENCAO||0)+(r.CONVERSAO||0)+(r.AJUSTE||0)+(r.INSTAVEL||0)+(r.OBSERVAR||0);
+  if(!tot){
+    document.getElementById("app").innerHTML=h+
+      '<div class="empty">Nenhum padrão detectado nos últimos '+AJ_DIAS+' dias.<br><br>'+
+      'São necessárias pelo menos '+a.minContagens+' contagens do mesmo item para concluir alguma coisa.</div>';
+    return;
+  }
+
+  h+='<div class="kpi-row">'+
+    ajCard("🚨","#ff4d4f","Atenção",r.ATENCAO||0,"divergência crescendo")+
+    ajCard("📦","#a07cf6","Erro de conversão",r.CONVERSAO||0,"cadastro de unidade")+
+    ajCard("🔧","#36cfa0","Ajuste sugerido",r.AJUSTE||0,
+       a.valorAjusteEstimado?rs(a.valorAjusteEstimado)+" estimados":"sem custo cadastrado")+
+    ajCard("🔍","#22d3ee","Em observação",r.OBSERVAR||0,"entram nas próximas contagens")+
+    '</div>';
+
+  var fs=[["todos","Todos ("+tot+")"],["ATENCAO","Atenção"],["CONVERSAO","Conversão"],
+          ["AJUSTE","Ajustes"],["INSTAVEL","Instáveis"],["OBSERVAR","Observação"]];
+  h+='<div class="filtros no-print" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px">'+
+     fs.map(function(f){
+       return '<button class="'+(AJ_FILTRO===f[0]?"on":"")+'" onclick="ajFiltro(\''+f[0]+'\')" '+
+         'style="background:'+(AJ_FILTRO===f[0]?"var(--qf)":"var(--s2)")+';border:1px solid var(--br);'+
+         'color:'+(AJ_FILTRO===f[0]?"#fff":"var(--mu)")+';border-radius:99px;padding:8px 14px;'+
+         'font-size:0.75rem;cursor:pointer;font-family:var(--fb)">'+f[1]+'</button>';
+     }).join("")+'</div>';
+
+  var lista=(a.itens||[]).filter(function(i){ return AJ_FILTRO==="todos"||i.classe===AJ_FILTRO; });
+  if(!lista.length) h+='<div class="empty">Nada nesta seleção.</div>';
+  lista.forEach(function(i){ h+=ajItem(i); });
+
+  document.getElementById("app").innerHTML=h;
+}
+
+/* O PDF sai do que está na tela, então o filtro selecionado já vem
+   aplicado. O nome do arquivo carrega o filtro para você não acabar
+   com cinco arquivos de nome igual na pasta de downloads. */
+function pdfAjustes(){
+  var orig=document.title;
+  var nomes={todos:"Todos",ATENCAO:"Atencao",CONVERSAO:"Conversao",
+             AJUSTE:"Ajustes",INSTAVEL:"Instaveis",OBSERVAR:"Observacao"};
+  var p=hojeIso().split("-");
+  document.title="Ajustes_"+(UNI==="vix"?"MercLiberdadeVIX":"QFood")+
+    "_"+(nomes[AJ_FILTRO]||AJ_FILTRO)+"_"+p[2]+p[1]+p[0];
+
+  var sub=document.getElementById("prt-sub");
+  var subOrig=sub?sub.textContent:"";
+  var h1=document.querySelector(".prt-h h1");
+  var h1Orig=h1?h1.textContent:"";
+  var uniNome=(SESSAO&&SESSAO.nomeUnidade)||(UNI==="vix"?"Mercearia Liberdade VIX":"Q Food Company");
+
+  if(h1) h1.textContent="Sugestões de Ajuste de Estoque — "+uniNome;
+  if(sub) sub.textContent="Últimos "+AJ_DIAS+" dias · filtro: "+(nomes[AJ_FILTRO]||AJ_FILTRO)+
+    " · emitido por "+(USER.nome||USER.email)+" em "+fmtData(hojeIso());
+
+  window.print();
+
+  setTimeout(function(){
+    document.title=orig;
+    if(sub) sub.textContent=subOrig;
+    if(h1) h1.textContent=h1Orig;
+  },1200);
+}
+
+function ajCard(ic,cor,label,valor,sub){
+  return '<div class="st"><div class="st-top">'+
+    '<div class="st-ic" style="background:'+cor+'22;color:'+cor+'">'+ic+'</div>'+
+    '<div class="st-lb">'+esc(label)+'</div></div>'+
+    '<div class="st-vl" style="color:'+(valor?cor:"var(--mu2)")+'">'+valor+'</div>'+
+    '<div class="st-ft"><div class="st-dl m">'+esc(sub)+'</div></div></div>';
+}
+
+function ajItem(i){
+  var h='<div class="aj c-'+i.classe+'" id="aj-'+i.codigo+'">'+
+    '<div class="aj-top"><div class="aj-nm">'+esc(i.nome)+
+      '<span class="cd">'+esc(i.codigo)+' · '+i.contagens+' contagens · '+
+      (i.curva==="A"?"fixo":i.curva==="OBSERVACAO"?"observação":"aleatório")+'</span></div>'+
+    '<span class="aj-pill p-'+i.classe+'">'+esc(i.titulo||i.classe)+'</span></div>'+
+    '<div class="aj-mot">'+esc(i.motivo)+'</div>';
+
+  if((i.historico||[]).length){
+    h+='<div class="aj-hist">';
+    i.historico.forEach(function(x){
+      var c=x.div===0?"g":(x.div>0?"y":"r");
+      h+='<div class="aj-h"><small>'+fmtData(x.data).slice(0,5)+'</small>'+
+         '<b class="'+c+'">'+(x.div>0?"+":"")+x.div+'</b></div>';
+    });
+    h+='</div>';
+  }
+
+  h+='<div class="aj-acao">'+esc(i.acao)+'</div>';
+
+  if(i.classe==="AJUSTE"){
+    h+='<button class="aj-bt" onclick="marcarAjuste(\''+i.codigo+'\')">'+
+       '✓ Ajustei no Live Work ('+(i.sugestao>0?"+":"")+i.sugestao+')</button>'+
+       '<button class="aj-bt sec" style="margin-left:7px" onclick="ignorarAjuste(\''+i.codigo+'\')">Ignorar</button>';
+  }
+  return h+'<div class="msg" id="ajm-'+i.codigo+'" style="font-size:0.72rem;margin-top:7px"></div></div>';
+}
+
+function ajBusca(cod){
+  return (ANALISE.itens||[]).filter(function(x){return x.codigo===cod;})[0];
+}
+
+function marcarAjuste(cod){ ajGravar(cod,"APLICADO"); }
+function ignorarAjuste(cod){
+  if(!confirm("Marcar como ignorado?\n\nO item continua sendo contado, mas some desta lista.")) return;
+  ajGravar(cod,"IGNORADO");
+}
+
+function ajGravar(cod,status){
+  var i=ajBusca(cod); if(!i) return;
+  var msg=document.getElementById("ajm-"+cod);
+  msg.className="m"; msg.textContent="Registrando…";
+  apiPost("marcarAjuste",{
+    codigo:cod, nome:i.nome, classe:i.classe, contagens:i.contagens,
+    divMedia:i.divMedia, sugestao:i.sugestao, valorEstimado:i.valorEstimado,
+    dataSugestao:hojeIso(), status:status
+  },function(err,j){
+    if(err||!j.ok){ msg.className="r"; msg.textContent="Erro: "+((j&&j.error)||"sem conexão"); return; }
+    var el=document.getElementById("aj-"+cod);
+    if(el){ el.style.opacity=".45"; }
+    msg.className="g";
+    msg.textContent=status==="APLICADO"
+      ? "✓ Registrado. O histórico deste item recomeça a partir de hoje."
+      : "Ignorado. Continua sendo contado normalmente.";
+    var bts=el.querySelectorAll(".aj-bt");
+    for(var k=0;k<bts.length;k++) bts[k].disabled=true;
+  });
+}
+
+/* Cartão com número grande, variação contra o período anterior e mini-curva */
+function stat(ic,cor,label,valor,atual,anterior,serie){
+  var d;
+  if(anterior!=null&&atual!=null&&anterior!==0){
+    var v=((atual-anterior)/Math.abs(anterior))*100;
+    var sobe=v>=0;
+    var bom=(cor!=="#ff4d4f"&&cor!=="#ffaa2b")?sobe:!sobe;  // em divergência, cair é bom
+    d='<div class="st-dl '+(bom?"g":"r")+'"><b>'+(sobe?"▲ +":"▼ ")+v.toFixed(0)+
+      '%</b><br><span class="m">vs. período anterior</span></div>';
+  } else {
+    d='<div class="st-dl m">sem base de comparação</div>';
+  }
+  return '<div class="st"><div class="st-top">'+
+    '<div class="st-ic" style="background:'+cor+'22;color:'+cor+'">'+ic+'</div>'+
+    '<div class="st-lb">'+esc(label)+'</div></div>'+
+    '<div class="st-vl">'+valor+'</div>'+
+    '<div class="st-ft">'+d+spark(serie,cor)+'</div></div>';
+}
+
+function spark(vals,cor){
+  vals=(vals||[]).filter(function(v){return v!=null;});
+  if(vals.length<2) return '<div class="st-sp"></div>';
+  var W=76,H=26,mn=Math.min.apply(null,vals),mx=Math.max.apply(null,vals),rg=(mx-mn)||1;
+  var pts=vals.map(function(v,i){
+    return (i/(vals.length-1)*W).toFixed(1)+","+(H-((v-mn)/rg)*(H-4)-2).toFixed(1);
+  }).join(" ");
+  return '<svg class="st-sp" width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'+
+    '<polyline points="'+pts+'" fill="none" stroke="'+cor+'" stroke-width="2" '+
+    'stroke-linejoin="round" stroke-linecap="round"/></svg>';
+}
+
+/* Atingimento da meta: acuracidade 36% com meta 98% → ponteiro em 36,7% */
+function gaugeMeta(k,rotuloPeriodo){
+  var ac=k.acuracidadePct;
+  var vazio=(ac==null||isNaN(ac));
+  var ating=vazio?0:Math.min(100,(ac/META_ACURACIDADE)*100);
+  var cor=vazio?"#5e718e":(ating>=100?"#36cfa0":(ating>=85?"#a7d96b":(ating>=60?"#ffaa2b":"#ff4d4f")));
+  var falta=vazio?null:Math.max(0,META_ACURACIDADE-ac);
+  var hint=vazio?"Sem confronto no período"
+    :(falta<=0?"Meta de "+META_ACURACIDADE+"% atingida"
+      :"Faltam "+falta.toFixed(1).replace(".",",")+" pontos para a meta de "+META_ACURACIDADE+"%");
+  var extra='<text x="100" y="96" text-anchor="middle" fill="#5e718e" '+
+    'style="font-family:DM Sans;font-size:9px">meta '+META_ACURACIDADE+'%</text>';
+  return '<div class="gz">'+
+    gzArco(ating,vazio,true,cor,(vazio?"—":ating.toFixed(1).replace(".",",")),
+           (vazio?"sem dados":"% da meta"),extra)+
+    '<div class="gz-nm">Meta '+esc(rotuloPeriodo||"do período")+'</div>'+
+    '<div class="gz-hint">'+esc(hint)+'</div></div>';
+}
+
+/* Painel lateral de indicadores complementares */
+function complementares(k,ka){
+  function li(ic,txt,val,sub){
+    return '<div class="comp-i"><div class="comp-ic">'+ic+'</div>'+
+           '<div class="comp-tx">'+esc(txt)+'</div>'+
+           '<div class="comp-vl"><b>'+val+'</b><small>'+esc(sub||"")+'</small></div></div>';
+  }
+  var ops=Object.keys(k.porUsuario||{}).length;
+  var opsAnt=ka?Object.keys(ka.porUsuario||{}).length:null;
+  var ritmo=k.ritmoSeg;
+  var ritmoTxt=ritmo==null?"—":(ritmo<60?ritmo+"s":Math.floor(ritmo/60)+"m"+(ritmo%60?(ritmo%60)+"s":""));
+  var porDia=k.sessoes?Math.round(k.totalContagens/k.sessoes):0;
+  var met=k.porMetodo||{};
+  var somaM=Object.keys(met).reduce(function(s,x){return s+met[x];},0);
+  var camPct=somaM?Math.round(((met.CAMERA||0)/somaM)*100):0;
+
+  return '<div class="comp"><h4>Indicadores complementares</h4>'+
+    li("⏱","Ritmo entre contagens",ritmoTxt,"mediana do intervalo")+
+    li("👥","Operadores no período",ops,opsAnt!=null?("antes: "+opsAnt):"")+
+    li("📅","Média por dia de contagem",porDia,k.sessoes+" dia(s)")+
+    li("📷","Leitura por câmera",camPct+"%",somaM+" leituras")+
+    li("🔎","Itens não localizados",k.naoLocalizados,"procurados sem achar")+
+    li("🔁","Recontagens",k.recontagens,"com justificativa")+
+    '</div>';
+}
+
+/* Perfil de contagem ao longo do dia */
+function barrasHora(porHora){
+  var horas=[],mx=0;
+  for(var hh=0;hh<24;hh++){ var q=porHora[hh]||0; if(q>0){horas.push([hh,q]); if(q>mx)mx=q;} }
+  if(horas.length<2) return '<div class="gz-hint">Dados insuficientes para o perfil por hora.</div>';
+  var total=horas.reduce(function(s,x){return s+x[1];},0);
+  var pico=horas.reduce(function(a,b){return b[1]>a[1]?b:a;});
+  var h2='<div class="hbar">';
+  horas.forEach(function(x){
+    var alt=Math.max(2,(x[1]/mx)*118);
+    h2+='<div class="hbar-c"><div class="hbar-v">'+x[1]+'</div>'+
+        '<div class="hbar-b'+(x[0]===pico[0]?" pico":"")+'" style="height:'+alt.toFixed(0)+'px"></div>'+
+        '<div class="hbar-l">'+(x[0]<10?"0":"")+x[0]+'h</div></div>';
+  });
+  return h2+'</div><div class="gz-hint" style="margin-top:10px">Pico às '+
+    (pico[0]<10?"0":"")+pico[0]+'h com '+pico[1]+' contagens ('+
+    Math.round(pico[1]/total*100)+'% do total). Contagem concentrada cedo é sinal de rotina '+
+    'saudável — espalhada pelo dia costuma indicar que ela está sendo encaixada nas sobras de tempo.</div>';
+}
+
+/* Ranking por setor (ou fornecedor, onde não houver setor cadastrado) */
+function rankSetor(setores){
+  setores=(setores||[]).filter(function(s){return s.contagens>0;}).slice(0,6);
+  if(!setores.length) return "";
+  var mx=setores[0].contagens||1;
+  var h2='<div class="sec-h">Ranking por setor</div><div class="panel">';
+  setores.forEach(function(s,i){
+    var ac=s.acuracidade;
+    var cor=ac==null?"#5e718e":(ac>=97?"#36cfa0":(ac>=90?"#ffaa2b":"#ff4d4f"));
+    h2+='<div class="rk"><div class="rk-n'+(i===0?" top":"")+'">'+(i+1)+'</div>'+
+        '<div class="rk-nm" title="'+esc(s.setor)+'">'+esc(s.setor)+'</div>'+
+        '<div class="rk-tr"><i style="width:'+(s.contagens/mx*100).toFixed(0)+'%;background:'+cor+'"></i></div>'+
+        '<div class="rk-q">'+s.contagens+'</div>'+
+        '<div class="rk-p" style="color:'+cor+'">'+(ac==null?"—":ac.toFixed(0)+"%")+'</div></div>';
+  });
+  return h2+'<div class="gz-hint" style="margin-top:9px">Barra = volume contado. Percentual = '+
+    'acuracidade do setor. Setor com muito volume e percentual baixo é onde vale começar.</div></div>';
+}
+
+/* O navegador usa o document.title como nome sugerido do arquivo.
+   Trocamos antes de imprimir e devolvemos depois. */
+function gerarPdf(){
+  var orig=document.title;
+  function dt(s){ var p=String(s||"").split("-"); return p.length===3?(p[2]+p[1]+p[0]):""; }
+  var a=dt(KPI&&KPI.periodo?KPI.periodo.de:"");
+  var b=dt(KPI&&KPI.periodo?KPI.periodo.ate:"");
+  var per=(!a&&!b)?dt(hojeIso()):(a===b?a:a+"_a_"+b);
+  document.title="Contagem_"+(UNI==="vix"?"MercLiberdadeVIX":"QFood")+"_"+per;
+  window.print();
+  setTimeout(function(){ document.title=orig; },1200);
+}
+
+/* Velocímetro no padrão do modelo. O ponteiro assume a cor da faixa
+   onde a agulha parou — assim a leitura funciona antes do número. */
+function gzArco(v, vazio, maiorMelhor, corTexto, num, sufixo, extra){
+  var CX=100, CY=104, R=68, W=15, GAP=1.1;
+
+  function pt(r,val){
+    var th=(180-1.8*val)*Math.PI/180;
+    return [(CX+r*Math.cos(th)), (CY-r*Math.sin(th))];
+  }
+  function arco(a,b,cor,op){
+    var p1=pt(R,a), p2=pt(R,b);
+    return '<path d="M '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+
+      ' A '+R+' '+R+' 0 0 1 '+p2[0].toFixed(1)+' '+p2[1].toFixed(1)+
+      '" fill="none" stroke="'+cor+'" stroke-width="'+W+'" stroke-linecap="butt"'+
+      (op?' opacity="'+op+'"':'')+'/>';
+  }
+
+  var faixas=[[0,28,"#e03131"],[28,50,"#f76707"],[50,75,"#fcc419"],
+              [75,90,"#94d82d"],[90,100,"#2f9e44"]];
+  if(maiorMelhor===false){
+    faixas=faixas.map(function(f){ return [100-f[1],100-f[0],f[2]]; }).reverse();
+  }
+
+  // Cor da faixa onde o ponteiro parou
+  var corPont="#8fa0c0";
+  faixas.forEach(function(f){ if(v>=f[0] && v<=f[1]) corPont=f[2]; });
+
+  var s='<svg viewBox="0 0 200 148">';
+  faixas.forEach(function(f){
+    var a=f[0]+(f[0]>0?GAP:0), b=f[1]-(f[1]<100?GAP:0);
+    if(b>a) s+=arco(a,b,f[2], vazio?0.20:1);
+  });
+
+  [["0%",24,116,"middle"],["50%",100,22,"middle"],["75%",166,50,"start"],
+   ["90%",185,88,"start"],["100%",178,116,"middle"]].forEach(function(t){
+    s+='<text x="'+t[1]+'" y="'+t[2]+'" text-anchor="'+t[3]+'" fill="#8fa0c0" '+
+       'style="font-family:DM Sans;font-size:9.5px">'+t[0]+'</text>';
+  });
+
+  if(!vazio){
+    var tip=pt(R-11, v);
+    s+='<line x1="'+CX+'" y1="'+CY+'" x2="'+tip[0].toFixed(1)+'" y2="'+tip[1].toFixed(1)+
+       '" stroke="'+corPont+'" stroke-width="4.5" stroke-linecap="round"/>'+
+       '<circle cx="'+CX+'" cy="'+CY+'" r="5.5" fill="'+corPont+'"/>'+
+       '<circle cx="'+CX+'" cy="'+CY+'" r="2" fill="#1a1f2e"/>';
+  }
+
+  // Número na cor da faixa, igual ao ponteiro — sem isso os dois podem
+  // discordar, porque as faixas do arco e os limites de cor do texto
+  // usam cortes diferentes.
+  var corNum = vazio ? "#5e718e" : corPont;
+
+  s+=(extra||"")+
+    '<text x="100" y="128" text-anchor="middle" fill="'+corNum+'" '+
+      'style="font-family:Syne,sans-serif;font-size:21px;font-weight:800">'+num+'</text>'+
+    '<text x="100" y="142" text-anchor="middle" fill="#8fa0c0" '+
+      'style="font-family:DM Sans,sans-serif;font-size:9.5px">'+sufixo+'</text></svg>';
+  return s;
+}
+
+function gauge(pct,nome,hint,maiorMelhor,lim){
+  var vazio=(pct==null||isNaN(pct));
+  var v=vazio?0:Math.max(0,Math.min(100,pct));
+  lim=lim||(maiorMelhor===false?[10,25]:[90,97]);
+  var cor;
+  if(vazio) cor="#5e718e";
+  else if(maiorMelhor===false) cor=v<=lim[0]?"#36cfa0":(v<=lim[1]?"#ffaa2b":"#ff4d4f");
+  else cor=v>=lim[1]?"#36cfa0":(v>=lim[0]?"#ffaa2b":"#ff4d4f");
+
+  return '<div class="gz">'+
+    gzArco(v, vazio, maiorMelhor, cor,
+           (vazio?"—":v.toFixed(1).replace(".",",")),
+           (vazio?"sem dados":"%"))+
+    '<div class="gz-nm">'+esc(nome)+'</div><div class="gz-hint">'+esc(hint)+'</div></div>';
+}
+
+/* Balanço falta x sobra.
+   Ponteiro à direita = falta física (contamos menos que o sistema).
+   Ponteiro à esquerda = sobra física. O meio é o equilíbrio. */
+function gaugeBalanco(k){
+  var v=k.balancoFaltaPct;
+  var vazio=(v==null||isNaN(v));
+  var R=70,LEN=Math.PI*R;
+  var pos=vazio?50:Math.max(0,Math.min(100,v));
+  var off=LEN*(1-pos/100);
+
+  var destaque,rotulo,cor;
+  if(vazio){ destaque="—"; rotulo="sem divergência"; cor="#5e718e"; }
+  else if(pos>55){ destaque=pos.toFixed(0); rotulo="FALTA"; cor="#ff4d4f"; }
+  else if(pos<45){ destaque=(100-pos).toFixed(0); rotulo="SOBRA"; cor="#22d3ee"; }
+  else{ destaque=pos.toFixed(0); rotulo="EQUILIBRADO"; cor="#ffaa2b"; }
+
+  var hint = vazio
+    ? "Nenhuma divergência no período"
+    : "Faltando "+k.unidadesFalta+" un em "+k.itensComFalta+" itens · "+
+      "sobrando "+k.unidadesSobra+" un em "+k.itensComSobra+" itens";
+
+  // Escala própria: sobra à esquerda, equilíbrio no meio, falta à direita.
+  // O meio é âmbar e não verde de propósito — falta e sobra se cancelando
+  // é erro de lançamento, não acerto.
+  var CX2=100, CY2=104, R2=68, W2=15, GAP2=1.1;
+  function pt2(r,val){
+    var th=(180-1.8*val)*Math.PI/180;
+    return [(CX2+r*Math.cos(th)), (CY2-r*Math.sin(th))];
+  }
+  function arco2(a,b,c){
+    var p1=pt2(R2,a), p2=pt2(R2,b);
+    return '<path d="M '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+
+      ' A '+R2+' '+R2+' 0 0 1 '+p2[0].toFixed(1)+' '+p2[1].toFixed(1)+
+      '" fill="none" stroke="'+c+'" stroke-width="'+W2+'" stroke-linecap="butt"'+
+      (vazio?' opacity="0.20"':'')+'/>';
+  }
+
+  var faixas2=[[0,25,"#22b8cf"],[25,45,"#66d9e8"],[45,55,"#fcc419"],
+               [55,75,"#f76707"],[75,100,"#e03131"]];
+  var corPont2="#8fa0c0";
+  faixas2.forEach(function(f){ if(pos>=f[0] && pos<=f[1]) corPont2=f[2]; });
+
+  var s2='<svg viewBox="0 0 200 148">';
+  faixas2.forEach(function(f){
+    var a=f[0]+(f[0]>0?GAP2:0), b=f[1]-(f[1]<100?GAP2:0);
+    if(b>a) s2+=arco2(a,b,f[2]);
+  });
+
+  s2+='<text x="24" y="116" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans;font-size:9.5px">sobra</text>'+
+      '<text x="100" y="22" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans;font-size:9.5px">meio</text>'+
+      '<text x="178" y="116" text-anchor="middle" fill="#8fa0c0" style="font-family:DM Sans;font-size:9.5px">falta</text>';
+
+  if(!vazio){
+    var tip2=pt2(R2-11,pos);
+    s2+='<line x1="'+CX2+'" y1="'+CY2+'" x2="'+tip2[0].toFixed(1)+'" y2="'+tip2[1].toFixed(1)+
+        '" stroke="'+corPont2+'" stroke-width="4.5" stroke-linecap="round"/>'+
+        '<circle cx="'+CX2+'" cy="'+CY2+'" r="5.5" fill="'+corPont2+'"/>'+
+        '<circle cx="'+CX2+'" cy="'+CY2+'" r="2" fill="#1a1f2e"/>';
+  }
+
+  var corNum2 = vazio ? "#5e718e" : corPont2;
+  s2+='<text x="100" y="128" text-anchor="middle" fill="'+corNum2+'" '+
+        'style="font-family:Syne,sans-serif;font-size:21px;font-weight:800">'+destaque+(vazio?"":"%")+'</text>'+
+      '<text x="100" y="142" text-anchor="middle" fill="'+corNum2+'" '+
+        'style="font-family:Syne,sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1px">'+rotulo+'</text></svg>';
+
+  return '<div class="gz">'+s2+
+    '<div class="gz-nm">Balanço do estoque</div><div class="gz-hint">'+esc(hint)+'</div></div>';
+}
+
+/* Curva de acuracidade diária, SVG puro */
+function linha(serie){
+  var pts=serie.filter(function(s){return s.acuracidade!=null;});
+  if(pts.length<2) return '<div class="gz-hint">Dados insuficientes para a curva.</div>';
+  var W=760,H=170,PL=42,PR=12,PT=14,PB=26,iw=W-PL-PR,ih=H-PT-PB;
+  var min=Math.min.apply(null,pts.map(function(p){return p.acuracidade;}));
+  var lo=Math.max(0,Math.floor((min-5)/10)*10),hi=100;
+  function X(i){ return PL+(pts.length===1?iw/2:(i/(pts.length-1))*iw); }
+  function Y(v){ return PT+ih-((v-lo)/(hi-lo))*ih; }
+
+  var g="";
+  [lo,(lo+hi)/2,hi].forEach(function(v){
+    g+='<line x1="'+PL+'" y1="'+Y(v)+'" x2="'+(W-PR)+'" y2="'+Y(v)+'" stroke="#2e3447" stroke-width="1"/>'+
+       '<text x="'+(PL-7)+'" y="'+(Y(v)+4)+'" text-anchor="end" fill="#5e718e" style="font-family:DM Sans;font-size:10px">'+Math.round(v)+'%</text>';
+  });
+  g+='<path d="'+pts.map(function(p,i){return (i?"L":"M")+X(i).toFixed(1)+" "+Y(p.acuracidade).toFixed(1);}).join(" ")+
+     '" fill="none" stroke="#36cfa0" stroke-width="2.5" stroke-linejoin="round"/>';
+  var passo=Math.ceil(pts.length/8);
+  pts.forEach(function(p,i){
+    var c=p.acuracidade>=97?"#36cfa0":(p.acuracidade>=90?"#ffaa2b":"#ff4d4f");
+    g+='<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(p.acuracidade).toFixed(1)+'" r="3.6" fill="'+c+'"/>';
+    if(i%passo===0||i===pts.length-1)
+      g+='<text x="'+X(i).toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#5e718e" '+
+         'style="font-family:DM Sans;font-size:10px">'+p.data.slice(8,10)+"/"+p.data.slice(5,7)+'</text>';
+  });
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'+g+'</svg>'+
+         '<div class="gz-hint">Acuracidade por dia. Pontos vermelhos são dias abaixo de 90%.</div>';
+}
+
+/* Enter grava direto no modal de contagem */
+document.getElementById("qty-in").addEventListener("keydown",function(e){
+  if(e.key==="Enter"){ e.preventDefault(); salvarQtd(); }
+});
+</script>
+</body>
+</html>

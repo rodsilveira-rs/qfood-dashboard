@@ -1,0 +1,2367 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Q Food — Central de Requisições</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
+  --br:rgba(255,255,255,0.10);--b2:rgba(255,255,255,0.18);--b3:rgba(255,255,255,0.26);
+  --tx:#eef1f8;--mu:#8fa0c0;--mu2:#5e718e;
+  --red:#ff4d4f;--ok:#36cfa0;--warn:#ffaa2b;--blue:#4d8ef5;--pur:#a07cf6;--cyan:#22d3ee;
+  --lime:#84cc16;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh;padding:0 0 60px;}
+button,input,select,textarea{font-family:var(--fb);}
+a{color:var(--blue);}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px;}
+@media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important;}}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px;}
+
+/* ---- TOPO ---- */
+.top{border-bottom:1px solid var(--br);background:var(--sf);position:sticky;top:0;z-index:50;}
+.top-in{max-width:1080px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;}
+.top-back{color:var(--mu);text-decoration:none;font-size:0.82rem;white-space:nowrap;}
+.top-back:hover{color:var(--tx);}
+.top-title{font-family:var(--fh);font-weight:700;font-size:1.05rem;flex:1;}
+.top-user{font-size:0.74rem;color:var(--mu2);white-space:nowrap;}
+.sino{position:relative;background:none;border:1px solid var(--br);border-radius:10px;color:var(--tx);
+  padding:7px 11px;cursor:pointer;font-size:0.95rem;}
+.sino:hover{border-color:var(--b2);}
+.sino-n{position:absolute;top:-6px;right:-6px;background:var(--lime);color:#12200a;font-size:0.62rem;
+  font-weight:700;border-radius:999px;min-width:18px;height:18px;line-height:18px;padding:0 5px;display:none;}
+.btn-nova{background:var(--lime);color:#12200a;border:none;border-radius:10px;padding:9px 16px;
+  font-family:var(--fh);font-weight:700;font-size:0.82rem;cursor:pointer;white-space:nowrap;}
+.btn-nova:hover{filter:brightness(1.08);}
+
+/* ---- CONTADORES ---- */
+.cnt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:22px 0 18px;}
+.cnt{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:14px 18px;cursor:pointer;
+  text-align:left;color:var(--tx);transition:all .15s;box-shadow:0 1px 0 rgba(255,255,255,.05) inset;}
+.cnt:hover{background:var(--s3);border-color:var(--b3);transform:translateY(-1px);}
+.cnt:active{transform:translateY(0);}
+.cnt.on{background:var(--s3);border-color:var(--lime);box-shadow:0 0 0 1px var(--lime) inset;}
+.cnt-n{font-family:var(--fh);font-size:1.7rem;font-weight:800;line-height:1;color:var(--tx);}
+.cnt-l{font-size:0.74rem;color:var(--mu);margin-top:6px;font-weight:500;}
+.cnt.on .cnt-l{color:var(--tx);}
+.cnt.destaque .cnt-n{color:var(--warn);}
+.cnt.alerta .cnt-n{color:var(--red);}
+.rq-acoes{display:flex;gap:6px;margin-top:4px;}
+.rq-acoes .btn{padding:6px 12px;font-size:0.72rem;}
+
+/* ---- FILTROS ---- */
+.filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.inp,.sel{background:var(--bg);border:1px solid var(--br);border-radius:10px;padding:9px 12px;
+  color:var(--tx);font-size:0.82rem;outline:none;}
+.inp:focus,.sel:focus{border-color:var(--b2);}
+.inp::placeholder{color:var(--mu2);}
+.filtros .inp{flex:1;min-width:180px;}
+
+/* ---- LISTA ---- */
+.lista{display:flex;flex-direction:column;gap:10px;}
+.rq{background:var(--sf);border:1px solid var(--br);border-left:3px solid var(--s3);border-radius:12px;
+  padding:14px 16px;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:10px;transition:border-color .15s;}
+.rq:hover{border-color:var(--b2);}
+.rq.novo{border-left-color:var(--lime);background:linear-gradient(90deg,rgba(132,204,22,0.06),transparent 40%);}
+.rq-id{font-family:var(--fh);font-size:0.72rem;color:var(--mu2);letter-spacing:0.4px;}
+.rq-tit{font-family:var(--fh);font-weight:700;font-size:0.98rem;margin:2px 0 6px;}
+.rq-meta{font-size:0.74rem;color:var(--mu);line-height:1.6;}
+.rq-dir{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+.rq-quando{font-size:0.68rem;color:var(--mu2);}
+.chip{display:inline-block;font-size:0.68rem;font-weight:500;padding:4px 10px;border-radius:999px;
+  border:1px solid var(--br);background:var(--s2);color:var(--mu);white-space:nowrap;}
+.chip.nova,.chip.em_triagem{background:rgba(255,170,43,.14);color:var(--warn);border-color:rgba(255,170,43,.3);}
+.chip.em_analise,.chip.em_cotacao{background:rgba(77,142,245,.14);color:var(--blue);border-color:rgba(77,142,245,.3);}
+.chip.aguardando_informacao,.chip.aguardando_aprovacao{background:rgba(160,124,246,.14);color:var(--pur);border-color:rgba(160,124,246,.3);}
+.chip.comprada,.chip.aguardando_entrega{background:rgba(34,211,238,.14);color:var(--cyan);border-color:rgba(34,211,238,.3);}
+.chip.recebida_ok,.chip.concluida{background:rgba(54,207,160,.14);color:var(--ok);border-color:rgba(54,207,160,.3);}
+.chip.recebida_parcial,.chip.recebida_divergencia{background:rgba(255,77,79,.14);color:var(--red);border-color:rgba(255,77,79,.3);}
+.chip.cancelada,.chip.recusada{background:var(--s2);color:var(--mu2);}
+.chip.urg{background:rgba(255,77,79,.14);color:var(--red);border-color:rgba(255,77,79,.3);}
+
+.vazio{background:var(--sf);border:1px dashed var(--b2);border-radius:14px;padding:44px 24px;text-align:center;}
+.vazio-t{font-family:var(--fh);font-weight:700;margin-bottom:6px;}
+.vazio-s{font-size:0.82rem;color:var(--mu);margin-bottom:18px;}
+
+/* ---- DETALHE ---- */
+.det-hdr{display:flex;align-items:flex-start;gap:14px;margin:22px 0 16px;flex-wrap:wrap;}
+.det-tit{font-family:var(--fh);font-size:1.35rem;font-weight:800;flex:1;min-width:240px;}
+.card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 20px;margin-bottom:14px;}
+.card-t{font-family:var(--fh);font-weight:700;font-size:0.9rem;margin-bottom:14px;}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;font-size:0.84rem;}
+.kv dt{color:var(--mu);}
+.kv dd{color:var(--tx);}
+.aguardando{background:rgba(255,170,43,.1);border:1px solid rgba(255,170,43,.25);border-radius:10px;
+  padding:11px 14px;font-size:0.84rem;color:var(--warn);margin-bottom:14px;}
+
+.item{border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:8px;background:var(--bg);}
+.item-d{font-weight:500;font-size:0.9rem;}
+.item-e{font-size:0.76rem;color:var(--mu);margin-top:5px;line-height:1.6;}
+
+.anexos{display:flex;flex-wrap:wrap;gap:10px;}
+.anexo{display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--br);
+  border-radius:10px;padding:9px 13px;font-size:0.78rem;color:var(--tx);text-decoration:none;max-width:280px;}
+.anexo:hover{border-color:var(--b2);}
+.anexo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anexo small{color:var(--mu2);font-size:0.68rem;}
+
+/* ---- TIMELINE ---- */
+.tl{position:relative;padding-left:26px;}
+.tl:before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:var(--s3);}
+.ev{position:relative;padding-bottom:18px;}
+.ev:last-child{padding-bottom:0;}
+.ev:before{content:"";position:absolute;left:-23px;top:5px;width:10px;height:10px;border-radius:50%;
+  background:var(--s3);border:2px solid var(--sf);}
+.ev.status:before{background:var(--blue);}
+.ev.compra:before{background:var(--cyan);}
+.ev.recebimento:before{background:var(--ok);}
+.ev.criacao:before{background:var(--lime);}
+.ev-h{font-size:0.72rem;color:var(--mu2);margin-bottom:3px;}
+.ev-h b{color:var(--mu);font-weight:500;}
+.ev-c{font-size:0.86rem;line-height:1.6;}
+
+/* ---- FORM ---- */
+.campo{margin-bottom:14px;}
+.lbl{display:block;font-size:0.76rem;color:var(--mu);margin-bottom:6px;}
+.lbl i{color:var(--mu2);font-style:normal;}
+.campo .inp,.campo .sel,.campo textarea{width:100%;}
+textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
+.linha{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.linha3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.mais{background:none;border:1px dashed var(--b2);border-radius:10px;color:var(--mu);padding:9px 14px;
+  font-size:0.78rem;cursor:pointer;width:100%;}
+.mais:hover{color:var(--tx);border-color:var(--b3);}
+.extra{display:none;margin-top:12px;}
+.extra.on{display:block;}
+
+.btn{border:none;border-radius:10px;padding:10px 18px;font-family:var(--fh);font-weight:700;
+  font-size:0.82rem;cursor:pointer;}
+.btn-p{background:var(--lime);color:#12200a;}
+.btn-s{background:var(--s2);color:var(--tx);border:1px solid var(--br);}
+.btn-s:hover{border-color:var(--b2);}
+.btn-ok{background:rgba(54,207,160,.16);color:var(--ok);border:1px solid rgba(54,207,160,.35);}
+.btn-w{background:rgba(255,170,43,.16);color:var(--warn);border:1px solid rgba(255,170,43,.35);}
+.btn-d{background:rgba(255,77,79,.14);color:var(--red);border:1px solid rgba(255,77,79,.3);}
+.btn:disabled{opacity:.55;cursor:wait;}
+.btns{display:flex;gap:10px;flex-wrap:wrap;}
+
+.anexar-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+.anexar-bar .btn-s{font-size:0.76rem;padding:8px 13px;}
+
+/* ---- GALERIA DE FOTOS ---- */
+.galeria{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-bottom:12px;}
+.foto{border:1px solid var(--br);border-radius:12px;overflow:hidden;background:var(--bg);}
+.foto-cab{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;
+  background:var(--s2);font-size:0.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.4px;}
+.foto-cab a{color:var(--blue);text-decoration:none;font-size:0.68rem;white-space:nowrap;}
+.foto-img{width:100%;height:190px;object-fit:cover;display:block;background:var(--s2);cursor:zoom-in;border:none;}
+.foto-erro{padding:26px 12px;text-align:center;font-size:0.74rem;color:var(--mu2);}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:none;
+  align-items:center;justify-content:center;padding:24px;cursor:zoom-out;}
+.lightbox.on{display:flex;}
+.lightbox img{max-width:100%;max-height:100%;border-radius:8px;}
+
+/* ---- MODAL ---- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:250;display:none;
+  align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;}
+.modal.on{display:flex;}
+.modal-cx{background:var(--sf);border:1px solid var(--b2);border-radius:16px;padding:22px 24px;
+  max-width:620px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.modal-t{font-family:var(--fh);font-weight:700;font-size:1.05rem;margin-bottom:6px;}
+.modal-s{font-size:0.8rem;color:var(--mu);margin-bottom:16px;line-height:1.6;}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}
+.slot{border:1px dashed var(--b2);border-radius:12px;height:120px;cursor:pointer;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;
+  background:var(--bg);color:var(--mu2);font-size:0.72rem;padding:8px;text-align:center;}
+.slot:hover{border-color:var(--lime);color:var(--mu);}
+.slot img{width:100%;height:100%;object-fit:cover;}
+.slot-x{font-size:1.4rem;}
+.slot.cheio{border-style:solid;border-color:var(--lime);padding:0;}
+.obrig{color:var(--red);}
+
+/* ---- OVERLAY DE GRAVAÇÃO ---- */
+.gravando{position:fixed;inset:0;background:rgba(10,13,20,.72);z-index:400;display:none;
+  align-items:center;justify-content:center;flex-direction:column;gap:16px;cursor:progress;}
+.gravando.on{display:flex;}
+.spin{width:42px;height:42px;border:3px solid var(--s3);border-top-color:var(--lime);
+  border-radius:50%;animation:girar .7s linear infinite;}
+@keyframes girar{to{transform:rotate(360deg);}}
+.gravando-t{font-family:var(--fh);font-weight:700;font-size:0.92rem;}
+
+.slot-arq{border:1px dashed var(--b2);border-radius:12px;padding:14px;cursor:pointer;background:var(--bg);
+  color:var(--mu2);font-size:0.78rem;display:flex;align-items:center;gap:10px;}
+.slot-arq:hover{border-color:var(--lime);color:var(--mu);}
+.slot-arq.cheio{border-style:solid;border-color:var(--lime);color:var(--tx);}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--s3);
+  border:1px solid var(--b2);border-radius:12px;padding:13px 20px;font-size:0.84rem;z-index:200;
+  display:none;max-width:90vw;box-shadow:0 8px 30px rgba(0,0,0,.4);}
+.toast.err{border-color:rgba(255,77,79,.5);color:#ffd7d7;}
+.carregando{text-align:center;color:var(--mu2);font-size:0.84rem;padding:34px;}
+
+/* ---- ABAS ---- */
+.abas{display:flex;gap:8px;margin:20px 0 4px;border-bottom:1px solid var(--br);}
+.aba{background:none;border:none;border-bottom:2px solid transparent;color:var(--mu);
+  padding:10px 16px;font-family:var(--fh);font-weight:700;font-size:0.86rem;cursor:pointer;}
+.aba:hover{color:var(--tx);}
+.aba.on{color:var(--tx);border-bottom-color:var(--lime);}
+
+/* ---- VELOCÍMETROS ---- */
+.gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0;}
+.gauge{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:16px 18px 14px;text-align:center;}
+.gauge svg{width:100%;max-width:186px;height:auto;display:block;margin:0 auto;}
+.g-pct{font-family:var(--fh);font-weight:800;font-size:3.4rem;line-height:1;}
+.g-sub{font-size:0.7rem;fill:var(--mu2);}
+.g-tit{font-family:var(--fh);font-weight:700;font-size:0.92rem;margin-top:10px;}
+.g-desc{font-size:0.74rem;color:var(--mu);margin-top:6px;line-height:1.55;}
+.g-base{font-size:0.7rem;color:var(--mu2);margin-top:10px;padding-top:10px;border-top:1px solid var(--br);}
+
+/* ---- CARDS DE NÚMERO ---- */
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.num{background:var(--s2);border:1px solid var(--b2);border-radius:14px;padding:16px 18px;}
+.num-n{font-family:var(--fh);font-size:1.6rem;font-weight:800;line-height:1;}
+.num-l{font-size:0.73rem;color:var(--mu);margin-top:6px;}
+.num.alerta .num-n{color:var(--red);}
+
+.card{background:var(--sf);border:1px solid var(--br);border-radius:16px;padding:20px;margin-bottom:16px;}
+.card-t{font-family:var(--fh);font-weight:700;font-size:0.92rem;margin-bottom:4px;}
+.card-s{font-size:0.74rem;color:var(--mu2);margin-bottom:16px;}
+.graficos{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.chart-box{position:relative;height:260px;}
+
+table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+th{text-align:left;font-size:0.7rem;color:var(--mu2);text-transform:uppercase;letter-spacing:0.4px;
+  padding:8px 10px;border-bottom:1px solid var(--br);font-weight:500;}
+td{padding:10px;border-bottom:1px solid var(--br);}
+tr:last-child td{border-bottom:none;}
+.dias{font-family:var(--fh);font-weight:700;}
+.dias.ruim{color:var(--red);}
+.dias.atencao{color:var(--warn);}
+
+.carregando{text-align:center;color:var(--mu2);font-size:0.86rem;padding:60px;}
+.vazio{color:var(--mu2);font-size:0.82rem;padding:20px;text-align:center;}
+
+@media(max-width:900px){
+  .gauges{grid-template-columns:1fr;}
+  .nums{grid-template-columns:repeat(2,1fr);}
+  .graficos{grid-template-columns:1fr;}
+}
+
+/* ---- IMPRESSÃO / PDF ---- */
+.print-cab{display:none;}
+@media print{
+  @page{margin:14mm;}
+  body{background:#fff;color:#111;padding:0;}
+  .top,#v-lista,#v-nova,#v-kpi,.abas,.toast,.btns,.anexar-bar,.modal,.lightbox,.det-hdr .btn,.det-hdr .chip{display:none !important;}
+  .wrap{max-width:100%;padding:0;}
+  .print-cab{display:block;border-bottom:2px solid #111;padding-bottom:10px;margin-bottom:16px;}
+  .print-cab h1{font-family:var(--fh);font-size:1.3rem;margin-bottom:4px;}
+  .print-cab div{font-size:0.8rem;color:#555;}
+  .card{background:#fff;border:1px solid #bbb;break-inside:avoid;margin-bottom:10px;}
+  .card-t,.det-tit,.item-d{color:#111;}
+  .kv dt,.rq-meta,.item-e,.ev-h,.ev-h b,.foto-cab{color:#555;}
+  .kv dd,.ev-c{color:#111;}
+  .item,.anexo,.foto{background:#fff;border-color:#ccc;color:#111;}
+  .foto-cab{background:#f2f2f2;}
+  .foto-img{height:auto;max-height:70mm;object-fit:contain;}
+  .galeria{grid-template-columns:repeat(2,1fr);}
+  .aguardando{background:#fff;border:1px solid #999;color:#111;}
+  .tl:before{background:#bbb;}
+  .ev:before{border-color:#fff;background:#999;}
+  a{color:#111;text-decoration:underline;}
+}
+
+@media(max-width:760px){
+  .cnt-grid{grid-template-columns:repeat(2,1fr);}
+  .slots{grid-template-columns:1fr;}
+  .slot{height:150px;}
+  .linha,.linha3{grid-template-columns:1fr;}
+  .kv{grid-template-columns:1fr;gap:2px 0;}
+  .kv dd{margin-bottom:8px;}
+  .rq{grid-template-columns:1fr;}
+  .rq-dir{align-items:flex-start;text-align:left;flex-direction:row;}
+  .top-user{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="top-in">
+    <a href="Index_Menu.html" class="top-back">← Menu</a>
+    <div class="top-title" id="titulo">Central de Requisições</div>
+    <div class="top-user" id="quem">—</div>
+    <button class="sino" id="sino" title="Novidades">🔔<span class="sino-n" id="sino-n">0</span></button>
+    <button class="btn-nova" id="btn-nova">+ Nova requisição</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="abas" id="abas" style="display:none">
+    <button class="aba on" data-aba="fila">Requisições</button>
+    <button class="aba" data-aba="kpi">📊 Indicadores</button>
+  </div>
+
+  <!-- LISTA -->
+  <div id="v-lista">
+    <div class="cnt-grid" id="cnt-grid"></div>
+
+    <div class="filtros">
+      <input class="inp" id="f-busca" placeholder="Buscar por número, título ou solicitante">
+      <select class="sel" id="f-empresa"><option value="">Todas as empresas</option></select>
+      <select class="sel" id="f-status"><option value="">Todos os status</option></select>
+    </div>
+
+    <div class="lista" id="lista"></div>
+  </div>
+
+  <!-- DETALHE -->
+  <div id="v-detalhe" style="display:none"></div>
+
+  <!-- NOVA -->
+  <div id="v-nova" style="display:none"></div>
+
+  <!-- KPIs -->
+  <div id="v-kpi" style="display:none"></div>
+</div>
+
+<div class="gravando" id="gravando"><div class="spin"></div><div class="gravando-t" id="gravando-t">Salvando…</div></div>
+<div class="modal" id="modal"><div class="modal-cx" id="modal-cx"></div></div>
+<div class="lightbox" id="lightbox" onclick="ReqFoto.fechar()"><img id="lightbox-img" alt=""></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   CENTRAL DE REQUISIÇÕES — Index_Requisicoes.html
+   Frontend do módulo REQ_ (backend em Code_Requisicoes.gs).
+
+   ⚠️ CONFIRA A API_URL ABAIXO: tem que ser a MESMA usada pelos
+   outros módulos (o deployment antigo, AKfycbwf1CiH...).
+   Pegue em: Implantar > Gerenciar implantações > botão copiar.
+   ════════════════════════════════════════════════════════════════ */
+
+var API_URL = "https://script.google.com/macros/s/AKfycbyso-KAp8Dz6h_zoBzImoGQ2FhHPDvYDpZG0dV0M5jVGHzGT1_6f8fKsXmmJ0-YPhrChQ/exec";
+
+// ────────────────────────────────────────────────────────────
+// 1. CONFIG
+// ────────────────────────────────────────────────────────────
+var ReqConfig = {
+  pollingMs:      5 * 60 * 1000,   // 5 min, só com a aba visível
+  maxLadoFoto:    1600,            // px — comprime antes de subir
+  qualidadeFoto:  0.8,
+  sessaoMs:       8 * 60 * 60 * 1000
+};
+
+// ────────────────────────────────────────────────────────────
+// 2. ESTADO
+// ────────────────────────────────────────────────────────────
+var ReqState = {
+  sessao:      null,
+  config:      null,
+  lista:       [],
+  novidades:   {ids:[], total:0},
+  escopo:      "abertas",
+  detalheId:   null,
+  reqAtual:    null,
+  timer:       null,
+  anexosNovos: []      // anexos da tela de criação (só links; arquivos sobem depois)
+};
+
+// ────────────────────────────────────────────────────────────
+// 3. API
+// ────────────────────────────────────────────────────────────
+var ReqAPI = {
+  get: function(action, params){
+    var q = "?modulo=requisicoes&action=" + encodeURIComponent(action) +
+            "&email=" + encodeURIComponent(ReqState.sessao.email);
+    Object.keys(params || {}).forEach(function(k){
+      if(params[k] !== undefined && params[k] !== null && params[k] !== ""){
+        q += "&" + k + "=" + encodeURIComponent(params[k]);
+      }
+    });
+    return fetch(API_URL + q)
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok) throw new Error(j.error || "Falha na leitura");
+        return j.resultado;
+      });
+  },
+
+  // Uma gravação por vez. Enquanto ela corre, a tela fica bloqueada —
+  // sem isso a pessoa clica de novo e o LockService recusa a segunda.
+  ocupado: false,
+
+  post: function(action, payload, rotulo){
+    if(ReqAPI.ocupado){
+      return Promise.reject(new Error("Já estou salvando. Aguarde um instante."));
+    }
+    ReqAPI.ocupado = true;
+    ReqAPI.bloquear(rotulo || "Salvando…");
+
+    payload = payload || {};
+    payload.email = ReqState.sessao.email;
+    var body = new URLSearchParams();
+    body.append("action", action);
+    body.append("payload", JSON.stringify(payload));
+
+    return fetch(API_URL + "?modulo=requisicoes", {method:"POST", body:body})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(!j.ok) throw new Error(j.error || "Falha ao gravar");
+        return j.resultado;
+      })
+      .finally(function(){
+        ReqAPI.ocupado = false;
+        ReqAPI.liberar();
+      });
+  },
+
+  bloquear: function(rotulo){
+    document.getElementById("gravando-t").textContent = rotulo;
+    document.getElementById("gravando").classList.add("on");
+  },
+
+  liberar: function(){
+    document.getElementById("gravando").classList.remove("on");
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 4. SESSÃO
+// ────────────────────────────────────────────────────────────
+function ReqSessao(){
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem("qfood_session") || "null"); } catch(_){}
+  if(!s || !s.email || (Date.now() - s.ts > ReqConfig.sessaoMs)){
+    location.href = "Index_Menu.html";
+    return null;
+  }
+  return s;
+}
+
+// ────────────────────────────────────────────────────────────
+// 5. UTILITÁRIOS
+// ────────────────────────────────────────────────────────────
+function esc(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+function dataBr(iso){
+  if(!iso) return "";
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return String(iso).substring(0,10);
+  return ("0"+d.getDate()).slice(-2) + "/" + ("0"+(d.getMonth()+1)).slice(-2) + "/" + d.getFullYear();
+}
+
+function horaBr(iso){
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  return dataBr(iso) + " " + ("0"+d.getHours()).slice(-2) + ":" + ("0"+d.getMinutes()).slice(-2);
+}
+
+function desde(iso){
+  var d = new Date(iso);
+  if(isNaN(d.getTime())) return "";
+  var min = Math.floor((Date.now() - d.getTime()) / 60000);
+  if(min < 1)    return "agora";
+  if(min < 60)   return "há " + min + " min";
+  var h = Math.floor(min / 60);
+  if(h < 24)     return "há " + h + "h";
+  var dias = Math.floor(h / 24);
+  if(dias === 1) return "ontem";
+  if(dias < 30)  return "há " + dias + " dias";
+  return dataBr(iso);
+}
+
+function nomeDe(email){
+  if(!email) return "—";
+  var alvo = String(email).toLowerCase();
+  var u = (ReqState.config && ReqState.config.usuario) || {};
+  if(alvo === (u.email||"").toLowerCase()) return "você";
+  var lista = (ReqState.config && ReqState.config.pessoas) || [];
+  for(var i = 0; i < lista.length; i++){
+    if(lista[i].email.toLowerCase() === alvo) return lista[i].nome;
+  }
+  return String(email).split("@")[0];
+}
+
+// Máscara de dinheiro: digita 12345 e vira R$ 123,45
+function moeda(el){
+  if(!el) return;
+  el.addEventListener("input", function(){
+    var v = el.value.replace(/\D/g, "");
+    if(!v){ el.value = ""; return; }
+    var n = (parseInt(v, 10) / 100).toFixed(2).split(".");
+    el.value = "R$ " + n[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + n[1];
+  });
+  el.setAttribute("inputmode", "numeric");
+}
+
+function toast(msg, erro){
+  var t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast" + (erro ? " err" : "");
+  t.style.display = "block";
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.style.display = "none"; }, erro ? 6000 : 3200);
+}
+
+function mostrar(qual){
+  ["lista","detalhe","nova","kpi"].forEach(function(v){
+    document.getElementById("v-" + v).style.display = (v === qual ? "block" : "none");
+  });
+  // As abas só fazem sentido sobre a lista e o painel
+  var abas = document.getElementById("abas");
+  if(abas && abas.dataset.liberado === "1"){
+    abas.style.display = (qual === "lista" || qual === "kpi") ? "flex" : "none";
+  }
+  window.scrollTo(0, 0);
+}
+
+// ────────────────────────────────────────────────────────────
+// 6. LISTA
+// ────────────────────────────────────────────────────────────
+var ReqLista = {
+  // Carrega tudo que o usuário pode ver, uma vez. Os escopos e filtros
+  // são recortes no cliente — assim os contadores nunca divergem da lista
+  // e trocar de aba é instantâneo.
+  carregar: function(){
+    document.getElementById("lista").innerHTML = '<div class="carregando">Carregando…</div>';
+    return ReqAPI.get("listar", {}).then(function(r){
+      ReqState.lista = r.requisicoes || [];
+      ReqHome.contar();
+      ReqLista.render();
+    }).catch(function(e){
+      document.getElementById("lista").innerHTML =
+        '<div class="vazio"><div class="vazio-t">Não deu para carregar</div>' +
+        '<div class="vazio-s">' + esc(e.message) + '</div></div>';
+    });
+  },
+
+  // Cada escopo é uma pergunta de trabalho, não um status técnico.
+  noEscopo: function(r, escopo){
+    var eu = ReqState.sessao.email.toLowerCase();
+    var meu = (r.abertoPor || "").toLowerCase() === eu ||
+              (r.solicitanteOriginal || "").toLowerCase() === eu;
+    var comigo = (r.responsavelAtual || "").toLowerCase() === eu;
+    var emTransito = (r.status === "COMPRADA" || r.status === "AGUARDANDO_ENTREGA");
+
+    switch(escopo){
+      case "aprovar":         return r.status === "EM_TRIAGEM" && ReqAprov.souAprovador(r.empresa);
+      case "comprar":         return r.status === "EM_ANALISE";
+      case "cotacao":         return r.status === "EM_COTACAO";
+      case "aguardando_resp": return r.status === "AGUARDANDO_INFORMACAO";
+      case "emcompras":       return !r.encerrada && !emTransito && meu;
+      case "entrega":         return emTransito;
+      case "minhas":          return meu && !r.encerrada;
+      case "comigo":          return comigo && !r.encerrada;
+      case "atrasadas":       return ReqPrazo.atrasada(r);
+      case "abertas":         return !r.encerrada;
+      default:                return true;   // todas
+    }
+  },
+
+  // Traduz status técnico em "quem precisa fazer o quê"
+  proximaAcao: function(r){
+    if(r.encerrada) return "Encerrada";
+    var quem = r.responsavelAtual ? nomeDe(r.responsavelAtual) : "";
+    if(r.status === "EM_TRIAGEM")            return quem + " precisa aprovar";
+    if(r.status === "EM_ANALISE")            return "Aguardando " + quem + " comprar";
+    if(r.status === "EM_COTACAO")            return quem + " retorna até " + dataBr(r.prazoRetorno);
+    if(r.status === "AGUARDANDO_INFORMACAO") return quem + " precisa responder";
+    if(r.status === "COMPRADA" ||
+       r.status === "AGUARDANDO_ENTREGA")    return "A caminho" + (r.prazoEntrega ? " · previsão " + dataBr(r.prazoEntrega) : "");
+    return quem ? "Aguardando " + quem : "";
+  },
+
+  // Ordem de trabalho, não ordem cronológica: primeiro o que está
+  // estourando, depois o que tem data mais próxima.
+  prioridade: function(a, b){
+    var peso = function(r){
+      if(r.encerrada) return 9;
+      if(ReqPrazo.atrasada(r)) return 0;
+      if(r.urgencia === "Emergencial") return 1;
+      if(r.urgencia === "Alta") return 2;
+      return r.dataNecessidade ? 3 : 4;
+    };
+    var pa = peso(a), pb = peso(b);
+    if(pa !== pb) return pa - pb;
+
+    var da = (a.dataNecessidade || "9999").substring(0, 10);
+    var db = (b.dataNecessidade || "9999").substring(0, 10);
+    if(da !== db) return da < db ? -1 : 1;
+
+    return (b.ultimaAtualizacao || "").localeCompare(a.ultimaAtualizacao || "");
+  },
+
+  render: function(){
+    var busca   = (document.getElementById("f-busca").value || "").toLowerCase().trim();
+    var empresa = document.getElementById("f-empresa").value;
+    var status  = document.getElementById("f-status").value;
+
+    var itens = ReqState.lista.filter(function(r){
+      if(!ReqLista.noEscopo(r, ReqState.escopo)) return false;
+      if(empresa && r.empresa !== empresa) return false;
+      if(status && r.status !== status) return false;
+      if(!busca) return true;
+      return (r.id + " " + r.titulo + " " + r.abertoPorNome + " " +
+              r.solicitanteOriginal + " " + r.empresa).toLowerCase().indexOf(busca) >= 0;
+    });
+
+    itens.sort(ReqLista.prioridade);
+
+    var el = document.getElementById("lista");
+    if(!itens.length){
+      el.innerHTML =
+        '<div class="vazio"><div class="vazio-t">Nada por aqui</div>' +
+        '<div class="vazio-s">' + esc(ReqHome.vazio()) + '</div>' +
+        '<button class="btn btn-p" onclick="ReqForm.abrir()">+ Nova requisição</button></div>';
+      return;
+    }
+
+    el.innerHTML = itens.map(function(r){
+      var novo = ReqState.novidades.ids.indexOf(r.id) >= 0;
+      var solic = r.solicitanteOriginal || r.abertoPorNome || r.abertoPor;
+      var linha2 = [r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ");
+      var podeAprovar = (r.status === "EM_TRIAGEM" && ReqAprov.souAprovador(r.empresa));
+
+      return '' +
+      '<div class="rq' + (novo ? ' novo' : '') + '" onclick="ReqDetalhe.abrir(\'' + r.id + '\')">' +
+        '<div>' +
+          '<div class="rq-id">' + esc(r.id) + (novo ? ' · novidade' : '') + '</div>' +
+          '<div class="rq-tit">' + esc(r.titulo) + '</div>' +
+          '<div class="rq-meta">' + esc(linha2) + '<br>Pedido por ' + esc(solic) +
+            (r.dataNecessidade ? ' · Precisa até ' + esc(dataBr(r.dataNecessidade)) : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="rq-dir">' +
+          '<span class="chip ' + r.status.toLowerCase() + '">' + esc(r.statusLabel) + '</span>' +
+          (r.urgencia === "Alta" || r.urgencia === "Emergencial"
+            ? '<span class="chip urg">' + esc(r.urgencia) + '</span>' : '') +
+          (ReqPrazo.atrasada(r) ? '<span class="chip urg">Retorno atrasado</span>' : '') +
+          '<span class="rq-quando">' + esc(ReqLista.proximaAcao(r)) + '</span>' +
+          '<span class="rq-quando">' + esc(desde(r.ultimaAtualizacao)) + '</span>' +
+          (podeAprovar
+            ? '<div class="rq-acoes">' +
+                '<button class="btn btn-ok" onclick="event.stopPropagation();ReqAprov.rapida(\'' + r.id + '\')">✓ Aprovar</button>' +
+              '</div>'
+            : '') +
+        '</div>' +
+      '</div>';
+    }).join("");
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 7. DETALHE + TIMELINE
+// ────────────────────────────────────────────────────────────
+var ReqDetalhe = {
+  abrir: function(id){
+    ReqState.detalheId = id;
+    mostrar("detalhe");
+    document.getElementById("v-detalhe").innerHTML = '<div class="carregando">Carregando ' + esc(id) + '…</div>';
+    ReqAPI.get("detalhe", {id:id}).then(function(d){
+      ReqDetalhe.render(d);
+      // Marcar como lida é cosmético. Se falhar, a requisição continua
+      // na tela — só o badge de novidade fica errado.
+      ReqAPI.post("marcarComoLida", {id:id})
+        .then(function(){ ReqNotif.atualizar(); })
+        .catch(function(){});
+    }).catch(function(e){
+      document.getElementById("v-detalhe").innerHTML =
+        '<div class="card"><div class="card-t">Não deu para abrir</div>' +
+        '<div class="rq-meta">' + esc(e.message) + '</div>' +
+        '<div class="btns" style="margin-top:14px"><button class="btn btn-s" onclick="ReqDetalhe.voltar()">Voltar</button></div></div>';
+    });
+  },
+
+  voltar: function(){
+    ReqState.detalheId = null;
+    document.querySelectorAll(".aba").forEach(function(x){
+      x.classList.toggle("on", x.dataset.aba === "fila");
+    });
+    mostrar("lista");
+    ReqLista.carregar();
+  },
+
+  recarregar: function(){
+    if(ReqState.detalheId) ReqDetalhe.abrir(ReqState.detalheId);
+  },
+
+  render: function(d){
+    var r = d.requisicao, p = d.podeAgir;
+    ReqState.reqAtual = r;
+    var h = '';
+
+    h += '<div class="print-cab">' +
+           '<h1>Requisição ' + esc(r.id) + ' — ' + esc(r.titulo) + '</h1>' +
+           '<div>Q Food Group · ' + esc(r.statusLabel) + ' · gerado em ' + esc(horaBr(new Date().toISOString())) + '</div>' +
+         '</div>';
+
+    h += '<div class="det-hdr">' +
+           '<button class="btn btn-s" onclick="ReqDetalhe.voltar()">← Voltar</button>' +
+           '<div class="det-tit">' + esc(r.titulo) + '</div>' +
+           '<span class="chip ' + r.status.toLowerCase() + '">' + esc(r.statusLabel) + '</span>' +
+           '<button class="btn btn-s" onclick="window.print()">🖨 PDF</button>' +
+         '</div>';
+
+    if(r.responsavelAtual){
+      var atraso = ReqPrazo.atrasada(r);
+      h += '<div class="aguardando"' + (atraso ? ' style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b"' : '') + '>' +
+           'Aguardando ' + esc(nomeDe(r.responsavelAtual)) + ' (' + esc(r.responsavelAtual) + ')' +
+           (r.prazoRetorno ? ' · retorno prometido para ' + esc(dataBr(r.prazoRetorno)) + (atraso ? ' — ATRASADO' : '') : '') +
+           '</div>';
+    }
+
+    // Ação necessária primeiro: quem trabalha no sistema todo dia
+    // não deveria rolar a tela para achar o botão principal.
+    h += ReqAcoes.render(r, p);
+
+    h += ReqAprov.bloco(r, d.eventos);
+
+    // Dados
+    h += '<div class="card"><div class="card-t">' + esc(r.id) + '</div><dl class="kv">' +
+         ReqDetalhe.kv("Empresa / unidade", [r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ")) +
+         ReqDetalhe.kv("Aberta por", r.abertoPorNome + " · " + dataBr(r.dataAbertura)) +
+         ReqDetalhe.kv("Solicitante", r.solicitanteOriginal) +
+         ReqDetalhe.kv("Urgência", r.urgencia) +
+         ReqDetalhe.kv("Precisa até", dataBr(r.dataNecessidade)) +
+         ReqDetalhe.kv("Retorno de Compras até", dataBr(r.prazoRetorno)) +
+         ReqDetalhe.kv("Descrição", r.descricao) +
+         '</dl></div>';
+
+    // Itens
+    if(d.itens.length){
+      h += '<div class="card"><div class="card-t">O que foi pedido</div>';
+      d.itens.forEach(function(it){
+        var espec = [
+          it.quantidade ? "Qtd: " + it.quantidade + " " + (it.unidadeMedida||"") : "",
+          it.marca ? "Marca: " + it.marca : "", it.modelo ? "Modelo: " + it.modelo : "",
+          it.cor ? "Cor: " + it.cor : "", it.voltagem ? "Voltagem: " + it.voltagem : "",
+          it.dimensoes ? "Medidas: " + it.dimensoes : "", it.peso ? "Peso: " + it.peso : "",
+          it.qtdRecebida ? "Recebido: " + it.qtdRecebida : ""
+        ].filter(Boolean).join(" · ");
+        h += '<div class="item"><div class="item-d">' + esc(it.descricao) + '</div>' +
+             (espec ? '<div class="item-e">' + esc(espec) + '</div>' : '') +
+             (it.especificacao ? '<div class="item-e">' + esc(it.especificacao) + '</div>' : '') +
+             '</div>';
+      });
+      h += '</div>';
+    }
+
+    // Anexos — fotos abrem sozinhas na tela; links e arquivos viram chips
+    var fotos  = d.anexos.filter(function(a){ return a.tipo === "IMAGEM" && a.driveFileId; });
+    var outros = d.anexos.filter(function(a){ return !(a.tipo === "IMAGEM" && a.driveFileId); });
+
+    var evid = fotos.filter(function(a){ return a.origem === "Evidência"; });
+    var refs = fotos.filter(function(a){ return a.origem !== "Evidência"; });
+
+    h += '<div class="card"><div class="card-t">Referências</div>';
+    if(refs.length) h += ReqFoto.galeria(refs, "Foto");
+    h += outros.length
+      ? '<div class="anexos">' + outros.map(function(a){
+          var icone = a.tipo === "LINK" ? "🔗" : (a.tipo === "IMAGEM" ? "📷" : "📄");
+          var rotulo = a.nomeArquivo || a.origem || a.url;
+          return '<a class="anexo" href="' + esc(a.url) + '" target="_blank" rel="noopener">' +
+                 icone + '<span>' + esc(rotulo) + '</span>' +
+                 '<small>' + esc(nomeDe(a.anexadoPor)) + '</small></a>';
+        }).join("") + '</div>'
+      : (refs.length ? '' : '<div class="rq-meta">Nenhum link, foto ou arquivo ainda.</div>');
+
+    if(p.anexar){
+      h += '<div class="anexar-bar">' +
+             '<button class="btn btn-s" onclick="ReqAnexo.link()">🔗 Link</button>' +
+             '<button class="btn btn-s" onclick="ReqAnexo.escolher(\'IMAGEM\')">📷 Foto</button>' +
+             '<button class="btn btn-s" onclick="ReqAnexo.escolher(\'PDF\')">📄 PDF ou arquivo</button>' +
+             '<input type="file" id="arq" style="display:none" onchange="ReqAnexo.enviar(this)">' +
+           '</div>';
+    }
+    h += '</div>';
+
+    // Compras
+    if(r.fornecedor || r.valorFinal || r.prazoEntrega || r.obsCompras){
+      h += '<div class="card"><div class="card-t">Compra</div><dl class="kv">' +
+           ReqDetalhe.kv("Fornecedor", r.fornecedor) +
+           ReqDetalhe.kv("Valor", r.valorFinal !== "" ? "R$ " + r.valorFinal : "") +
+           ReqDetalhe.kv("Previsão de entrega", dataBr(r.prazoEntrega)) +
+           ReqDetalhe.kv("Nº do pedido", r.numeroPedido) +
+           ReqDetalhe.kv("NF", r.nf) +
+           ReqDetalhe.kv("Observação", r.obsCompras) +
+           '</dl></div>';
+    }
+
+    // Recebimento
+    if(r.statusRecebimento || evid.length){
+      h += '<div class="card"><div class="card-t">Recebimento</div><dl class="kv">' +
+           ReqDetalhe.kv("Situação", r.statusRecebimento) +
+           ReqDetalhe.kv("Recebido por", r.recebidoPor ? nomeDe(r.recebidoPor) + " · " + dataBr(r.dataRecebimento) : "") +
+           ReqDetalhe.kv("Observação", r.obsRecebimento) +
+           '</dl>';
+      if(evid.length) h += '<div style="margin-top:14px">' + ReqFoto.galeria(evid, "Evidência") + '</div>';
+      h += '</div>';
+    }
+
+    // Timeline
+    h += '<div class="card"><div class="card-t">Atualizações</div><div class="tl">';
+    h += d.eventos.map(function(ev){
+      var texto = ev.texto;
+      if(ev.tipo === "STATUS" && ev.statusNovo){
+        texto = "Status: " + ev.statusLabel + (ev.texto ? " — " + ev.texto : "");
+      }
+      return '<div class="ev ' + esc(ev.tipo.toLowerCase()) + '">' +
+               '<div class="ev-h"><b>' + esc(ev.usuarioNome || nomeDe(ev.usuario)) + '</b> · ' +
+                 esc(horaBr(ev.dataHora)) + '</div>' +
+               '<div class="ev-c">' + esc(texto) + '</div>' +
+             '</div>';
+    }).join("");
+    h += '</div></div>';
+
+    document.getElementById("v-detalhe").innerHTML = h;
+    moeda(document.getElementById("c-valor"));
+  },
+
+  kv: function(rotulo, valor){
+    if(!valor) return "";
+    return "<dt>" + esc(rotulo) + "</dt><dd>" + esc(valor).replace(/\n/g,"<br>") + "</dd>";
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 8. AÇÕES (triagem, compras, recebimento, comentário)
+// ────────────────────────────────────────────────────────────
+var ReqAcoes = {
+  render: function(r, p){
+    var h = "";
+
+    if(p.triar){
+      h += '<div class="card" style="border-color:rgba(255,170,43,.4)">' +
+           '<div class="card-t">Aprovação necessária</div>' +
+           '<div class="rq-meta" style="margin-bottom:12px">Aprovar envia a requisição direto para a fila da Cris.</div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-ok" onclick="ReqAcoes.status(\'EM_ANALISE\',\'Aprovada\')">✓ Aprovar e enviar para Compras</button>' +
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">↩ Pedir ajuste</button>' +
+             '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'RECUSADA\',\'Motivo da recusa\')">✕ Recusar</button>' +
+           '</div></div>';
+    }
+
+    if(p.registrarCompra && !r.encerrada){
+      h += '<div class="card"><div class="card-t">Registrar a compra</div>' +
+           '<div class="rq-meta" style="margin-bottom:12px">Os campos com <span class="obrig">*</span> são obrigatórios para marcar como comprada.</div>' +
+           '<div class="linha">' +
+             '<div class="campo"><label class="lbl" for="c-forn">Fornecedor <span class="obrig">*</span></label>' +
+               '<input class="inp" id="c-forn" value="' + esc(r.fornecedor) + '"></div>' +
+             '<div class="campo"><label class="lbl" for="c-valor">Valor total <span class="obrig">*</span></label>' +
+               '<input class="inp" id="c-valor" placeholder="R$ 0,00" value="' + esc(r.valorFinal) + '"></div>' +
+           '</div>' +
+           '<div class="linha3">' +
+             '<div class="campo"><label class="lbl" for="c-prazo">Previsão de entrega <span class="obrig">*</span></label>' +
+               '<input class="inp" id="c-prazo" type="date" value="' + esc((r.prazoEntrega||"").substring(0,10)) + '"></div>' +
+             '<div class="campo"><label class="lbl" for="c-ped">Nº do pedido <i>opcional</i></label>' +
+               '<input class="inp" id="c-ped" value="' + esc(r.numeroPedido) + '"></div>' +
+             '<div class="campo"><label class="lbl" for="c-nf">NF <i>opcional — pode completar depois</i></label>' +
+               '<input class="inp" id="c-nf" value="' + esc(r.nf) + '"></div>' +
+           '</div>' +
+           '<div class="campo"><label class="lbl" for="c-obs">Observação para quem pediu</label>' +
+             '<textarea class="inp" id="c-obs" placeholder="Ex.: esse modelo saiu de linha, comprei o equivalente.">' + esc(r.obsCompras) + '</textarea></div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-p" onclick="ReqAcoes.registrarCompra()">Marcar como comprada</button>' +
+             '<button class="btn btn-s" onclick="ReqPrazo.abrir(\'EM_COTACAO\')">Estou cotando</button>' +
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Preciso de informação</button>' +
+           '</div></div>';
+    }
+
+    if(p.confirmarRecebimento){
+      h += '<div class="card"><div class="card-t">Chegou?</div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-ok" onclick="ReqAcoes.receber(\'OK\')">Recebi, está certo</button>' +
+             '<button class="btn btn-w" onclick="ReqAcoes.receber(\'PARCIAL\')">Recebi parcial</button>' +
+             '<button class="btn btn-d" onclick="ReqAcoes.receber(\'DIVERGENCIA\')">Recebi com problema</button>' +
+             '<button class="btn btn-s" onclick="ReqAcoes.receber(\'NAO_RECEBI\')">Ainda não chegou</button>' +
+           '</div></div>';
+    }
+
+    // Comentário — todo mundo que enxerga a requisição
+    if(p.comentar){
+      h += '<div class="card"><div class="card-t">Comentar</div>' +
+           (r.status === "AGUARDANDO_INFORMACAO" && (r.responsavelAtual||"").toLowerCase() === (ReqState.sessao.email||"").toLowerCase()
+             ? '<div class="aguardando">Estão esperando uma informação sua. Ao responder aqui, a requisição volta automaticamente para a Cris.</div>'
+             : '') +
+           '<div class="campo"><textarea class="inp" id="novo-coment" placeholder="Escreva aqui. Todo mundo que acompanha esta requisição vai ver."></textarea></div>' +
+           '<div class="btns">' +
+             '<button class="btn btn-p" onclick="ReqAcoes.comentar()">Enviar comentário</button>' +
+             (p.cancelar ? '<button class="btn btn-d" onclick="ReqAcoes.statusComTexto(\'CANCELADA\',\'Por que está cancelando?\')">Cancelar requisição</button>' : '') +
+           '</div></div>';
+    }
+
+    return h;
+  },
+
+  comentar: function(){
+    var t = document.getElementById("novo-coment").value.trim();
+    if(!t){ toast("Escreva o comentário antes de enviar.", true); return; }
+    ReqAPI.post("comentar", {id:ReqState.detalheId, texto:t})
+      .then(function(){ toast("Comentário enviado."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  status: function(novo, texto){
+    ReqAPI.post("alterarStatus", {id:ReqState.detalheId, status:novo, texto:texto || ""})
+      .then(function(){ toast("Pronto."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  statusComTexto: function(novo, pergunta){
+    var t = prompt(pergunta);
+    if(t === null) return;
+    if(!t.trim()){ toast("Escreva alguma coisa para a pessoa entender.", true); return; }
+    ReqAcoes.status(novo, t.trim());
+  },
+
+  registrarCompra: function(){
+    var dados = {
+      id:           ReqState.detalheId,
+      fornecedor:   document.getElementById("c-forn").value.trim(),
+      valorFinal:   document.getElementById("c-valor").value.trim(),
+      prazoEntrega: document.getElementById("c-prazo").value,
+      numeroPedido: document.getElementById("c-ped").value.trim(),
+      nf:           document.getElementById("c-nf").value.trim(),
+      obsCompras:   document.getElementById("c-obs").value.trim()
+    };
+    // NF e nº do pedido muitas vezes só existem depois da entrega.
+    var rotulos = {fornecedor:"Fornecedor", valorFinal:"Valor", prazoEntrega:"Previsão de entrega"};
+    var faltando = Object.keys(rotulos).filter(function(k){ return !dados[k]; })
+                                       .map(function(k){ return rotulos[k]; });
+    if(faltando.length){
+      toast("Preencha antes de marcar como comprada: " + faltando.join(", "), true);
+      return;
+    }
+
+    ReqAPI.post("registrarCompra", dados).then(function(){
+      toast("Compra registrada. Quem pediu já consegue ver.");
+      ReqDetalhe.recarregar();
+    }).catch(function(e){ toast(e.message, true); });
+  },
+
+  receber: function(situacao){
+    ReqReceb.abrir(situacao);
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9. ANEXOS — link, foto ou PDF
+// ────────────────────────────────────────────────────────────
+var ReqAnexo = {
+  link: function(){
+    var url = prompt("Cole o link (Mercado Livre, Instagram, Facebook, site do fornecedor…)");
+    if(!url || !url.trim()) return;
+    ReqAPI.post("anexar", {id:ReqState.detalheId, tipo:"LINK", url:url.trim()})
+      .then(function(r){ toast("Link anexado (" + r.origem + ")."); ReqDetalhe.recarregar(); })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  escolher: function(tipo){
+    var inp = document.getElementById("arq");
+    inp.accept = (tipo === "IMAGEM") ? "image/*" : ".pdf,.doc,.docx,.xls,.xlsx";
+    inp.dataset.tipo = tipo;
+    inp.value = "";
+    inp.click();
+  },
+
+  enviar: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    var tipo = input.dataset.tipo || "OUTRO";
+    toast("Enviando " + arq.name + "…");
+
+    var pronto = function(base64, mime){
+      ReqAPI.post("anexar", {
+        id:          ReqState.detalheId,
+        tipo:        tipo,
+        base64:      base64,
+        mimeType:    mime,
+        nomeArquivo: arq.name
+      }).then(function(){
+        toast("Anexado.");
+        ReqDetalhe.recarregar();
+      }).catch(function(e){ toast(e.message, true); });
+    };
+
+    if(arq.type.indexOf("image") === 0){
+      ReqAnexo.comprimir(arq, function(b64){ pronto(b64, "image/jpeg"); });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ pronto(String(fr.result).split(",")[1], arq.type || "application/octet-stream"); };
+      fr.onerror = function(){ toast("Não deu para ler o arquivo.", true); };
+      fr.readAsDataURL(arq);
+    }
+  },
+
+  // Foto de celular vem com 4–8 MB. Reduz antes de subir.
+  comprimir: function(arq, callback){
+    var fr = new FileReader();
+    fr.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var max = ReqConfig.maxLadoFoto;
+        var l = img.width, a = img.height;
+        if(l > max || a > max){
+          if(l > a){ a = Math.round(a * max / l); l = max; }
+          else     { l = Math.round(l * max / a); a = max; }
+        }
+        var cv = document.createElement("canvas");
+        cv.width = l; cv.height = a;
+        cv.getContext("2d").drawImage(img, 0, 0, l, a);
+        callback(cv.toDataURL("image/jpeg", ReqConfig.qualidadeFoto).split(",")[1]);
+      };
+      img.onerror = function(){ toast("Não deu para ler a imagem.", true); };
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(arq);
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9b. FOTOS — galeria que abre sozinha + lightbox
+// ────────────────────────────────────────────────────────────
+var ReqFoto = {
+  // Formato lh3: é o que faz a imagem renderizar direto, em vez de
+  // abrir a página do Drive. Exige o arquivo com link de visualização.
+  src: function(driveFileId, largura){
+    return "https://lh3.googleusercontent.com/d/" + driveFileId + "=w" + (largura || 800);
+  },
+
+  galeria: function(fotos, rotulo){
+    return '<div class="galeria">' + fotos.map(function(a){
+      var titulo = a.nomeArquivo || rotulo;
+      return '<div class="foto">' +
+        '<div class="foto-cab"><span>' + esc(titulo) + '</span>' +
+          '<a href="' + esc(a.url) + '" target="_blank" rel="noopener">🔗 ABRIR</a></div>' +
+        '<img class="foto-img" alt="' + esc(titulo) + '" loading="lazy"' +
+          ' src="' + ReqFoto.src(a.driveFileId, 800) + '"' +
+          ' onclick="ReqFoto.ampliar(\'' + a.driveFileId + '\')"' +
+          ' onerror="ReqFoto.falhou(this,\'' + a.driveFileId + '\')">' +
+      '</div>';
+    }).join("") + '</div>';
+  },
+
+  // Se o lh3 não vier, tenta o thumbnail do Drive. Se também falhar,
+  // é permissão do arquivo — avisa em vez de deixar quadrado quebrado.
+  falhou: function(img, id){
+    if(!img.dataset.tentou){
+      img.dataset.tentou = "1";
+      img.src = "https://drive.google.com/thumbnail?id=" + id + "&sz=w800";
+      return;
+    }
+    var box = img.parentNode;
+    img.remove();
+    var aviso = document.createElement("div");
+    aviso.className = "foto-erro";
+    aviso.textContent = "Sem permissão para exibir. Use ABRIR.";
+    box.appendChild(aviso);
+  },
+
+  ampliar: function(id){
+    document.getElementById("lightbox-img").src = ReqFoto.src(id, 1600);
+    document.getElementById("lightbox").classList.add("on");
+  },
+
+  fechar: function(){
+    document.getElementById("lightbox").classList.remove("on");
+    document.getElementById("lightbox-img").src = "";
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9c. RECEBIMENTO COM PROBLEMA — observação + até 3 fotos
+// ────────────────────────────────────────────────────────────
+var ReqReceb = {
+  situacao: null,
+  fotos:    [null, null, null],
+  doc:      null,
+
+  titulos: {
+    OK:          {t:"Recebi, está certo",  s:"Se quiser, fotografe o item e anexe a NF ou o recibo. Tudo opcional aqui."},
+    PARCIAL:     {t:"Recebi parcial",      s:"Diga o que faltou e fotografe o que chegou. A Cris é avisada por e-mail."},
+    DIVERGENCIA: {t:"Recebi com problema", s:"Descreva o problema e anexe as fotos. A Cris é avisada por e-mail."},
+    NAO_RECEBI:  {t:"Ainda não chegou",    s:"Registre desde quando está esperando. A cobrança do fornecedor volta para a Cris."}
+  },
+
+  abrir: function(situacao){
+    ReqReceb.situacao = situacao;
+    ReqReceb.fotos = [null, null, null];
+    ReqReceb.doc = null;
+    var cfg = ReqReceb.titulos[situacao] || {t:"Recebimento", s:""};
+    var problema = (situacao === "PARCIAL" || situacao === "DIVERGENCIA");
+    var marca = problema ? ' <span class="obrig">*</span>' : ' <i>opcional</i>';
+
+    document.getElementById("modal-cx").innerHTML =
+      '<div class="modal-t">' + esc(cfg.t) + '</div>' +
+      '<div class="modal-s">' + esc(cfg.s) + '</div>' +
+      '<div class="campo"><label class="lbl" for="rc-obs">Observação' +
+        (situacao === "OK" ? ' <i>opcional</i>' : ' <span class="obrig">*</span>') + '</label>' +
+        '<textarea class="inp" id="rc-obs" placeholder="Ex.: vieram 3 caixas das 5, e uma delas estava molhada."></textarea></div>' +
+      '<label class="lbl">Fotos do item' + marca + ' <i>— até 3, toque para escolher</i></label>' +
+      '<div class="slots">' +
+        [0,1,2].map(function(i){
+          return '<div class="slot" id="slot-' + i + '" onclick="ReqReceb.escolherFoto(' + i + ')">' +
+                 '<div class="slot-x">📷</div><div>Foto ' + (i+1) + '</div></div>';
+        }).join("") +
+      '</div>' +
+      '<label class="lbl" style="margin-top:14px">NF ou recibo <i>opcional — PDF ou imagem</i></label>' +
+      '<div class="slot-arq" id="slot-doc" onclick="ReqReceb.escolherDoc()">📄 <span id="slot-doc-txt">Anexar NF ou recibo</span></div>' +
+      '<input type="file" id="rc-foto" accept="image/*" capture="environment" style="display:none" onchange="ReqReceb.pegouFoto(this)">' +
+      '<input type="file" id="rc-doc" accept=".pdf,image/*" style="display:none" onchange="ReqReceb.pegouDoc(this)">' +
+      '<div class="btns" style="margin-top:18px">' +
+        '<button class="btn btn-p" id="rc-ok" onclick="ReqReceb.confirmar()">Registrar</button>' +
+        '<button class="btn btn-s" onclick="ReqReceb.fechar()">Cancelar</button>' +
+      '</div>';
+
+    document.getElementById("modal").classList.add("on");
+    document.getElementById("rc-obs").focus();
+  },
+
+  fechar: function(){
+    document.getElementById("modal").classList.remove("on");
+    document.getElementById("modal-cx").innerHTML = "";
+    ReqReceb.fotos = [null, null, null];
+    ReqReceb.doc = null;
+  },
+
+  escolherFoto: function(i){
+    var inp = document.getElementById("rc-foto");
+    inp.dataset.slot = i;
+    inp.value = "";
+    inp.click();
+  },
+
+  pegouFoto: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    var i = parseInt(input.dataset.slot, 10);
+    ReqAnexo.comprimir(arq, function(b64){
+      ReqReceb.fotos[i] = {base64:b64, nome:arq.name || ("evidencia_" + (i+1) + ".jpg"), mime:"image/jpeg"};
+      var slot = document.getElementById("slot-" + i);
+      slot.className = "slot cheio";
+      slot.innerHTML = '<img alt="Foto ' + (i+1) + '" src="data:image/jpeg;base64,' + b64 + '">';
+    });
+  },
+
+  escolherDoc: function(){
+    var inp = document.getElementById("rc-doc");
+    inp.value = "";
+    inp.click();
+  },
+
+  pegouDoc: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    var guardar = function(b64, mime){
+      ReqReceb.doc = {base64:b64, nome:arq.name, mime:mime};
+      document.getElementById("slot-doc").className = "slot-arq cheio";
+      document.getElementById("slot-doc-txt").textContent = arq.name;
+    };
+    if(arq.type.indexOf("image") === 0){
+      ReqAnexo.comprimir(arq, function(b64){ guardar(b64, "image/jpeg"); });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ guardar(String(fr.result).split(",")[1], arq.type || "application/pdf"); };
+      fr.onerror = function(){ toast("Não deu para ler o arquivo.", true); };
+      fr.readAsDataURL(arq);
+    }
+  },
+
+  confirmar: function(){
+    var obs = document.getElementById("rc-obs").value.trim();
+    var problema = (ReqReceb.situacao === "PARCIAL" || ReqReceb.situacao === "DIVERGENCIA");
+
+    if(ReqReceb.situacao !== "OK" && !obs){
+      toast("Descreva o que aconteceu.", true); return;
+    }
+    var fotos = ReqReceb.fotos.filter(function(f){ return f; });
+    if(problema && !fotos.length){
+      toast("Anexe pelo menos uma foto do que chegou.", true); return;
+    }
+
+    var btn = document.getElementById("rc-ok");
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+
+    // Sobe anexo por anexo e só então registra. Se algum falhar,
+    // o recebimento não é gravado pela metade.
+    var envios = fotos.map(function(f){
+      return {tipo:"IMAGEM", base64:f.base64, mimeType:f.mime, nomeArquivo:f.nome, origem:"Evidência"};
+    });
+    if(ReqReceb.doc){
+      envios.push({
+        tipo: ReqReceb.doc.mime.indexOf("image") === 0 ? "IMAGEM" : "PDF",
+        base64: ReqReceb.doc.base64, mimeType: ReqReceb.doc.mime,
+        nomeArquivo: ReqReceb.doc.nome, origem: "NF/Recibo"
+      });
+    }
+
+    var fila = Promise.resolve();
+    envios.forEach(function(a, i){
+      fila = fila.then(function(){
+        a.id = ReqState.detalheId;
+        return ReqAPI.post("anexar", a, "Enviando anexo " + (i+1) + " de " + envios.length + "…");
+      });
+    });
+
+    fila.then(function(){
+      return ReqAPI.post("confirmarRecebimento", {
+        id:         ReqState.detalheId,
+        situacao:   ReqReceb.situacao,
+        observacao: obs
+      }, "Registrando recebimento…");
+    }).then(function(){
+      ReqReceb.fechar();
+      toast(ReqReceb.situacao === "OK" ? "Recebimento registrado. Requisição encerrada."
+                                       : "Registrado. A Cris foi avisada.");
+      ReqDetalhe.recarregar();
+    }).catch(function(e){
+      toast(e.message, true);
+      btn.disabled = false;
+      btn.textContent = "Registrar";
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 6b. HOME POR PAPEL — cada um entra onde trabalha
+// ────────────────────────────────────────────────────────────
+var ReqHome = {
+  // Solicitante, aprovador e Compras entram no sistema com objetivos
+  // diferentes. O primeiro cartão de cada um é a caixa de entrada dele.
+  cartoes: function(){
+    var u = (ReqState.config && ReqState.config.usuario) || {};
+
+    if(u.isCompras){
+      return [
+        {escopo:"comprar",         rotulo:"Para comprar",        destaque:true},
+        {escopo:"cotacao",         rotulo:"Em cotação"},
+        {escopo:"aguardando_resp", rotulo:"Aguardando resposta"},
+        {escopo:"entrega",         rotulo:"Aguardando entrega"},
+        {escopo:"atrasadas",       rotulo:"Atrasadas",           alerta:true}
+      ];
+    }
+    if(ReqHome.aprovador()){
+      return [
+        {escopo:"aprovar",   rotulo:"Para aprovar",       destaque:true},
+        {escopo:"comigo",    rotulo:"Precisa de mim"},
+        {escopo:"minhas",    rotulo:"Minhas abertas"},
+        {escopo:"entrega",   rotulo:"Aguardando entrega"},
+        {escopo:"atrasadas", rotulo:"Atrasadas",          alerta:true}
+      ];
+    }
+    return [
+      {escopo:"comigo",    rotulo:"Precisa de mim",  destaque:true},
+      {escopo:"minhas",    rotulo:"Minhas abertas"},
+      {escopo:"emcompras", rotulo:"Em compras"},
+      {escopo:"entrega",   rotulo:"A caminho"},
+      {escopo:"todas",     rotulo:"Todas"}
+    ];
+  },
+
+  aprovador: function(){
+    var lista = (ReqState.config && ReqState.config.aprovadores) || [];
+    var eu = (ReqState.sessao.email || "").toLowerCase();
+    return lista.some(function(g){ return String(g.valor).toLowerCase() === eu; });
+  },
+
+  // Onde cada papel cai ao abrir a tela
+  escopoInicial: function(){
+    var u = (ReqState.config && ReqState.config.usuario) || {};
+    if(u.isCompras)        return "comprar";
+    if(ReqHome.aprovador())return "aprovar";
+    return "minhas";
+  },
+
+  vazio: function(){
+    var m = {
+      aprovar:         "Nenhuma requisição esperando sua aprovação.",
+      comprar:         "Nenhuma requisição aprovada esperando compra.",
+      cotacao:         "Nada em cotação no momento.",
+      aguardando_resp: "Ninguém está devendo resposta.",
+      atrasadas:       "Nenhum retorno atrasado. Tudo em dia.",
+      comigo:          "Nada esperando por você.",
+      minhas:          "Você não tem requisição aberta.",
+      entrega:         "Nada a caminho.",
+      emcompras:       "Nenhuma requisição sua em compras."
+    };
+    return m[ReqState.escopo] || "Quando alguém precisar de algo, a requisição aparece aqui.";
+  },
+
+  montar: function(){
+    ReqState.escopo = ReqHome.escopoInicial();
+    document.getElementById("cnt-grid").innerHTML = ReqHome.cartoes().map(function(c){
+      return '<button class="cnt' + (c.destaque ? " destaque" : "") + (c.alerta ? " alerta" : "") +
+             (c.escopo === ReqState.escopo ? " on" : "") + '" data-escopo="' + c.escopo + '">' +
+             '<div class="cnt-n" id="cnt-' + c.escopo + '">–</div>' +
+             '<div class="cnt-l">' + esc(c.rotulo) + '</div></button>';
+    }).join("");
+
+    document.querySelectorAll(".cnt").forEach(function(b){
+      b.onclick = function(){
+        document.querySelectorAll(".cnt").forEach(function(x){ x.classList.remove("on"); });
+        b.classList.add("on");
+        ReqState.escopo = b.dataset.escopo;
+        mostrar("lista");
+        ReqLista.render();
+      };
+    });
+  },
+
+  contar: function(){
+    ReqHome.cartoes().forEach(function(c){
+      var el = document.getElementById("cnt-" + c.escopo);
+      if(!el) return;
+      el.textContent = ReqState.lista.filter(function(r){
+        return ReqLista.noEscopo(r, c.escopo);
+      }).length;
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9e. APROVAÇÃO — quem pode aprovar cada empresa
+// ────────────────────────────────────────────────────────────
+var ReqAprov = {
+  // Lista de e-mails autorizados a aprovar as requisições de uma empresa.
+  // A ordem da REQ_PARAM importa: o primeiro é quem aparece como responsável.
+  daEmpresa: function(empresa){
+    var e = String(empresa || "").toUpperCase();
+    return ((ReqState.config && ReqState.config.aprovadores) || [])
+      .filter(function(g){ return g.chave === e; })
+      .map(function(g){ return g.valor; });
+  },
+
+  exigeAprovacao: function(empresa){
+    var e = String(empresa || "").toUpperCase();
+    var lista = ((ReqState.config && ReqState.config.triagem) || [])
+      .filter(function(t){ return t.chave === e; });
+    return lista.length ? String(lista[0].valor).toUpperCase() === "SIM" : false;
+  },
+
+  souAprovador: function(empresa){
+    var eu = (ReqState.config && ReqState.config.usuario.email || "").toLowerCase();
+    return ReqAprov.daEmpresa(empresa).some(function(m){ return m.toLowerCase() === eu; });
+  },
+
+  // Aprovação direto da lista: o Matheus não precisa abrir uma a uma
+  // para liberar sacola e material óbvio. Recusar e pedir ajuste
+  // continuam exigindo o detalhe, porque pedem justificativa.
+  rapida: function(id){
+    var r = ReqState.lista.filter(function(x){ return x.id === id; })[0];
+    if(!r){ toast("Recarregue a lista.", true); return; }
+
+    document.getElementById("modal-cx").innerHTML =
+      '<div class="modal-t">Aprovar ' + esc(r.id) + '?</div>' +
+      '<div class="modal-s">Ao aprovar, a requisição vai direto para a fila da Cris.</div>' +
+      '<div class="card" style="margin:0 0 16px"><dl class="kv">' +
+        '<dt>O que é</dt><dd>' + esc(r.titulo) + '</dd>' +
+        '<dt>Empresa</dt><dd>' + esc([r.empresa, r.unidade, r.setor].filter(Boolean).join(" · ")) + '</dd>' +
+        '<dt>Pedido por</dt><dd>' + esc(r.solicitanteOriginal || r.abertoPorNome) + '</dd>' +
+        '<dt>Urgência</dt><dd>' + esc(r.urgencia) + '</dd>' +
+        (r.dataNecessidade ? '<dt>Precisa até</dt><dd>' + esc(dataBr(r.dataNecessidade)) + '</dd>' : '') +
+      '</dl></div>' +
+      '<div class="btns">' +
+        '<button class="btn btn-ok" id="ap-ok" onclick="ReqAprov.confirmar(\'' + r.id + '\')">✓ Aprovar e enviar para a Cris</button>' +
+        '<button class="btn btn-s" onclick="ReqAprov.fechar();ReqDetalhe.abrir(\'' + r.id + '\')">Abrir para analisar</button>' +
+        '<button class="btn btn-s" onclick="ReqAprov.fechar()">Cancelar</button>' +
+      '</div>';
+
+    document.getElementById("modal").classList.add("on");
+  },
+
+  fechar: function(){
+    document.getElementById("modal").classList.remove("on");
+    document.getElementById("modal-cx").innerHTML = "";
+  },
+
+  confirmar: function(id){
+    var btn = document.getElementById("ap-ok");
+    btn.disabled = true;
+    btn.textContent = "Aprovando…";
+    ReqAPI.post("alterarStatus", {id:id, status:"EM_ANALISE", texto:"Aprovada"}, "Aprovando…")
+      .then(function(){
+        ReqAprov.fechar();
+        toast(id + " aprovada. Já está com a Cris.");
+        return ReqNotif.sincronizar();
+      })
+      .catch(function(e){
+        toast(e.message, true);
+        btn.disabled = false;
+        btn.textContent = "✓ Aprovar e enviar para a Cris";
+      });
+  },
+
+  // Bloco do detalhe: quem aprovou e quando, ou quem ainda pode aprovar.
+  bloco: function(r, eventos){
+    if(!ReqAprov.exigeAprovacao(r.empresa)) return "";
+
+    var ev = (eventos || []).filter(function(e){
+      return e.tipo === "STATUS" && e.statusAnterior === "EM_TRIAGEM" && e.statusNovo === "EM_ANALISE";
+    }).pop();
+
+    if(ev){
+      return '<div class="card"><div class="card-t">Aprovação</div><dl class="kv">' +
+             '<dt>Situação</dt><dd style="color:var(--ok)">✓ Aprovada</dd>' +
+             '<dt>Por</dt><dd>' + esc(ev.usuarioNome || nomeDe(ev.usuario)) + '</dd>' +
+             '<dt>Quando</dt><dd>' + esc(horaBr(ev.dataHora)) + '</dd>' +
+             '</dl></div>';
+    }
+
+    if(r.status !== "EM_TRIAGEM") return "";
+
+    return '<div class="card"><div class="card-t">Aprovação</div><dl class="kv">' +
+           '<dt>Situação</dt><dd style="color:var(--warn)">⏳ Aguardando aprovação</dd>' +
+           '<dt>Pode aprovar</dt><dd>' +
+             esc(ReqAprov.daEmpresa(r.empresa).map(nomeDe).join(" · ")) + '</dd>' +
+           '</dl></div>';
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9d. PRAZO DE RETORNO — Compras não segura requisição sem data
+// ────────────────────────────────────────────────────────────
+var ReqPrazo = {
+  // Quanto tempo Compras tem para voltar, conforme a urgência
+  diasPorUrgencia: {Emergencial:0, Alta:1, Normal:3, Baixa:5},
+  req: null,
+
+  hojeIso: function(){
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  },
+
+  maisDias: function(n){
+    var d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  },
+
+  // Sugestão = o que a urgência pede, mas nunca depois de quando precisam do item.
+  // Se o prazo é curto, sobra a véspera. Se já estourou, é hoje.
+  sugerir: function(r){
+    var porUrgencia = ReqPrazo.maisDias(ReqPrazo.diasPorUrgencia[r.urgencia] === undefined ? 3 : ReqPrazo.diasPorUrgencia[r.urgencia]);
+    var nec = (r.dataNecessidade || "").substring(0, 10);
+    if(!nec) return porUrgencia;
+    var vespera = new Date(nec + "T12:00:00");
+    vespera.setDate(vespera.getDate() - 1);
+    var vIso = vespera.getFullYear() + "-" + ("0"+(vespera.getMonth()+1)).slice(-2) + "-" + ("0"+vespera.getDate()).slice(-2);
+    var limite = (porUrgencia < vIso) ? porUrgencia : vIso;
+    return (limite < ReqPrazo.hojeIso()) ? ReqPrazo.hojeIso() : limite;
+  },
+
+  atrasada: function(r){
+    if(!r || !r.prazoRetorno) return false;
+    if(r.status !== "EM_COTACAO" && r.status !== "AGUARDANDO_INFORMACAO") return false;
+    return r.prazoRetorno.substring(0, 10) < ReqPrazo.hojeIso();
+  },
+
+  abrir: function(status){
+    var r = ReqState.reqAtual;
+    if(!r){ toast("Recarregue a requisição.", true); return; }
+    ReqPrazo.req = r;
+
+    var nec = (r.dataNecessidade || "").substring(0, 10);
+    var sugestao = ReqPrazo.sugerir(r);
+    var ehCotacao = (status === "EM_COTACAO");
+
+    var aviso = "";
+    if(r.urgencia === "Emergencial"){
+      aviso = '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
+              'Requisição EMERGENCIAL' + (nec ? ' — precisam disso até ' + esc(dataBr(nec)) : '') +
+              '. O retorno deve ser hoje.</div>';
+    } else if(nec){
+      aviso = '<div class="aguardando">Precisam do item até <b>' + esc(dataBr(nec)) +
+              '</b>. Seu retorno tem que caber antes disso.</div>';
+    }
+
+    document.getElementById("modal-cx").innerHTML =
+      '<div class="modal-t">' + (ehCotacao ? "Estou cotando" : "Preciso de informação") + '</div>' +
+      '<div class="modal-s">' + (ehCotacao
+        ? "Informe até quando você volta com a cotação. Quem pediu passa a ver essa data."
+        : "Diga o que falta e até quando você precisa da resposta.") + '</div>' +
+      aviso +
+      '<div class="campo"><label class="lbl" for="pz-texto">' +
+        (ehCotacao ? "Observação <i>opcional</i>" : "O que você precisa saber <span class=\"obrig\">*</span>") + '</label>' +
+        '<textarea class="inp" id="pz-texto" placeholder="' +
+        (ehCotacao ? "Ex.: pedi orçamento em três fornecedores." : "Ex.: qual a voltagem da tomada da cozinha?") + '"></textarea></div>' +
+      '<div class="campo"><label class="lbl" for="pz-data">Retorno até <span class="obrig">*</span></label>' +
+        '<input class="inp" id="pz-data" type="date" value="' + esc(sugestao) + '" min="' + esc(ReqPrazo.hojeIso()) + '"' +
+        (nec ? ' max="' + esc(nec) + '"' : '') + '></div>' +
+      '<div class="btns" style="margin-top:6px">' +
+        '<button class="btn btn-p" id="pz-ok" onclick="ReqPrazo.confirmar(\'' + status + '\')">Confirmar</button>' +
+        '<button class="btn btn-s" onclick="ReqPrazo.fechar()">Cancelar</button>' +
+      '</div>';
+
+    document.getElementById("modal").classList.add("on");
+  },
+
+  fechar: function(){
+    document.getElementById("modal").classList.remove("on");
+    document.getElementById("modal-cx").innerHTML = "";
+  },
+
+  confirmar: function(status){
+    var texto = document.getElementById("pz-texto").value.trim();
+    var data  = document.getElementById("pz-data").value;
+    var r = ReqPrazo.req || {};
+    var nec = (r.dataNecessidade || "").substring(0, 10);
+
+    if(status === "AGUARDANDO_INFORMACAO" && !texto){
+      toast("Escreva o que você precisa saber.", true); return;
+    }
+    if(!data){ toast("Informe até quando você retorna.", true); return; }
+    if(data < ReqPrazo.hojeIso()){ toast("A data de retorno não pode ser no passado.", true); return; }
+    if(nec && data > nec){
+      toast("O retorno não pode ser depois de " + dataBr(nec) + ", que é quando precisam do item.", true);
+      return;
+    }
+
+    var btn = document.getElementById("pz-ok");
+    btn.disabled = true;
+    btn.textContent = "Salvando…";
+
+    ReqAPI.post("alterarStatus", {
+      id:           ReqState.detalheId,
+      status:       status,
+      texto:        texto,
+      prazoRetorno: data
+    }).then(function(){
+      ReqPrazo.fechar();
+      toast("Pronto. Retorno prometido para " + dataBr(data) + ".");
+      ReqDetalhe.recarregar();
+    }).catch(function(e){
+      toast(e.message, true);
+      btn.disabled = false;
+      btn.textContent = "Confirmar";
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 10. NOVA REQUISIÇÃO
+// ────────────────────────────────────────────────────────────
+var ReqForm = {
+  abrir: function(){
+    mostrar("nova");
+    var c = ReqState.config;
+    var empresas = (c.empresas || []).map(function(e){
+      return '<option value="' + esc(e.chave) + '">' + esc(e.valor) + '</option>';
+    }).join("");
+    var setores = (c.setores || []).map(function(s){
+      return '<option value="' + esc(s.valor) + '">' + esc(s.valor) + '</option>';
+    }).join("");
+    var categorias = (c.categorias || []).map(function(x){
+      return '<option value="' + esc(x.valor) + '">' + esc(x.valor) + '</option>';
+    }).join("");
+
+    document.getElementById("v-nova").innerHTML =
+    '<div class="det-hdr">' +
+      '<button class="btn btn-s" onclick="ReqForm.fechar()">← Cancelar</button>' +
+      '<div class="det-tit">Nova requisição</div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">O que você precisa?</div>' +
+      '<div class="campo"><label class="lbl" for="n-titulo">Em poucas palavras</label>' +
+        '<input class="inp" id="n-titulo" placeholder="Ex.: geladeira nova para a cozinha" maxlength="120"></div>' +
+      '<div class="campo"><label class="lbl" for="n-desc">Explique com suas palavras</label>' +
+        '<textarea class="inp" id="n-desc" placeholder="Escreva do jeito que falaria. Se tiver foto ou link, dá para anexar depois de criar."></textarea></div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Para onde é?</div>' +
+      '<div class="linha3">' +
+        '<div class="campo"><label class="lbl" for="n-empresa">Empresa</label>' +
+          '<select class="sel" id="n-empresa" onchange="ReqForm.empresaMudou()"><option value="">Escolha</option>' + empresas + '</select></div>' +
+        '<div class="campo"><label class="lbl" for="n-unidade">Unidade</label>' +
+          '<select class="sel" id="n-unidade"><option value="">Escolha a empresa antes</option></select></div>' +
+        '<div class="campo"><label class="lbl" for="n-setor">Setor <i>opcional</i></label>' +
+          '<select class="sel" id="n-setor"><option value="">—</option>' + setores + '</select></div>' +
+      '</div>' +
+      '<div class="campo"><label class="lbl" for="n-solic">Para quem é <span class="obrig">*</span></label>' +
+        '<select class="sel" id="n-solic">' +
+          ((ReqState.config && ReqState.config.pessoas) || []).map(function(p){
+            return '<option value="' + esc(p.email) + '"' +
+                   (p.email === ReqState.sessao.email ? ' selected' : '') + '>' +
+                   esc(p.nome) + '</option>';
+          }).join("") +
+        '</select></div>' +
+      '<div id="aviso-aprov"></div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Item</div>' +
+      '<div class="linha3">' +
+        '<div class="campo" style="grid-column:span 2"><label class="lbl" for="i-desc">O que é</label>' +
+          '<input class="inp" id="i-desc" placeholder="Ex.: geladeira expositora 1200 litros"></div>' +
+        '<div class="campo"><label class="lbl" for="i-qtd">Quantidade <i>opcional</i></label>' +
+          '<input class="inp" id="i-qtd" placeholder="Ex.: 5 caixas"></div>' +
+      '</div>' +
+      '<button class="mais" onclick="ReqForm.maisEspec()" id="btn-espec">+ Mais especificações (marca, cor, medidas, voltagem…)</button>' +
+      '<div class="extra" id="espec">' +
+        '<div class="linha3">' +
+          '<div class="campo"><label class="lbl" for="i-cat">Categoria</label>' +
+            '<select class="sel" id="i-cat"><option value="">—</option>' + categorias + '</select></div>' +
+          '<div class="campo"><label class="lbl" for="i-marca">Marca</label><input class="inp" id="i-marca"></div>' +
+          '<div class="campo"><label class="lbl" for="i-modelo">Modelo</label><input class="inp" id="i-modelo"></div>' +
+        '</div>' +
+        '<div class="linha3">' +
+          '<div class="campo"><label class="lbl" for="i-cor">Cor</label><input class="inp" id="i-cor"></div>' +
+          '<div class="campo"><label class="lbl" for="i-volt">Voltagem</label>' +
+            '<select class="sel" id="i-volt"><option value="">—</option><option>110V</option><option>220V</option><option>Bivolt</option></select></div>' +
+          '<div class="campo"><label class="lbl" for="i-dim">Medidas (C×L×A)</label><input class="inp" id="i-dim" placeholder="Ex.: 80×70×190 cm"></div>' +
+        '</div>' +
+        '<div class="linha">' +
+          '<div class="campo"><label class="lbl" for="i-peso">Peso</label><input class="inp" id="i-peso"></div>' +
+          '<div class="campo"><label class="lbl" for="i-preco">Preço aproximado</label><input class="inp" id="i-preco" placeholder="R$ 0,00"></div>' +
+        '</div>' +
+        '<div class="campo"><label class="lbl" for="i-espec">Outras especificações</label>' +
+          '<textarea class="inp" id="i-espec" style="min-height:60px"></textarea></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Referências</div>' +
+      '<div class="rq-meta">Link do Mercado Livre, print do Instagram, foto do que acabou, orçamento em PDF. Quanto mais a Cris vir, menos ida e volta.</div>' +
+      '<div id="links-lista" style="margin:12px 0"></div>' +
+      '<div class="anexar-bar">' +
+        '<button class="btn btn-s" onclick="ReqForm.addLink()">🔗 Colar link</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.addArquivo(\'IMAGEM\')">📷 Foto</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.addArquivo(\'PDF\')">📄 Arquivo ou PDF</button>' +
+      '</div>' +
+      '<input type="file" id="n-arq" style="display:none" onchange="ReqForm.pegouArquivo(this)">' +
+    '</div>' +
+
+    '<div class="card"><div class="card-t">Prazo</div>' +
+      '<div class="linha">' +
+        '<div class="campo"><label class="lbl" for="n-urg">Urgência</label>' +
+          '<select class="sel" id="n-urg"><option>Normal</option><option>Baixa</option><option>Alta</option><option>Emergencial</option></select></div>' +
+        '<div class="campo"><label class="lbl" for="n-quando">Precisa até <i>opcional</i></label>' +
+          '<input class="inp" id="n-quando" type="date"></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="btns" style="margin-bottom:30px" id="btns-envio">' +
+      '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(false)">Enviar requisição</button>' +
+      '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>' +
+    '</div>';
+
+    ReqState.anexosNovos = [];
+    moeda(document.getElementById("i-preco"));
+    document.getElementById("n-titulo").focus();
+  },
+
+  fechar: function(){ mostrar("lista"); },
+
+  maisEspec: function(){
+    document.getElementById("espec").classList.toggle("on");
+    var aberto = document.getElementById("espec").classList.contains("on");
+    document.getElementById("btn-espec").textContent = aberto
+      ? "− Esconder especificações"
+      : "+ Mais especificações (marca, cor, medidas, voltagem…)";
+  },
+
+  // Ao escolher a empresa, a pessoa já vê quem vai aprovar — e o
+  // aprovador ganha o botão de mandar direto para a Cris.
+  empresaMudou: function(){
+    ReqForm.unidades();
+    var emp = document.getElementById("n-empresa").value;
+    var aviso = document.getElementById("aviso-aprov");
+    var btns = document.getElementById("btns-envio");
+    if(!emp){ aviso.innerHTML = ""; return; }
+
+    if(!ReqAprov.exigeAprovacao(emp)){
+      aviso.innerHTML = '<div class="aguardando" style="background:rgba(54,207,160,.1);border-color:rgba(54,207,160,.3);color:var(--ok)">' +
+                        'Esta requisição vai direto para a Cris, sem aprovação.</div>';
+      return;
+    }
+
+    var quem = ReqAprov.daEmpresa(emp).map(nomeDe).join(" ou ");
+    if(ReqAprov.souAprovador(emp)){
+      aviso.innerHTML = '<div class="aguardando" style="background:rgba(54,207,160,.1);border-color:rgba(54,207,160,.3);color:var(--ok)">' +
+                        'Você pode aprovar requisições desta empresa.</div>';
+      btns.innerHTML =
+        '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(true)">Aprovar e enviar para a Cris</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.enviar(false)">Enviar para aprovação</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>';
+    } else {
+      aviso.innerHTML = '<div class="aguardando">Será enviada para aprovação de <b>' + esc(quem) +
+                        '</b> e depois segue para a Cris.</div>';
+      btns.innerHTML =
+        '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(false)">Enviar para aprovação</button>' +
+        '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>';
+    }
+  },
+
+  addArquivo: function(tipo){
+    var inp = document.getElementById("n-arq");
+    inp.accept = (tipo === "IMAGEM") ? "image/*" : ".pdf,.doc,.docx,.xls,.xlsx,image/*";
+    inp.dataset.tipo = tipo;
+    inp.value = "";
+    inp.click();
+  },
+
+  pegouArquivo: function(input){
+    var arq = input.files && input.files[0];
+    if(!arq) return;
+    if(ReqState.anexosNovos.length >= 10){ toast("Máximo de 10 referências.", true); return; }
+    var tipo = input.dataset.tipo || "OUTRO";
+
+    var guardar = function(b64, mime){
+      ReqState.anexosNovos.push({
+        tipo: mime.indexOf("image") === 0 ? "IMAGEM" : "PDF",
+        base64: b64, mime: mime, nome: arq.name
+      });
+      ReqForm.renderLinks();
+    };
+
+    if(arq.type.indexOf("image") === 0){
+      ReqAnexo.comprimir(arq, function(b64){ guardar(b64, "image/jpeg"); });
+    } else {
+      var fr = new FileReader();
+      fr.onload = function(){ guardar(String(fr.result).split(",")[1], arq.type || "application/pdf"); };
+      fr.onerror = function(){ toast("Não deu para ler o arquivo.", true); };
+      fr.readAsDataURL(arq);
+    }
+  },
+
+  unidades: function(){
+    var emp = document.getElementById("n-empresa").value;
+    var lista = (ReqState.config.unidades || []).filter(function(u){
+      return u.chave === emp || u.chave === "*";
+    });
+    document.getElementById("n-unidade").innerHTML =
+      '<option value="">Escolha</option>' +
+      lista.map(function(u){ return '<option value="' + esc(u.valor) + '">' + esc(u.valor) + '</option>'; }).join("");
+  },
+
+  addLink: function(){
+    var url = prompt("Cole o link");
+    if(!url || !url.trim()) return;
+    ReqState.anexosNovos.push({url: url.trim()});
+    ReqForm.renderLinks();
+  },
+
+  removerLink: function(i){
+    ReqState.anexosNovos.splice(i, 1);
+    ReqForm.renderLinks();
+  },
+
+  renderLinks: function(){
+    document.getElementById("links-lista").innerHTML = ReqState.anexosNovos.map(function(a, i){
+      var icone = a.url ? "🔗" : (a.tipo === "IMAGEM" ? "📷" : "📄");
+      var rotulo = a.url || a.nome;
+      var mini = (a.tipo === "IMAGEM" && a.base64)
+        ? '<img src="data:image/jpeg;base64,' + a.base64 + '" style="width:42px;height:42px;object-fit:cover;border-radius:8px">'
+        : '';
+      return '<div class="item" style="display:flex;justify-content:space-between;gap:10px;align-items:center">' +
+             '<div style="display:flex;align-items:center;gap:10px;overflow:hidden">' + mini +
+               '<span class="item-e" style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+               icone + ' ' + esc(rotulo) + '</span></div>' +
+             '<button class="btn btn-s" style="padding:5px 10px;font-size:0.72rem" onclick="ReqForm.removerLink(' + i + ')">Remover</button>' +
+             '</div>';
+    }).join("");
+  },
+
+  enviar: function(autoaprovar){
+    var titulo = document.getElementById("n-titulo").value.trim();
+    var desc   = document.getElementById("n-desc").value.trim();
+    var emp    = document.getElementById("n-empresa").value;
+    var uni    = document.getElementById("n-unidade").value;
+    var iDesc  = document.getElementById("i-desc").value.trim();
+
+    if(!titulo){ toast("Escreva em poucas palavras o que você precisa.", true); return; }
+    if(!emp){    toast("Escolha a empresa.", true); return; }
+    if(!uni){    toast("Escolha a unidade.", true); return; }
+    if(!desc && !iDesc){ toast("Explique o que você precisa ou preencha o item.", true); return; }
+    if(!document.getElementById("n-solic").value){ toast("Escolha para quem é a requisição.", true); return; }
+
+    var itens = [];
+    if(iDesc){
+      itens.push({
+        descricao:     iDesc,
+        quantidade:    document.getElementById("i-qtd").value.trim(),
+        categoria:     document.getElementById("i-cat").value,
+        marca:         document.getElementById("i-marca").value.trim(),
+        modelo:        document.getElementById("i-modelo").value.trim(),
+        cor:           document.getElementById("i-cor").value.trim(),
+        voltagem:      document.getElementById("i-volt").value,
+        dimensoes:     document.getElementById("i-dim").value.trim(),
+        peso:          document.getElementById("i-peso").value.trim(),
+        precoEstimado: document.getElementById("i-preco").value.trim(),
+        especificacao: document.getElementById("i-espec").value.trim()
+      });
+    }
+
+    if(!ReqState.anexosNovos.length){
+      var seguir = confirm(
+        "Você não anexou nenhuma referência.\n\n" +
+        "Um link, uma foto do que acabou ou um print do Instagram ajuda muito " +
+        "a Cris a comprar exatamente o que você quer — e evita idas e vindas.\n\n" +
+        "Quer enviar assim mesmo?");
+      if(!seguir) return;
+    }
+
+    var links    = ReqState.anexosNovos.filter(function(a){ return a.url; });
+    var arquivos = ReqState.anexosNovos.filter(function(a){ return a.base64; });
+
+    var btn = document.getElementById("btn-enviar");
+    btn.disabled = true;
+    btn.textContent = "Enviando…";
+
+    var idCriado = null;
+
+    ReqAPI.post("criar", {
+      requestUuid:         ReqForm.uuid(),
+      titulo:              titulo,
+      descricao:           desc,
+      empresa:             emp,
+      unidade:             uni,
+      setor:               document.getElementById("n-setor").value,
+      solicitanteOriginal: document.getElementById("n-solic").value,
+      urgencia:            document.getElementById("n-urg").value,
+      dataNecessidade:     document.getElementById("n-quando").value,
+      itens:               itens,
+      links:               links,
+      autoaprovar:         !!autoaprovar
+    }, "Criando requisição…").then(function(r){
+      idCriado = r.id;
+      if(r.duplicada) return null;
+
+      // A subpasta do Drive só existe depois que a requisição tem número,
+      // então os arquivos sobem agora, um a um, com a tela bloqueada.
+      var fila = Promise.resolve();
+      arquivos.forEach(function(a, i){
+        fila = fila.then(function(){
+          return ReqAPI.post("anexar", {
+            id: idCriado, tipo: a.tipo, base64: a.base64,
+            mimeType: a.mime, nomeArquivo: a.nome
+          }, "Enviando anexo " + (i+1) + " de " + arquivos.length + "…");
+        });
+      });
+      return fila;
+    }).then(function(){
+      toast("Requisição " + idCriado + " criada.");
+      ReqState.anexosNovos = [];
+      ReqForm._uuid = null;
+      ReqDetalhe.abrir(idCriado);
+    }).catch(function(e){
+      toast(e.message, true);
+      btn.disabled = false;
+      btn.textContent = "Enviar requisição";
+      // Se a requisição nasceu e só o anexo falhou, leva a pessoa para ela
+      // em vez de deixar o formulário preenchido dando a impressão de erro total.
+      if(idCriado){
+        toast("A requisição " + idCriado + " foi criada, mas algum anexo falhou. Anexe pelo detalhe.", true);
+        ReqState.anexosNovos = [];
+        ReqForm._uuid = null;
+        ReqDetalhe.abrir(idCriado);
+      }
+    });
+  },
+
+  // Idempotência: o backend usa isso para não criar duas requisições
+  // no duplo clique ou no reenvio por internet instável.
+  uuid: function(){
+    if(!ReqForm._uuid){
+      ReqForm._uuid = "web-" + Date.now().toString(36) + "-" +
+                      Math.random().toString(36).slice(2, 10);
+    }
+    return ReqForm._uuid;
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 11. NOVIDADES (sino + contadores + polling)
+// ────────────────────────────────────────────────────────────
+var ReqNotif = {
+  atualizar: function(){
+    return ReqAPI.get("novidades", {}).then(function(n){
+      ReqState.novidades = n;
+      var badge = document.getElementById("sino-n");
+      badge.textContent = n.total;
+      badge.style.display = n.total > 0 ? "block" : "none";
+      if(!ReqState.detalheId) ReqLista.render();
+      return n;
+    }).catch(function(){ /* silencioso: polling não incomoda o usuário */ });
+  },
+
+  sincronizar: function(){
+    return ReqNotif.atualizar().then(function(){
+      if(ReqState.detalheId) return;
+      return ReqLista.carregar();
+    });
+  },
+
+  iniciar: function(){
+    if(ReqState.timer) clearInterval(ReqState.timer);
+    ReqState.timer = setInterval(function(){
+      if(document.visibilityState === "visible") ReqNotif.sincronizar();
+    }, ReqConfig.pollingMs);
+
+    document.addEventListener("visibilitychange", function(){
+      if(document.visibilityState === "visible") ReqNotif.atualizar();
+    });
+  },
+
+  verNovidades: function(){
+    if(!ReqState.novidades.total){ toast("Nada novo desde a sua última visita."); return; }
+    ReqState.escopo = "todas";
+    document.querySelectorAll(".cnt").forEach(function(b){ b.classList.remove("on"); });
+    mostrar("lista");
+    ReqLista.render();
+    var primeiro = document.getElementById("lista").querySelector(".rq.novo");
+    if(primeiro) primeiro.scrollIntoView({block:"center"});
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 11b. INDICADORES — velocímetros e gráficos na aba de KPIs
+// ────────────────────────────────────────────────────────────
+var ReqKpi = {
+  dados:    null,
+  graficos: {},
+  chartjs:  null,
+
+  // Chart.js só é baixado quando alguém abre a aba. Quem nunca
+  // usa o painel não paga o custo da biblioteca.
+  carregarChartjs: function(){
+    if(ReqKpi.chartjs) return ReqKpi.chartjs;
+    ReqKpi.chartjs = new Promise(function(ok, falhou){
+      if(window.Chart) return ok();
+      var t = document.createElement("script");
+      t.src = "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js";
+      t.onload = function(){ ok(); };
+      t.onerror = function(){ falhou(new Error("Não consegui carregar a biblioteca de gráficos.")); };
+      document.head.appendChild(t);
+    });
+    return ReqKpi.chartjs;
+  },
+
+  abrir: function(){
+    mostrar("kpi");
+    if(ReqKpi.dados){ ReqKpi.render(); return; }
+
+    document.getElementById("v-kpi").innerHTML = '<div class="carregando">Carregando indicadores…</div>';
+    Promise.all([
+      ReqKpi.carregarChartjs(),
+      ReqAPI.get("kpi", {})
+    ]).then(function(r){
+      ReqKpi.dados = r[1];
+      ReqKpi.render();
+    }).catch(function(e){
+      document.getElementById("v-kpi").innerHTML =
+        '<div class="vazio"><div class="vazio-t">Não deu para carregar os indicadores</div>' +
+        '<div class="vazio-s">' + esc(e.message) + '</div></div>';
+    });
+  },
+
+  filtros: function(){
+    return '<div class="filtros" style="margin:18px 0">' +
+      '<select class="sel" id="k-periodo">' +
+        '<option value="30">Últimos 30 dias</option>' +
+        '<option value="90" selected>Últimos 90 dias</option>' +
+        '<option value="180">Últimos 6 meses</option>' +
+        '<option value="365">Últimos 12 meses</option>' +
+        '<option value="0">Tudo</option>' +
+      '</select>' +
+      '<select class="sel" id="k-empresa"><option value="">Todas as empresas</option>' +
+        ((ReqState.config && ReqState.config.empresas) || []).map(function(e){
+          return '<option value="' + esc(e.chave) + '">' + esc(e.valor) + '</option>';
+        }).join("") +
+      '</select></div>';
+  },
+
+  ligarFiltros: function(){
+    var p = document.getElementById("k-periodo");
+    var e = document.getElementById("k-empresa");
+    if(p) p.onchange = ReqKpi.render;
+    if(e) e.onchange = ReqKpi.render;
+  },
+
+  reais: function(n){
+    return "R$ " + (Number(n)||0).toLocaleString("pt-BR", {minimumFractionDigits:2, maximumFractionDigits:2});
+  },
+
+  diasEntre: function(de, ate){
+    var a = new Date(de), b = ate ? new Date(ate) : new Date();
+    if(isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+    return (b.getTime() - a.getTime()) / 86400000;
+  },
+
+  horasEntre: function(de, ate){
+    var d = ReqKpi.diasEntre(de, ate);
+    return d === null ? null : d * 24;
+  },
+
+  media: function(lista){
+    var v = lista.filter(function(x){ return x !== null && isFinite(x); });
+    if(!v.length) return null;
+    return v.reduce(function(a,b){ return a+b; }, 0) / v.length;
+  },
+
+// ── Velocímetro ─────────────────────────────────────────────
+// Arco de 270°, percentual gigante no centro, cor pela faixa.
+  gauge: function(pct, base, titulo, descricao, unidade){
+  var vazio = (pct === null);
+  var v = vazio ? 0 : Math.max(0, Math.min(100, pct));
+  var cor = vazio ? "var(--mu2)" : (v >= 90 ? "var(--ok)" : (v >= 70 ? "var(--warn)" : "var(--red)"));
+
+  var raio = 80, cx = 100, cy = 100;
+  var inicio = 135, varredura = 270;
+  var ponto = function(ang){
+    var r = (ang - 90) * Math.PI / 180;
+    return [cx + raio * Math.cos(r), cy + raio * Math.sin(r)];
+  };
+  var arco = function(de, ate){
+    var a = ponto(de), b = ponto(ate);
+    var grande = (ate - de) > 180 ? 1 : 0;
+    return "M " + a[0].toFixed(2) + " " + a[1].toFixed(2) +
+           " A " + raio + " " + raio + " 0 " + grande + " 1 " + b[0].toFixed(2) + " " + b[1].toFixed(2);
+  };
+
+  // O degradê acompanha o arco: vermelho na largada, âmbar no meio,
+  // verde na chegada. Como o arco é cortado no valor atual, o ponteiro
+  // só alcança o verde quando o indicador realmente chega lá.
+  var gid = "grad-" + String(titulo).toLowerCase().replace(/[^a-z]/g, "");
+  var fim = inicio + (varredura * v / 100);
+  var agulha = ponto(fim);
+
+  return '<div class="gauge">' +
+    '<svg viewBox="0 0 200 175" role="img" aria-label="' + esc(titulo) + ': ' +
+      (vazio ? "sem dados" : v.toFixed(0) + "%") + '">' +
+      '<defs><linearGradient id="' + gid + '" gradientUnits="userSpaceOnUse" x1="20" y1="100" x2="180" y2="100">' +
+        '<stop offset="0" stop-color="#ff4d4f"></stop>' +
+        '<stop offset="0.35" stop-color="#ff8c3a"></stop>' +
+        '<stop offset="0.65" stop-color="#ffd12b"></stop>' +
+        '<stop offset="1" stop-color="#36cfa0"></stop>' +
+      '</linearGradient></defs>' +
+      '<path d="' + arco(inicio, inicio + varredura) + '" fill="none" stroke="var(--s3)" ' +
+        'stroke-width="14" stroke-linecap="round"></path>' +
+      (v > 0 ? '<path d="' + arco(inicio, fim) + '" fill="none" stroke="url(#' + gid + ')" ' +
+        'stroke-width="14" stroke-linecap="round"></path>' : '') +
+      (vazio ? '' : '<circle cx="' + agulha[0].toFixed(2) + '" cy="' + agulha[1].toFixed(2) +
+        '" r="6.5" fill="' + cor + '" stroke="var(--sf)" stroke-width="3"></circle>') +
+      '<text x="100" y="107" text-anchor="middle" class="g-pct" fill="' + cor + '">' +
+        (vazio ? "—" : v.toFixed(0) + (unidade || "%")) + '</text>' +
+      '<text x="100" y="130" text-anchor="middle" class="g-sub">' + esc(base) + '</text>' +
+    '</svg>' +
+    '<div class="g-tit">' + esc(titulo) + '</div>' +
+    '<div class="g-desc">' + esc(descricao) + '</div>' +
+  '</div>';
+  },
+
+// ── Filtro de período e empresa ─────────────────────────────
+  filtrar: function(){
+  var selP = document.getElementById("k-periodo");
+  var selE = document.getElementById("k-empresa");
+  var d = selP ? parseInt(selP.value, 10) : 90;
+  var emp = selE ? selE.value : "";
+  var corte = d ? new Date(Date.now() - d * 86400000).toISOString() : "";
+
+  return (ReqKpi.dados.registros || []).filter(function(r){
+    if(corte && r.abertura < corte) return false;
+    if(emp && r.empresa !== emp) return false;
+    return true;
+  });
+  },
+
+// ── Cálculo e desenho ───────────────────────────────────────
+  render: function(){
+  var rs = ReqKpi.filtrar();
+  var el = document.getElementById("v-kpi");
+
+  if(!rs.length){
+    el.innerHTML = ReqKpi.filtros() +
+      '<div class="vazio" style="padding:60px">Nenhuma requisição no período escolhido.</div>';
+    ReqKpi.ligarFiltros();
+    return;
+  }
+
+  // ---- KPI 1: entrega dentro da previsão ----
+  var comPrevisao = rs.filter(function(r){ return r.recebimento && r.prazoEntrega; });
+  var noPrazo = comPrevisao.filter(function(r){
+    return r.recebimento.substring(0,10) <= r.prazoEntrega;
+  });
+  var kpiPrazo = comPrevisao.length ? (noPrazo.length / comPrevisao.length * 100) : null;
+
+  // ---- KPI 2: fluxo respeitado (passou por aprovação) ----
+  var chegaramCompras = rs.filter(function(r){ return r.aprovadaEm || r.nasceuAprovada; });
+  var aprovadas = chegaramCompras.filter(function(r){ return !!r.aprovadaEm; });
+  var kpiFluxo = chegaramCompras.length ? (aprovadas.length / chegaramCompras.length * 100) : null;
+
+  // ---- KPI 3: recebimento sem divergência ----
+  var recebidas = rs.filter(function(r){ return r.statusRecebimento; });
+  var limpas = recebidas.filter(function(r){ return r.statusRecebimento === "OK"; });
+  var kpiRecebimento = recebidas.length ? (limpas.length / recebidas.length * 100) : null;
+
+  // ---- Números de apoio ----
+  var abertas = rs.filter(function(r){
+    return ["CONCLUIDA","CANCELADA","RECUSADA"].indexOf(r.status) < 0;
+  });
+  var hojeIso = new Date().toISOString().substring(0,10);
+  var atrasadas = abertas.filter(function(r){
+    return r.prazoRetorno && r.prazoRetorno < hojeIso &&
+           (r.status === "EM_COTACAO" || r.status === "AGUARDANDO_INFORMACAO");
+  });
+  var mediaRetorno = ReqKpi.media(rs.map(function(r){
+    if(!r.primeiroRetorno) return null;
+    return ReqKpi.horasEntre(r.aprovadaEm || r.abertura, r.primeiroRetorno);
+  }));
+  var mediaCiclo = ReqKpi.media(rs.map(function(r){
+    if(!r.conclusao) return null;
+    return ReqKpi.diasEntre(r.abertura, r.conclusao);
+  }));
+  var valorTotal = rs.reduce(function(a, r){ return a + (r.valorFinal || 0); }, 0);
+
+  var h = ReqKpi.filtros();
+
+  h += '<div class="gauges">' +
+    ReqKpi.gauge(kpiPrazo, comPrevisao.length + " entregas avaliadas", "Entregue no prazo",
+          "Recebidas até a previsão que a Cris informou ao registrar a compra.") +
+    ReqKpi.gauge(kpiFluxo, chegaramCompras.length + " requisições na fila", "Fluxo respeitado",
+          "Chegaram em Compras com aprovação registrada, em vez de entrar direto.") +
+    ReqKpi.gauge(kpiRecebimento, recebidas.length + " recebimentos", "Recebido sem divergência",
+          "Chegou completo e correto, sem faltar item nem problema na entrega.") +
+  '</div>';
+
+  h += '<div class="nums">' +
+    '<div class="num"><div class="num-n">' + abertas.length + '</div><div class="num-l">Em aberto agora</div></div>' +
+    '<div class="num' + (atrasadas.length ? ' alerta' : '') + '"><div class="num-n">' + atrasadas.length +
+      '</div><div class="num-l">Retornos atrasados</div></div>' +
+    '<div class="num"><div class="num-n">' +
+      (mediaRetorno === null ? "—" : (mediaRetorno < 24 ? mediaRetorno.toFixed(0) + "h" : (mediaRetorno/24).toFixed(1) + "d")) +
+      '</div><div class="num-l">1º retorno de Compras</div></div>' +
+    '<div class="num"><div class="num-n">' +
+      (mediaCiclo === null ? "—" : mediaCiclo.toFixed(1) + "d") +
+      '</div><div class="num-l">Ciclo completo médio</div></div>' +
+  '</div>';
+
+  h += '<div class="graficos">' +
+    '<div class="card"><div class="card-t">Onde estão as requisições</div>' +
+      '<div class="card-s">Distribuição por status no período</div>' +
+      '<div class="chart-box"><canvas id="g-status"></canvas></div></div>' +
+    '<div class="card"><div class="card-t">Volume por empresa</div>' +
+      '<div class="card-s">Quantidade de requisições abertas</div>' +
+      '<div class="chart-box"><canvas id="g-empresa"></canvas></div></div>' +
+    '<div class="card"><div class="card-t">Quem mais pede</div>' +
+      '<div class="card-s">Top 8 solicitantes</div>' +
+      '<div class="chart-box"><canvas id="g-solic"></canvas></div></div>' +
+    '<div class="card"><div class="card-t">Valor comprado</div>' +
+      '<div class="card-s">Total ' + esc(ReqKpi.reais(valorTotal)) + ' no período</div>' +
+      '<div class="chart-box"><canvas id="g-valor"></canvas></div></div>' +
+  '</div>';
+
+  // ---- Paradas há mais tempo ----
+  var paradas = abertas.slice().sort(function(a, b){
+    return (a.ultimaAtualizacao || "").localeCompare(b.ultimaAtualizacao || "");
+  }).slice(0, 10);
+
+  h += '<div class="card"><div class="card-t">Paradas há mais tempo</div>' +
+       '<div class="card-s">As dez requisições em aberto sem movimento há mais dias</div>';
+  h += paradas.length
+    ? '<table><thead><tr><th>Nº</th><th>O que é</th><th>Empresa</th><th>Aguardando</th><th>Parada há</th></tr></thead><tbody>' +
+      paradas.map(function(r){
+        var d = ReqKpi.diasEntre(r.ultimaAtualizacao, null);
+        var cls = d > 7 ? "dias ruim" : (d > 3 ? "dias atencao" : "dias");
+        return '<tr>' +
+          '<td><a href="Index_Requisicoes.html?rq=' + encodeURIComponent(r.id) + '" style="color:var(--blue)">' + esc(r.id) + '</a></td>' +
+          '<td>' + esc(r.titulo || r.solicitante) + '</td>' +
+          '<td>' + esc(r.empresa) + '</td>' +
+          '<td>' + esc((r.responsavelAtual || "").split("@")[0]) + '</td>' +
+          '<td class="' + cls + '">' + (d === null ? "—" : d.toFixed(0) + " dias") + '</td>' +
+        '</tr>';
+      }).join("") + '</tbody></table>'
+    : '<div class="vazio">Nenhuma requisição em aberto.</div>';
+  h += '</div>';
+
+  el.innerHTML = h;
+  ReqKpi.ligarFiltros();
+
+  ReqKpi.desenharGraficos(rs);
+  },
+
+// ── Gráficos ────────────────────────────────────────────────
+  agrupar: function(lista, chave){
+  var m = {};
+  lista.forEach(function(r){
+    var k = r[chave] || "—";
+    m[k] = (m[k] || 0) + 1;
+  });
+  return m;
+  },
+
+  desenharGraficos: function(rs){
+  Object.keys(ReqKpi.graficos).forEach(function(k){
+    try { ReqKpi.graficos[k].destroy(); } catch(_){}
+  });
+  ReqKpi.graficos = {};
+
+  var css = getComputedStyle(document.documentElement);
+  var cor = function(v){ return css.getPropertyValue(v).trim(); };
+  Chart.defaults.color = cor("--mu");
+  Chart.defaults.font.family = "DM Sans, sans-serif";
+  Chart.defaults.font.size = 11;
+
+  var grade = {grid:{color:"rgba(255,255,255,0.06)"}, ticks:{color:cor("--mu2")}};
+
+  var rotulos = {
+    NOVA:"Nova", EM_TRIAGEM:"Aprovação", EM_ANALISE:"Com Compras", EM_COTACAO:"Cotação",
+    AGUARDANDO_INFORMACAO:"Aguardando resposta", AGUARDANDO_APROVACAO:"Alçada",
+    COMPRADA:"Comprada", AGUARDANDO_ENTREGA:"A caminho", RECEBIDA_OK:"Recebida",
+    RECEBIDA_PARCIAL:"Parcial", RECEBIDA_DIVERGENCIA:"Divergência",
+    CONCLUIDA:"Concluída", CANCELADA:"Cancelada", RECUSADA:"Recusada"
+  };
+
+  // Status
+  var porStatus = ReqKpi.agrupar(rs, "status");
+  ReqKpi.graficos.status = new Chart(document.getElementById("g-status"), {
+    type:"bar",
+    data:{
+      labels: Object.keys(porStatus).map(function(k){ return rotulos[k] || k; }),
+      datasets:[{data: Object.values(porStatus), backgroundColor: cor("--blue"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, indexAxis:"y", plugins:{legend:{display:false}},
+             scales:{x:grade, y:grade}}
+  });
+
+  // Empresa
+  var porEmpresa = ReqKpi.agrupar(rs, "empresa");
+  ReqKpi.graficos.empresa = new Chart(document.getElementById("g-empresa"), {
+    type:"bar",
+    data:{
+      labels: Object.keys(porEmpresa),
+      datasets:[{data: Object.values(porEmpresa), backgroundColor: cor("--lime"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:grade, y:grade}}
+  });
+
+  // Solicitantes
+  var porSolic = ReqKpi.agrupar(rs, "solicitante");
+  var topo = Object.keys(porSolic).sort(function(a,b){ return porSolic[b]-porSolic[a]; }).slice(0,8);
+  ReqKpi.graficos.solic = new Chart(document.getElementById("g-solic"), {
+    type:"bar",
+    data:{
+      labels: topo.map(function(k){ return k.split("@")[0]; }),
+      datasets:[{data: topo.map(function(k){ return porSolic[k]; }),
+                 backgroundColor: cor("--pur"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, indexAxis:"y", plugins:{legend:{display:false}},
+             scales:{x:grade, y:grade}}
+  });
+
+  // Valor por empresa
+  var valores = {};
+  rs.forEach(function(r){
+    if(!r.valorFinal) return;
+    valores[r.empresa || "—"] = (valores[r.empresa || "—"] || 0) + r.valorFinal;
+  });
+  ReqKpi.graficos.valor = new Chart(document.getElementById("g-valor"), {
+    type:"bar",
+    data:{
+      labels: Object.keys(valores),
+      datasets:[{data: Object.values(valores), backgroundColor: cor("--cyan"), borderRadius:6}]
+    },
+    options:{maintainAspectRatio:false, plugins:{legend:{display:false},
+      tooltip:{callbacks:{label:function(c){ return ReqKpi.reais(c.raw); }}}},
+      scales:{x:grade, y:Object.assign({}, grade, {ticks:{color:cor("--mu2"),
+        callback:function(v){ return "R$ " + (v/1000).toFixed(0) + "k"; }}})}}
+  });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 12. INICIALIZAÇÃO
+// ────────────────────────────────────────────────────────────
+function ReqInit(){
+  ReqState.sessao = ReqSessao();
+  if(!ReqState.sessao) return;
+
+  document.getElementById("quem").textContent = ReqState.sessao.nome || ReqState.sessao.email;
+
+  ReqAPI.get("config", {}).then(function(c){
+    ReqState.config = c;
+
+    if(c.usuario.isCompras){
+      document.getElementById("titulo").textContent = "Central de Requisições — Compras";
+    } else if(ReqHome.aprovador()){
+      document.getElementById("titulo").textContent = "Central de Requisições — Aprovações";
+    }
+
+    // Aba de indicadores: só para quem aprova, compra ou administra
+    if(c.usuario.isCompras || c.usuario.isAdmin || ReqHome.aprovador()){
+      var abas = document.getElementById("abas");
+      abas.dataset.liberado = "1";
+      abas.style.display = "flex";
+    }
+
+    document.getElementById("f-empresa").innerHTML =
+      '<option value="">Todas as empresas</option>' +
+      (c.empresas || []).map(function(e){
+        return '<option value="' + esc(e.chave) + '">' + esc(e.valor) + '</option>';
+      }).join("");
+
+    document.getElementById("f-status").innerHTML =
+      '<option value="">Todos os status</option>' +
+      Object.keys(c.statusLabel).map(function(k){
+        return '<option value="' + esc(k) + '">' + esc(c.statusLabel[k]) + '</option>';
+      }).join("");
+
+    ReqHome.montar();
+
+    // Deep link vindo do e-mail: Index_Requisicoes.html?rq=RQ-2026-0001
+    var m = location.search.match(/[?&]rq=([^&]+)/);
+    if(m){
+      ReqLista.carregar();
+      return ReqDetalhe.abrir(decodeURIComponent(m[1]));
+    }
+
+    return ReqNotif.sincronizar();
+  }).then(function(){
+    ReqNotif.iniciar();
+  }).catch(function(e){
+    document.getElementById("lista").innerHTML =
+      '<div class="vazio"><div class="vazio-t">Não deu para entrar</div>' +
+      '<div class="vazio-s">' + esc(e.message) + '</div>' +
+      '<a class="btn btn-s" href="Index_Menu.html">Voltar ao menu</a></div>';
+  });
+
+  // Eventos de tela
+  document.querySelectorAll(".aba").forEach(function(b){
+    b.onclick = function(){
+      document.querySelectorAll(".aba").forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+      if(b.dataset.aba === "kpi") ReqKpi.abrir();
+      else { mostrar("lista"); ReqLista.render(); }
+    };
+  });
+
+  document.getElementById("btn-nova").onclick = function(){ ReqForm.abrir(); };
+  document.getElementById("sino").onclick     = function(){ ReqNotif.verNovidades(); };
+
+  document.addEventListener("keydown", function(e){
+    if(e.key !== "Escape") return;
+    if(document.getElementById("lightbox").classList.contains("on")) return ReqFoto.fechar();
+    if(document.getElementById("modal").classList.contains("on")){
+      document.getElementById("modal").classList.remove("on");
+      document.getElementById("modal-cx").innerHTML = "";
+    }
+  });
+
+  document.getElementById("f-busca").oninput    = function(){ ReqLista.render(); };
+  document.getElementById("f-empresa").onchange = function(){ ReqLista.render(); };
+  document.getElementById("f-status").onchange  = function(){ ReqLista.render(); };
+}
+
+ReqInit();
+</script>
+</body>
+</html>
