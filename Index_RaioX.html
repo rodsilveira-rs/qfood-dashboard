@@ -221,7 +221,51 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--ink)}
   .hide-m{display:none}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ficha de visita (só impressão) */
+.ficha{display:none}
 @media print{
+  @page{size:A4;margin:9mm 9mm 11mm}
+  body.print-ficha > *:not(#ficha){display:none!important}
+  body.print-ficha #ficha{display:block}
+  html,body.print-ficha{background:#fff!important}
+  .ficha{font-size:8.6pt;line-height:1.3;color:#1E2433;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .fx-top{display:flex;align-items:center;justify-content:space-between;background:#1B2540;color:#fff;border-radius:6px;padding:6px 12px;margin-bottom:8px}
+  .fx-top b{font-size:13pt;font-weight:900;letter-spacing:.3px}
+  .fx-top span{font-size:7.8pt;opacity:.9;text-align:right}
+  .fx-cli{border:1px solid #CBD3DF;border-radius:6px;padding:8px 12px;margin-bottom:8px;display:grid;grid-template-columns:1.45fr 1fr;gap:4px 18px}
+  .fx-cli .nm{grid-column:1/-1;font-size:15pt;font-weight:900;color:#1B2540;line-height:1.1}
+  .fx-cli .rz{grid-column:1/-1;color:#56607A;margin-bottom:3px}
+  .fx-cli .f{display:flex;gap:6px}
+  .fx-cli .f i{font-style:normal;color:#7A8497;min-width:62px}
+  .fx-kpi{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:9px}
+  .fx-kpi div{border:1px solid #DCE1E9;border-radius:6px;padding:4px 8px}
+  .fx-kpi b{display:block;font-size:11.5pt;color:#1B2540}
+  .fx-kpi span{font-size:7.3pt;color:#7A8497}
+  .fx-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .fx-sec{border-radius:6px;border:1px solid #DCE1E9;overflow:hidden;margin-bottom:8px}
+  .fx-sec h3{font-size:10.5pt;font-weight:900;padding:5px 9px;color:#fff;display:flex;justify-content:space-between;align-items:baseline}
+  .fx-sec h3 small{font-size:7.5pt;font-weight:400;opacity:.9}
+  .fx-ok h3{background:#1F7A55} .fx-pa h3{background:#C97A12} .fx-op h3{background:#1B2540}
+  .fx-sec table{width:100%;border-collapse:collapse;font-size:7.9pt;table-layout:fixed}
+  .fx-sec th{font-size:7pt;text-transform:none;color:#7A8497;background:#F6F8FB;padding:3px 7px;border-bottom:1px solid #E3E7EE;text-align:left;position:static}
+  .fx-sec td{padding:2.2px 7px;border-bottom:1px solid #EEF1F5;vertical-align:middle;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fx-sec tr:last-child td{border-bottom:0}
+  .fx-sec td.r,.fx-sec th.r{text-align:right;white-space:nowrap}
+  .fx-sec .pd{font-weight:700}
+  .fx-sec .ct{font-size:6.8pt;color:#7A8497}
+  .fx-cats{padding:5px 8px;display:flex;flex-wrap:wrap;gap:3px}
+  .fx-cats span{font-size:7pt;border:1px solid #E7B7B1;color:#B8352A;border-radius:3px;padding:0 5px}
+  .fx-cats span b{color:#1E2433;font-weight:700}
+  .fx-ess{display:inline-block;font-size:6.5pt;font-weight:700;background:#E6EEFB;color:#244A8F;border-radius:3px;padding:0 4px;margin-left:3px}
+  .fx-box{display:inline-block;width:10px;height:10px;border:1.2px solid #1B2540;border-radius:2px}
+  .fx-dots{white-space:nowrap}
+  .fx-dots i{display:inline-block;width:5.5px;height:5.5px;border-radius:50%;background:#E3E7EE;margin-right:1.3px}
+  .fx-dots i.on{background:#1F7A55}
+  .fx-empty{padding:8px;color:#7A8497}
+  .fx-notes{border:1px solid #DCE1E9;border-radius:6px;padding:6px 10px}
+  .fx-notes b{font-size:9pt;color:#1B2540}
+  .fx-notes div{border-bottom:1px solid #D5DBE5;height:17px}
+  .fx-foot{margin-top:6px;font-size:7pt;color:#7A8497;display:flex;justify-content:space-between}
   .print-only{display:block}
   .guia,.tip{display:none!important}
   .pstamp{display:flex;justify-content:space-between;border-bottom:2px solid #1B2540;padding-bottom:6px;margin-bottom:12px;font-size:12px}
@@ -275,6 +319,7 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--ink)}
 </div>
 <div class="toast" id="toast"></div>
 <div class="pfoot" id="pfoot"></div>
+<div id="ficha" class="ficha"></div>
 
 <script>
 var RX = (function(){
@@ -352,6 +397,12 @@ function money(n){return brl0.format(n||0);}
 function int(n){return (n||0).toLocaleString('pt-BR',{maximumFractionDigits:0});}
 function pct(x,d){d=d||0;return ((x||0)*100).toLocaleString('pt-BR',{maximumFractionDigits:d,minimumFractionDigits:d})+'%';}
 function mesLabel(k){if(!k) return '—';var p=k.split('-');return MESES[+p[1]-1]+'/'+p[0].slice(2);}
+/* período da base, ex.: jan–set/26 (a base é acumulada no ano, não é o ano fechado) */
+function periodo(){
+  var a=S.months[0], b=S.months[S.months.length-1]; if(!a) return '';
+  return a.slice(0,4)===b.slice(0,4) ? MESES[+a.slice(5)-1]+'–'+mesLabel(b) : mesLabel(a)+'–'+mesLabel(b);
+}
+function mediaMes(c){return S.months.length?c.total/S.months.length:0;}
 function median(a){if(!a.length) return 0;var b=a.slice().sort(function(x,y){return x-y;});var m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2;}
 function plural(n,s,p){return n+' '+(n===1?s:p);}
 function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('show');},2200);}
@@ -490,11 +541,15 @@ function buildRank(rows){
 function buildBase(rows){
   var h=rows[0], ix={
     doc:colIdx(h,['CNPJ']), f1:colIdx(h,['Fone1']), wa:colIdx(h,['Whats App','WhatsApp']),
-    cid:colIdx(h,['Cidade']), uf:colIdx(h,['Estado'])
+    cid:colIdx(h,['Cidade']), uf:colIdx(h,['Estado']), end:colIdx(h,['Endereço','Endereco']), nr:colIdx(h,['Número','Numero']),
+    cpl:colIdx(h,['Complto','Complemento']), bai:colIdx(h,['Bairro']), cep:colIdx(h,['CEP']), mail:colIdx(h,['EMail','E-mail']),
+    ie:colIdx(h,['IE']), pag:colIdx(h,['Plano de Pagamento'])
   };
+  var g=function(r,i){return i>=0?String(r[i]||'').trim():'';};
   for(var i=1;i<rows.length;i++){
     var r=rows[i], d=docNorm(r[ix.doc]); if(!d||S.base[d]) continue;
-    S.base[d]={fone:r[ix.f1]||'',wa:r[ix.wa]||'',cidade:r[ix.cid]||'',uf:r[ix.uf]||''};
+    S.base[d]={fone:g(r,ix.f1),wa:g(r,ix.wa),cidade:g(r,ix.cid),uf:g(r,ix.uf),end:g(r,ix.end),nr:g(r,ix.nr),cpl:g(r,ix.cpl),
+      bairro:g(r,ix.bai),cep:g(r,ix.cep),email:g(r,ix.mail).split(/[;,\s]+/)[0]||'',ie:g(r,ix.ie),plano:g(r,ix.pag)};
   }
 }
 
@@ -592,7 +647,7 @@ var HELP={
   mapa:'Cada quadrado é uma categoria da cesta.<br><br><b>Verde:</b> ele compra.<br><b>Laranja:</b> comprava e parou nos últimos meses.<br><b>Branco com faixa vermelha:</b> nunca comprou.<br><br>A barrinha embaixo mostra quantos clientes do mesmo segmento compram aquela categoria. <b>Clique</b> num quadrado para ver só os produtos dele nas listas.',
   tabOp:'<b>Produtos que ele ainda não compra</b>, do mais comprado pelos clientes parecidos para o menos comprado. Comece pelos primeiros da lista e pelos que têm o selo Essencial. Marque os itens e clique em <b>Mensagem para o cliente</b>.',
   tabPa:'<b>Produtos que ele comprava e parou.</b> As bolinhas mostram os meses em que ele comprou; as com contorno são os meses mais recentes. Pergunte o motivo: preço, falta, troca de fornecedor ou mudança no cardápio.',
-  tabCo:'<b>Tudo o que ele comprou no ano</b>, do maior valor para o menor. Use para confirmar o que está indo bem antes de oferecer produtos novos.',
+  tabCo:'<b>Tudo o que ele comprou no período</b>, do maior valor para o menor. Use para confirmar o que está indo bem antes de oferecer produtos novos.',
   resCov:'Quantos tipos de produto da cesta (de 26 categorias) o <b>cliente típico da sua carteira</b> compra. Quanto maior, mais completos são os pedidos.',
   resMix:'Em média, quantos dos <b>produtos essenciais</b> do segmento os seus clientes compram. Essenciais são os que 30 de cada 100 clientes parecidos compram.',
   resAtivos:'Clientes que compraram nos <b>últimos 60 dias</b>. Os demais aparecem no bloco <b>Clientes parados</b>.',
@@ -610,7 +665,7 @@ function guiaCliente(){
     '<div><h4>Cores do velocímetro</h4><ul><li><span class="sw" style="background:#C0392B"></span>abaixo de 28%: muito baixo</li><li><span class="sw" style="background:#E67E22"></span>de 28% a 50%: baixo</li><li><span class="sw" style="background:#E5B620"></span>de 50% a 75%: médio</li><li><span class="sw" style="background:#7CB342"></span>de 75% a 90%: bom</li><li><span class="sw" style="background:#1F7A55"></span>acima de 90%: ótimo</li></ul></div>'+
     '<div><h4>Mapa das categorias</h4><ul><li><span class="sw" style="background:var(--nori)"></span>Verde: compra</li><li><span class="sw" style="background:var(--kaki)"></span>Laranja: parou nos últimos meses</li><li><span class="sw" style="background:var(--shu)"></span>Vermelho: nunca comprou</li></ul><p>Clique numa categoria para filtrar as listas.</p></div>'+
     '<div><h4>Selos dos produtos</h4><ul><li><span class="badge b-top" style="margin:0">Top 5</span> posição no ranking de vendas da empresa</li><li><span class="badge b-ess" style="margin:0">Essencial</span> 30 de cada 100 clientes parecidos compram</li><li><span class="badge b-new" style="margin:0">Categoria nova</span> ele não compra nada dessa categoria</li><li><span class="badge b-par" style="margin:0">Parou</span> sem compra nos últimos meses</li><li><span class="badge b-fora" style="margin:0">Fora da cesta</span> produto que não é da cesta oriental</li></ul></div>'+
-    '<div><h4>Botões</h4><p><b>Mensagem para o cliente:</b> monta um texto com os itens marcados, sem preço nem margem, pronto para o WhatsApp.</p><p><b>Resumo interno:</b> texto para a equipe, não enviar ao cliente.</p><p><b>Imprimir ou salvar PDF:</b> sai com data, hora e nome de quem imprimiu.</p></div>'+
+    '<div><h4>Botões</h4><p><b>Mensagem para o cliente:</b> monta um texto com os itens marcados, sem preço nem margem, pronto para o WhatsApp.</p><p><b>Resumo interno:</b> texto para a equipe, não enviar ao cliente.</p><p><b>Imprimir ficha de visita:</b> uma página com os dados do cliente, o que ele compra bem, o que parou e as oportunidades. Sai com data, hora e nome de quem imprimiu.</p></div>'+
   '</div></details>';
 }
 function agora(){var d=new Date();return d.toLocaleDateString('pt-BR')+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});}
@@ -622,9 +677,71 @@ function setStamp(){
   document.querySelectorAll('#pstampTxt').forEach(function(el){el.textContent=t;});
   $('pfoot').textContent=t+'  |  Base de vendas de '+mesLabel(S.months[0])+' a '+mesLabel(S.months[S.months.length-1])+(S.dataBase?', atualizada em '+S.dataBase:'');
 }
-function printNow(){setStamp();setTimeout(function(){window.print();},50);}
+function printNow(){document.body.classList.remove('print-ficha');setStamp();setTimeout(function(){window.print();},50);}
 window.addEventListener('beforeprint',setStamp);
 document.addEventListener('click',function(e){var t=e.target.closest&&e.target.closest('[data-print]');if(t){e.preventDefault();printNow();}});
+
+/* =========================================================
+   FICHA DE VISITA (impressão de 1 página)
+   ========================================================= */
+var FICHA_MAX={bem:14,parou:9,op:23};
+function fDots(m){return '<span class="fx-dots">'+S.months.map(function(x){return '<i class="'+(m[x]?'on':'')+'"></i>';}).join('')+'</span>';}
+function printFicha(c){
+  var b=S.bench[c.bg], st=itemStatus(c), cad=c.cadastro||{};
+  var keep={hz:S.hideZero,nc:S.onlyNewCat,cs:S.catSel}; S.hideZero=true; S.onlyNewCat=false; S.catSel=null;
+  var cs=catStatus(c,st);
+  var bem=Object.keys(c.items).filter(function(k){return st[k]==='ativo';}).map(function(k){return c.items[k];})
+    .sort(function(x,y){return y.tot-x.tot;}).slice(0,FICHA_MAX.bem);
+  var par=listParou(c,st).slice(0,FICHA_MAX.parou);
+  var opsAll=listOps(c,b,cs);
+  S.hideZero=keep.hz; S.onlyNewCat=keep.nc; S.catSel=keep.cs;
+  // itens marcados na tela entram primeiro
+  var marc=opsAll.filter(function(o){return S.checked[o.it.cod];});
+  var ops=marc.concat(opsAll.filter(function(o){return !S.checked[o.it.cod];})).slice(0,FICHA_MAX.op);
+
+  var end=[cad.end,cad.nr,cad.cpl].filter(Boolean).join(', ');
+  var end2=[cad.bairro,(cad.cidade||c.mun)+((cad.uf||c.uf)?' / '+(cad.uf||c.uf):''),cad.cep?'CEP '+cad.cep:''].filter(Boolean).join(' · ');
+  var fone=[cad.wa,cad.fone].filter(function(v,i,a){return v&&a.indexOf(v)===i;}).join(' / ');
+  var f=function(l,v){return '<div class="f"><i>'+l+'</i><span>'+(v?esc(v):'—')+'</span></div>';};
+
+  var x='<div class="fx-top"><b>FICHA DE VISITA</b><span>Q Food Company · Raio-X do Cliente<br>Impresso em '+agora()+' por '+esc(S.user.nome)+'</span></div>';
+  x+='<div class="fx-cli"><div class="nm">'+esc(c.fant||c.raz)+'</div><div class="rz">'+esc(c.raz)+'</div>'+
+    '<div>'+f('CNPJ/CPF',docFmt(c.doc))+f('Endereço',end)+f('',end2)+f('E-mail',cad.email)+'</div>'+
+    '<div>'+f('Telefone',fone)+f('Segmento',c.seg)+f('Região',c.reg)+f('Vendedor',c.vends.join(', '))+'</div></div>';
+  x+='<div class="fx-kpi">'+
+    '<div><b>'+money(c.total)+'</b><span>compras '+periodo()+'<br>média '+money(mediaMes(c))+'/mês</span></div>'+
+    '<div><b>'+c.nMeses+' de '+S.months.length+'</b><span>meses com compra</span></div>'+
+    '<div><b>'+int(c.dias)+' dias</b><span>desde a última compra (NF '+esc(c.nf)+')</span></div>'+
+    '<div><b>'+c.nCats+' de '+S.cats.length+'</b><span>categorias da cesta que compra</span></div>'+
+    '<div><b>'+(b.nEss-c.faltam)+' de '+b.nEss+'</b><span>produtos essenciais que compra</span></div></div>';
+
+  var left='<div class="fx-sec fx-ok"><h3>Onde fomos bem <small>compra nos últimos '+S.win+' meses</small></h3>'+
+    (bem.length?'<table><colgroup><col><col style="width:78px"><col style="width:70px"></colgroup><thead><tr><th>Produto</th><th>Meses</th><th class="r">'+periodo()+'</th></tr></thead><tbody>'+
+      bem.map(function(i){return '<tr><td class="w"><span class="pd">'+esc(i.desc)+'</span></td><td>'+fDots(i.m)+'</td><td class="r">'+money(i.tot)+'</td></tr>';}).join('')+'</tbody></table>'
+      :'<div class="fx-empty">Nenhuma compra nos últimos '+S.win+' meses.</div>')+'</div>';
+  left+='<div class="fx-sec fx-pa"><h3>Parou de comprar <small>perguntar o motivo</small></h3>'+
+    (par.length?'<table><colgroup><col><col style="width:52px"><col style="width:70px"></colgroup><thead><tr><th>Produto</th><th class="r">Última</th><th class="r">'+periodo()+'</th></tr></thead><tbody>'+
+      par.map(function(i){return '<tr><td class="w"><span class="pd">'+esc(i.desc)+'</span></td><td class="r">'+mesLabel(i.last)+'</td><td class="r">'+money(i.tot)+'</td></tr>';}).join('')+'</tbody></table>'
+      :'<div class="fx-empty">Nenhum produto parado. Ótimo sinal.</div>')+'</div>';
+  left+='<div class="fx-notes"><b>Anotações da visita</b><div></div><div></div><div></div><div></div></div>';
+
+  var right='<div class="fx-sec fx-op"><h3>Oportunidades <small>ainda não compra, os parecidos compram</small></h3>'+
+    (ops.length?'<table><colgroup><col style="width:24px"><col><col style="width:34px"><col style="width:60px"></colgroup><thead><tr><th></th><th>Produto</th><th></th><th class="r">Parecidos</th></tr></thead><tbody>'+
+      ops.map(function(o){return '<tr><td><span class="fx-box"></span></td><td class="w" title="'+esc(o.it.cat)+'"><span class="pd">'+esc(o.it.desc)+'</span></td><td>'+(o.ess?'<span class="fx-ess" style="margin:0">ESS</span>':'')+'</td><td class="r"><b>'+pct(o.a)+'</b></td></tr>';}).join('')+'</tbody></table>'
+      :'<div class="fx-empty">Ele já compra todos os produtos que clientes parecidos compram.</div>')+'</div>';
+  var nuncaL=S.cats.filter(function(x){return cs[x].s==='nunca';}).sort(function(p,q){return (b.catA[q]||0)-(b.catA[p]||0);});
+  if(nuncaL.length) right+='<div class="fx-sec"><h3 style="background:#B8352A">Nunca comprou <small>% dos parecidos que compram</small></h3><div class="fx-cats">'+
+    nuncaL.map(function(x){return '<span>'+esc(x)+' <b>'+pct(b.catA[x]||0)+'</b></span>';}).join('')+'</div></div>';
+
+  x+='<div class="fx-grid"><div>'+left+'</div><div>'+right+'</div></div>';
+  x+='<div class="fx-foot"><span>Marque o quadrado das oportunidades ofertadas na visita. ESS = produto essencial do segmento.</span><span>Base de vendas de '+mesLabel(S.months[0])+' a '+mesLabel(S.months[S.months.length-1])+(S.dataBase?', atualizada em '+esc(S.dataBase):'')+'</span></div>';
+
+  $('ficha').innerHTML=x;
+  document.body.classList.add('print-ficha');
+  var off=function(){document.body.classList.remove('print-ficha');window.removeEventListener('afterprint',off);};
+  window.addEventListener('afterprint',off);
+  setTimeout(function(){window.print();},60);
+}
 
 /* =========================================================
    TELA: RESUMO DA CARTEIRA (linguagem simples)
@@ -684,7 +801,7 @@ function renderResumo(){
   h+='<div class="res-top">'+
     '<div class="kpi"><div class="v num">'+pct(covMed)+'</div><div class="l">Cobertura da cesta'+info(HELP.resCov)+'</div>'+hbar(covMed)+'<div class="d">O cliente típico compra '+Math.round(covMed*S.cats.length)+' das '+S.cats.length+' categorias</div></div>'+
     '<div class="kpi"><div class="v num">'+pct(mixMed)+'</div><div class="l">Mix essencial'+info(HELP.resMix)+'</div>'+hbar(mixMed)+'<div class="d">dos produtos essenciais estão nos pedidos do cliente típico</div></div>'+
-    '<div class="kpi"><div class="v num">'+ativos.length+' <span style="font-size:18px;color:var(--mute)">de '+N+'</span></div><div class="l">Clientes ativos'+info(HELP.resAtivos)+'</div>'+hbar(ativos.length/N)+'<div class="d">'+money(total)+' em compras no ano</div></div>'+
+    '<div class="kpi"><div class="v num">'+ativos.length+' <span style="font-size:18px;color:var(--mute)">de '+N+'</span></div><div class="l">Clientes ativos'+info(HELP.resAtivos)+'</div>'+hbar(ativos.length/N)+'<div class="d">'+money(total)+' em compras '+periodo()+'</div></div>'+
   '</div>';
 
   // 1 e 2
@@ -708,7 +825,7 @@ function renderResumo(){
     }).join(''):'<p class="empty">Os clientes ativos já compram todos os essenciais.</p>')+'</div>';
   h+='<div><h4 style="margin-top:0">Clientes com mais espaço para crescer'+info(HELP.espaco)+'</h4>'+
     (espaco.length?espaco.map(function(c){
-      return '<div class="rline"><div><a class="t" href="#c='+c.doc+'" style="color:var(--ink)">'+esc(c.fant||c.raz)+'</a><div class="s">'+esc(c.seg)+', '+esc(c.reg)+', compra '+money(c.total)+' no ano</div></div><div>'+hbar(c.mix)+'<div class="s">tem '+(S.bench[c.bg].nEss-c.faltam)+' de '+S.bench[c.bg].nEss+' essenciais</div></div><div class="n"><b>'+c.faltam+'</b> <span class="s">faltando</span></div></div>';
+      return '<div class="rline"><div><a class="t" href="#c='+c.doc+'" style="color:var(--ink)">'+esc(c.fant||c.raz)+'</a><div class="s">'+esc(c.seg)+', '+esc(c.reg)+', comprou '+money(c.total)+' em '+periodo()+'</div></div><div>'+hbar(c.mix)+'<div class="s">tem '+(S.bench[c.bg].nEss-c.faltam)+' de '+S.bench[c.bg].nEss+' essenciais</div></div><div class="n"><b>'+c.faltam+'</b> <span class="s">faltando</span></div></div>';
     }).join(''):'<p class="empty">Nenhum cliente ativo com essenciais faltando.</p>')+'</div></div>';
   if(regs.length>1){
     h+='<h4>Por região'+info(HELP.regiao)+'</h4>'+regs.map(function(o){
@@ -719,7 +836,7 @@ function renderResumo(){
 
   if(parados.length){
     h+='<section class="blk risk"><h3>Clientes parados</h3><p class="lead">'+plural(parados.length,'cliente está','clientes estão')+' há mais de 60 dias sem comprar. Antes de oferecer produtos novos, vale retomar o contato com eles.</p>'+
-      parados.slice(0,10).map(function(c){return '<div class="rline"><div><a class="t" href="#c='+c.doc+'" style="color:var(--ink)">'+esc(c.fant||c.raz)+'</a><div class="s">'+esc(c.seg)+', '+esc(c.reg)+'</div></div><div class="s">Comprou '+money(c.total)+' no ano</div><div class="n"><b>'+int(c.dias)+'</b> <span class="s">dias</span></div></div>';}).join('')+
+      parados.slice(0,10).map(function(c){return '<div class="rline"><div><a class="t" href="#c='+c.doc+'" style="color:var(--ink)">'+esc(c.fant||c.raz)+'</a><div class="s">'+esc(c.seg)+', '+esc(c.reg)+'</div></div><div class="s">Comprou '+money(c.total)+' em '+periodo()+'</div><div class="n"><b>'+int(c.dias)+'</b> <span class="s">dias</span></div></div>';}).join('')+
       (parados.length>10?'<p class="s" style="margin-top:8px">E mais '+(parados.length-10)+'. Veja todos na aba Lista de clientes, ordenando por dias sem compra.</p>':'')+
     '</section>';
   }
@@ -774,7 +891,7 @@ var HOME_COLS=[
   {k:'vend',t:'Vendedor',get:function(c){return c.vends.join(', ');},txt:1,cls:'hide-m'},
   {k:'cov',t:'Categorias da cesta',get:function(c){return c.cov;}},
   {k:'faltam',t:'Essenciais faltando',get:function(c){return c.faltam;},cls:'r'},
-  {k:'total',t:'Compras no ano',get:function(c){return c.total;},cls:'r'},
+  {k:'total',t:'Compras',get:function(c){return c.total;},cls:'r'},
   {k:'dias',t:'Dias sem compra',get:function(c){return c.dias;},cls:'r'}
 ];
 function homeTabs(){
@@ -799,7 +916,7 @@ function renderHome(){
     'Nesta lista, o cliente típico compra <b>'+pct(median(arr.map(function(c){return c.cov;})))+'</b> das '+S.cats.length+' categorias.</p></div>';
   if(!arr.length){ $('app').innerHTML=h+'<div class="tbl-wrap"><div class="empty">Nenhum cliente com esses filtros. Limpe a busca ou troque o segmento ou a região.</div></div>'; wireHomeTabs(); return; }
   h+='<div class="tbl-wrap"><table><thead><tr>'+HOME_COLS.map(function(x){
-    var on=S.sort.k===x.k; return '<th class="sort '+(x.cls||'')+(on?' on':'')+'" data-k="'+x.k+'" tabindex="0">'+x.t+(on?(S.sort.d>0?' ▲':' ▼'):'')+'</th>';
+    var on=S.sort.k===x.k; return '<th class="sort '+(x.cls||'')+(on?' on':'')+'" data-k="'+x.k+'" tabindex="0">'+(x.k==='total'?'Compras '+periodo():x.t)+(on?(S.sort.d>0?' ▲':' ▼'):'')+'</th>';
   }).join('')+'</tr></thead><tbody>';
   arr.slice(0,S.limit).forEach(function(c){
     h+='<tr class="click" data-d="'+c.doc+'" tabindex="0">'+
@@ -883,7 +1000,8 @@ function renderClient(c){
       '<span class="fact">Vendedor <b>'+esc(c.vends.join(', ')||'—')+'</b></span>'+
       '<span class="fact">'+esc(cad.cidade||c.mun)+(c.uf?' / '+esc(c.uf):'')+'</span>'+
       '<span class="fact">Região <b>'+esc(c.reg)+'</b></span>'+
-      '<span class="fact">Compras no ano <b class="num">'+money(c.total)+'</b></span>'+
+      '<span class="fact">Compras '+periodo()+' <b class="num">'+money(c.total)+'</b></span>'+
+      '<span class="fact">Média <b class="num">'+money(mediaMes(c))+'</b> por mês</span>'+
       '<span class="fact">Comprou em <b>'+c.nMeses+' de '+S.months.length+'</b> meses</span>'+
       '<span class="fact">Última NF <b>'+esc(c.nf)+'</b>, há <b>'+int(c.dias)+'</b> dias</span>'+
       (c.status&&norm(c.status)!=='NORMAL'?'<span class="fact" style="color:var(--shu)"><b>'+esc(c.status)+'</b></span>':'')+
@@ -892,7 +1010,7 @@ function renderClient(c){
     '<div class="actions noprint">'+
       '<button class="btn" id="aMsg">Mensagem para o cliente</button>'+
       '<button class="btn ghost" id="aRes">Resumo interno</button>'+
-      '<button class="btn ghost" data-print>Imprimir ou salvar PDF</button>'+
+      '<button class="btn ghost" id="aFicha">Imprimir ficha de visita</button>'+
     '</div></div>';
   h=stamp()+h+guiaCliente();
   if(c.dias>60) h+='<div class="alert">Este cliente está há <b>'+int(c.dias)+' dias</b> sem comprar. Vale retomar o contato antes de oferecer itens novos.</div>';
@@ -978,7 +1096,7 @@ function tblOps(rows,segNome){
 }
 function tblParou(rows){
   if(!rows.length) return '<div class="empty">Nenhum item parado nos últimos '+S.win+' meses.</div>';
-  return '<table><thead><tr><th class="c noprint"></th><th>Produto</th><th class="hide-m">Categoria</th><th>Meses com compra</th><th class="r">Última compra</th><th class="r hide-m">Qtde no ano</th><th class="r">Valor no ano</th></tr></thead><tbody>'+
+  return '<table><thead><tr><th class="c noprint"></th><th>Produto</th><th class="hide-m">Categoria</th><th>Meses com compra</th><th class="r">Última compra</th><th class="r hide-m">Qtde '+periodo()+'</th><th class="r">Valor '+periodo()+'</th></tr></thead><tbody>'+
     rows.map(function(i){var ce=S.cestaByCod[i.cod];
       return '<tr><td class="c noprint">'+chk(i.cod)+'</td><td>'+prodCell(i.desc,i.cod,topBadge(i.cod)+(ce?'':'<span class="badge b-fora">Fora da cesta</span>'))+'</td>'+
         '<td class="hide-m cli-s">'+esc(ce?ce.cat:'—')+'</td><td>'+dots(i.m)+'</td>'+
@@ -987,7 +1105,7 @@ function tblParou(rows){
 }
 function tblCompra(rows){
   if(!rows.length) return '<div class="empty">Nenhum item comprado nesta categoria.</div>';
-  return '<table><thead><tr><th>Produto</th><th class="hide-m">Categoria</th><th>Meses com compra</th><th class="r hide-m">Última</th><th class="r hide-m">Qtde</th><th class="r">Valor no ano</th><th class="r hide-m">Markup</th><th class="r">Margem</th></tr></thead><tbody>'+
+  return '<table><thead><tr><th>Produto</th><th class="hide-m">Categoria</th><th>Meses com compra</th><th class="r hide-m">Última</th><th class="r hide-m">Qtde</th><th class="r">Valor '+periodo()+'</th><th class="r hide-m">Markup</th><th class="r">Margem</th></tr></thead><tbody>'+
     rows.map(function(i){var ce=S.cestaByCod[i.cod];
       return '<tr><td>'+prodCell(i.desc,i.cod,topBadge(i.cod)+(ce?'':'<span class="badge b-fora">Fora da cesta</span>')+(i.st==='parou'?'<span class="badge b-par">Parou</span>':''))+'</td>'+
         '<td class="hide-m cli-s">'+esc(ce?ce.cat:'—')+'</td><td>'+dots(i.m)+'</td>'+
@@ -1011,6 +1129,7 @@ function wireClient(c){
   };});
   $('aMsg').onclick=function(){msgCliente(c);};
   $('aRes').onclick=function(){msgResumo(c);};
+  $('aFicha').onclick=function(){printFicha(c);};
 
 }
 
@@ -1048,7 +1167,7 @@ function msgResumo(c){
   var par=Object.keys(c.items).filter(function(k){return st[k]==='parou';}).map(function(k){return c.items[k];}).sort(function(x,y){return y.tot-x.tot;}).slice(0,8);
   var nunca=S.cats.filter(function(x){return cs[x].s==='nunca';}).sort(function(x,y){return (b.catA[y]||0)-(b.catA[x]||0);}).slice(0,6);
   var t='*Raio-X: '+(c.fant||c.raz)+'*\n'+c.seg+' | Vendedor: '+(c.vends.join(', ')||'—')+'\n'+
-    'Compras no ano: '+money(c.total)+' | '+c.nMeses+' de '+S.months.length+' meses | '+int(c.dias)+' dias sem compra\n\n'+
+    'Compras '+periodo()+': '+money(c.total)+' (média '+money(mediaMes(c))+'/mês)'+' | '+c.nMeses+' de '+S.months.length+' meses | '+int(c.dias)+' dias sem compra\n\n'+
     '*Cobertura da cesta:* '+pct(c.cov)+' ('+c.nCats+'/'+S.cats.length+' categorias). Mediana: '+pct(b.covMed)+'\n'+
     '*Mix essencial:* '+pct(c.mix)+' ('+(b.nEss-c.faltam)+'/'+b.nEss+'). Mediana: '+pct(b.mixMed)+'\n'+
     '*Peso da cesta:* '+pct(c.peso)+' das compras\n\n';
