@@ -6961,8 +6961,7 @@ async function valentDispararAlertaAgora() {
 // ALERTADO_90d = nomenclatura antiga | EM_CICLO / ENCERRADO_VENCIDO = ciclo de conferência
 var VALAL_STATUS_ACAO = ["ALERTADO_90d", "EM_CICLO", "ENCERRADO_VENCIDO"];
 
-// Quem pode MARCAR ação. Os demais veem tudo, mas não marcam.
-// A leitura do saldo é aberta a todo mundo que entra no módulo Compras.
+// Quem pode MARCAR ação — o clique definitivo, que grava e tira o item da lista.
 // Compara só a parte antes do @ do login da UUSR — o login nem sempre
 // é a caixa que recebe e-mail (rodrigo@ loga, comercial.rodrigo@ recebe).
 var VALAL_LOGINS_ACAO = [
@@ -6971,11 +6970,19 @@ var VALAL_LOGINS_ACAO = [
   "compras"    // compras@qfoodcompany.com.br — Cris
 ];
 
+// Quem pode só VISUALIZAR o PDF e a planilha, sem gravar nada.
+// Quem está na lista de ação acima já tem isso por consequência.
+var VALAL_LOGINS_PREVIA = [
+  "dayane"     // dayane@qfoodcompany.com.br
+];
+
 var VALAL_ACOES = [
   { id: "COMUNICADO_COMERCIAL", label: "Comunicado ao Comercial", icone: "\uD83D\uDCE2", cor: "#4d8ef5",
-    ajuda: "Grava a ação e gera o PDF com os clientes que já compraram este produto" },
+    previa: "\uD83D\uDC41 Ver PDF", previaAjuda: "Abre o PDF dos clientes sem registrar a ação",
+    ajuda: "Grava a ação, gera o PDF e tira o item da lista" },
   { id: "PROMOCAO",             label: "Promoção",                icone: "\uD83C\uDFF7\uFE0F", cor: "#36cfa0",
-    ajuda: "Grava a ação e baixa a planilha de controle de promoção, com as fórmulas prontas" },
+    previa: "\uD83D\uDC41 Ver planilha", previaAjuda: "Baixa a planilha de promoção sem registrar a ação",
+    ajuda: "Grava a ação, baixa a planilha e tira o item da lista" },
   { id: "SEM_ESTOQUE",          label: "Sem Estoque",             icone: "\uD83D\uDCE6", cor: "#8fa0c0",
     ajuda: "Use quando já vendeu tudo sem passar por contagem — contagem zerada marca isso sozinha" },
   { id: "OUTROS",               label: "Outros",                  icone: "\uD83D\uDCDD", cor: "#a07cf6",
@@ -7070,6 +7077,18 @@ function valalPodeAgir() {
     try { email = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").toLowerCase().trim(); } catch (e) {}
   }
   return VALAL_LOGINS_ACAO.indexOf(String(email).split("@")[0]) >= 0;
+}
+
+// Quem pode gerar PDF e planilha em modo prévia, sem gravar ação
+function valalPodeVerPrevia() {
+  if (valalPodeAgir()) return true;
+  var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
+  var email = "";
+  if (perfil && perfil.email) email = String(perfil.email).toLowerCase().trim();
+  if (!email) {
+    try { email = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").toLowerCase().trim(); } catch (e) {}
+  }
+  return VALAL_LOGINS_PREVIA.indexOf(String(email).split("@")[0]) >= 0;
 }
 
 function valalUsuario() {
@@ -7336,8 +7355,9 @@ function valalRenderizar() {
   if (!el) return;
 
   var podeAgir = valalPodeAgir();
+  var podeVerPrevia = valalPodeVerPrevia();
   var avisoRadar = document.getElementById('valal-aviso-radar');
-  if (avisoRadar) avisoRadar.style.display = podeAgir ? 'none' : 'block';
+  if (avisoRadar) avisoRadar.style.display = podeVerPrevia ? 'none' : 'block';
 
   var avisoConf = document.getElementById('valal-aviso-conf');
   if (avisoConf) {
@@ -7416,22 +7436,40 @@ function valalRenderizar() {
           (r.acaoEm ? ' em ' + valalEsc(valalFmtData(valalParseData(r.acaoEm))) : '') + ' \u00b7 \uD83D\uDD12</div>' +
         (r.observacoes ? '<div style="font-size:.64rem;color:var(--mu);margin-top:4px;font-style:italic">\u201C' + valalEsc(r.observacoes) + '\u201D</div>' : '') +
         '</div>';
-    } else if (!podeAgir) {
-      html += '<div style="font-size:.68rem;color:var(--mu2);font-style:italic;padding:5px 0">Aguardando ação de Célio, Cris ou Rodrigo</div>';
     } else {
-      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">';
-      VALAL_ACOES.forEach(function (a) {
-        html += '<button type="button" onclick="valalAgir(' + i + ',\'' + a.id + '\')" ' +
-          'title="' + valalEsc(a.ajuda || a.label) + '" ' +
-          'style="background:rgba(255,255,255,.03);border:1px solid ' + a.cor + '55;color:' + a.cor + ';padding:4px 8px;border-radius:7px;font-size:.66rem;font-weight:600;cursor:pointer;white-space:nowrap" ' +
-          'onmouseover="this.style.background=\'' + a.cor + '22\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
-          a.icone + ' ' + a.label + '</button>';
-      });
-      html += '</div>';
-      html += '<input type="text" id="valal-obs-' + i + '" value="' + valalEsc(VALAL.obs[r.id] || '') + '" ' +
-        'oninput="VALAL.obs[\'' + valalEsc(r.id) + '\']=this.value" ' +
-        'placeholder="Observação (opcional)" ' +
-        'style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:5px 8px;color:var(--tx);font-size:.68rem;box-sizing:border-box">';
+      // Linha 1 — prévia: gera o arquivo e não encosta na base
+      if (podeVerPrevia) {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">';
+        VALAL_ACOES.forEach(function (a) {
+          if (!a.previa) return;
+          html += '<button type="button" onclick="valalPrevia(' + i + ',\'' + a.id + '\')" ' +
+            'title="' + valalEsc(a.previaAjuda || '') + '" ' +
+            'style="background:transparent;border:1px dashed var(--br);color:var(--mu);padding:4px 8px;border-radius:7px;font-size:.64rem;font-weight:600;cursor:pointer;white-space:nowrap" ' +
+            'onmouseover="this.style.color=\'' + a.cor + '\';this.style.borderColor=\'' + a.cor + '55\'" ' +
+            'onmouseout="this.style.color=\'var(--mu)\';this.style.borderColor=\'var(--br)\'">' +
+            a.previa + '</button>';
+        });
+        html += '</div>';
+      }
+
+      // Linha 2 — definitivo: grava a ação e tira o item da lista
+      if (!podeAgir) {
+        html += '<div style="font-size:.66rem;color:var(--mu2);font-style:italic;padding:3px 0">Ação definitiva: Célio, Cris ou Rodrigo</div>';
+      } else {
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px">';
+        VALAL_ACOES.forEach(function (a) {
+          html += '<button type="button" onclick="valalAgir(' + i + ',\'' + a.id + '\')" ' +
+            'title="' + valalEsc(a.ajuda || a.label) + '" ' +
+            'style="background:rgba(255,255,255,.03);border:1px solid ' + a.cor + '55;color:' + a.cor + ';padding:4px 8px;border-radius:7px;font-size:.66rem;font-weight:600;cursor:pointer;white-space:nowrap" ' +
+            'onmouseover="this.style.background=\'' + a.cor + '22\'" onmouseout="this.style.background=\'rgba(255,255,255,.03)\'">' +
+            a.icone + ' ' + a.label + '</button>';
+        });
+        html += '</div>';
+        html += '<input type="text" id="valal-obs-' + i + '" value="' + valalEsc(VALAL.obs[r.id] || '') + '" ' +
+          'oninput="VALAL.obs[\'' + valalEsc(r.id) + '\']=this.value" ' +
+          'placeholder="Observação (opcional)" ' +
+          'style="width:100%;background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:5px 8px;color:var(--tx);font-size:.68rem;box-sizing:border-box">';
+      }
     }
     html += '</td></tr>';
   });
@@ -7616,6 +7654,22 @@ async function valalAgir(idx, acaoId) {
   }
 }
 
+// ── Prévia: gera o mesmo arquivo, sem gravar ação nem tirar da lista ──
+function valalPrevia(idx, acaoId) {
+  var r = VALAL.visiveis[idx];
+  if (!r) return;
+  if (!valalPodeVerPrevia()) {
+    alert("Você não tem acesso à prévia dos alertas de validade.");
+    return;
+  }
+  if (acaoId === "COMUNICADO_COMERCIAL") return valalClientesProduto(idx, false, true);
+  if (acaoId === "PROMOCAO") {
+    return valalPlanilhaPromocao(r, true).catch(function (e) {
+      alert("Não foi possível gerar a planilha: " + e.message);
+    });
+  }
+}
+
 // ── Planilha de controle de promoção (Excel com fórmulas) ──────
 // Carrega o SheetJS só quando alguém aperta Promoção. Se a CDN
 // estiver fora, cai para CSV — sem fórmula, mas sem travar o Célio.
@@ -7633,20 +7687,20 @@ function valalCarregarSheetJS() {
   });
 }
 
-function valalNomeArquivo(r, ext) {
-  var base = 'Promocao_' + (r.codigo || 's-cod') + '_' + (r.descricao || 'item');
+function valalNomeArquivo(r, ext, previa) {
+  var base = (previa ? 'PREVIA_' : '') + 'Promocao_' + (r.codigo || 's-cod') + '_' + (r.descricao || 'item');
   return base.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '').substring(0, 60) + '.' + ext;
 }
 
-async function valalPlanilhaPromocao(r) {
+async function valalPlanilhaPromocao(r, previa) {
   var c = VALAL.confDisponivel ? VALAL.conferencias[r.id] : null;
   var saldo = (c && c.qtd_atual !== null && c.qtd_atual !== undefined) ? c.qtd_atual : r.qtde;
 
   try {
     await valalCarregarSheetJS();
   } catch (e) {
-    valalPromocaoCSV(r, saldo);
+    valalPromocaoCSV(r, saldo, previa);
     return;
   }
 
@@ -7659,7 +7713,8 @@ async function valalPlanilhaPromocao(r) {
   var PCT = '0.0%';
   var RS = 'R$ #,##0.00';
 
-  por('A', 1, txt('CONTROLE DE PROMOÇÃO — ITEM COM VALIDADE CRÍTICA'));
+  por('A', 1, txt('CONTROLE DE PROMOÇÃO — ITEM COM VALIDADE CRÍTICA' +
+      (previa ? '   [PRÉVIA — ação ainda não registrada no sistema]' : '')));
   por('A', 2, txt('Preencha SOMENTE Custo, Preço de venda e Preço promocional. Margem e markup calculam sozinhos.'));
   por('A', 3, txt('Margem = (Preço − Custo) ÷ Preço   ·   Markup = (Preço − Custo) ÷ Custo'));
 
@@ -7702,14 +7757,15 @@ async function valalPlanilhaPromocao(r) {
 
   var wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Promocao');
-  XLSX.writeFile(wb, valalNomeArquivo(r, 'xlsx'));
+  XLSX.writeFile(wb, valalNomeArquivo(r, 'xlsx', previa));
 }
 
 /* Plano B sem internet para a CDN: mesmo conteúdo, fórmulas em texto
    que o Excel entende quando o arquivo é aberto. */
-function valalPromocaoCSV(r, saldo) {
+function valalPromocaoCSV(r, saldo, previa) {
   var linhas = [];
-  linhas.push('CONTROLE DE PROMOCAO - ITEM COM VALIDADE CRITICA');
+  linhas.push('CONTROLE DE PROMOCAO - ITEM COM VALIDADE CRITICA' +
+    (previa ? '   [PREVIA - acao ainda nao registrada]' : ''));
   linhas.push('Preencha Custo (F), Preco de venda (G) e Preco promocional (J)');
   linhas.push('');
   linhas.push('');
@@ -7727,13 +7783,13 @@ function valalPromocaoCSV(r, saldo) {
   var blob = new Blob(["\uFEFF" + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = valalNomeArquivo(r, 'csv');
+  a.download = valalNomeArquivo(r, 'csv', previa);
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
 // ── Relatório de clientes que já compraram o produto (DINAMICO) ──
 
-async function valalClientesProduto(idx, aposAcao) {
+async function valalClientesProduto(idx, aposAcao, previa) {
   var r = VALAL.visiveis[idx];
   if (!r) return;
 
@@ -7767,7 +7823,7 @@ async function valalClientesProduto(idx, aposAcao) {
       return;
     }
 
-    valalAbrirRelatorioClientes(r, j);
+    valalAbrirRelatorioClientes(r, j, previa);
 
     if (st) {
       st.style.background = 'rgba(54,207,160,.12)';
@@ -7787,7 +7843,7 @@ async function valalClientesProduto(idx, aposAcao) {
   }
 }
 
-function valalAbrirRelatorioClientes(r, dados) {
+function valalAbrirRelatorioClientes(r, dados, previa) {
   var w = window.open('', '_blank');
   if (!w) { alert("O navegador bloqueou a janela do relatório. Libere o pop-up e tente de novo."); return; }
 
@@ -7810,6 +7866,7 @@ function valalAbrirRelatorioClientes(r, dados) {
     '@media print{body{padding:0}}' +
     '</style></head><body>' +
     '<h1>Produto em validade — clientes para contato</h1>' +
+    (previa ? '<div style="border:1px dashed #b35c00;color:#b35c00;padding:5px 8px;margin-bottom:10px;font-size:11px;font-weight:bold">PRÉVIA — a ação ainda não foi registrada no sistema</div>' : '') +
     '<div class="cab">' +
       '<b>Código:</b> ' + valalEsc(r.codigo) + '<br>' +
       '<b>Produto:</b> ' + valalEsc(r.descricao) + '<br>' +
