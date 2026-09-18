@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Q Food — Menu Principal</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
@@ -665,7 +668,7 @@ function applyUserAccess(){
   var abas = (CURRENT_USER.abas || "").split(",").map(function(s){return s.trim();}).filter(function(s){return s;});
 
   // Cards não-financeiro (não-CRM)
-  ["comercial","ecommerce","remuneracao","trocas","logistica","compras","checkpoint","checklist","tarefas","nps","inativos","planejamento","facilities","operacoes","agregados","oneone","contagem","contagemvix","requisicoes","raiox","gogui","producao"].forEach(function(id){
+  ["comercial","ecommerce","remuneracao","trocas","logistica","compras","checkpoint","checklist","tarefas","nps","inativos","planejamento","facilities","operacoes","agregados","oneone","contagem","contagemvix","requisicoes","raiox","gogui","producao","ouvidoria"].forEach(function(id){
     var el = document.getElementById("mbtn-" + id);
     if(!el) return;
     el.style.display = abas.indexOf(id) >= 0 ? "flex" : "none";
@@ -896,6 +899,68 @@ document.addEventListener("DOMContentLoaded", function(){
     });
   });
 });
+</script>
+
+<script>
+// ==== 🔄 AUTO-REFRESH quando nova versão é publicada ====
+(function(){
+  var ORIGEM = window.location.pathname;
+  var VERSAO_INICIAL = null;
+  var CHECK_INTERVAL_MIN = 5;
+
+  // Busca ETag/Last-Modified do arquivo atual no servidor
+  function pegarVersao(){
+    return fetch(ORIGEM + '?_ck=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then(function(r){
+        return r.headers.get('etag') || r.headers.get('last-modified') || null;
+      })
+      .catch(function(){ return null; });
+  }
+
+  // Verifica se o usuário está no meio de algo → NÃO recarregar nesse caso
+  function estaOcupado(){
+    // Login visível → digitando senha, não interrompe
+    var login = document.querySelector('.login-overlay');
+    if(login && getComputedStyle(login).display !== 'none') return true;
+    // Algum modal aberto (financeiro, CRM)
+    if(document.querySelector('.fin-modal.on, .crm-modal.on')) return true;
+    // Campo de input focado
+    var a = document.activeElement;
+    if(a && ['INPUT','TEXTAREA','SELECT'].indexOf(a.tagName) >= 0) return true;
+    return false;
+  }
+
+  // Checa se a versão mudou; se sim, recarrega
+  function checarNovaVersao(){
+    if(!VERSAO_INICIAL || estaOcupado()) return;
+    pegarVersao().then(function(atual){
+      if(atual && atual !== VERSAO_INICIAL){
+        console.log('🔄 Nova versão detectada. Atualizando...');
+        // Limpa cache de usuários também pra pegar planilha nova
+        try { sessionStorage.clear(); } catch(e){}
+        location.reload();
+      }
+    });
+  }
+
+  // No carregamento, salva a "versão base"
+  pegarVersao().then(function(v){
+    VERSAO_INICIAL = v;
+    console.log('📌 Versão inicial do menu:', v);
+  });
+
+  // Checa periodicamente (a cada 5 min)
+  setInterval(checarNovaVersao, CHECK_INTERVAL_MIN * 60 * 1000);
+
+  // Checa quando a aba volta a ficar visível
+  // (celular saindo do sleep, usuário voltando pra aba, app volta pro primeiro plano)
+  document.addEventListener('visibilitychange', function(){
+    if(!document.hidden) checarNovaVersao();
+  });
+
+  // Checa também quando a janela ganha foco (desktop)
+  window.addEventListener('focus', checarNovaVersao);
+})();
 </script>
 </body>
 </html>
