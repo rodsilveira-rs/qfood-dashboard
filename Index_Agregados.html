@@ -211,6 +211,32 @@ tbody tr:hover td{background:var(--s2);}
   #tab-relatorio .donut-center-num{font-size:0.7rem!important;}
   #tab-relatorio .rep-foot{margin-top:10px!important;padding-top:8px!important;font-size:0.72rem!important;}
 }
+
+@media print{
+  html, body, * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  #tab-kpis{background:#fdf8f2!important;padding:0!important;}
+  #kpi-alerta{display:none!important;}
+
+  .pdf-topbar{background:#3d1015;color:#fff;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .pdf-topbar-brand{display:flex;align-items:center;gap:12px;}
+  .pdf-topbar-logo{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:1.1rem;}
+  .pdf-topbar-title{font-family:var(--fh);font-size:1.05rem;font-weight:700;}
+  .pdf-topbar-sub{font-size:0.72rem;color:#e8d9d0;margin-top:2px;}
+  .pdf-topbar-meta{font-size:0.78rem;font-weight:700;color:#e8c98a;}
+
+  .pdf-headline{display:flex;align-items:center;gap:24px;background:#f6ede2;border:1px solid #e6d5c3;border-radius:12px;padding:18px 24px;margin-bottom:20px;}
+  .pdf-gauge-ring{--pct:0;width:120px;height:120px;border-radius:50%;background:conic-gradient(#c9932a calc(var(--pct)*1%), #e6d5c3 0);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .pdf-gauge-inner{width:88px;height:88px;border-radius:50%;background:#fdf8f2;display:flex;align-items:center;justify-content:center;}
+  .pdf-gauge-pct{font-family:var(--fh);font-size:1.4rem;font-weight:800;color:#3d1015;}
+  .pdf-headline-lbl{font-size:0.76rem;color:#8a6a4d;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;}
+  .pdf-headline-val{font-family:var(--fh);font-size:1.15rem;font-weight:700;color:#3d1015;margin-top:4px;}
+
+  #tab-kpis .kpi, #tab-kpis .cwrap{background:#f6ede2!important;border:1px solid #e6d5c3!important;box-shadow:none!important;page-break-inside:avoid;break-inside:avoid;margin-bottom:14px!important;}
+  #tab-kpis .kpi .val, #tab-kpis .kpi-card-title, #tab-kpis .donut-center-num, #tab-kpis .kpi-total-val, #tab-kpis .ctitle{color:#3d1015!important;}
+  #tab-kpis .kpi .lbl, #tab-kpis .kpi .sub, #tab-kpis .kpi-card-sub, #tab-kpis .kpi-chart-sub, #tab-kpis .donut-center-lbl, #tab-kpis .kpi-total-lbl{color:#8a6a4d!important;}
+  #tab-kpis .kpi-card-icon, #tab-kpis .kpi-total-icon, #tab-kpis .kpi-chart-label-icon{background:rgba(201,147,42,.18)!important;color:#c9932a!important;}
+  #tab-kpis .kpis{grid-template-columns:repeat(3,1fr)!important;gap:10px!important;}
+}
 @media(max-width:900px){.frow{grid-template-columns:repeat(2,1fr);}.kpis{grid-template-columns:repeat(2,1fr);}.cfg-grid{grid-template-columns:1fr;}}
 @media(max-width:560px){.frow{grid-template-columns:1fr;}.kpis{grid-template-columns:1fr;}}
 </style>
@@ -272,7 +298,7 @@ tbody tr:hover td{background:var(--s2);}
       <div class="fld" id="lc-micro-wrap">
         <label>Microrregião</label>
         <div class="fld-add">
-          <select id="lc-micro"></select>
+          <select id="lc-micro" onchange="agrOnMicroChange()"></select>
           <button class="btn-mini" onclick="agrCadastrarNovo('microrregioes','lc-micro')" title="Cadastrar nova microrregião">+</button>
         </div>
       </div>
@@ -442,8 +468,25 @@ tbody tr:hover td{background:var(--s2);}
     <button class="btn btn-ghost" onclick="agrExportarPdfKpis()" style="height:38px">📄 Exportar PDF</button>
   </div>
   <div id="kpi-print-header" style="display:none">
-    <h2 style="font-family:var(--fh)">Relatório de KPIs — Agregados</h2>
-    <p id="kpi-print-sub"></p>
+    <div class="pdf-topbar">
+      <div class="pdf-topbar-brand">
+        <span class="pdf-topbar-logo">🚚</span>
+        <div>
+          <div class="pdf-topbar-title">Relatório de KPIs — Agregados</div>
+          <div class="pdf-topbar-sub" id="kpi-print-sub"></div>
+        </div>
+      </div>
+      <div class="pdf-topbar-meta">Q Food Group</div>
+    </div>
+    <div class="pdf-headline">
+      <div class="pdf-gauge-ring" id="pdf-gauge-ring" style="--pct:0">
+        <div class="pdf-gauge-inner"><div class="pdf-gauge-pct" id="pdf-gauge-pct">—</div></div>
+      </div>
+      <div>
+        <div class="pdf-headline-lbl">Maior categoria de custo no período</div>
+        <div class="pdf-headline-val" id="pdf-headline-val">—</div>
+      </div>
+    </div>
   </div>
   <div id="kpi-alerta"></div>
   <div class="kpis">
@@ -786,6 +829,14 @@ function agrOnRotaChange(){
   var id = document.getElementById('lc-rota').value;
   var r = AGR.rotas.find(function(x){ return String(x.id)===String(id); });
   document.getElementById('lc-valor').value = r ? r.valor : '';
+}
+function agrOnMicroChange(){
+  var tipo = document.getElementById('lc-tipo').value;
+  if(tipo !== 'Diária') return; // só puxa automático quando o tipo é Diária
+  var micro = document.getElementById('lc-micro').value;
+  if(!micro) return;
+  var r = AGR.rotas.find(function(x){ return String(x.rota).trim().toUpperCase() === micro.trim().toUpperCase(); });
+  if(r) document.getElementById('lc-valor').value = r.valor;
 }
 var AGR_TIPO_LISTA_SHEET = {motoristas:'MOTORISTA', microrregioes:'MICRORREGIAO', tipos:'TIPO'};
 
@@ -1595,6 +1646,7 @@ var agrDonutPercentPlugin = {
 var agrChartTipoDonutValor = null, agrChartTipoDonutPct = null;
 var AGR_DONUT_CORES = ['#ff4d4f','#a07cf6','#4d8ef5','#36cfa0','#ffaa2b','#22d3ee','#8fa0c0'];
 function agrRenderDonutTipo(byTipo, totalGeral){
+  window.agrKpiByTipo = byTipo;
   var labels = Object.keys(byTipo);
   var valores = Object.values(byTipo);
   var pcts = valores.map(function(v){ return totalGeral ? Math.round(v/totalGeral*100) : 0; });
@@ -1712,6 +1764,18 @@ function agrExportarPdfKpis(){
   var sub = 'Período: ' + (de?agrFmtData(de):'—') + ' a ' + (ate?agrFmtData(ate):'—') +
             ' · Gerado por ' + CURRENT_USER.nome + ' em ' + new Date().toLocaleString('pt-BR');
   document.getElementById('kpi-print-sub').textContent = sub;
+
+  var byTipo = window.agrKpiByTipo || {};
+  var entradas = Object.keys(byTipo).map(function(k){ return {nome:k, valor:byTipo[k]}; });
+  entradas.sort(function(a,b){ return b.valor - a.valor; });
+  var total = entradas.reduce(function(s,e){return s+e.valor;},0);
+  var maior = entradas[0];
+  var pct = maior && total ? Math.round(maior.valor/total*100) : 0;
+
+  document.getElementById('pdf-gauge-ring').style.setProperty('--pct', pct);
+  document.getElementById('pdf-gauge-pct').textContent = pct + '%';
+  document.getElementById('pdf-headline-val').textContent = maior ? maior.nome + ' — ' + agrFmtMoeda(maior.valor) : '—';
+
   document.title = 'Relatorio_KPIs_Agregados_' + (de||'periodo');
   window.print();
 }
