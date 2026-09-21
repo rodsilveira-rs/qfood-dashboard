@@ -6997,6 +6997,9 @@ var VALAL = {
   visiveis: [],       // após filtro/ordenação — é o que a tabela mostra
   obs: {},            // { id_entrada: texto digitado }
   conferencias: {},   // { id_entrada: última rodada do ciclo }
+  rodadas: {},        // { id_entrada: [todas as rodadas, em ordem] }
+  marcosAbertos: {},  // { id_entrada: true } — histórico expandido na tela
+  textoMarco: {},     // { id_rodada: texto digitado e ainda não gravado }
   confDisponivel: false,
   confErro: "",
   filtroForn: "",
@@ -7111,6 +7114,7 @@ async function valalCarregarConferencias() {
   VALAL.confDisponivel = false;
   VALAL.confErro = "";
   VALAL.conferencias = {};
+  VALAL.rodadas = {};
 
   try {
     var url = VALIDADES_SYNC_URL + "?tipo=val_listar&unidade=qfood&escopo=todas" +
@@ -7123,9 +7127,23 @@ async function valalCarregarConferencias() {
       return;
     }
     var mapa = {};
+    var todas = {};
     j.itens.forEach(function (it) {
       var k = String(it.id_entrada || "").trim();
       if (!k) return;
+      (todas[k] = todas[k] || []).push({
+        id_rodada: String(it.id_rodada || ""),
+        rodada: Number(it.rodada) || 1,
+        marco: it.marco,
+        status: String(it.status || "").toUpperCase(),
+        qtd_atual: (it.qtd_atual === null || it.qtd_atual === undefined) ? null : it.qtd_atual,
+        conferido_por: it.conferido_por || "",
+        conferido_em_br: it.conferido_em_br || "",
+        unidade_medida: it.unidade_medida || "UN",
+        acao_registro: it.acao_registro || "",
+        acao_registrado_por: it.acao_registrado_por || "",
+        acao_registrado_em_br: it.acao_registrado_em_br || ""
+      });
       var anterior = mapa[k];
       if (!anterior || (Number(it.rodada) || 0) >= (Number(anterior.rodada) || 0)) {
         mapa[k] = {
@@ -7142,7 +7160,11 @@ async function valalCarregarConferencias() {
         };
       }
     });
+    Object.keys(todas).forEach(function (k) {
+      todas[k].sort(function (a, b) { return a.rodada - b.rodada; });
+    });
     VALAL.conferencias = mapa;
+    VALAL.rodadas = todas;
     VALAL.confDisponivel = true;
   } catch (e) {
     VALAL.confErro = e.message;
@@ -7410,6 +7432,7 @@ function valalRenderizar() {
     html += '<td style="padding:8px 7px;vertical-align:top;word-break:break-word">' +
       '<div style="font-weight:600;color:var(--tx);line-height:1.25">' + valalEsc(r.descricao || '—') + '</div>' +
       '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">cód. ' + valalEsc(r.codigo) + '</div>' +
+      valalResumoMarcos(r) +
       '</td>';
 
     // Fornecedor
@@ -7472,6 +7495,7 @@ function valalRenderizar() {
       }
     }
     html += '</td></tr>';
+    if (VALAL.marcosAbertos[r.id]) html += valalLinhaMarcos(r);
   });
 
   html += '</tbody></table>';
@@ -7650,6 +7674,155 @@ async function valalAgir(idx, acaoId) {
       statusEl.style.color = '#ff7875';
       statusEl.style.border = '1px solid rgba(255,120,117,.35)';
       statusEl.innerHTML = '\u274C Não foi possível gravar: ' + valalEsc(e.message) + '. Nada foi alterado — tente de novo.';
+    }
+  }
+}
+
+// ── Ação por marco: um registro de texto para cada rodada do ciclo ──
+// Cada rodada (90, 60, 30, 15, 7 dias) ganha a sua caixa. Uma vez
+// gravada, trava — o histórico mostra o que foi feito em cada etapa.
+
+function valalCorMarco(m) {
+  m = Number(m) || 0;
+  if (m <= 15) return '#ff7875';
+  if (m <= 30) return '#ffaa2b';
+  return '#ffd666';
+}
+
+// Linha curta embaixo do nome do produto: abre/fecha o histórico
+function valalResumoMarcos(r) {
+  var lista = VALAL.rodadas[r.id] || [];
+  if (!lista.length) return '';
+  var feitos = lista.filter(function (x) { return !!x.acao_registro; }).length;
+  var completo = feitos === lista.length;
+  var cor = completo ? '#36cfa0' : (feitos === 0 ? '#ffaa2b' : '#4d8ef5');
+  var aberto = !!VALAL.marcosAbertos[r.id];
+  return '<div onclick="valalToggleMarcos(\'' + valalEsc(r.id) + '\')" ' +
+    'style="margin-top:5px;font-size:.62rem;font-weight:700;color:' + cor + ';cursor:pointer;user-select:none">' +
+    (aberto ? '\u25BE' : '\u25B8') + ' \uD83D\uDCCB Ações por marco \u00b7 ' + feitos + '/' + lista.length + '</div>';
+}
+
+function valalToggleMarcos(idEntrada) {
+  VALAL.marcosAbertos[idEntrada] = !VALAL.marcosAbertos[idEntrada];
+  valalRenderizar();
+}
+
+// Linha de detalhe que abre embaixo do produto
+function valalLinhaMarcos(r) {
+  var lista = VALAL.rodadas[r.id] || [];
+  var podeAgir = valalPodeAgir();
+  var html = '<tr style="border-bottom:1px solid var(--br);background:rgba(255,255,255,.015)">' +
+    '<td colspan="6" style="padding:4px 10px 12px 52px">';
+
+  lista.forEach(function (rd) {
+    var cor = valalCorMarco(rd.marco);
+    var contagem;
+    if (rd.qtd_atual !== null && rd.qtd_atual !== undefined) {
+      contagem = 'contado ' + valalFmtQtde(rd.qtd_atual) + ' ' + valalEsc(rd.unidade_medida) +
+        (rd.conferido_por ? ' por ' + valalEsc(String(rd.conferido_por).split('@')[0]) : '') +
+        (rd.conferido_em_br ? ' em ' + valalEsc(rd.conferido_em_br.split(' ')[0]) : '');
+    } else if (rd.status === 'PENDENTE') {
+      contagem = 'aguardando contagem';
+    } else if (rd.status === 'ATRASADA') {
+      contagem = '<span style="color:#ff4d4f">contagem atrasada</span>';
+    } else {
+      contagem = 'encerrada sem contagem';
+    }
+
+    html += '<div style="border-left:3px solid ' + cor + ';padding:6px 0 6px 10px;margin-top:6px">' +
+      '<div style="font-size:.68rem;color:var(--tx)">' +
+        '<b style="color:' + cor + '">' + (rd.marco || '?') + ' dias</b>' +
+        '<span style="color:var(--mu2)"> \u00b7 rodada ' + rd.rodada + ' \u00b7 ' + contagem + '</span>' +
+      '</div>';
+
+    if (rd.acao_registro) {
+      html += '<div style="margin-top:4px;font-size:.7rem;color:var(--tx);background:rgba(54,207,160,.07);' +
+          'border:1px solid rgba(54,207,160,.25);border-radius:6px;padding:6px 9px">' +
+          '\u2705 ' + valalEsc(rd.acao_registro) +
+          '<div style="font-size:.6rem;color:var(--mu2);margin-top:3px">' +
+            valalEsc(rd.acao_registrado_por || '—') +
+            (rd.acao_registrado_em_br ? ' \u00b7 ' + valalEsc(rd.acao_registrado_em_br) : '') + ' \u00b7 \uD83D\uDD12</div>' +
+        '</div>';
+    } else if (podeAgir) {
+      var idTxt = 'valal-marco-' + valalEsc(rd.id_rodada);
+      html += '<div style="display:flex;gap:6px;margin-top:5px;align-items:flex-start">' +
+        '<textarea id="' + idTxt + '" rows="2" ' +
+          'oninput="VALAL.textoMarco[\'' + valalEsc(rd.id_rodada) + '\']=this.value" ' +
+          'placeholder="O que foi feito neste marco? Ex.: enviado ao comercial, Dayane ofertou para o Remanso"' +
+          ' style="flex:1;background:var(--s2);border:1px solid var(--br);border-radius:6px;padding:6px 8px;color:var(--tx);font-size:.7rem;font-family:inherit;resize:vertical">' +
+          valalEsc(VALAL.textoMarco[rd.id_rodada] || '') + '</textarea>' +
+        '<button type="button" onclick="valalSalvarAcaoMarco(\'' + valalEsc(r.id) + '\',\'' + valalEsc(rd.id_rodada) + '\')" ' +
+          'style="background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.4);color:#4d8ef5;padding:6px 11px;border-radius:6px;font-size:.66rem;font-weight:700;cursor:pointer;white-space:nowrap">Registrar</button>' +
+        '</div>';
+    } else {
+      html += '<div style="margin-top:3px;font-size:.64rem;color:var(--mu2);font-style:italic">sem ação registrada neste marco</div>';
+    }
+    html += '</div>';
+  });
+
+  html += '</td></tr>';
+  return html;
+}
+
+async function valalSalvarAcaoMarco(idEntrada, idRodada) {
+  if (!valalPodeAgir()) {
+    alert("Somente Célio, Cris ou Rodrigo podem registrar ação por marco.");
+    return;
+  }
+  var lista = VALAL.rodadas[idEntrada] || [];
+  var rd = lista.filter(function (x) { return x.id_rodada === idRodada; })[0];
+  if (!rd) return;
+  if (rd.acao_registro) { alert("Este marco já tem ação registrada."); return; }
+
+  var campo = document.getElementById('valal-marco-' + idRodada);
+  var texto = String((campo && campo.value) || VALAL.textoMarco[idRodada] || "").trim();
+  if (texto.length < 3) {
+    alert("Descreva a ação tomada neste marco.");
+    if (campo) campo.focus();
+    return;
+  }
+  if (!confirm("Registrar no marco de " + rd.marco + " dias?\n\n\"" + texto + "\"\n\nDepois de gravado, não dá para editar.")) return;
+
+  var statusEl = document.getElementById('valal-status');
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.background = 'var(--s2)';
+    statusEl.style.color = 'var(--mu)';
+    statusEl.style.border = '1px solid var(--br)';
+    statusEl.innerHTML = '\u23F3 Gravando ação do marco de ' + rd.marco + ' dias...';
+  }
+
+  try {
+    var resp = await fetch(VALIDADES_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        token: VALIDADES_SYNC_TOKEN,
+        tipo: "val_registrar_acao",
+        dado: { unidade: "qfood", id_rodada: idRodada, texto: texto, registrado_por: valalUsuario() }
+      })
+    });
+    var j = await resp.json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || "resposta sem ok");
+
+    rd.acao_registro = texto;
+    rd.acao_registrado_por = j.registrado_por || valalUsuario();
+    rd.acao_registrado_em_br = j.registrado_em_br || new Date().toLocaleString('pt-BR').substring(0, 16);
+    delete VALAL.textoMarco[idRodada];
+
+    if (statusEl) {
+      statusEl.style.background = 'rgba(54,207,160,.12)';
+      statusEl.style.color = '#36cfa0';
+      statusEl.style.border = '1px solid rgba(54,207,160,.35)';
+      statusEl.innerHTML = '\u2705 Ação registrada no marco de ' + rd.marco + ' dias.';
+    }
+    valalRenderizar();
+  } catch (e) {
+    if (statusEl) {
+      statusEl.style.background = 'rgba(255,120,117,.12)';
+      statusEl.style.color = '#ff7875';
+      statusEl.style.border = '1px solid rgba(255,120,117,.35)';
+      statusEl.innerHTML = '\u274C Não foi possível gravar: ' + valalEsc(e.message) + '. O texto continua na caixa.';
     }
   }
 }
