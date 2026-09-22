@@ -205,6 +205,23 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 .toast.err{border-color:rgba(255,77,79,.5);color:#ffd7d7;}
 .carregando{text-align:center;color:var(--mu2);font-size:0.84rem;padding:34px;}
 
+/* ---- AVISO DE ENTREGAS ---- */
+.ent-grupo{margin-bottom:16px;}
+.ent-grupo-t{font-family:var(--fh);font-weight:700;font-size:0.78rem;text-transform:uppercase;
+  letter-spacing:0.5px;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.ent-grupo-t .qt{background:var(--s3);border-radius:999px;padding:1px 8px;font-size:0.7rem;}
+.ent-grupo.atraso .ent-grupo-t{color:var(--red);}
+.ent-grupo.hoje .ent-grupo-t{color:var(--warn);}
+.ent-grupo.breve .ent-grupo-t{color:var(--cyan);}
+.ent-grupo.sem .ent-grupo-t{color:var(--mu);}
+.ent{background:var(--bg);border:1px solid var(--br);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+.ent-grupo.atraso .ent{border-left:3px solid var(--red);}
+.ent-grupo.hoje .ent{border-left:3px solid var(--warn);}
+.ent-tit{font-weight:500;font-size:0.9rem;}
+.ent-meta{font-size:0.74rem;color:var(--mu);margin:4px 0 10px;line-height:1.55;}
+.ent .btns .btn{padding:7px 12px;font-size:0.74rem;}
+.modal-cx.largo{max-width:720px;}
+
 /* ---- ABAS ---- */
 .abas{display:flex;gap:8px;margin:20px 0 4px;border-bottom:1px solid var(--br);}
 .aba{background:none;border:none;border-bottom:2px solid transparent;color:var(--mu);
@@ -346,7 +363,7 @@ tr:last-child td{border-bottom:none;}
    Pegue em: Implantar > Gerenciar implantações > botão copiar.
    ════════════════════════════════════════════════════════════════ */
 
-var API_URL = "https://script.google.com/macros/s/AKfycbyso-KAp8Dz6h_zoBzImoGQ2FhHPDvYDpZG0dV0M5jVGHzGT1_6f8fKsXmmJ0-YPhrChQ/exec";
+var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec";
 
 // ────────────────────────────────────────────────────────────
 // 1. CONFIG
@@ -556,6 +573,7 @@ var ReqLista = {
 
     switch(escopo){
       case "aprovar":         return r.status === "EM_TRIAGEM" && ReqAprov.souAprovador(r.empresa);
+      case "receber":         return emTransito && ReqEntregas.souRecebedor(r.empresa);
       case "comprar":         return r.status === "EM_ANALISE";
       case "cotacao":         return r.status === "EM_COTACAO";
       case "aguardando_resp": return r.status === "AGUARDANDO_INFORMACAO";
@@ -1131,8 +1149,12 @@ var ReqReceb = {
   fechar: function(){
     document.getElementById("modal").classList.remove("on");
     document.getElementById("modal-cx").innerHTML = "";
+    document.getElementById("modal-cx").classList.remove("largo");
     ReqReceb.fotos = [null, null, null];
     ReqReceb.doc = null;
+    // Se o modal foi aberto a partir do aviso de entregas, a tela
+    // continua na lista — o detalhe não está aberto.
+    if(document.getElementById("v-detalhe").style.display === "none") ReqState.detalheId = null;
   },
 
   escolherFoto: function(i){
@@ -1241,6 +1263,20 @@ var ReqHome = {
   // Solicitante, aprovador e Compras entram no sistema com objetivos
   // diferentes. O primeiro cartão de cada um é a caixa de entrada dele.
   cartoes: function(){
+    var lista = ReqHome.cartoesBase();
+    // Quem recebe mercadoria troca "Aguardando entrega" por "Para receber":
+    // é a mesma fila, só que filtrada pelas empresas em que ele confere.
+    if(ReqEntregas.recebedorDeAlgo()){
+      lista = lista.map(function(c){
+        return (c.escopo === "entrega")
+          ? {escopo:"receber", rotulo:"Para receber", destaque:true}
+          : c;
+      });
+    }
+    return lista;
+  },
+
+  cartoesBase: function(){
     var u = (ReqState.config && ReqState.config.usuario) || {};
 
     if(u.isCompras){
@@ -1287,6 +1323,7 @@ var ReqHome = {
   vazio: function(){
     var m = {
       aprovar:         "Nenhuma requisição esperando sua aprovação.",
+      receber:         "Nenhuma entrega esperando sua conferência.",
       comprar:         "Nenhuma requisição aprovada esperando compra.",
       cotacao:         "Nada em cotação no momento.",
       aguardando_resp: "Ninguém está devendo resposta.",
@@ -1327,6 +1364,172 @@ var ReqHome = {
         return ReqLista.noEscopo(r, c.escopo);
       }).length;
     });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9f. ENTREGAS — quem recebe na porta confere e dá baixa
+// ────────────────────────────────────────────────────────────
+var ReqEntregas = {
+  // Empresas em que o usuário é o recebedor (REQ_PARAM: RECEBEDOR)
+  empresas: function(){
+    var eu = (ReqState.sessao.email || "").toLowerCase();
+    return ((ReqState.config && ReqState.config.recebedores) || [])
+      .filter(function(r){ return String(r.valor).toLowerCase() === eu; })
+      .map(function(r){ return r.chave; });
+  },
+
+  souRecebedor: function(empresa){
+    return ReqEntregas.empresas().indexOf(String(empresa || "").toUpperCase()) >= 0;
+  },
+
+  recebedorDeAlgo: function(){
+    return ReqEntregas.empresas().length > 0;
+  },
+
+  hojeIso: function(){
+    var d = new Date();
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  },
+
+  maisDias: function(n){
+    var d = new Date();
+    d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + ("0"+(d.getMonth()+1)).slice(-2) + "-" + ("0"+d.getDate()).slice(-2);
+  },
+
+  // Separa o que está a caminho em: atrasado, hoje, próximos 3 dias e sem previsão.
+  // "Mais adiante" fica de fora do aviso para ele não virar ruído.
+  grupos: function(){
+    var hoje = ReqEntregas.hojeIso();
+    var limite = ReqEntregas.maisDias(3);
+    var g = {atraso:[], hoje:[], breve:[], sem:[]};
+
+    ReqState.lista.forEach(function(r){
+      if(!ReqLista.noEscopo(r, "receber")) return;
+      var prev = (r.prazoEntrega || "").substring(0, 10);
+      if(!prev)              g.sem.push(r);
+      else if(prev < hoje)   g.atraso.push(r);
+      else if(prev === hoje) g.hoje.push(r);
+      else if(prev <= limite)g.breve.push(r);
+    });
+
+    var porData = function(a, b){ return (a.prazoEntrega || "").localeCompare(b.prazoEntrega || ""); };
+    g.atraso.sort(porData); g.hoje.sort(porData); g.breve.sort(porData);
+    return g;
+  },
+
+  // O aviso abre no primeiro acesso do dia. Depois disso a lista fica
+  // no cartão "Para receber" — repetir a cada acesso vira clique no automático.
+  chave: function(){
+    return "req_entregas_visto_" + (ReqState.sessao.email || "");
+  },
+
+  talvezMostrar: function(){
+    if(!ReqEntregas.recebedorDeAlgo()) return;
+    if(ReqState.detalheId) return;
+    var visto = "";
+    try { visto = localStorage.getItem(ReqEntregas.chave()) || ""; } catch(_){}
+    if(visto === ReqEntregas.hojeIso()) return;
+
+    var g = ReqEntregas.grupos();
+    var total = g.atraso.length + g.hoje.length + g.breve.length + g.sem.length;
+    if(!total) return;
+    ReqEntregas.abrir();
+  },
+
+  abrir: function(){
+    var g = ReqEntregas.grupos();
+    var total = g.atraso.length + g.hoje.length + g.breve.length + g.sem.length;
+
+    var bloco = function(classe, titulo, lista){
+      if(!lista.length) return "";
+      return '<div class="ent-grupo ' + classe + '">' +
+        '<div class="ent-grupo-t">' + esc(titulo) + ' <span class="qt">' + lista.length + '</span></div>' +
+        lista.map(ReqEntregas.linha).join("") +
+      '</div>';
+    };
+
+    var cx = document.getElementById("modal-cx");
+    cx.classList.add("largo");
+    cx.innerHTML =
+      '<div class="modal-t">📦 Entregas para conferir</div>' +
+      '<div class="modal-s">' + (total
+        ? 'Confirme o que chegou. Se ainda não veio, avise — a cobrança volta para a Cris.'
+        : 'Nenhuma entrega pendente de conferência.') + '</div>' +
+      bloco("atraso", "Previsão já passou", g.atraso) +
+      bloco("hoje",   "Chega hoje",         g.hoje) +
+      bloco("breve",  "Próximos 3 dias",    g.breve) +
+      bloco("sem",    "Sem previsão informada", g.sem) +
+      '<div class="btns" style="margin-top:6px">' +
+        '<button class="btn btn-p" onclick="ReqEntregas.fechar(true)">Ok, entendi</button>' +
+        '<button class="btn btn-s" onclick="ReqEntregas.verTodas()">Ver todas na lista</button>' +
+      '</div>';
+
+    document.getElementById("modal").classList.add("on");
+  },
+
+  linha: function(r){
+    var prev = (r.prazoEntrega || "").substring(0, 10);
+    return '<div class="ent" id="ent-' + esc(r.id) + '">' +
+      '<div class="ent-tit">' + esc(r.titulo) + '</div>' +
+      '<div class="ent-meta">' + esc(r.id) + ' · ' +
+        esc([r.empresa, r.unidade].filter(Boolean).join(" · ")) + '<br>' +
+        (prev ? 'Previsão ' + esc(dataBr(prev)) : 'Sem previsão') +
+        (r.fornecedor ? ' · ' + esc(r.fornecedor) : '') +
+        ' · Pedido por ' + esc(nomeDe(r.solicitanteOriginal || r.abertoPor)) +
+      '</div>' +
+      '<div class="btns">' +
+        '<button class="btn btn-ok" onclick="ReqEntregas.chegouCerto(\'' + r.id + '\')">✓ Chegou certo</button>' +
+        '<button class="btn btn-d" onclick="ReqEntregas.outro(\'' + r.id + '\',\'DIVERGENCIA\')">Chegou com problema</button>' +
+        '<button class="btn btn-s" onclick="ReqEntregas.outro(\'' + r.id + '\',\'NAO_RECEBI\')">Ainda não chegou</button>' +
+        '<button class="btn btn-s" onclick="ReqEntregas.fechar(false);ReqDetalhe.abrir(\'' + r.id + '\')">Abrir</button>' +
+      '</div>' +
+    '</div>';
+  },
+
+  fechar: function(marcarVisto){
+    if(marcarVisto){
+      try { localStorage.setItem(ReqEntregas.chave(), ReqEntregas.hojeIso()); } catch(_){}
+    }
+    document.getElementById("modal").classList.remove("on");
+    document.getElementById("modal-cx").classList.remove("largo");
+    document.getElementById("modal-cx").innerHTML = "";
+  },
+
+  verTodas: function(){
+    ReqEntregas.fechar(true);
+    ReqState.escopo = "receber";
+    document.querySelectorAll(".cnt").forEach(function(b){
+      b.classList.toggle("on", b.dataset.escopo === "receber");
+    });
+    mostrar("lista");
+    ReqLista.render();
+  },
+
+  // Caminho curto: chegou tudo certo, sem foto obrigatória.
+  chegouCerto: function(id){
+    if(!confirm("Confirmar que " + id + " chegou completo e correto? A requisição será encerrada.")) return;
+    ReqAPI.post("confirmarRecebimento", {id:id, situacao:"OK", observacao:"Conferido na entrega"},
+                "Registrando recebimento…")
+      .then(function(){
+        toast(id + " recebida e encerrada.");
+        return ReqLista.carregar();
+      })
+      .then(function(){
+        var g = ReqEntregas.grupos();
+        if(g.atraso.length + g.hoje.length + g.breve.length + g.sem.length) ReqEntregas.abrir();
+        else ReqEntregas.fechar(true);
+      })
+      .catch(function(e){ toast(e.message, true); });
+  },
+
+  // Problema ou "não chegou": reaproveita o modal de recebimento,
+  // que exige observação e foto e avisa a Cris por e-mail.
+  outro: function(id, situacao){
+    ReqEntregas.fechar(false);
+    ReqState.detalheId = id;
+    ReqReceb.abrir(situacao);
   }
 };
 
@@ -2327,6 +2530,7 @@ function ReqInit(){
     return ReqNotif.sincronizar();
   }).then(function(){
     ReqNotif.iniciar();
+    ReqEntregas.talvezMostrar();
   }).catch(function(e){
     document.getElementById("lista").innerHTML =
       '<div class="vazio"><div class="vazio-t">Não deu para entrar</div>' +
@@ -2352,6 +2556,7 @@ function ReqInit(){
     if(document.getElementById("lightbox").classList.contains("on")) return ReqFoto.fechar();
     if(document.getElementById("modal").classList.contains("on")){
       document.getElementById("modal").classList.remove("on");
+      document.getElementById("modal-cx").classList.remove("largo");
       document.getElementById("modal-cx").innerHTML = "";
     }
   });
