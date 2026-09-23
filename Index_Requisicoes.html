@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Q Food — Central de Requisições</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
@@ -683,12 +686,17 @@ body{padding:0;background:var(--bg);}
    CENTRAL DE REQUISIÇÕES — Index_Requisicoes.html
    Frontend do módulo REQ_ (backend em Code_Requisicoes.gs).
 
-   ⚠️ CONFIRA A API_URL ABAIXO: tem que ser a MESMA usada pelos
-   outros módulos (o deployment antigo, AKfycbwf1CiH...).
-   Pegue em: Implantar > Gerenciar implantações > botão copiar.
+   ⚠️ A API_URL tem que ser a da implantação "Code_Requisicoes" —
+   cada módulo tem a sua. Pegue pelo botão Copiar em
+   Implantar > Gerenciar implantações > Code_Requisicoes.
+   Publicar Nova versão em outra implantação NÃO atualiza esta.
    ════════════════════════════════════════════════════════════════ */
 
-var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec";
+var API_URL = "COLE_AQUI_A_URL_DA_IMPLANTACAO_CODE_REQUISICOES";
+
+// Aparece no rodapé da lateral. Mude a cada publicação — assim dá para
+// saber, por um print, se a pessoa está na versão nova ou no cache.
+var REQ_VERSAO = "2026-09-23a";
 
 // ────────────────────────────────────────────────────────────
 // 1. CONFIG
@@ -727,7 +735,8 @@ var ReqAPI = {
         q += "&" + k + "=" + encodeURIComponent(params[k]);
       }
     });
-    return fetch(API_URL + q)
+    // Carimbo de tempo: impede o navegador de servir resposta guardada
+    return fetch(API_URL + q + "&_=" + Date.now(), {cache:"no-store"})
       .then(function(r){ return r.json(); })
       .then(function(j){
         if(!j.ok) throw new Error(j.error || "Falha na leitura");
@@ -3210,6 +3219,8 @@ function ReqInit(){
   if(!ReqState.sessao) return;
 
   ReqIco.hidratar();
+  document.querySelector(".side-rod").innerHTML =
+    '<span>Q Food Company</span><span title="Versão da tela">v' + REQ_VERSAO + '</span>';
 
   var nomeSessao = ReqState.sessao.nome || ReqState.sessao.email;
   ["u-nome","tb-nome"].forEach(function(id){ document.getElementById(id).textContent = nomeSessao; });
