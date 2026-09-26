@@ -645,16 +645,60 @@ body.v2-body #v2-shell{ display: grid !important; grid-template-columns: 250px 1
 
       <!-- ═══════════ VIEW: ANÁLISES ═══════════ -->
       <div id="v2-view-analises" class="v2-view">
-        <div style="margin-bottom:20px">
-          <h2 style="font-size:1.35rem;font-weight:700;margin-bottom:6px">📊 Análises</h2>
-          <div style="font-size:.85rem;color:var(--v2-mu)">Frota, custo de motoristas e rankings — período dos filtros da aba Entregas</div>
-        </div>
-        <div id="v2-analises-slot" style="display:flex;flex-direction:column;gap:16px">
-          <div id="v2-analises-empty" style="text-align:center;padding:50px 20px;color:var(--v2-mu);font-size:.9rem">
-            ⏳ Aguardando dados da aba Entregas… abra "Entregas" uma vez para carregar.
+        <!-- Cabeçalho -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px">
+          <div>
+            <h2 style="font-size:1.35rem;font-weight:700;margin-bottom:4px">🚛 Ducato · Análise de Custo</h2>
+            <div style="font-size:.85rem;color:var(--v2-mu)">Vale a pena comprar mais uma Ducato? Comparação CLT vs. terceirizados no período.</div>
+          </div>
+          <div id="v2-analises-periodo-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button data-dias="30"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(30)">30d</button>
+            <button data-dias="60"  class="v2-per-btn active" onclick="v2AnalisesSetPeriodo(60)">60d</button>
+            <button data-dias="90"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(90)">90d</button>
+            <button data-dias="180" class="v2-per-btn" onclick="v2AnalisesSetPeriodo(180)">180d</button>
           </div>
         </div>
+
+        <!-- Loading / erro -->
+        <div id="v2-analises-loading" style="text-align:center;padding:50px 20px;color:var(--v2-mu);font-size:.9rem">⏳ Carregando dados…</div>
+        <div id="v2-analises-erro" style="display:none;padding:16px;background:var(--v2-red-bg);border:1px solid var(--v2-red);border-radius:10px;color:var(--v2-red);font-size:.85rem;margin-bottom:16px"></div>
+
+        <!-- Conteúdo (renderizado por JS) -->
+        <div id="v2-analises-conteudo" style="display:none">
+          <!-- KPIs -->
+          <div class="v2-kpis" id="v2-analises-kpis" style="margin-bottom:20px"></div>
+
+          <!-- Grid principal: velocímetro + composição de custo -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="v2-analises-grid1"></div>
+
+          <!-- Comparação com terceiros -->
+          <div class="v2-section" style="margin-bottom:20px" id="v2-analises-comparacao"></div>
+
+          <!-- Ranking terceirizados -->
+          <div class="v2-section" id="v2-analises-ranking"></div>
+        </div>
       </div>
+
+      <!-- Estilos específicos da view Análises -->
+      <style>
+        .v2-per-btn{ background:var(--v2-panel);color:var(--v2-mu);border:1px solid var(--v2-border);border-radius:8px;padding:8px 14px;font-family:var(--v2-font);font-size:.82rem;font-weight:600;cursor:pointer; }
+        .v2-per-btn:hover{ color:var(--v2-text);background:var(--v2-card); }
+        .v2-per-btn.active{ background:var(--v2-green);color:#0F1419;border-color:var(--v2-green); }
+        .v2-velocimetro{ display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--v2-panel);border:1px solid var(--v2-border);border-radius:14px;padding:22px;text-align:center; }
+        .v2-vel-svg{ width:100%;max-width:280px;height:170px; }
+        .v2-vel-track{ fill:none;stroke:rgba(255,255,255,0.06);stroke-width:16;stroke-linecap:round; }
+        .v2-vel-fill{ fill:none;stroke-width:16;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease; }
+        .v2-vel-pct{ font-size:2.6rem;font-weight:800;letter-spacing:-0.03em;line-height:1;margin-top:-30px }
+        .v2-vel-lbl{ font-size:.78rem;color:var(--v2-mu);margin-top:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600 }
+        .v2-vel-sub{ font-size:.82rem;color:var(--v2-text);margin-top:12px;line-height:1.4 }
+        .v2-comp-bar{ display:grid;grid-template-columns:110px 1fr 90px;gap:12px;align-items:center;padding:10px 0;font-size:.85rem;border-bottom:1px solid var(--v2-border) }
+        .v2-comp-bar:last-child{ border-bottom:none }
+        .v2-comp-label{ color:var(--v2-mu);font-weight:600 }
+        .v2-comp-track{ height:14px;background:rgba(255,255,255,0.05);border-radius:7px;overflow:hidden;position:relative }
+        .v2-comp-fill{ height:100%;border-radius:7px;transition:width .5s ease }
+        .v2-comp-val{ text-align:right;font-weight:700;font-variant-numeric:tabular-nums }
+        @media (max-width:768px){ #v2-analises-grid1{grid-template-columns:1fr !important} }
+      </style>
 
     </div>
   </div>
@@ -5433,7 +5477,6 @@ function v2ToggleSidebar(){
 
 function v2Show(view){
   v2MoveAbasOriginais();
-  v2MoveAnalisesUmaVez();  // ← novo: garante que os 3 painéis já estão na view Análises
   V2_STATE.view = view;
 
   document.querySelectorAll('.v2-nav-item').forEach(function(el){
@@ -5460,14 +5503,12 @@ function v2Show(view){
     target.style.display = 'block';
   }
 
-  // Sidebar mobile
   var sb = document.getElementById('v2-sidebar');
   var ov = document.getElementById('v2-overlay');
   if(sb) sb.classList.remove('open');
   if(ov) ov.classList.remove('open');
   window.scrollTo({top: 0, behavior: 'smooth'});
 
-  // Delegações
   if(view === 'inicio' && !V2_STATE.initedHome && window.entLoaded){
     v2InitHome();
   } else if(view === 'entregas'){
@@ -5484,37 +5525,219 @@ function v2Show(view){
   } else if(view === 'ocorrencias'){
     v2InitOcorrencias();
   } else if(view === 'analises'){
-    // Se aba Entregas ainda não carregou, dispara pra popular os IDs dos painéis
     if(typeof initEntregas === 'function' && !window.entLoaded) initEntregas();
+    v2InitAnalises();
   }
 }
 
-// ════════════════ MOVER PAINÉIS ANALÍTICOS PARA VIEW ANÁLISES (1×) ════════════════
-// Os 3 painéis (Saída de Carros, Custo de Motoristas, Rankings) vivem dentro do
-// page-container original. Este helper os re-parenteia para dentro de #v2-analises-slot
-// na primeira execução — assim eles somem da aba Entregas e aparecem em Análises.
-function v2MoveAnalisesUmaVez(){
-  if(V2_STATE.analisesMoved) return;
-  var slot = document.getElementById('v2-analises-slot');
-  if(!slot) return;
-  var empty = document.getElementById('v2-analises-empty');
-  var ids = ['pnl-saida', 'pnl-custo', 'ent-rankings'];
-  var movidos = 0;
-  ids.forEach(function(id){
-    var el = document.getElementById(id);
-    if(el && el.parentNode !== slot){
-      // Expande os painéis colapsados por padrão (agora estão na sua view dedicada)
-      if(el.classList && el.classList.contains('pnl-collapsed')){
-        el.classList.remove('pnl-collapsed');
-      }
-      // Remove margin-bottom original pra manter espaçamento consistente com o flex gap
-      el.style.marginBottom = '0';
-      slot.appendChild(el);
-      movidos++;
-    }
+// ════════════════ VIEW ANÁLISES — Análise de custo da Ducato ════════════════
+var V2_ANL = { periodoDias: 60, motoristasCusto: null, terceiros: null, loading: false };
+
+function v2AnalisesSetPeriodo(d){
+  V2_ANL.periodoDias = d;
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){
+    b.classList.toggle('active', +b.getAttribute('data-dias') === d);
   });
-  if(movidos > 0 && empty){ empty.style.display = 'none'; }
-  V2_STATE.analisesMoved = true;
+  v2InitAnalises(true);
+}
+
+function v2InitAnalises(forcar){
+  var loading = document.getElementById('v2-analises-loading');
+  var erro    = document.getElementById('v2-analises-erro');
+  var cont    = document.getElementById('v2-analises-conteudo');
+  if(!loading || !cont) return;
+
+  if(V2_ANL.loading && !forcar) return;
+  V2_ANL.loading = true;
+  loading.style.display = 'block';
+  erro.style.display = 'none';
+  cont.style.display = 'none';
+
+  // Aguarda entregas do REGISTRO carregarem
+  if(!window.entLoaded){
+    var ci = setInterval(function(){
+      if(window.entLoaded){ clearInterval(ci); v2AnalisesCarregar(); }
+    }, 500);
+    setTimeout(function(){ clearInterval(ci); V2_ANL.loading = false; }, 30000);
+    return;
+  }
+  v2AnalisesCarregar();
+}
+
+function v2AnalisesCarregar(){
+  var hoje = new Date();
+  var ini  = new Date(hoje.getTime() - V2_ANL.periodoDias * 24 * 60 * 60 * 1000);
+  var fmt  = function(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  var url  = (typeof SUP_BACKEND_URL !== 'undefined') ? SUP_BACKEND_URL : (window.SUP_BACKEND_URL || '');
+  if(!url){ v2AnalisesErro('URL do backend não configurada (SUP_BACKEND_URL).'); return; }
+
+  Promise.all([
+    fetch(url + '?modulo=custos&action=list').then(function(r){ return r.json(); }),
+    fetch(url + '?modulo=custos&action=terceiros&de=' + fmt(ini) + '&ate=' + fmt(hoje) + '&ano=' + hoje.getFullYear()).then(function(r){ return r.json(); })
+  ]).then(function(res){
+    V2_ANL.motoristasCusto = (res[0] && res[0].ok) ? res[0].motoristas : [];
+    V2_ANL.terceiros       = (res[1] && res[1].ok) ? res[1] : null;
+    if(!V2_ANL.terceiros){ v2AnalisesErro((res[1] && res[1].error) || 'Erro ao buscar terceiros.'); return; }
+    v2AnalisesRenderizar(ini, hoje);
+  }).catch(function(e){ v2AnalisesErro('Falha de rede: ' + String(e)); });
+}
+
+function v2AnalisesErro(msg){
+  V2_ANL.loading = false;
+  var loading = document.getElementById('v2-analises-loading');
+  var erro    = document.getElementById('v2-analises-erro');
+  if(loading) loading.style.display = 'none';
+  if(erro){ erro.style.display = 'block'; erro.textContent = '⚠️ ' + msg; }
+}
+
+function v2AnalisesRenderizar(dtIni, dtFim){
+  V2_ANL.loading = false;
+  var loading = document.getElementById('v2-analises-loading');
+  var cont    = document.getElementById('v2-analises-conteudo');
+  if(loading) loading.style.display = 'none';
+  if(cont)    cont.style.display    = 'block';
+
+  var placa = 'RQO4J52';  // Ducato do Luiz
+  var luiz  = V2_ANL.motoristasCusto.find(function(m){ return m.veiculo_placa === placa; });
+  if(!luiz){ v2AnalisesErro('Motorista da Ducato ' + placa + ' não encontrado em MOTORISTA_CUSTO.'); return; }
+
+  // Entregas da Ducato no período (usa window.entAllRows do REGISTRO)
+  var entregasDucato = (window.entAllRows || []).filter(function(r){
+    var veic = String(r['Veículo']||'').toUpperCase();
+    if(veic.indexOf(placa) < 0) return false;
+    var dt = v2ParseData(String(r['Data Registro']||'').substring(0,10));
+    return dt && dt >= dtIni && dt <= dtFim;
+  });
+  var diasOperados = new Set(entregasDucato.map(function(r){ return String(r['Data Registro']||'').substring(0,10); })).size;
+  var nEntregas    = entregasDucato.length;
+
+  // Custo do CLT no período (pro-rata mensal)
+  var custoCltMes  = luiz.custo_total_mensal;
+  var custoCltPer  = custoCltMes * (V2_ANL.periodoDias / 30);
+  var custoPorEnt  = nEntregas > 0 ? custoCltPer / nEntregas : 0;
+
+  // Terceiros: média de diária no período
+  var t = V2_ANL.terceiros;
+  var diariaMedia  = t.qtd_lancamentos > 0 ? t.total / t.qtd_lancamentos : 0;
+  var breakEven    = diariaMedia > 0 ? custoCltMes / diariaMedia : 0;   // diárias/mês pro CLT valer
+
+  // Simulação: e se essas mesmas entregas fossem terceirizadas?
+  var custoSeTerc  = diasOperados * diariaMedia;
+  var economia     = custoSeTerc - custoCltPer;
+  var vantagemClt  = economia > 0;
+
+  // % da capacidade break-even utilizada (diárias equivalentes/mês)
+  var diariasEqMes = diasOperados * (30 / V2_ANL.periodoDias);
+  var pctBreakEven = breakEven > 0 ? (diariasEqMes / breakEven) * 100 : 0;
+  var pctExibir    = Math.min(150, Math.round(pctBreakEven));
+
+  var brl = function(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+  var pctStr = function(v){ return (Number(v)||0).toFixed(1).replace('.',',') + '%'; };
+
+  // 4 KPIs
+  document.getElementById('v2-analises-kpis').innerHTML =
+    '<div class="v2-kpi orange"><div class="v2-kpi-icon">💰</div><div class="v2-kpi-val">'+brl(custoCltPer)+'</div><div class="v2-kpi-lbl">Custo Ducato (Luiz)</div><div class="v2-kpi-sub">'+V2_ANL.periodoDias+' dias · R$ '+custoCltMes.toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0})+'/mês</div></div>' +
+    '<div class="v2-kpi blue"><div class="v2-kpi-icon">📦</div><div class="v2-kpi-val">'+nEntregas+'</div><div class="v2-kpi-lbl">Entregas realizadas</div><div class="v2-kpi-sub">em '+diasOperados+' dias operados</div></div>' +
+    '<div class="v2-kpi green"><div class="v2-kpi-icon">🎯</div><div class="v2-kpi-val">'+brl(custoPorEnt)+'</div><div class="v2-kpi-lbl">Custo por entrega</div><div class="v2-kpi-sub">custo total ÷ NFs</div></div>' +
+    '<div class="v2-kpi '+ (vantagemClt?'green':'red') +'"><div class="v2-kpi-icon">'+(vantagemClt?'✅':'⚠️')+'</div><div class="v2-kpi-val">'+brl(Math.abs(economia))+'</div><div class="v2-kpi-lbl">'+(vantagemClt?'Economia CLT':'Terceiro seria + barato')+'</div><div class="v2-kpi-sub">vs. terceirizar as mesmas entregas</div></div>';
+
+  // Grid: velocímetro + composição de custo
+  document.getElementById('v2-analises-grid1').innerHTML =
+    v2AnalisesVelocimetro(pctExibir, breakEven, diariasEqMes) +
+    v2AnalisesComposicao(luiz);
+
+  // Comparação
+  document.getElementById('v2-analises-comparacao').innerHTML =
+    '<div class="v2-section-hdr"><div class="v2-section-title">⚖️ Comparação: CLT vs. Terceiro (' + V2_ANL.periodoDias + ' dias)</div></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+      '<div style="padding:14px;background:var(--v2-card);border:1px solid var(--v2-border);border-radius:10px">' +
+        '<div style="font-size:.72rem;color:var(--v2-mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Cenário atual (Ducato CLT)</div>' +
+        '<div style="font-size:1.6rem;font-weight:700">'+brl(custoCltPer)+'</div>' +
+        '<div style="font-size:.78rem;color:var(--v2-mu);margin-top:4px">custo fixo, independente de volume</div>' +
+      '</div>' +
+      '<div style="padding:14px;background:var(--v2-card);border:1px solid var(--v2-border);border-radius:10px">' +
+        '<div style="font-size:.72rem;color:var(--v2-mu);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Se terceirizasse mesmas entregas</div>' +
+        '<div style="font-size:1.6rem;font-weight:700">'+brl(custoSeTerc)+'</div>' +
+        '<div style="font-size:.78rem;color:var(--v2-mu);margin-top:4px">' + diasOperados + ' dias × ' + brl(diariaMedia) + '/diária média</div>' +
+      '</div>' +
+    '</div>' +
+    '<div style="margin-top:14px;padding:12px 14px;background:'+(vantagemClt?'var(--v2-green-bg)':'var(--v2-red-bg)')+';border-left:3px solid '+(vantagemClt?'var(--v2-green)':'var(--v2-red)')+';border-radius:6px;font-size:.86rem;line-height:1.5">' +
+      (vantagemClt
+        ? '✅ Nesse período a Ducato do Luiz saiu <b>'+brl(Math.abs(economia))+' mais barata</b> do que terceirizar. Break-even: '+breakEven.toFixed(1).replace('.',',')+' diárias/mês (você está fazendo ~'+diariasEqMes.toFixed(1).replace('.',',')+'/mês).'
+        : '⚠️ Nesse período terceirizar teria custado <b>'+brl(Math.abs(economia))+' menos</b>. Break-even: '+breakEven.toFixed(1).replace('.',',')+' diárias/mês (você só operou ~'+diariasEqMes.toFixed(1).replace('.',',')+'/mês). Aumentar volume ou reduzir custo fixo compensaria.'
+      ) +
+    '</div>';
+
+  // Ranking terceiros
+  var linhas = t.motoristas.slice(0,10).map(function(m){
+    var ticket = m.qtd_lancamentos > 0 ? m.total / m.qtd_lancamentos : 0;
+    var pctBar = t.motoristas[0].total > 0 ? (m.total / t.motoristas[0].total) * 100 : 0;
+    return '<tr>' +
+      '<td style="padding:9px 12px;font-weight:600">'+m.motorista+'</td>' +
+      '<td style="padding:9px 12px;text-align:right;font-variant-numeric:tabular-nums">'+brl(m.total)+'</td>' +
+      '<td style="padding:9px 12px;text-align:center">'+m.qtd_lancamentos+'</td>' +
+      '<td style="padding:9px 12px;text-align:right;font-variant-numeric:tabular-nums;color:var(--v2-mu)">'+brl(ticket)+'</td>' +
+      '<td style="padding:9px 12px"><div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:'+pctBar+'%;background:var(--v2-blue);border-radius:3px"></div></div></td>' +
+    '</tr>';
+  }).join('');
+  document.getElementById('v2-analises-ranking').innerHTML =
+    '<div class="v2-section-hdr"><div class="v2-section-title">🏆 Terceirizados no período</div><div style="font-size:.75rem;color:var(--v2-mu)">Total: '+brl(t.total)+' · '+t.qtd_lancamentos+' lançamentos</div></div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85rem">' +
+    '<thead><tr style="color:var(--v2-mu);font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--v2-border)">' +
+    '<th style="padding:8px 12px;text-align:left">Motorista</th>' +
+    '<th style="padding:8px 12px;text-align:right">Total pago</th>' +
+    '<th style="padding:8px 12px;text-align:center">Diárias</th>' +
+    '<th style="padding:8px 12px;text-align:right">Ticket médio</th>' +
+    '<th style="padding:8px 12px;width:30%">Distribuição</th>' +
+    '</tr></thead><tbody>' + linhas + '</tbody></table></div>';
+}
+
+function v2AnalisesVelocimetro(pct, breakEven, diariasAtuais){
+  // Semi-círculo SVG (arco de 180°)
+  var pctClamp = Math.max(0, Math.min(150, pct));
+  var angulo = -180 + (Math.min(100, pctClamp) / 100) * 180;
+  var rad = angulo * Math.PI / 180;
+  var cx = 140, cy = 130, r = 100;
+  var x = cx + r * Math.cos(rad);
+  var y = cy + r * Math.sin(rad);
+  var largeArc = pctClamp > 50 ? 1 : 0;
+  var cor = pct >= 100 ? 'var(--v2-green)' : (pct >= 70 ? 'var(--v2-orange)' : 'var(--v2-red)');
+  var status = pct >= 100 ? '✅ Ducato compensa' : (pct >= 70 ? '⚠️ Perto do break-even' : '❌ Volume insuficiente');
+
+  return '<div class="v2-velocimetro">' +
+    '<div class="v2-vel-lbl">Uso da capacidade break-even</div>' +
+    '<svg class="v2-vel-svg" viewBox="0 0 280 160">' +
+      '<path class="v2-vel-track" d="M 40 130 A 100 100 0 0 1 240 130" />' +
+      '<path class="v2-vel-fill" style="stroke:'+cor+'" d="M 40 130 A 100 100 0 '+largeArc+' 1 '+x.toFixed(2)+' '+y.toFixed(2)+'" />' +
+      '<text x="140" y="105" text-anchor="middle" style="font-size:2.4rem;font-weight:800;fill:var(--v2-text);letter-spacing:-0.03em">'+Math.round(pct)+'%</text>' +
+    '</svg>' +
+    '<div class="v2-vel-sub" style="color:'+cor+';font-weight:700">'+status+'</div>' +
+    '<div style="font-size:.78rem;color:var(--v2-mu);margin-top:8px;line-height:1.5">Break-even: <b style="color:var(--v2-text)">'+breakEven.toFixed(1).replace('.',',')+' diárias/mês</b><br>Você opera: <b style="color:var(--v2-text)">'+diariasAtuais.toFixed(1).replace('.',',')+' diárias/mês</b></div>' +
+  '</div>';
+}
+
+function v2AnalisesComposicao(luiz){
+  var itens = [
+    { label:'Salário/Benef.', val:luiz.salario_beneficios, cor:'var(--v2-blue)' },
+    { label:'Manutenção',     val:luiz.manutencao_mensal,  cor:'var(--v2-orange)' },
+    { label:'Combustível',    val:luiz.combustivel_mensal, cor:'var(--v2-green)' },
+    { label:'Pedágios',       val:luiz.pedagio_mensal,     cor:'var(--v2-red)' }
+  ];
+  var maxV = Math.max.apply(null, itens.map(function(i){ return i.val; }));
+  var brl = function(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}); };
+  var bars = itens.map(function(i){
+    var pct = maxV > 0 ? (i.val / maxV) * 100 : 0;
+    return '<div class="v2-comp-bar">' +
+      '<div class="v2-comp-label">'+i.label+'</div>' +
+      '<div class="v2-comp-track"><div class="v2-comp-fill" style="width:'+pct+'%;background:'+i.cor+'"></div></div>' +
+      '<div class="v2-comp-val">'+brl(i.val)+'</div>' +
+    '</div>';
+  }).join('');
+  return '<div class="v2-section" style="padding:20px 22px">' +
+    '<div class="v2-section-hdr"><div class="v2-section-title">🧾 Composição do custo mensal · Luiz</div><div style="font-size:.85rem;font-weight:700;color:var(--v2-text)">'+brl(luiz.custo_total_mensal)+'/mês</div></div>' +
+    bars +
+    '<div style="font-size:.72rem;color:var(--v2-mu);margin-top:10px;font-style:italic">Manutenção = média mensal do ano corrente</div>' +
+  '</div>';
 }
 
 function v2Saudacao(){ var h=new Date().getHours(); return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite'); }
