@@ -5754,7 +5754,14 @@ function v2ParseData(s){ if(!s) return null; var m=String(s).trim().match(/^(\d{
 function v2SameDay(dataReg, alvo){ return String(dataReg||'').trim().indexOf(alvo)===0; }
 function v2ImgVeiculo(nome){
   var n = String(nome||'').toUpperCase().replace(/[\s\-]/g,'');
-  // Mapa placa → modelo (Q Food Group)
+
+  // 1) Retirada pelo cliente (não é veículo próprio — ícone dedicado)
+  //    Cobre "RETIRADA CLIENTE", "RETIRADA NO CD", "CLIENTE RETIRA", "RETIROU", etc.
+  if(n.indexOf('RETIRAD') >= 0 || n.indexOf('CLIENTERETIR') >= 0){
+    return 'assets/RETIRADA_CLIENTE.jpg';
+  }
+
+  // 2) Mapa placa → modelo (Q Food Group)
   var placas = {
     'FIH8A21': 'SAVEIRO',
     'RQO4J52': 'DUCATO',
@@ -5766,13 +5773,15 @@ function v2ImgVeiculo(nome){
     'MSD6B89': 'FIORINO',
     'RNL3C34': 'FIORINO'
   };
-  // 1) Match por placa (caso o campo venha só com a placa ou "MODELO PLACA")
+  // Match por placa (caso o campo venha só com a placa ou "MODELO PLACA")
   for(var p in placas){ if(n.indexOf(p) >= 0) return 'assets/' + placas[p] + '.jpg'; }
-  // 2) Fallback: match pelo nome do modelo direto no texto
+
+  // 3) Fallback: match pelo nome do modelo direto no texto
   if(n.indexOf('SAVEIRO') >= 0) return 'assets/SAVEIRO.jpg';
   if(n.indexOf('FIORINO') >= 0) return 'assets/FIORINO.jpg';
   if(n.indexOf('DUCATO')  >= 0) return 'assets/DUCATO.jpg';
   if(n.indexOf('KOMBI')   >= 0) return 'assets/KOMBI.jpg';
+
   return null;
 }
 function v2UltimoDiaComDados(rows){
