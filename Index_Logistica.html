@@ -651,11 +651,19 @@ body.v2-body #v2-shell{ display: grid !important; grid-template-columns: 250px 1
             <h2 style="font-size:1.65rem;font-weight:700;margin-bottom:4px;letter-spacing:-.02em">Análises</h2>
             <div style="font-size:.9rem;color:var(--v2-mu)">Desempenho logístico</div>
           </div>
-          <div id="v2-analises-periodo-btns" style="display:flex;gap:6px;flex-wrap:wrap">
-            <button data-dias="30"  class="v2-per-btn active" onclick="v2AnalisesSetPeriodo(30)">30d</button>
-            <button data-dias="60"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(60)">60d</button>
-            <button data-dias="90"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(90)">90d</button>
-            <button data-dias="180" class="v2-per-btn" onclick="v2AnalisesSetPeriodo(180)">180d</button>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+            <div id="v2-analises-periodo-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+              <button data-dias="30"  class="v2-per-btn active" onclick="v2AnalisesSetPeriodo(30)">30d</button>
+              <button data-dias="60"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(60)">60d</button>
+              <button data-dias="90"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(90)">90d</button>
+              <button data-dias="180" class="v2-per-btn" onclick="v2AnalisesSetPeriodo(180)">180d</button>
+              <button data-dias="custom" class="v2-per-btn" onclick="v2AnalisesTogglePersonalizado()">📅 Personalizado</button>
+            </div>
+            <div id="v2-analises-custom" style="display:none;background:var(--v2-panel);border:1px solid var(--v2-border);border-radius:10px;padding:10px 14px;gap:10px;align-items:center;flex-wrap:wrap">
+              <label style="font-size:.75rem;color:var(--v2-mu);display:flex;align-items:center;gap:6px">De: <input type="date" id="v2-custom-de" style="background:var(--v2-card);border:1px solid var(--v2-border);border-radius:6px;padding:5px 8px;color:var(--v2-text);font-family:inherit;font-size:.8rem;color-scheme:dark"></label>
+              <label style="font-size:.75rem;color:var(--v2-mu);display:flex;align-items:center;gap:6px">Até: <input type="date" id="v2-custom-ate" style="background:var(--v2-card);border:1px solid var(--v2-border);border-radius:6px;padding:5px 8px;color:var(--v2-text);font-family:inherit;font-size:.8rem;color-scheme:dark"></label>
+              <button onclick="v2AnalisesAplicarPersonalizado()" style="background:var(--v2-green);color:#0F1419;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.8rem">Aplicar</button>
+            </div>
           </div>
         </div>
 
@@ -6003,11 +6011,7 @@ document.addEventListener('DOMContentLoaded', function(){
 // ════════════════════════════════════════════════════════════
 V2_ANL = { periodoDias: 30, subaba: 'geral', motoristasCusto: null, terceiros: null, loading: false, dtIni: null, dtFim: null };
 
-function v2AnalisesSetPeriodo(d){
-  V2_ANL.periodoDias = d;
-  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', +b.getAttribute('data-dias') === d); });
-  v2InitAnalises(true);
-}
+
 function v2AnalisesSetSubaba(s){
   V2_ANL.subaba = s;
   document.querySelectorAll('.v2-sub-tab').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sub') === s); });
@@ -6028,9 +6032,53 @@ function v2InitAnalises(forcar){
   }
   v2AnalisesCarregar();
 }
+function v2AnalisesSetPeriodo(d){
+  V2_ANL.periodoDias = d;
+  V2_ANL.custom = false;
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-dias') === String(d)); });
+  var custom = document.getElementById('v2-analises-custom');
+  if(custom) custom.style.display = 'none';
+  v2InitAnalises(true);
+}
+
+function v2AnalisesTogglePersonalizado(){
+  var custom = document.getElementById('v2-analises-custom');
+  if(!custom) return;
+  var isOpen = custom.style.display !== 'none' && custom.style.display !== '';
+  if(isOpen){ custom.style.display = 'none'; return; }
+  custom.style.display = 'flex';
+  var fim = V2_ANL.dtFim || new Date();
+  var ini = V2_ANL.dtIni || new Date(fim.getTime() - (V2_ANL.periodoDias||30) * 86400000);
+  var fmt = function(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  document.getElementById('v2-custom-de').value  = fmt(ini);
+  document.getElementById('v2-custom-ate').value = fmt(fim);
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-dias') === 'custom'); });
+}
+
+function v2AnalisesAplicarPersonalizado(){
+  var de  = document.getElementById('v2-custom-de').value;
+  var ate = document.getElementById('v2-custom-ate').value;
+  if(!de || !ate){ alert('Selecione as duas datas'); return; }
+  var dtDe  = new Date(de  + 'T00:00:00');
+  var dtAte = new Date(ate + 'T23:59:59');
+  if(dtDe > dtAte){ alert('A data inicial deve ser anterior à final'); return; }
+  V2_ANL.custom     = true;
+  V2_ANL.customDe   = dtDe;
+  V2_ANL.customAte  = dtAte;
+  V2_ANL.periodoDias = Math.max(1, Math.round((dtAte - dtDe) / 86400000) + 1);
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-dias') === 'custom'); });
+  v2InitAnalises(true);
+}
+
 function v2AnalisesCarregar(){
-  var hoje = new Date();
-  var ini  = new Date(hoje.getTime() - V2_ANL.periodoDias * 86400000);
+  var hoje, ini;
+  if(V2_ANL.custom && V2_ANL.customDe && V2_ANL.customAte){
+    ini  = V2_ANL.customDe;
+    hoje = V2_ANL.customAte;
+  } else {
+    hoje = new Date();
+    ini  = new Date(hoje.getTime() - V2_ANL.periodoDias * 86400000);
+  }
   var fmt  = function(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
   V2_ANL.dtIni = ini; V2_ANL.dtFim = hoje;
   var url = (typeof SUP_BACKEND_URL !== 'undefined') ? SUP_BACKEND_URL : (window.SUP_BACKEND_URL || '');
