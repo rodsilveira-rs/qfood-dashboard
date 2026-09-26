@@ -645,10 +645,14 @@ body.v2-body #v2-shell{ display: grid !important; grid-template-columns: 250px 1
 
       <!-- ═══════════ VIEW: ANÁLISES ═══════════ -->
       <div id="v2-view-analises" class="v2-view">
-        <div class="v2-empty-view">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-          <h3>Análises</h3>
-          <p>Painel em desenvolvimento.</p>
+        <div style="margin-bottom:20px">
+          <h2 style="font-size:1.35rem;font-weight:700;margin-bottom:6px">📊 Análises</h2>
+          <div style="font-size:.85rem;color:var(--v2-mu)">Frota, custo de motoristas e rankings — período dos filtros da aba Entregas</div>
+        </div>
+        <div id="v2-analises-slot" style="display:flex;flex-direction:column;gap:16px">
+          <div id="v2-analises-empty" style="text-align:center;padding:50px 20px;color:var(--v2-mu);font-size:.9rem">
+            ⏳ Aguardando dados da aba Entregas… abra "Entregas" uma vez para carregar.
+          </div>
         </div>
       </div>
 
@@ -5429,6 +5433,7 @@ function v2ToggleSidebar(){
 
 function v2Show(view){
   v2MoveAbasOriginais();
+  v2MoveAnalisesUmaVez();  // ← novo: garante que os 3 painéis já estão na view Análises
   V2_STATE.view = view;
 
   document.querySelectorAll('.v2-nav-item').forEach(function(el){
@@ -5478,7 +5483,38 @@ function v2Show(view){
     v2InitFrota();
   } else if(view === 'ocorrencias'){
     v2InitOcorrencias();
+  } else if(view === 'analises'){
+    // Se aba Entregas ainda não carregou, dispara pra popular os IDs dos painéis
+    if(typeof initEntregas === 'function' && !window.entLoaded) initEntregas();
   }
+}
+
+// ════════════════ MOVER PAINÉIS ANALÍTICOS PARA VIEW ANÁLISES (1×) ════════════════
+// Os 3 painéis (Saída de Carros, Custo de Motoristas, Rankings) vivem dentro do
+// page-container original. Este helper os re-parenteia para dentro de #v2-analises-slot
+// na primeira execução — assim eles somem da aba Entregas e aparecem em Análises.
+function v2MoveAnalisesUmaVez(){
+  if(V2_STATE.analisesMoved) return;
+  var slot = document.getElementById('v2-analises-slot');
+  if(!slot) return;
+  var empty = document.getElementById('v2-analises-empty');
+  var ids = ['pnl-saida', 'pnl-custo', 'ent-rankings'];
+  var movidos = 0;
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el && el.parentNode !== slot){
+      // Expande os painéis colapsados por padrão (agora estão na sua view dedicada)
+      if(el.classList && el.classList.contains('pnl-collapsed')){
+        el.classList.remove('pnl-collapsed');
+      }
+      // Remove margin-bottom original pra manter espaçamento consistente com o flex gap
+      el.style.marginBottom = '0';
+      slot.appendChild(el);
+      movidos++;
+    }
+  });
+  if(movidos > 0 && empty){ empty.style.display = 'none'; }
+  V2_STATE.analisesMoved = true;
 }
 
 function v2Saudacao(){ var h=new Date().getHours(); return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite'); }
