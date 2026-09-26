@@ -648,56 +648,79 @@ body.v2-body #v2-shell{ display: grid !important; grid-template-columns: 250px 1
         <!-- Cabeçalho -->
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px">
           <div>
-            <h2 style="font-size:1.35rem;font-weight:700;margin-bottom:4px">🚛 Ducato · Análise de Custo</h2>
-            <div style="font-size:.85rem;color:var(--v2-mu)">Vale a pena comprar mais uma Ducato? Comparação CLT vs. terceirizados no período.</div>
+            <h2 style="font-size:1.65rem;font-weight:700;margin-bottom:4px;letter-spacing:-.02em">Análises</h2>
+            <div style="font-size:.9rem;color:var(--v2-mu)">Desempenho logístico</div>
           </div>
-          <div id="v2-analises-periodo-btns" style="display:flex;gap:6px;flex-wrap:wrap">
-            <button data-dias="30"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(30)">30d</button>
-            <button data-dias="60"  class="v2-per-btn active" onclick="v2AnalisesSetPeriodo(60)">60d</button>
-            <button data-dias="90"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(90)">90d</button>
-            <button data-dias="180" class="v2-per-btn" onclick="v2AnalisesSetPeriodo(180)">180d</button>
+          <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
+            <div id="v2-analises-periodo-btns" style="display:flex;gap:6px;flex-wrap:wrap">
+              <button data-dias="30"  class="v2-per-btn active" onclick="v2AnalisesSetPeriodo(30)">30d</button>
+              <button data-dias="60"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(60)">60d</button>
+              <button data-dias="90"  class="v2-per-btn" onclick="v2AnalisesSetPeriodo(90)">90d</button>
+              <button data-dias="180" class="v2-per-btn" onclick="v2AnalisesSetPeriodo(180)">180d</button>
+              <button data-dias="custom" class="v2-per-btn" onclick="v2AnalisesTogglePersonalizado()">📅 Personalizado</button>
+            </div>
+            <div id="v2-analises-custom" style="display:none;background:var(--v2-panel);border:1px solid var(--v2-border);border-radius:10px;padding:10px 14px;gap:10px;align-items:center;flex-wrap:wrap">
+              <label style="font-size:.75rem;color:var(--v2-mu);display:flex;align-items:center;gap:6px">De: <input type="date" id="v2-custom-de" style="background:var(--v2-card);border:1px solid var(--v2-border);border-radius:6px;padding:5px 8px;color:var(--v2-text);font-family:inherit;font-size:.8rem;color-scheme:dark"></label>
+              <label style="font-size:.75rem;color:var(--v2-mu);display:flex;align-items:center;gap:6px">Até: <input type="date" id="v2-custom-ate" style="background:var(--v2-card);border:1px solid var(--v2-border);border-radius:6px;padding:5px 8px;color:var(--v2-text);font-family:inherit;font-size:.8rem;color-scheme:dark"></label>
+              <button onclick="v2AnalisesAplicarPersonalizado()" style="background:var(--v2-green);color:#0F1419;border:none;border-radius:6px;padding:6px 14px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.8rem">Aplicar</button>
+            </div>
           </div>
         </div>
 
-        <!-- Loading / erro -->
+        <!-- Sub-abas -->
+        <div class="v2-sub-tabs" role="tablist">
+          <button class="v2-sub-tab active" data-sub="geral"    onclick="v2AnalisesSetSubaba('geral')">Visão geral</button>
+          <button class="v2-sub-tab"        data-sub="frota"    onclick="v2AnalisesSetSubaba('frota')">Frota própria</button>
+          <button class="v2-sub-tab"        data-sub="custos"   onclick="v2AnalisesSetSubaba('custos')">Custos</button>
+          <button class="v2-sub-tab"        data-sub="rankings" onclick="v2AnalisesSetSubaba('rankings')">Rankings</button>
+        </div>
+
         <div id="v2-analises-loading" style="text-align:center;padding:50px 20px;color:var(--v2-mu);font-size:.9rem">⏳ Carregando dados…</div>
         <div id="v2-analises-erro" style="display:none;padding:16px;background:var(--v2-red-bg);border:1px solid var(--v2-red);border-radius:10px;color:var(--v2-red);font-size:.85rem;margin-bottom:16px"></div>
-
-        <!-- Conteúdo (renderizado por JS) -->
-        <div id="v2-analises-conteudo" style="display:none">
-          <!-- KPIs -->
-          <div class="v2-kpis" id="v2-analises-kpis" style="margin-bottom:20px"></div>
-
-          <!-- Grid principal: velocímetro + composição de custo -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px" id="v2-analises-grid1"></div>
-
-          <!-- Comparação com terceiros -->
-          <div class="v2-section" style="margin-bottom:20px" id="v2-analises-comparacao"></div>
-
-          <!-- Ranking terceirizados -->
-          <div class="v2-section" id="v2-analises-ranking"></div>
-        </div>
+        <div id="v2-analises-conteudo" style="display:none"></div>
       </div>
 
-      <!-- Estilos específicos da view Análises -->
       <style>
         .v2-per-btn{ background:var(--v2-panel);color:var(--v2-mu);border:1px solid var(--v2-border);border-radius:8px;padding:8px 14px;font-family:var(--v2-font);font-size:.82rem;font-weight:600;cursor:pointer; }
         .v2-per-btn:hover{ color:var(--v2-text);background:var(--v2-card); }
         .v2-per-btn.active{ background:var(--v2-green);color:#0F1419;border-color:var(--v2-green); }
+        .v2-sub-tabs{ display:flex;gap:4px;border-bottom:1px solid var(--v2-border);margin-bottom:24px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none; }
+        .v2-sub-tabs::-webkit-scrollbar{ display:none }
+        .v2-sub-tab{ background:transparent;border:none;color:var(--v2-mu);padding:11px 16px;font-family:var(--v2-font);font-size:.88rem;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap; }
+        .v2-sub-tab:hover{ color:var(--v2-text) }
+        .v2-sub-tab.active{ color:var(--v2-text);border-bottom-color:var(--v2-green) }
         .v2-velocimetro{ display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--v2-panel);border:1px solid var(--v2-border);border-radius:14px;padding:22px;text-align:center; }
         .v2-vel-svg{ width:100%;max-width:280px;height:170px; }
         .v2-vel-track{ fill:none;stroke:rgba(255,255,255,0.06);stroke-width:16;stroke-linecap:round; }
         .v2-vel-fill{ fill:none;stroke-width:16;stroke-linecap:round;transition:stroke-dashoffset 0.6s ease; }
-        .v2-vel-pct{ font-size:2.6rem;font-weight:800;letter-spacing:-0.03em;line-height:1;margin-top:-30px }
         .v2-vel-lbl{ font-size:.78rem;color:var(--v2-mu);margin-top:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600 }
         .v2-vel-sub{ font-size:.82rem;color:var(--v2-text);margin-top:12px;line-height:1.4 }
         .v2-comp-bar{ display:grid;grid-template-columns:110px 1fr 90px;gap:12px;align-items:center;padding:10px 0;font-size:.85rem;border-bottom:1px solid var(--v2-border) }
         .v2-comp-bar:last-child{ border-bottom:none }
         .v2-comp-label{ color:var(--v2-mu);font-weight:600 }
-        .v2-comp-track{ height:14px;background:rgba(255,255,255,0.05);border-radius:7px;overflow:hidden;position:relative }
+        .v2-comp-track{ height:14px;background:rgba(255,255,255,0.05);border-radius:7px;overflow:hidden }
         .v2-comp-fill{ height:100%;border-radius:7px;transition:width .5s ease }
         .v2-comp-val{ text-align:right;font-weight:700;font-variant-numeric:tabular-nums }
-        @media (max-width:768px){ #v2-analises-grid1{grid-template-columns:1fr !important} }
+        .v2-oc-bar{ display:flex;align-items:flex-end;justify-content:space-between;gap:8px;height:180px;padding:16px 0 6px }
+        .v2-oc-bar > div{ flex:1;display:flex;flex-direction:column;align-items:center;gap:6px }
+        .v2-oc-bar-fill{ width:100%;max-width:56px;background:linear-gradient(180deg,var(--v2-green),#059669);border-radius:6px 6px 0 0;position:relative;min-height:6px;transition:height .5s ease }
+        .v2-oc-bar-val{ position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:.72rem;font-weight:700;color:var(--v2-text);white-space:nowrap }
+        .v2-oc-bar-lbl{ font-size:.7rem;color:var(--v2-mu);text-align:center }
+        .v2-alert-card{ display:flex;align-items:center;gap:12px;padding:14px;background:var(--v2-card);border:1px solid var(--v2-border);border-radius:10px;cursor:pointer;transition:background .2s }
+        .v2-alert-card:hover{ background:var(--v2-card-hover) }
+        .v2-alert-card .v2-alert-icon{ width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.1rem }
+        .v2-alert-card.warn .v2-alert-icon{ background:var(--v2-orange-bg);color:var(--v2-orange) }
+        .v2-alert-card.danger .v2-alert-icon{ background:var(--v2-red-bg);color:var(--v2-red) }
+        .v2-alert-card-body{ flex:1;min-width:0 }
+        .v2-alert-card-title{ font-size:.9rem;font-weight:600;line-height:1.3;margin-bottom:2px }
+        .v2-alert-card-sub{ font-size:.76rem;color:var(--v2-mu) }
+        .v2-alert-card-arr{ color:var(--v2-mu2);font-size:1.2rem;flex-shrink:0 }
+        .v2-rotas-tbl{ width:100%;border-collapse:collapse;font-size:.85rem }
+        .v2-rotas-tbl th{ text-align:left;padding:10px 12px;font-size:.7rem;font-weight:700;color:var(--v2-mu);text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--v2-border) }
+        .v2-rotas-tbl td{ padding:12px;border-bottom:1px solid var(--v2-border) }
+        .v2-rotas-tbl tr:last-child td{ border-bottom:none }
+        .v2-rotas-idx{ display:inline-flex;width:24px;height:24px;background:var(--v2-card);border-radius:6px;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;color:var(--v2-mu) }
+        @media (max-width:768px){ .v2-sub-tab{padding:10px 12px;font-size:.82rem} }
       </style>
 
     </div>
@@ -5464,6 +5487,11 @@ function v2MoveAbasOriginais(){
   if(pc && wrapper){
     wrapper.appendChild(pc);
     pc.style.display = 'block';
+    // Esconde os 3 painéis antigos (agora vivem só na view Análises)
+    ['pnl-saida','pnl-custo','ent-rankings'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.style.display = 'none';
+    });
     V2_STATE.abasMoved = true;
   }
 }
@@ -5754,7 +5782,14 @@ function v2ParseData(s){ if(!s) return null; var m=String(s).trim().match(/^(\d{
 function v2SameDay(dataReg, alvo){ return String(dataReg||'').trim().indexOf(alvo)===0; }
 function v2ImgVeiculo(nome){
   var n = String(nome||'').toUpperCase().replace(/[\s\-]/g,'');
-  // Mapa placa → modelo (Q Food Group)
+
+  // 1) Retirada pelo cliente (não é veículo próprio — ícone dedicado)
+  //    Cobre "RETIRADA CLIENTE", "RETIRADA NO CD", "CLIENTE RETIRA", "RETIROU", etc.
+  if(n.indexOf('RETIRAD') >= 0 || n.indexOf('CLIENTERETIR') >= 0){
+    return 'assets/RETIRADA_CLIENTE.jpg';
+  }
+
+  // 2) Mapa placa → modelo (Q Food Group)
   var placas = {
     'FIH8A21': 'SAVEIRO',
     'RQO4J52': 'DUCATO',
@@ -5766,13 +5801,15 @@ function v2ImgVeiculo(nome){
     'MSD6B89': 'FIORINO',
     'RNL3C34': 'FIORINO'
   };
-  // 1) Match por placa (caso o campo venha só com a placa ou "MODELO PLACA")
+  // Match por placa (caso o campo venha só com a placa ou "MODELO PLACA")
   for(var p in placas){ if(n.indexOf(p) >= 0) return 'assets/' + placas[p] + '.jpg'; }
-  // 2) Fallback: match pelo nome do modelo direto no texto
+
+  // 3) Fallback: match pelo nome do modelo direto no texto
   if(n.indexOf('SAVEIRO') >= 0) return 'assets/SAVEIRO.jpg';
   if(n.indexOf('FIORINO') >= 0) return 'assets/FIORINO.jpg';
   if(n.indexOf('DUCATO')  >= 0) return 'assets/DUCATO.jpg';
   if(n.indexOf('KOMBI')   >= 0) return 'assets/KOMBI.jpg';
+
   return null;
 }
 function v2UltimoDiaComDados(rows){
@@ -5969,7 +6006,287 @@ document.addEventListener('DOMContentLoaded', function(){
     if(typeof v2Show==='function') v2Show('inicio');
   }, 100);
 });
+// ════════════════════════════════════════════════════════════
+// VIEW ANÁLISES v2 — Visão geral + sub-abas
+// ════════════════════════════════════════════════════════════
+V2_ANL = { periodoDias: 30, subaba: 'geral', motoristasCusto: null, terceiros: null, loading: false, dtIni: null, dtFim: null };
 
+
+function v2AnalisesSetSubaba(s){
+  V2_ANL.subaba = s;
+  document.querySelectorAll('.v2-sub-tab').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-sub') === s); });
+  v2AnalisesRenderSubaba();
+}
+function v2InitAnalises(forcar){
+  var loading = document.getElementById('v2-analises-loading');
+  var cont    = document.getElementById('v2-analises-conteudo');
+  if(!loading || !cont) return;
+  if(V2_ANL.loading && !forcar) return;
+  V2_ANL.loading = true;
+  loading.style.display = 'block'; cont.style.display = 'none';
+  document.getElementById('v2-analises-erro').style.display = 'none';
+  if(!window.entLoaded){
+    var ci = setInterval(function(){ if(window.entLoaded){ clearInterval(ci); v2AnalisesCarregar(); } }, 500);
+    setTimeout(function(){ clearInterval(ci); V2_ANL.loading = false; }, 30000);
+    return;
+  }
+  v2AnalisesCarregar();
+}
+function v2AnalisesSetPeriodo(d){
+  V2_ANL.periodoDias = d;
+  V2_ANL.custom = false;
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-dias') === String(d)); });
+  var custom = document.getElementById('v2-analises-custom');
+  if(custom) custom.style.display = 'none';
+  v2InitAnalises(true);
+}
+
+function v2AnalisesTogglePersonalizado(){
+  var custom = document.getElementById('v2-analises-custom');
+  if(!custom) return;
+  var isOpen = custom.style.display !== 'none' && custom.style.display !== '';
+  if(isOpen){ custom.style.display = 'none'; return; }
+  custom.style.display = 'flex';
+  var fim = V2_ANL.dtFim || new Date();
+  var ini = V2_ANL.dtIni || new Date(fim.getTime() - (V2_ANL.periodoDias||30) * 86400000);
+  var fmt = function(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  document.getElementById('v2-custom-de').value  = fmt(ini);
+  document.getElementById('v2-custom-ate').value = fmt(fim);
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-dias') === 'custom'); });
+}
+
+function v2AnalisesAplicarPersonalizado(){
+  var de  = document.getElementById('v2-custom-de').value;
+  var ate = document.getElementById('v2-custom-ate').value;
+  if(!de || !ate){ alert('Selecione as duas datas'); return; }
+  var dtDe  = new Date(de  + 'T00:00:00');
+  var dtAte = new Date(ate + 'T23:59:59');
+  if(dtDe > dtAte){ alert('A data inicial deve ser anterior à final'); return; }
+  V2_ANL.custom     = true;
+  V2_ANL.customDe   = dtDe;
+  V2_ANL.customAte  = dtAte;
+  V2_ANL.periodoDias = Math.max(1, Math.round((dtAte - dtDe) / 86400000) + 1);
+  document.querySelectorAll('.v2-per-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-dias') === 'custom'); });
+  v2InitAnalises(true);
+}
+
+function v2AnalisesCarregar(){
+  var hoje, ini;
+  if(V2_ANL.custom && V2_ANL.customDe && V2_ANL.customAte){
+    ini  = V2_ANL.customDe;
+    hoje = V2_ANL.customAte;
+  } else {
+    hoje = new Date();
+    ini  = new Date(hoje.getTime() - V2_ANL.periodoDias * 86400000);
+  }
+  var fmt  = function(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); };
+  V2_ANL.dtIni = ini; V2_ANL.dtFim = hoje;
+  var url = (typeof SUP_BACKEND_URL !== 'undefined') ? SUP_BACKEND_URL : (window.SUP_BACKEND_URL || '');
+  if(!url){ v2AnalisesErro('URL do backend não configurada.'); return; }
+  Promise.all([
+    fetch(url + '?modulo=custos&action=list').then(function(r){ return r.json(); }),
+    fetch(url + '?modulo=custos&action=terceiros&de=' + fmt(ini) + '&ate=' + fmt(hoje) + '&ano=' + hoje.getFullYear()).then(function(r){ return r.json(); })
+  ]).then(function(res){
+    V2_ANL.motoristasCusto = (res[0] && res[0].ok) ? res[0].motoristas : [];
+    V2_ANL.terceiros       = (res[1] && res[1].ok) ? res[1] : null;
+    if(!V2_ANL.terceiros){ v2AnalisesErro((res[1] && res[1].error) || 'Erro ao buscar terceiros.'); return; }
+    V2_ANL.loading = false;
+    document.getElementById('v2-analises-loading').style.display = 'none';
+    document.getElementById('v2-analises-conteudo').style.display = 'block';
+    v2AnalisesRenderSubaba();
+  }).catch(function(e){ v2AnalisesErro('Falha de rede: ' + String(e)); });
+}
+function v2AnalisesErro(msg){
+  V2_ANL.loading = false;
+  document.getElementById('v2-analises-loading').style.display = 'none';
+  var erro = document.getElementById('v2-analises-erro');
+  erro.style.display = 'block'; erro.textContent = '⚠️ ' + msg;
+}
+function v2AnalisesRenderSubaba(){
+  var slot = document.getElementById('v2-analises-conteudo');
+  if(!slot) return;
+  if(V2_ANL.subaba === 'geral')    v2AnaGeral(slot);
+  else if(V2_ANL.subaba === 'frota')    v2AnaFrota(slot);
+  else if(V2_ANL.subaba === 'custos')   v2AnaCustos(slot);
+  else if(V2_ANL.subaba === 'rankings') v2AnaRankings(slot);
+}
+
+// Helpers
+function v2AnaBrl(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function v2AnaBrl0(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function v2AnaTemOc(r){ return (typeof entTemOcorrencia==='function') ? entTemOcorrencia(r) : (String(r['Possui Ocorrencia']||'').trim().toLowerCase()==='sim'); }
+function v2AnaEntregasPeriodo(){
+  return (window.entAllRows||[]).filter(function(r){
+    var dt = v2ParseData(String(r['Data Registro']||'').substring(0,10));
+    return dt && dt >= V2_ANL.dtIni && dt <= V2_ANL.dtFim;
+  });
+}
+function v2AnaSaidas(ent){
+  var set = {};
+  ent.forEach(function(r){
+    var v = String(r['Veículo']||'').trim().toUpperCase();
+    if(!v || v.indexOf('RETIRAD') >= 0) return;
+    set[String(r['Motorista']||'').toUpperCase() + '|' + v + '|' + String(r['Data Registro']||'').substring(0,10)] = true;
+  });
+  return Object.keys(set).length;
+}
+function v2AnaLuiz(){ return (V2_ANL.motoristasCusto||[]).find(function(m){ return m.tipo === 'CLT' && m.veiculo_placa === 'RQO4J52'; }); }
+
+// ═══ VISÃO GERAL ═══
+function v2AnaGeral(slot){
+  var ent = v2AnaEntregasPeriodo();
+  var saidas = v2AnaSaidas(ent);
+  var ocorr  = ent.filter(v2AnaTemOc).length;
+  var ocup = saidas > 0 ? Math.min(100, Math.round((ent.length / saidas / 15) * 100)) : 0;
+  var luiz = v2AnaLuiz();
+  var custoClt  = luiz ? luiz.custo_total_mensal * (V2_ANL.periodoDias / 30) : 0;
+  var custoTerc = V2_ANL.terceiros ? V2_ANL.terceiros.total : 0;
+  var custoPorEnt = ent.length > 0 ? (custoClt + custoTerc) / ent.length : 0;
+  var pctOc = ent.length > 0 ? (ocorr / ent.length * 100) : 0;
+
+  var kpis =
+    '<div class="v2-kpi green"><div class="v2-kpi-icon">🚛</div><div class="v2-kpi-val">'+saidas+'</div><div class="v2-kpi-lbl">Saídas</div><div class="v2-kpi-sub">'+V2_ANL.periodoDias+' dias · '+ent.length+' NFs</div></div>' +
+    '<div class="v2-kpi blue"><div class="v2-kpi-icon">📊</div><div class="v2-kpi-val">'+ocup+'%</div><div class="v2-kpi-lbl">Ocupação média</div><div class="v2-kpi-sub">proxy: entregas/saída</div></div>' +
+    '<div class="v2-kpi orange"><div class="v2-kpi-icon">💰</div><div class="v2-kpi-val">'+v2AnaBrl(custoPorEnt)+'</div><div class="v2-kpi-lbl">Custo por entrega</div><div class="v2-kpi-sub">CLT + terceiros ÷ NFs</div></div>' +
+    '<div class="v2-kpi '+(ocorr>0?'red':'green')+'"><div class="v2-kpi-icon">⚠️</div><div class="v2-kpi-val">'+ocorr+'</div><div class="v2-kpi-lbl">Ocorrências</div><div class="v2-kpi-sub">'+pctOc.toFixed(1).replace('.',',')+'% das entregas</div></div>';
+
+  var alertas = [];
+  if(ocorr > 0) alertas.push({tipo:'danger', icon:'⚠️', title: ocorr+' entregas com ocorrência', sub: pctOc.toFixed(1).replace('.',',')+'% do total'});
+  var semVeic = ent.filter(function(r){ var v=String(r['Veículo']||'').trim(); return !v || v.indexOf('RETIRAD') >= 0; }).length;
+  if(semVeic > 5) alertas.push({tipo:'warn', icon:'🚚', title: semVeic+' retiradas por cliente', sub:'Não geram saída de frota'});
+  if(!alertas.length) alertas.push({tipo:'warn', icon:'✅', title:'Sem alertas críticos', sub:'Operação dentro dos parâmetros'});
+  var alertasHtml = alertas.map(function(a){
+    return '<div class="v2-alert-card '+a.tipo+'"><div class="v2-alert-icon">'+a.icon+'</div><div class="v2-alert-card-body"><div class="v2-alert-card-title">'+a.title+'</div><div class="v2-alert-card-sub">'+a.sub+'</div></div><div class="v2-alert-card-arr">›</div></div>';
+  }).join('');
+
+  var mapaCid = {};
+  ent.forEach(function(r){
+    var c = String(r['Cidade']||'').trim(); if(!c) return;
+    if(!mapaCid[c]) mapaCid[c] = {cidade:c, total:0, oc:0};
+    mapaCid[c].total++;
+    if(v2AnaTemOc(r)) mapaCid[c].oc++;
+  });
+  var cidades = Object.values(mapaCid).map(function(c){ c.pctOc = c.total > 0 ? (c.oc / c.total * 100) : 0; return c; })
+    .filter(function(c){ return c.total >= 3; }).sort(function(a,b){ return b.pctOc - a.pctOc || b.total - a.total; }).slice(0, 5);
+  var rotasHtml = cidades.map(function(c, i){
+    var cor = c.pctOc >= 5 ? 'var(--v2-red)' : (c.pctOc >= 2 ? 'var(--v2-orange)' : 'var(--v2-green)');
+    return '<tr><td><span class="v2-rotas-idx">'+(i+1)+'</span></td><td style="font-weight:600">'+c.cidade+'</td><td style="text-align:center">'+c.total+'</td><td><div style="height:8px;background:rgba(255,255,255,0.05);border-radius:4px"><div style="height:100%;width:'+Math.min(100, c.pctOc*10)+'%;background:'+cor+';border-radius:4px"></div></div></td><td style="text-align:right;font-weight:700;color:'+cor+'">'+c.pctOc.toFixed(1).replace('.',',')+'%</td></tr>';
+  }).join('');
+
+  slot.innerHTML =
+    '<div class="v2-kpis" style="margin-bottom:20px">'+kpis+'</div>' +
+    '<div class="v2-section" style="margin-bottom:20px"><div class="v2-section-hdr"><div class="v2-section-title">⚠️ Pontos de atenção</div></div><div style="display:flex;flex-direction:column;gap:10px">'+alertasHtml+'</div></div>' +
+    '<div class="v2-section"><div class="v2-section-hdr"><div class="v2-section-title">🗺️ Rotas que pedem revisão</div><a class="v2-section-link" onclick="v2AnalisesSetSubaba(\'rankings\')">Ver rankings →</a></div><table class="v2-rotas-tbl"><thead><tr><th>#</th><th>Cidade</th><th style="text-align:center">Entregas</th><th>% Ocorrência</th><th style="text-align:right">Taxa</th></tr></thead><tbody>'+(rotasHtml || '<tr><td colspan="5" style="text-align:center;color:var(--v2-mu);padding:20px">Sem cidades com ocorrência</td></tr>')+'</tbody></table></div>';
+}
+
+// ═══ FROTA PRÓPRIA (Ducato) ═══
+function v2AnaFrota(slot){
+  var luiz = v2AnaLuiz();
+  if(!luiz){ slot.innerHTML = '<div class="v2-section" style="text-align:center;padding:40px;color:var(--v2-mu)">Cadastre a Ducato em MOTORISTA_CUSTO para ver a análise.</div>'; return; }
+  var ent = v2AnaEntregasPeriodo();
+  var entDucato = ent.filter(function(r){ return String(r['Veículo']||'').toUpperCase().indexOf('RQO4J52') >= 0; });
+  var diasOp = new Set(entDucato.map(function(r){ return String(r['Data Registro']||'').substring(0,10); })).size;
+  var custoClt = luiz.custo_total_mensal * (V2_ANL.periodoDias / 30);
+  var t = V2_ANL.terceiros;
+  var diariaMedia = t.qtd_lancamentos > 0 ? t.total / t.qtd_lancamentos : 0;
+  var breakEven = diariaMedia > 0 ? luiz.custo_total_mensal / diariaMedia : 0;
+  var custoSeTerc = diasOp * diariaMedia;
+  var economia = custoSeTerc - custoClt;
+  var vantagem = economia > 0;
+  var diariasEqMes = diasOp * (30 / V2_ANL.periodoDias);
+  var pctBE = breakEven > 0 ? (diariasEqMes / breakEven * 100) : 0;
+  var pctExib = Math.min(150, Math.round(pctBE));
+
+  var ang = -180 + (Math.min(100, pctExib) / 100) * 180;
+  var rad = ang * Math.PI / 180;
+  var x = (140 + 100 * Math.cos(rad)).toFixed(2);
+  var y = (130 + 100 * Math.sin(rad)).toFixed(2);
+  var largeArc = pctExib > 50 ? 1 : 0;
+  var cor = pctBE >= 100 ? 'var(--v2-green)' : (pctBE >= 70 ? 'var(--v2-orange)' : 'var(--v2-red)');
+  var status = pctBE >= 100 ? '✅ Compensa manter' : (pctBE >= 70 ? '⚠️ Perto do break-even' : '❌ Volume insuficiente');
+
+  var itens = [
+    {l:'Salário/Benef.', v:luiz.salario_beneficios, c:'var(--v2-blue)'},
+    {l:'Manutenção',     v:luiz.manutencao_mensal,  c:'var(--v2-orange)'},
+    {l:'Combustível',    v:luiz.combustivel_mensal, c:'var(--v2-green)'},
+    {l:'Pedágios',       v:luiz.pedagio_mensal,     c:'var(--v2-red)'}
+  ];
+  var maxV = Math.max.apply(null, itens.map(function(i){return i.v;}));
+  var bars = itens.map(function(i){
+    var p = maxV > 0 ? (i.v / maxV * 100) : 0;
+    return '<div class="v2-comp-bar"><div class="v2-comp-label">'+i.l+'</div><div class="v2-comp-track"><div class="v2-comp-fill" style="width:'+p+'%;background:'+i.c+'"></div></div><div class="v2-comp-val">'+v2AnaBrl0(i.v)+'</div></div>';
+  }).join('');
+
+  slot.innerHTML =
+    '<div class="v2-kpis" style="margin-bottom:20px">' +
+      '<div class="v2-kpi orange"><div class="v2-kpi-icon">💰</div><div class="v2-kpi-val">'+v2AnaBrl0(custoClt)+'</div><div class="v2-kpi-lbl">Custo Ducato</div><div class="v2-kpi-sub">'+V2_ANL.periodoDias+' dias · '+luiz.motorista_nome+'</div></div>' +
+      '<div class="v2-kpi blue"><div class="v2-kpi-icon">📦</div><div class="v2-kpi-val">'+entDucato.length+'</div><div class="v2-kpi-lbl">Entregas</div><div class="v2-kpi-sub">'+diasOp+' dias operados</div></div>' +
+      '<div class="v2-kpi green"><div class="v2-kpi-icon">🎯</div><div class="v2-kpi-val">'+v2AnaBrl(entDucato.length > 0 ? custoClt/entDucato.length : 0)+'</div><div class="v2-kpi-lbl">Custo por entrega</div><div class="v2-kpi-sub">frota própria</div></div>' +
+      '<div class="v2-kpi '+(vantagem?'green':'red')+'"><div class="v2-kpi-icon">'+(vantagem?'✅':'⚠️')+'</div><div class="v2-kpi-val">'+v2AnaBrl0(Math.abs(economia))+'</div><div class="v2-kpi-lbl">'+(vantagem?'Economia CLT':'Terceiro seria + barato')+'</div><div class="v2-kpi-sub">vs. terceirizar</div></div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="v2-analises-grid1">' +
+      '<div class="v2-velocimetro">' +
+        '<div class="v2-vel-lbl">Uso da capacidade break-even</div>' +
+        '<svg class="v2-vel-svg" viewBox="0 0 280 160">' +
+          '<path class="v2-vel-track" d="M 40 130 A 100 100 0 0 1 240 130" />' +
+          '<path class="v2-vel-fill" style="stroke:'+cor+'" d="M 40 130 A 100 100 0 '+largeArc+' 1 '+x+' '+y+'" />' +
+          '<text x="140" y="105" text-anchor="middle" style="font-size:2.4rem;font-weight:800;fill:var(--v2-text);letter-spacing:-0.03em">'+Math.round(pctBE)+'%</text>' +
+        '</svg>' +
+        '<div class="v2-vel-sub" style="color:'+cor+';font-weight:700">'+status+'</div>' +
+        '<div style="font-size:.78rem;color:var(--v2-mu);margin-top:8px;line-height:1.5">Break-even: <b style="color:var(--v2-text)">'+breakEven.toFixed(1).replace('.',',')+' diárias/mês</b><br>Você opera: <b style="color:var(--v2-text)">'+diariasEqMes.toFixed(1).replace('.',',')+' diárias/mês</b></div>' +
+      '</div>' +
+      '<div class="v2-section" style="padding:20px 22px"><div class="v2-section-hdr"><div class="v2-section-title">🧾 Composição custo mensal</div><div style="font-size:.85rem;font-weight:700">'+v2AnaBrl0(luiz.custo_total_mensal)+'/mês</div></div>'+bars+'</div>' +
+    '</div>';
+}
+
+// ═══ CUSTOS ═══
+function v2AnaCustos(slot){
+  var luiz = v2AnaLuiz();
+  var t = V2_ANL.terceiros;
+  var custoClt = luiz ? luiz.custo_total_mensal * (V2_ANL.periodoDias / 30) : 0;
+  var linhas = t.motoristas.slice(0,15).map(function(m){
+    var tk = m.qtd_lancamentos > 0 ? m.total / m.qtd_lancamentos : 0;
+    var p = t.motoristas[0].total > 0 ? (m.total / t.motoristas[0].total * 100) : 0;
+    return '<tr><td style="padding:10px 12px;font-weight:600">'+m.motorista+'</td><td style="padding:10px 12px;text-align:right">'+v2AnaBrl(m.total)+'</td><td style="padding:10px 12px;text-align:center">'+m.qtd_lancamentos+'</td><td style="padding:10px 12px;text-align:right;color:var(--v2-mu)">'+v2AnaBrl(tk)+'</td><td style="padding:10px 12px"><div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px"><div style="height:100%;width:'+p+'%;background:var(--v2-blue);border-radius:3px"></div></div></td></tr>';
+  }).join('');
+  slot.innerHTML =
+    '<div class="v2-kpis" style="margin-bottom:20px">' +
+      '<div class="v2-kpi orange"><div class="v2-kpi-icon">🏭</div><div class="v2-kpi-val">'+v2AnaBrl0(custoClt)+'</div><div class="v2-kpi-lbl">Frota própria (CLT)</div><div class="v2-kpi-sub">'+V2_ANL.periodoDias+' dias</div></div>' +
+      '<div class="v2-kpi blue"><div class="v2-kpi-icon">🤝</div><div class="v2-kpi-val">'+v2AnaBrl0(t.total)+'</div><div class="v2-kpi-lbl">Terceiros</div><div class="v2-kpi-sub">'+t.qtd_lancamentos+' lançamentos</div></div>' +
+      '<div class="v2-kpi green"><div class="v2-kpi-icon">💰</div><div class="v2-kpi-val">'+v2AnaBrl0(custoClt + t.total)+'</div><div class="v2-kpi-lbl">Custo total</div><div class="v2-kpi-sub">CLT + terceiros</div></div>' +
+    '</div>' +
+    '<div class="v2-section"><div class="v2-section-hdr"><div class="v2-section-title">🏆 Terceirizados no período</div><div style="font-size:.75rem;color:var(--v2-mu)">'+t.motoristas.length+' motoristas</div></div>' +
+    '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.85rem"><thead><tr style="color:var(--v2-mu);font-size:.7rem;text-transform:uppercase;letter-spacing:.4px;border-bottom:1px solid var(--v2-border)"><th style="padding:8px 12px;text-align:left">Motorista</th><th style="padding:8px 12px;text-align:right">Total pago</th><th style="padding:8px 12px;text-align:center">Diárias</th><th style="padding:8px 12px;text-align:right">Ticket médio</th><th style="padding:8px 12px;width:30%">Distribuição</th></tr></thead><tbody>'+linhas+'</tbody></table></div></div>';
+}
+
+// ═══ RANKINGS ═══
+function v2AnaRankings(slot){
+  var ent = v2AnaEntregasPeriodo();
+  var byMot = {}, byVend = {}, byCid = {};
+  ent.forEach(function(r){
+    var val = parseFloat(String(r['Total Geral']||'0').replace(/\./g,'').replace(',','.')) || 0;
+    var m = String(r['Motorista']||'—').trim(); if(m){ if(!byMot[m]) byMot[m]={n:m,v:0,q:0}; byMot[m].v+=val; byMot[m].q++; }
+    var s = String(r['Vendedor']||'—').trim(); if(s){ if(!byVend[s]) byVend[s]={n:s,v:0,q:0}; byVend[s].v+=val; byVend[s].q++; }
+    var c = String(r['Cidade']||'—').trim(); if(c){ if(!byCid[c]) byCid[c]={n:c,v:0,q:0}; byCid[c].v+=val; byCid[c].q++; }
+  });
+  var mk = function(titulo, mapa, campo){
+    var arr = Object.values(mapa).sort(function(a,b){ return b[campo]-a[campo]; }).slice(0,10);
+    var maxV = Math.max.apply(null, arr.map(function(x){return x[campo];}).concat([1]));
+    var ls = arr.map(function(x,i){
+      var p = x[campo] / maxV * 100;
+      var val = campo === 'v' ? v2AnaBrl0(x.v) : (x.q + ' NFs');
+      return '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--v2-border);font-size:.85rem"><span class="v2-rotas-idx">'+(i+1)+'</span><div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+x.n+'</div><div style="height:5px;background:rgba(255,255,255,0.06);border-radius:3px;margin-top:4px"><div style="height:100%;width:'+p+'%;background:var(--v2-green);border-radius:3px"></div></div></div><div style="font-weight:700;white-space:nowrap">'+val+'</div></div>';
+    }).join('');
+    return '<div class="v2-section"><div class="v2-section-hdr"><div class="v2-section-title">'+titulo+'</div></div>'+(ls || '<div style="text-align:center;color:var(--v2-mu);padding:20px">Sem dados</div>')+'</div>';
+  };
+  slot.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="v2-analises-grid1">' +
+      mk('🚚 Motoristas (R$)', byMot, 'v') +
+      mk('🚚 Motoristas (Qtd)', byMot, 'q') +
+      mk('👤 Vendedores (R$)', byVend, 'v') +
+      mk('🏙️ Cidades (R$)', byCid, 'v') +
+    '</div>';
+}
 </script>
 
 </body>
