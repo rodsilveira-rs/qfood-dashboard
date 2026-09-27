@@ -80,6 +80,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .tag-status-concluido{background:rgba(77,142,245,.15);color:var(--blue);border:1px solid rgba(77,142,245,.3)}
 .tag-status-cancelado{background:rgba(94,113,142,.15);color:var(--mu2);border:1px solid rgba(94,113,142,.3)}
 .tag-status-bloqueado{background:rgba(180,83,9,.15);color:#d97706;border:1px solid rgba(180,83,9,.3)}
+.tag-status-em_risco{background:rgba(255,196,0,.15);color:#ffc400;border:1px solid rgba(255,196,0,.35)}
 .tag-prior-alta{background:rgba(255,77,79,.15);color:var(--red);border:1px solid rgba(255,77,79,.3)}
 .tag-prior-media{background:rgba(255,170,43,.15);color:var(--warn);border:1px solid rgba(255,170,43,.3)}
 .tag-prior-baixa{background:rgba(54,207,160,.15);color:var(--ok);border:1px solid rgba(54,207,160,.3)}
@@ -308,6 +309,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
         <option value="concluido">Concluído</option>
         <option value="cancelado">Cancelado</option>
         <option value="bloqueado">Bloqueado</option>
+        <option value="em_risco">Em risco</option>
       </select>
 
       <select id="prior-filter" onchange="renderTable()">
@@ -420,6 +422,7 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
           <option value="concluido">Concluído</option>
           <option value="cancelado">Cancelado</option>
           <option value="bloqueado">Bloqueado</option>
+          <option value="em_risco">Em risco</option>
         </select>
       </div>
       <div class="fld">
@@ -690,10 +693,11 @@ function farolItem(item){
   if(item.status === "concluido") return "done";
   if(item.status === "cancelado") return "done";
   if(item.status === "bloqueado") return "blk";
-  if(!item.prazo) return "gray";
+  if(!item.prazo) return item.status === "em_risco" ? "y" : "gray";
   var d = diasAte(item.prazo);
-  if(d == null) return "gray";
+  if(d == null) return item.status === "em_risco" ? "y" : "gray";
   if(d < 0) return "r";
+  if(item.status === "em_risco") return "y";
   if(d <= 3) return "y";
   return "g";
 }
@@ -923,7 +927,7 @@ function updateSortIndicators(){
   });
 }
 function statusTag(s){
-  var label = {pendente:"Pendente",em_andamento:"Em andamento",concluido:"Concluído",cancelado:"Cancelado",bloqueado:"Bloqueado"}[s]||s;
+  var label = {pendente:"Pendente",em_andamento:"Em andamento",concluido:"Concluído",cancelado:"Cancelado",bloqueado:"Bloqueado",em_risco:"Em risco"}[s]||s;
   return '<span class="tag tag-status-'+s+'">'+label+'</span>';
 }
 function priorTag(p){
@@ -1511,7 +1515,7 @@ function exportCSV(){
   a.click();
   URL.revokeObjectURL(a.href);
 }
-function statusLabel(s){return {pendente:"Pendente",em_andamento:"Em andamento",concluido:"Concluído",cancelado:"Cancelado",bloqueado:"Bloqueado"}[s]||s;}
+function statusLabel(s){return {pendente:"Pendente",em_andamento:"Em andamento",concluido:"Concluído",cancelado:"Cancelado",bloqueado:"Bloqueado",em_risco:"Em risco"}[s]||s;}
 function priorLabel(p){return {alta:"Alta",media:"Média",baixa:"Baixa"}[p]||p||"";}
 
 // Sanitização robusta de custo (espelha a do backend)

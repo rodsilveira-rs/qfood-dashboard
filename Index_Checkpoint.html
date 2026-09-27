@@ -1879,6 +1879,7 @@ function reuAchar(id){ return (REUNIOES_CACHE||[]).filter(function(r){ return r.
 function reuSegunda(iso){ var d=new Date(iso+'T12:00:00'); var w=d.getDay()===0?6:d.getDay()-1; d.setDate(d.getDate()-w); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function reuDataBR(v){ var s=String(v||'').substring(0,10); return /^\d{4}-\d{2}-\d{2}$/.test(s)?isoBR(s):''; }
 function reuMsg(id,t,cor){ var m=el(id); if(!m) return; m.textContent=t; m.style.color=cor||''; }
+function reuNomeUsuario(){ var p=findLider(reuMeuId()); return (p&&p.nome)||((window.CURRENT_USER||{}).nome)||reuEmail(); }
 function reuUid(){ return 'tar_'+Date.now()+'_'+Math.random().toString(36).substring(2,7); }
 
 /* ── compromissos (Tarefas) ── */
@@ -2329,7 +2330,7 @@ function reuSalvarCob(tid,rid){
   var n=JSON.parse(JSON.stringify(t));
   var agora=new Date().toISOString(), quem=reuEmail();
   var texto='Cobrança na '+rid+' — entregue: '+(ent==='sim'?'sim':(ent==='parcial'?'parcialmente':'não'))+'. Resultado: '+res+(evid?'. Evidência: '+evid:'')+(ent!=='sim'?'. Causa: '+causa+'. Correção: '+corr+'. Novo prazo: '+isoBR(nprazo):'');
-  n.comentarios=(n.comentarios||[]).concat([{ tipo:'cobranca', reuniao_id:rid, entregue:ent, resultado:res, evidencia:evid, causa:causa, correcao:corr, novo_prazo:nprazo, texto:texto, autor:quem, em:agora }]);
+  n.comentarios=(n.comentarios||[]).concat([{ tipo:'cobranca', reuniao_id:rid, entregue:ent, resultado:res, evidencia:evid, causa:causa, correcao:corr, novo_prazo:nprazo, texto:'📅 '+texto, autor:reuNomeUsuario(), email:quem, ts:agora, em:agora }]);
   if(ent==='sim'){ n.status='concluido'; n.evidencia=evid; n.validadoPor=quem; n.validadoEm=agora; n.impedimento=''; }
   else { n.status='em_andamento'; n.impedimento=causa; n.prazo=nprazo; n.motivoRepactuacao=causa+' → '+corr; if(evid) n.evidencia=evid; }
   REU_OCUPADO=true; var b=el('cob-btn'); if(b) b.disabled=true;
@@ -2396,7 +2397,7 @@ function tarMarcar(tid,novo){
   } else {
     n.status='pendente'; n.impedimento=''; txt='Voltou ao prazo (risco removido)';
   }
-  n.comentarios=(n.comentarios||[]).concat([{ tipo:'status', texto:txt, autor:quem, em:agora }]);
+  n.comentarios=(n.comentarios||[]).concat([{ tipo:'status', texto:(novo==='em_risco'?'🟡 ':(novo==='concluido'?'🟢 ':'↩ '))+txt, autor:reuNomeUsuario(), email:quem, ts:agora, em:agora }]);
   REU_OCUPADO=true;
   reuMsg('reu-ficha-msg','⏳ gravando na Tarefas...','var(--mu)');
   tarSalvar(n).then(function(res){
