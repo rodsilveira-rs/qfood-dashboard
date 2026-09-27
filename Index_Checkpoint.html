@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Q Food — Painel QDACE®</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#1a1f2e;--sf:#242938;--s2:#2e3447;--s3:#353c52;
@@ -558,6 +558,24 @@ div.hd-dd-i{color:var(--mu);font-size:.74rem;cursor:default}
 
 .hd-sync i{font-style:normal}
 @media(min-width:1101px){.exe-tabs{display:none}}
+
+/* títulos e números da Execução em DM Sans (a Syne deformava o "0" e estourava a largura) */
+.exe-h1,.exe-kpi .n,.reu-fh-t,.reu-dt b,.reu-kpi b,.reu-eh h3,.reu-num,.reu-faixa,.reu-cobbox h4,.reu-eico,.cob-tit{font-family:var(--fb)!important}
+.exe-h1{font-weight:800;font-size:1.6rem;letter-spacing:-.4px}
+.exe-tit{min-width:0}
+.exe-kpi .n{font-weight:800;font-size:2rem;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.reu-kpi b{font-weight:800;font-variant-numeric:tabular-nums}
+.reu-dt b{font-weight:800;letter-spacing:-.3px}
+.reu-fh-t{font-weight:800;letter-spacing:-.3px}
+.reu-eh h3{font-weight:800;letter-spacing:.6px}
+.reu-prz{display:inline-block;font-size:.74rem;font-weight:700;border-radius:8px;padding:3px 9px;border:1px solid var(--br);background:var(--s2)}
+.reu-prz.am{color:var(--warn);border-color:rgba(255,170,43,.5);background:rgba(255,170,43,.08)}
+.reu-prz.vm{color:#ff8a80;border-color:rgba(230,51,41,.55);background:rgba(230,51,41,.1)}
+.reu-prz.nt{color:var(--blue);border-color:rgba(77,142,245,.45)}
+.reu-prz.ok{color:var(--mu)}
+.reu-f input[type=datetime-local]{width:100%;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:9px 11px;color:var(--tx);font-family:inherit;font-size:.86rem;outline:none}
+.reu-f input[type=datetime-local]:focus{border-color:var(--pur)}
+input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 
 </style>
 </head>
@@ -2196,7 +2214,7 @@ var REU_TIPOS = ['Semanal','Mensal','Extraordinária','Comitê executivo','1x1',
 var REU_CRITICIDADE = [['normal','Normal'],['importante','Importante'],['critica','Crítica']];
 var REU_MESES = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 var REU_DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-var REU_CAMPOS = ['reuniao_id','data_iso','hora','assunto','empresa','area','tipo','objetivo','pauta','decisoes','status',
+var REU_CAMPOS = ['reuniao_id','data_iso','hora','prazo_preparacao','assunto','empresa','area','tipo','objetivo','pauta','decisoes','status',
                   'participantes_ids','participantes_nomes','resumo','tags','ativo'];
 var REU_EMAIL_FIXO = { rodrigo:'rodrigo@qfoodcompany.com.br', adilson:'adilson@qfoodcompany.com.br' };
 /* ícone e cor por empresa (lista e ficha) */
@@ -2246,6 +2264,20 @@ function reuUid(){ return 'tar_'+Date.now()+'_'+Math.random().toString(36).subst
 function reuEmpIco(emp,t){
   var v=REU_EMP_VIS[emp]||['•','pur'];
   return '<span class="reu-eico '+v[1]+'" style="width:'+(t||34)+'px;height:'+(t||34)+'px" title="'+reuAttr(emp||'')+'">'+v[0]+'</span>';
+}
+/* prazo da preparação: 'AAAA-MM-DDTHH:MM' (hora local) */
+function reuPrazoTxt(v){ v=String(v||''); if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return ''; return isoBR(v.substring(0,10))+' '+v.substring(11,16); }
+function reuPrazoMs(v){ v=String(v||''); if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(v)) return null; var d=new Date(v.substring(0,16)+':00'); return isNaN(d)?null:d.getTime(); }
+function reuFalta(ms){
+  var m=Math.round((ms-Date.now())/60000), neg=m<0; m=Math.abs(m);
+  var t=m<60?m+' min':(m<1440?Math.floor(m/60)+'h'+(m%60?String(m%60).padStart(2,'0'):''):Math.floor(m/1440)+' dia'+(Math.floor(m/1440)>1?'s':''));
+  return neg?'venceu há '+t:'faltam '+t;
+}
+function reuPrazoSelo(r){
+  var ms=reuPrazoMs(r.prazo_preparacao); if(ms===null) return '';
+  if(reuRealizada(r)) return '<span class="reu-prz ok">⏰ Preparação até '+reuPrazoTxt(r.prazo_preparacao)+'</span>';
+  var cls=ms<Date.now()?'vm':(ms-Date.now()<86400000?'am':'nt');
+  return '<span class="reu-prz '+cls+'">⏰ Preparação até '+reuPrazoTxt(r.prazo_preparacao)+' · '+reuFalta(ms)+'</span>';
 }
 function reuMobile(){ return (window.innerWidth||1400)<=1100; }
 
@@ -2481,6 +2513,7 @@ function reuItemHTML(r){
       '<div class="reu-it-top"><div class="reu-it-t">'+esc(r.assunto||'(sem assunto)')+'</div><div class="reu-it-q">'+quando+' ›</div></div>'+
       '<div class="reu-it-m">'+(real?'<span class="reu-st re">Realizada</span>':'<span class="reu-st ag">Agendada</span>')+
         ' '+esc(r.empresa||'')+' · 👥 '+nPart+' participante'+(nPart===1?'':'s')+(reuAtiva(r)?'':' · <span style="color:var(--red)">desativada</span>')+(r.__pendente?' · <span class="reu-pend-s">⏳ não sincronizado</span>':'')+'</div>'+
+      (!real && reuPrazoMs(r.prazo_preparacao)!==null && reuPrazoMs(r.prazo_preparacao)-Date.now()<86400000?'<div style="margin-top:4px">'+reuPrazoSelo(r)+'</div>':'')+
       '<div class="reu-it-bot"><div class="reu-it-x">'+esc(txt)+'</div>'+
         (comp.length?'<div class="reu-cnt"><span class="g">✓ '+c.verde+'</span><span class="y">! '+c.amarelo+'</span><span class="r">!! '+c.vermelho+'</span></div>':'')+
       '</div>';
@@ -2601,7 +2634,7 @@ function reuRenderFichaCorpo(box){
     '<button class="reu-voltar" onclick="reuVoltarHistorico()">← Histórico</button>'+
     '<div class="reu-fh">'+reuEmpIco(r.empresa,42)+
       '<div style="min-width:0;flex:1"><div class="reu-fh-t">'+esc(r.assunto||'(sem assunto)')+'</div>'+
-        '<div class="reu-fh-m">'+quando+'</div>'+
+        '<div class="reu-fh-m">'+quando+'</div>'+(reuPrazoSelo(r)?'<div style="margin-top:5px">'+reuPrazoSelo(r)+'</div>':'')+
         '<div style="margin-top:6px"><span class="reu-id">'+esc(reuIdTxt(r.reuniao_id))+'</span> '+(r.__pendente?'<span class="reu-pend-s">⏳ mudanças neste aparelho, ainda não sincronizadas</span> ':'')+(real?'<span class="reu-st re">Realizada</span>':'<span class="reu-st ag">Agendada</span>')+(ativa?'':' <span class="chip-status chip-na">desativada</span>')+'</div></div>'+
       '<div class="reu-fh-a">'+
         '<button class="btn-sec" onclick="reuCopiarAta(\''+rid+'\')">📋 Copiar resumo</button>'+
@@ -2642,6 +2675,7 @@ function reuRenderFichaCorpo(box){
   var e1=
     '<div class="reu-lbl" style="margin-top:0">Objetivo</div>'+(String(r.objetivo||'').trim()?'<div class="reu-texto">'+esc(r.objetivo)+'</div>':'<div class="reu-sub">⚠ Objetivo não definido.</div>')+
     '<div class="reu-lbl">Pauta</div>'+(String(r.pauta||'').trim()?'<div class="reu-texto">'+esc(r.pauta)+'</div>':'<div class="reu-sub">⚠ Pauta não definida.</div>')+
+    (String(r.prazo_preparacao||'').trim()?'<div class="reu-lbl">Prazo da preparação</div><div>'+reuPrazoSelo(r)+'</div>':'<div class="reu-lbl">Prazo da preparação</div><div class="reu-sub">Não definido — sem ele o Telegram não tem como lembrar os participantes.</div>')+
     '<div class="reu-lbl">Participantes necessários</div><div>'+(partes||'<span class="reu-sub">—</span>')+'</div>'+
     '<div class="reu-sub" style="margin-top:6px">Pendências anteriores dos participantes: <strong>'+pend.length+'</strong> (ver etapa 2).</div>';
 
@@ -2833,6 +2867,10 @@ function reuAbrirForm(r){
           '<div><label class="t">Empresa / operação</label><select id="reu-f-emp">'+empOpts+'</select></div>'+
           '<div><label class="t">Tipo</label><select id="reu-f-tipo">'+tipOpts+'</select></div>'+
         '</div>'+
+        '<div class="reu-form-grid">'+
+          '<div style="grid-column:span 2"><label class="t">⏰ Prazo da preparação (data e hora)</label><input type="datetime-local" id="reu-f-prazo" value="'+reuAttr(String(r.prazo_preparacao||'').substring(0,16))+'">'+
+            '<div class="hint">Até quando os participantes enviam dados e indicadores atualizados. O acompanhamento e o Telegram usam este horário para lembrar e cobrar.</div></div>'+
+        '</div>'+
         '<div class="reu-form-grid" style="margin-bottom:0">'+
           '<div style="grid-column:span 2"><label class="t">Assunto *</label><input type="text" id="reu-f-ass" maxlength="160" value="'+reuAttr(r.assunto||'')+'" placeholder="Ex.: Reunião semanal de Marketing e E-commerce"></div>'+
           '<div><label class="t">Área</label><input type="text" id="reu-f-area" maxlength="80" value="'+reuAttr(r.area||'')+'" placeholder="Ex.: Marketing"></div>'+
@@ -2859,13 +2897,16 @@ function reuSalvarPrep(){
   if(!assunto) return reuMsg('reu-f-msg','⚠ Informe o assunto.','#ffaa2b');
   if(!objetivo) return reuMsg('reu-f-msg','⚠ Defina o objetivo — entrar preparado para decidir.','#ffaa2b');
   if(!pauta) return reuMsg('reu-f-msg','⚠ Defina a pauta.','#ffaa2b');
+  var prazoPrep=String((el('reu-f-prazo')||{}).value||'').substring(0,16);
+  var horaReu=(el('reu-f-hora')||{}).value||'';
+  if(prazoPrep && prazoPrep>(data+'T'+(horaReu||'23:59'))) return reuMsg('reu-f-msg','⚠ O prazo da preparação precisa ser antes da reunião.','#ffaa2b');
   var ids=[], nomes=[];
   Array.prototype.forEach.call(document.querySelectorAll('.reu-p:checked'),function(cb){ var p=findLider(cb.value); if(p){ ids.push(p.id); nomes.push(p.nome); } });
   reuLista((el('reu-f-extras')||{}).value).forEach(function(n){ if(nomes.indexOf(n)<0) nomes.push(n); });
   if(!nomes.length) return reuMsg('reu-f-msg','⚠ Marque ao menos um participante.','#ffaa2b');
   var atual=(REU_MODO && REU_MODO!=='nova')?reuAchar(REU_MODO):null;
   var patchPrep={
-    data_iso:data, hora:(el('reu-f-hora')||{}).value||'',
+    data_iso:data, hora:(el('reu-f-hora')||{}).value||'', prazo_preparacao:prazoPrep,
     assunto:assunto, empresa:(el('reu-f-emp')||{}).value||'', area:String((el('reu-f-area')||{}).value||'').trim(),
     tipo:(el('reu-f-tipo')||{}).value||'', objetivo:objetivo, pauta:pauta,
     participantes_ids:ids.join(','), participantes_nomes:nomes.join(', ')
@@ -3155,7 +3196,7 @@ function painelAlertas(){
     '<div class="card"><div class="ct">✈️ Política de alertas</div>'+
       '<div class="alt-grid">'+
         '<div class="alt-col env"><div class="alt-h">Enviamos · eventos críticos e acionáveis</div>'+
-          chip('＋','Novo compromisso')+chip('⏰','Vence hoje','am')+chip('🟡','Em risco','am')+chip('🔴','Atrasado','vm')+chip('📊','Resumo de exceções','pur')+'</div>'+
+          chip('＋','Novo compromisso')+chip('📋','Preparação da reunião vencendo','am')+chip('⏰','Vence hoje','am')+chip('🟡','Em risco','am')+chip('🔴','Atrasado','vm')+chip('📊','Resumo de exceções','pur')+'</div>'+
         '<div class="alt-col nao"><div class="alt-h">Não enviamos · baixo valor informativo</div>'+
           chip('📄','Resumo/ata salvo')+chip('✏️','Alteração sem ação')+chip('✅','Tudo verde')+'</div>'+
       '</div>'+
@@ -3178,6 +3219,17 @@ function altRenderPrevia(){
   var box=el('alt-previa'); if(!box) return;
   if(REUNIOES_CACHE===null){ box.innerHTML='<div class="reu-vazio">⏳ lendo a base de dados...</div>'; return; }
   var abertos=reuCompAtivos().filter(tarAberta), porPessoa={}, exc=0;
+  /* preparação de reunião que vence nas próximas 24h (só reuniões ainda não realizadas) */
+  (REUNIOES_CACHE||[]).filter(reuAtiva).forEach(function(r){
+    if(reuRealizada(r)) return;
+    var ms=reuPrazoMs(r.prazo_preparacao); if(ms===null) return;
+    var falta=ms-Date.now(); if(falta<0 || falta>86400000) return;
+    reuLista(r.participantes_ids).forEach(function(id){
+      var p=findLider(id); if(!p) return;
+      var k=p.nome;
+      (porPessoa[k]=porPessoa[k]||[]).push({ prep:true, r:r, email:reuEmailDe(id) });
+    });
+  });
   abertos.forEach(function(t){
     var fc=reuFarol(t).c, tipo=null;
     if(fc==='vermelho') tipo='🔴 Atrasado';
@@ -3191,9 +3243,11 @@ function altRenderPrevia(){
   var nomes=Object.keys(porPessoa).sort();
   if(!nomes.length){ box.innerHTML='<div class="reu-vazio">✅ Tudo verde hoje — ninguém receberia alerta.</div>'; return; }
   box.innerHTML='<div class="alt-prev">'+nomes.map(function(n){
-      var itens=porPessoa[n], semEmail=!itens[0].t.dono;
+      var itens=porPessoa[n], semEmail=itens[0].prep?!itens[0].email:!itens[0].t.dono;
       return '<div class="alt-msg"><div class="alt-msg-h"><b>'+esc(n)+'</b><span>'+itens.length+' item'+(itens.length>1?'s':'')+'</span></div>'+
-        itens.map(function(x){ return '<div class="alt-it">'+x.tipo+' · '+reuCrit(x.t)+esc(x.t.acao)+' <span class="reu-sub">('+(reuDataBR(x.t.prazo)||'—')+')</span></div>'; }).join('')+
+        itens.map(function(x){
+          if(x.prep) return '<div class="alt-it">📋 Preparação: '+esc(x.r.assunto||'')+' <span class="reu-sub">(até '+reuPrazoTxt(x.r.prazo_preparacao)+' · reunião '+reuDataBR(x.r.data_iso)+(x.r.hora?' '+esc(x.r.hora):'')+')</span></div>';
+          return '<div class="alt-it">'+x.tipo+' · '+reuCrit(x.t)+esc(x.t.acao)+' <span class="reu-sub">('+(reuDataBR(x.t.prazo)||'—')+')</span></div>'; }).join('')+
         (semEmail?'<div class="reu-sub" style="color:var(--warn)">sem e-mail/Telegram cadastrado — não receberia</div>':'')+'</div>';
     }).join('')+'</div>'+
     '<div class="reu-sub" style="margin-top:10px">📊 Resumo de exceções para o Rodrigo: <strong>'+exc+'</strong> atrasado(s) · '+nomes.length+' pessoa(s) com alerta hoje.</div>';
