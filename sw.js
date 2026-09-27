@@ -38,9 +38,13 @@ self.addEventListener('fetch', ev => {
     } catch (e) {
       const salvo = await cache.match(req, { ignoreSearch: mesmaOrigem });
       if (salvo) return salvo;
+      /* Página nunca visitada, offline: não existe cópia dela. Devolvemos o
+         menu, que é de onde a pessoa alcança o que está guardado.
+         (No qfood-dashboard não existe Index_Producao.html — a reserva
+         antiga nunca casava com nada.) */
       if (req.mode === 'navigate') {
-        const inicial = await cache.match('Index_Producao.html', { ignoreSearch: true });
-        if (inicial) return inicial;
+        const menu = await cache.match('Index_Menu.html', { ignoreSearch: true });
+        if (menu) return menu;
       }
       throw e;
     }
