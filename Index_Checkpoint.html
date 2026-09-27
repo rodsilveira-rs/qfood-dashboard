@@ -3198,20 +3198,21 @@ function painelAlertas(){
         '<div class="alt-col env"><div class="alt-h">Enviamos · eventos críticos e acionáveis</div>'+
           chip('＋','Novo compromisso')+chip('📋','Preparação da reunião vencendo','am')+chip('⏰','Vence hoje','am')+chip('🟡','Em risco','am')+chip('🔴','Atrasado','vm')+chip('📊','Resumo de exceções','pur')+'</div>'+
         '<div class="alt-col nao"><div class="alt-h">Não enviamos · baixo valor informativo</div>'+
-          chip('📄','Resumo/ata salvo')+chip('✏️','Alteração sem ação')+chip('✅','Tudo verde')+'</div>'+
+          chip('📄','Resumo/ata salvo')+chip('✏️','Alteração sem ação')+chip('✅','Concluído')+chip('🟢','Tudo verde')+'</div>'+
       '</div>'+
       '<ul class="alt-regras">'+
-        '<li><strong>Janela:</strong> só entre 07:30 e 18:30 — fora disso, o alerta espera.</li>'+
-        '<li><strong>Agrupado:</strong> uma mensagem por pessoa com tudo o que é dela, nunca um alerta por item.</li>'+
-        '<li><strong>Sem repetição:</strong> o mesmo alerta não volta no mesmo dia.</li>'+
-        '<li><strong>Escalonamento:</strong> o que continua atrasado entra no resumo de exceções do Rodrigo.</li>'+
+        '<li><strong>Janela:</strong> só entre 07:30 e 18:30 — o que nascer fora disso sai na abertura da próxima janela.</li>'+
+        '<li><strong>Agrupado:</strong> o responsável recebe <strong>uma</strong> mensagem por dia com tudo o que é dele (vence hoje, atrasado, em risco). Quem está em dia não recebe nada.</li>'+
+        '<li><strong>Na hora, só dois casos:</strong> compromisso novo (para o responsável) e compromisso marcado em risco (para quem gerencia).</li>'+
+        '<li><strong>Sem repetição:</strong> cada aviso sai uma vez só por pessoa, mesmo se o dado for relido.</li>'+
+        '<li><strong>Escalonamento:</strong> atraso de 2 dias ou mais vai para o topo do resumo de exceções do Rodrigo, junto com reunião não encerrada e preparação vencida.</li>'+
       '</ul>'+
-      '<div class="reu-sub">As regras finais fecham quando ligarmos o envio, reaproveitando a estrutura de Telegram que já existe.</div>'+
+      '<div class="reu-sub">O envio roda no projeto do Telegram (plus-liberdade), a cada 10 minutos. Horários, destinatários e o que liga ou desliga ficam na aba <strong>CKP_REGRAS</strong> daquela planilha.</div>'+
     '</div>'+
-    '<div class="card"><div class="reu-hh"><div class="ct" style="margin:0">👀 Prévia de hoje</div><span class="reu-st ag">nada foi enviado</span></div>'+
-      '<div class="reu-sub" style="margin:4px 0 12px">O que cada pessoa receberia hoje se o envio estivesse ligado, calculado a partir dos compromissos das reuniões.</div>'+
+    '<div class="card"><div class="reu-hh"><div class="ct" style="margin:0">👀 Prévia de hoje</div><span class="reu-st ag">prévia calculada aqui</span></div>'+
+      '<div class="reu-sub" style="margin:4px 0 12px">O que cada pessoa tem pedindo ação hoje, calculado a partir dos compromissos das reuniões. É isto que vai na mensagem do dia de cada um.</div>'+
       '<div id="alt-previa"><div class="reu-vazio">⏳ lendo a base de dados...</div></div></div>'+
-    '<div class="card"><div class="ct">🧾 Últimos disparos</div><div class="reu-vazio">O envio ainda não está ligado. Quando estiver, cada disparo aparece aqui com data, pessoa, tipo e se foi entregue.</div></div>';
+    '<div class="card"><div class="ct">🧾 Histórico de envios</div><div class="reu-vazio" style="text-align:left">Cada mensagem enviada fica registrada na aba <strong>GT_NOTIFICACOES</strong> da planilha do Telegram, com origem começando em <strong>ckp_</strong>, status (ENVIADA, SEM_TELEGRAM, FALHOU…) e horário.</div></div>';
   reuRenderKpis();
   reuRecarregarTudo();
 }
@@ -3701,6 +3702,18 @@ function shellData(){
   var b=el('hd-bv-d'); if(b) b.textContent='📅 '+t;
 }
 
+/* link vindo do Telegram: #ver=compromissos | #reu=REU-2026-0001 (sobrevive ao login) */
+function shellLinkPendente(){
+  var h='';
+  try{ h=location.hash||localStorage.getItem('chk_link_pendente')||''; localStorage.removeItem('chk_link_pendente'); }catch(e){ h=location.hash||''; }
+  if(location.hash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+  var m=h.match(/#reu=([^&]+)/);
+  if(m){ cenAbrirReuniao(decodeURIComponent(m[1])); return; }
+  m=h.match(/#ver=(reunioes|compromissos|alertas)/);
+  if(m){ if(m[1]==='compromissos') cenIr(reuPodeEditar()?'abertos':'meus'); else irPara(m[1],false); }
+}
+
+try{ if(/#(ver|reu)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
 (function init(){
   if(window.__NOSESS && !window.__DEVMODE){
     telaBloqueio('Acesso restrito','Este painel exige login. Entre pelo menu do sistema para acessar o seu Checkpoint.',false);
@@ -3710,7 +3723,7 @@ function shellData(){
     telaBloqueio('Sem permissão neste painel','Seu usuário está autenticado, mas não está vinculado a nenhum gestor do Checkpoint. Fale com o Rodrigo para liberar o acesso.',true);
     return;
   }
-  shellData(); renderOrg(); renderNav(); irPara(primeiraView(),false);
+  shellData(); renderOrg(); renderNav(); irPara(primeiraView(),false); shellLinkPendente();
   avisoDevMode();
   qsIniciar();
   reuCarregar().then(shellAtualizarSino);
