@@ -3,9 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
 <title>Q Food — Central de Requisições</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
@@ -193,6 +190,19 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 .gravando{position:fixed;inset:0;background:rgba(10,13,20,.72);z-index:400;display:none;
   align-items:center;justify-content:center;flex-direction:column;gap:16px;cursor:progress;}
 .gravando.on{display:flex;}
+.falha{position:fixed;inset:0;background:rgba(10,13,20,.82);z-index:600;display:none;
+  align-items:center;justify-content:center;padding:20px;}
+.falha.on{display:flex;}
+.falha-cx{background:var(--sf);border:1px solid var(--b2);border-radius:16px;
+  max-width:440px;width:100%;padding:26px 24px;text-align:center;}
+.falha-ico{width:46px;height:46px;border-radius:50%;margin:0 auto 14px;
+  background:var(--warn);color:#1a1200;font-family:var(--fh);font-weight:800;
+  font-size:1.5rem;display:flex;align-items:center;justify-content:center;}
+.falha-tit{font-family:var(--fh);font-weight:700;font-size:1.08rem;margin-bottom:10px;}
+.falha-txt{font-size:0.88rem;line-height:1.55;color:var(--mu);margin-bottom:12px;}
+.falha-bt{display:flex;gap:8px;justify-content:center;margin-top:18px;flex-wrap:wrap;}
+.falha-pe{margin-top:16px;font-size:0.7rem;color:var(--mu2);display:flex;
+  flex-direction:column;gap:2px;word-break:break-word;}
 .spin{width:42px;height:42px;border:3px solid var(--s3);border-top-color:var(--lime);
   border-radius:50%;animation:girar .7s linear infinite;}
 @keyframes girar{to{transform:rotate(360deg);}}
@@ -604,7 +614,7 @@ body{padding:0;background:var(--bg);}
       </div>
       <a class="side-link" href="Index_Menu.html" data-ico="grade">Menu principal</a>
       <button class="side-link sair" onclick="ReqSair()" data-ico="sair">Sair</button>
-      <div class="side-rod"><span>Q Food Company</span><span>Requisições</span></div>
+      <div class="side-rod"><span>Q Food Company</span><span id="rod-ver">Requisições</span></div>
     </div>
   </aside>
 
@@ -681,27 +691,44 @@ body{padding:0;background:var(--bg);}
 <div class="lightbox" id="lightbox" onclick="ReqFoto.fechar()"><img id="lightbox-img" alt=""></div>
 <div class="toast" id="toast"></div>
 
+<!-- TELA DE FALHA DE SERVIDOR — substitui a tela branca -->
+<div class="falha" id="falha">
+  <div class="falha-cx">
+    <div class="falha-ico">!</div>
+    <div class="falha-tit">O servidor não respondeu agora</div>
+    <p class="falha-txt">
+      Isso costuma ser momentâneo: o Google limita quantas leituras o
+      sistema pode fazer ao mesmo tempo. <b>Nada do seu trabalho foi perdido.</b>
+    </p>
+    <p class="falha-txt">
+      Clique em <b>Tentar de novo</b>. Se acontecer três vezes seguidas,
+      mande um print desta tela para o Rodrigo com o horário.
+    </p>
+    <div class="falha-bt">
+      <button class="btn btn-p" onclick="location.reload()">Tentar de novo</button>
+      <button class="btn btn-s" onclick="ReqAPI.fecharFalha()">Fechar</button>
+    </div>
+    <div class="falha-pe"><span id="falha-ver"></span><span id="falha-det"></span></div>
+  </div>
+</div>
+
 <script>
 /* ════════════════════════════════════════════════════════════════
    CENTRAL DE REQUISIÇÕES — Index_Requisicoes.html
    Frontend do módulo REQ_ (backend em Code_Requisicoes.gs).
 
-   ⚠️ A API_URL tem que ser a da implantação "Code_Requisicoes" —
-   cada módulo tem a sua. Pegue pelo botão Copiar em
-   Implantar > Gerenciar implantações > Code_Requisicoes.
-   Publicar Nova versão em outra implantação NÃO atualiza esta.
+   ⚠️ CONFIRA A API_URL ABAIXO: tem que ser a MESMA usada pelos
+   outros módulos (o deployment antigo, AKfycbwf1CiH...).
+   Pegue em: Implantar > Gerenciar implantações > botão copiar.
    ════════════════════════════════════════════════════════════════ */
 
-var API_URL = "https://script.google.com/macros/s/AKfycbyso-KAp8Dz6h_zoBzImoGQ2FhHPDvYDpZG0dV0M5jVGHzGT1_6f8fKsXmmJ0-YPhrChQ/exec";
-
-// Aparece no rodapé da lateral. Mude a cada publicação — assim dá para
-// saber, por um print, se a pessoa está na versão nova ou no cache.
-var REQ_VERSAO = "2026-09-23a";
+var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec";
 
 // ────────────────────────────────────────────────────────────
 // 1. CONFIG
 // ────────────────────────────────────────────────────────────
 var ReqConfig = {
+  versao:         "2026.09.27-a",  // aparece no rodapé da lateral
   pollingMs:      5 * 60 * 1000,   // 5 min, só com a aba visível
   maxLadoFoto:    1600,            // px — comprime antes de subir
   qualidadeFoto:  0.8,
@@ -727,6 +754,27 @@ var ReqState = {
 // 3. API
 // ────────────────────────────────────────────────────────────
 var ReqAPI = {
+  // O Apps Script às vezes responde com HTML (tela de login, página de
+  // erro, limite de execuções) em vez de JSON. Antes isso estourava como
+  // "Unexpected token '<'" e a tela ficava em branco sem explicação.
+  // Agora lemos como texto primeiro e marcamos o erro para tratar.
+  lerJson: function(r){
+    return r.text().then(function(txt){
+      var t = String(txt || "").trim();
+      if(t === "" || t.charAt(0) === "<"){
+        var e = new Error("O servidor respondeu uma página em vez de dados.");
+        e.reqServidor = true;
+        throw e;
+      }
+      try { return JSON.parse(t); }
+      catch(_){
+        var e2 = new Error("A resposta do servidor não pôde ser lida.");
+        e2.reqServidor = true;
+        throw e2;
+      }
+    });
+  },
+
   get: function(action, params){
     var q = "?modulo=requisicoes&action=" + encodeURIComponent(action) +
             "&email=" + encodeURIComponent(ReqState.sessao.email);
@@ -735,14 +783,35 @@ var ReqAPI = {
         q += "&" + k + "=" + encodeURIComponent(params[k]);
       }
     });
-    // Carimbo de tempo: impede o navegador de servir resposta guardada
-    return fetch(API_URL + q + "&_=" + Date.now(), {cache:"no-store"})
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        if(!j.ok) throw new Error(j.error || "Falha na leitura");
-        return j.resultado;
-      });
+    q += "&_=" + Date.now();   // nunca servir de cache do navegador
+
+    // Leitura é idempotente: se falhar por servidor ou rede, tenta de novo.
+    // Duas tentativas extras resolvem quase toda a intermitência.
+    function tentar(n){
+      return fetch(API_URL + q, {cache: "no-store"})
+        .then(ReqAPI.lerJson)
+        .then(function(j){
+          if(!j.ok) throw new Error(j.error || "Falha na leitura");
+          ReqAPI.falhas = 0;
+          return j.resultado;
+        })
+        .catch(function(err){
+          var transitorio = err.reqServidor || err instanceof TypeError;
+          if(transitorio && n < 2){
+            return new Promise(function(ok){ setTimeout(ok, 900 * (n + 1)); })
+              .then(function(){ return tentar(n + 1); });
+          }
+          if(transitorio){
+            ReqAPI.falhas = (ReqAPI.falhas || 0) + 1;
+            ReqAPI.telaDeFalha(err.message);
+          }
+          throw err;
+        });
+    }
+    return tentar(0);
   },
+
+  falhas: 0,
 
   // Uma gravação por vez. Enquanto ela corre, a tela fica bloqueada —
   // sem isso a pessoa clica de novo e o LockService recusa a segunda.
@@ -761,11 +830,21 @@ var ReqAPI = {
     body.append("action", action);
     body.append("payload", JSON.stringify(payload));
 
+    // Gravação NÃO é repetida automaticamente — melhor a pessoa decidir
+    // do que arriscar duas requisições iguais.
     return fetch(API_URL + "?modulo=requisicoes", {method:"POST", body:body})
-      .then(function(r){ return r.json(); })
+      .then(ReqAPI.lerJson)
       .then(function(j){
         if(!j.ok) throw new Error(j.error || "Falha ao gravar");
         return j.resultado;
+      })
+      .catch(function(err){
+        if(err.reqServidor){
+          throw new Error("Não conseguimos confirmar a gravação. " +
+            "Recarregue a tela (F5) e veja se a informação entrou. " +
+            "Se não entrou, faça de novo.");
+        }
+        throw err;
       })
       .finally(function(){
         ReqAPI.ocupado = false;
@@ -780,6 +859,21 @@ var ReqAPI = {
 
   liberar: function(){
     document.getElementById("gravando").classList.remove("on");
+  },
+
+  // Tela que explica a falha em vez de deixar o usuário no escuro.
+  // É isso que a Cris e a Fabrícia viam como tela branca.
+  telaDeFalha: function(detalhe){
+    var el = document.getElementById("falha");
+    if(!el) return;
+    document.getElementById("falha-det").textContent = detalhe || "";
+    document.getElementById("falha-ver").textContent = "versão " + ReqConfig.versao;
+    el.classList.add("on");
+  },
+
+  fecharFalha: function(){
+    var el = document.getElementById("falha");
+    if(el) el.classList.remove("on");
   }
 };
 
@@ -1619,11 +1713,7 @@ var ReqAnexo = {
     var url = prompt("Cole o link (Mercado Livre, Instagram, Facebook, site do fornecedor…)");
     if(!url || !url.trim()) return;
     ReqAPI.post("anexar", {id:ReqState.detalheId, tipo:"LINK", url:url.trim()})
-      .then(function(r){
-        toast(r.devolvido ? "Link anexado. A requisição voltou para a Cris."
-                          : "Link anexado (" + r.origem + ").");
-        ReqDetalhe.recarregar();
-      })
+      .then(function(r){ toast("Link anexado (" + r.origem + ")."); ReqDetalhe.recarregar(); })
       .catch(function(e){ toast(e.message, true); });
   },
 
@@ -2518,21 +2608,13 @@ var ReqForm = {
           '<select class="sel" id="n-setor"><option value="">—</option>' + setores + '</select></div>' +
       '</div>' +
       '<div class="campo"><label class="lbl" for="n-solic">Para quem é <span class="obrig">*</span></label>' +
-        (((ReqState.config && ReqState.config.pessoas) || []).length
-          // Lista da UUSR: guarda o e-mail, mostra o nome. É o e-mail que faz
-          // a requisição aparecer para quem realmente pediu.
-          ? '<select class="sel" id="n-solic">' +
-              ReqState.config.pessoas.map(function(p){
-                return '<option value="' + esc(p.email) + '"' +
-                       (p.email === ReqState.sessao.email ? ' selected' : '') + '>' +
-                       esc(p.nome) + '</option>';
-              }).join("") +
-            '</select>'
-          // Sem a lista, o campo não pode virar uma caixa vazia que não abre
-          : '<input class="inp" id="n-solic" value="' + esc(ReqState.sessao.email) + '">' +
-            '<div class="rq-meta" style="margin-top:6px;color:var(--warn)">' +
-            'A lista de pessoas não veio do servidor. Avise o Rodrigo — por enquanto, digite o e-mail.</div>') +
-      '</div>' +
+        '<select class="sel" id="n-solic">' +
+          ((ReqState.config && ReqState.config.pessoas) || []).map(function(p){
+            return '<option value="' + esc(p.email) + '"' +
+                   (p.email === ReqState.sessao.email ? ' selected' : '') + '>' +
+                   esc(p.nome) + '</option>';
+          }).join("") +
+        '</select></div>' +
       '<div id="aviso-aprov"></div>' +
     '</div>' +
 
@@ -3223,8 +3305,7 @@ function ReqInit(){
   if(!ReqState.sessao) return;
 
   ReqIco.hidratar();
-  document.querySelector(".side-rod").innerHTML =
-    '<span>Q Food Company</span><span title="Versão da tela">v' + REQ_VERSAO + '</span>';
+  document.getElementById("rod-ver").textContent = "v" + ReqConfig.versao;
 
   var nomeSessao = ReqState.sessao.nome || ReqState.sessao.email;
   ["u-nome","tb-nome"].forEach(function(id){ document.getElementById(id).textContent = nomeSessao; });
