@@ -190,6 +190,25 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.6;}
 .gravando{position:fixed;inset:0;background:rgba(10,13,20,.72);z-index:400;display:none;
   align-items:center;justify-content:center;flex-direction:column;gap:16px;cursor:progress;}
 .gravando.on{display:flex;}
+.sync-pill{position:fixed;left:calc(var(--side) + 16px);bottom:14px;z-index:350;display:none;align-items:center;
+  gap:8px;background:var(--sf);border:1px solid var(--b2);border-radius:999px;
+  padding:8px 14px;font-size:0.76rem;color:var(--mu);box-shadow:0 6px 20px rgba(0,0,0,.35);
+  max-width:calc(100vw - 28px);}
+.sync-pill.on{display:flex;}
+.sync-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--mu2);flex:0 0 auto;}
+.sync-pill.ok  .dot{background:var(--ok);}
+.sync-pill.fila .dot{background:var(--warn);animation:pulsa 1.4s infinite;}
+.sync-pill.err .dot{background:var(--red);}
+.sync-pill b{color:var(--tx);font-weight:700;}
+@keyframes pulsa{0%,100%{opacity:1}50%{opacity:.3}}
+@media (max-width:900px){.sync-pill{left:14px;bottom:76px;}}
+.aviso-versao{position:fixed;left:50%;transform:translateX(-50%);bottom:14px;z-index:360;
+  display:flex;align-items:center;gap:12px;background:var(--lime);color:#11150f;
+  border-radius:999px;padding:9px 10px 9px 18px;font-size:0.82rem;font-weight:700;
+  box-shadow:0 8px 24px rgba(0,0,0,.4);}
+.aviso-versao button{border:0;border-radius:999px;background:#11150f;color:var(--lime);
+  font-family:var(--fh);font-weight:700;font-size:0.78rem;padding:7px 14px;cursor:pointer;}
+@media (max-width:900px){.aviso-versao{bottom:76px;}}
 .falha{position:fixed;inset:0;background:rgba(10,13,20,.82);z-index:600;display:none;
   align-items:center;justify-content:center;padding:20px;}
 .falha.on{display:flex;}
@@ -691,6 +710,9 @@ body{padding:0;background:var(--bg);}
 <div class="lightbox" id="lightbox" onclick="ReqFoto.fechar()"><img id="lightbox-img" alt=""></div>
 <div class="toast" id="toast"></div>
 
+<!-- ESTADO DA SINCRONIA — só aparece quando tem algo a dizer -->
+<div class="sync-pill" id="sync-pill"><span class="dot"></span><span id="sync-txt">—</span></div>
+
 <!-- TELA DE FALHA DE SERVIDOR — substitui a tela branca -->
 <div class="falha" id="falha">
   <div class="falha-cx">
@@ -728,11 +750,14 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apW
 // 1. CONFIG
 // ────────────────────────────────────────────────────────────
 var ReqConfig = {
-  versao:         "2026.09.27-a",  // aparece no rodapé da lateral
+  versao:         "2026.09.27-b",  // aparece no rodapé da lateral
   pollingMs:      5 * 60 * 1000,   // 5 min, só com a aba visível
   maxLadoFoto:    1600,            // px — comprime antes de subir
   qualidadeFoto:  0.8,
-  sessaoMs:       8 * 60 * 60 * 1000
+  sessaoMs:       8 * 60 * 60 * 1000,
+  versaoMs:       5 * 60 * 1000,   // de quanto em quanto tempo procura versão nova
+  ociosoMs:       60 * 1000,       // tempo sem toque na tela para recarregar sozinho
+  filaPorVez:     3                // anexos enviados por rodada da fila
 };
 
 // ────────────────────────────────────────────────────────────
@@ -741,6 +766,7 @@ var ReqConfig = {
 var ReqState = {
   sessao:      null,
   config:      null,
+  montado:     false,
   lista:       [],
   novidades:   {ids:[], total:0},
   escopo:      "abertas",
@@ -753,6 +779,293 @@ var ReqState = {
 // ────────────────────────────────────────────────────────────
 // 3. API
 // ────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────
+// 3a. ARMAZENAMENTO NO APARELHO (IndexedDB)
+//
+// Por que IndexedDB e não localStorage: o domínio github.io é UM SÓ para
+// todos os sistemas do grupo, e o Controle de Produção já ocupa boa parte
+// do localStorage com o cache dele. Se a gente disputasse o mesmo espaço,
+// o navegador pararia de gravar — sem erro nenhum na tela.
+//
+// Os nomes levam prefixo req_ justamente para nunca colidir com os
+// cprod_ da Produção.
+// ────────────────────────────────────────────────────────────
+var ReqLocal = {
+  NOME: "req_local",
+  _db:  null,
+
+  abrir: function(){
+    if(ReqLocal._db) return Promise.resolve(ReqLocal._db);
+    return new Promise(function(ok, falhou){
+      if(!window.indexedDB) return falhou(new Error("sem indexedDB"));
+      var req = indexedDB.open(ReqLocal.NOME, 1);
+      req.onupgradeneeded = function(){
+        var db = req.result;
+        if(!db.objectStoreNames.contains("cache"))  db.createObjectStore("cache",  {keyPath:"k"});
+        if(!db.objectStoreNames.contains("anexos")) db.createObjectStore("anexos", {keyPath:"id"});
+      };
+      req.onsuccess = function(){ ReqLocal._db = req.result; ok(req.result); };
+      req.onerror   = function(){ falhou(req.error); };
+    });
+  },
+
+  _op: function(loja, modo, fn){
+    return ReqLocal.abrir().then(function(db){
+      return new Promise(function(ok, falhou){
+        var tx = db.transaction(loja, modo);
+        var r  = fn(tx.objectStore(loja));
+        tx.oncomplete = function(){ ok(r && r.result !== undefined ? r.result : null); };
+        tx.onerror    = function(){ falhou(tx.error); };
+      });
+    });
+  },
+
+  // Cache de leitura — nunca deixa a falha do armazenamento derrubar a tela
+  get: function(k){
+    return ReqLocal._op("cache", "readonly", function(st){ return st.get(k); })
+      .then(function(r){ return r ? r.v : null; })
+      .catch(function(){ return null; });
+  },
+  set: function(k, v){
+    return ReqLocal._op("cache", "readwrite", function(st){
+      return st.put({k:k, v:v, ts:Date.now()});
+    }).catch(function(){ return null; });
+  },
+
+  // Anexos guardados esperando internet
+  anexoGuardar: function(a){
+    return ReqLocal._op("anexos", "readwrite", function(st){ return st.put(a); });
+  },
+  anexoTodos: function(){
+    return ReqLocal._op("anexos", "readonly", function(st){ return st.getAll(); })
+      .then(function(r){ return r || []; })
+      .catch(function(){ return []; });
+  },
+  anexoApagar: function(id){
+    return ReqLocal._op("anexos", "readwrite", function(st){ return st.delete(id); })
+      .catch(function(){ return null; });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 3b. FILA DE ANEXOS
+//
+// Anexar é a única gravação que pode ir para a fila com segurança:
+// ela só ACRESCENTA. Mudar status, registrar compra e confirmar
+// recebimento dependem do estado atual da requisição e continuam
+// exigindo internet — enfileirar essas seria aplicar depois num
+// estado que já mudou, e ninguém perceberia.
+// ────────────────────────────────────────────────────────────
+var ReqFila = {
+  rodando:  false,
+  pendentes: 0,
+
+  uid: function(){
+    return "ax" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  },
+
+  // Guarda primeiro, envia depois. Assim a foto nunca se perde por
+  // causa de um sinal ruim na hora exata do toque.
+  enfileirar: function(dados){
+    var item = {
+      id:        ReqFila.uid(),
+      dados:     dados,
+      criadoEm:  new Date().toISOString(),
+      tentativas: 0
+    };
+    return ReqLocal.anexoGuardar(item).then(function(){
+      ReqFila.pendentes++;
+      ReqSync.pintar();
+      return ReqFila.enviar().then(function(){ return item.id; });
+    });
+  },
+
+  contar: function(){
+    return ReqLocal.anexoTodos().then(function(t){
+      ReqFila.pendentes = t.length;
+      ReqSync.pintar();
+      return t.length;
+    });
+  },
+
+  enviar: function(){
+    if(ReqFila.rodando || !navigator.onLine) { ReqSync.pintar(); return Promise.resolve(0); }
+    ReqFila.rodando = true;
+    return ReqLocal.anexoTodos().then(function(todos){
+      if(!todos.length){ ReqFila.pendentes = 0; return 0; }
+      todos.sort(function(a, b){ return (a.criadoEm||"").localeCompare(b.criadoEm||""); });
+      var lote = todos.slice(0, ReqConfig.filaPorVez);
+      var enviados = 0;
+      var corrente = Promise.resolve();
+      lote.forEach(function(it){
+        corrente = corrente.then(function(){
+          return ReqAPI.postDireto("anexar", it.dados).then(function(){
+            enviados++;
+            return ReqLocal.anexoApagar(it.id);
+          }).catch(function(err){
+            // Erro de regra (sem permissão, arquivo grande) não melhora
+            // tentando de novo: tira da fila e avisa, em vez de repetir
+            // para sempre em silêncio.
+            it.tentativas = (it.tentativas || 0) + 1;
+            if(it.tentativas >= 5){
+              return ReqLocal.anexoApagar(it.id).then(function(){
+                toast("Um anexo não pôde ser enviado: " + err.message, true);
+              });
+            }
+            return ReqLocal.anexoGuardar(it).then(function(){ throw err; });
+          });
+        });
+      });
+      return corrente.then(function(){ return enviados; })
+                     .catch(function(){ return enviados; });
+    }).then(function(enviados){
+      return ReqLocal.anexoTodos().then(function(t){
+        ReqFila.pendentes = t.length;
+        ReqFila.rodando = false;
+        ReqSync.pintar();
+        if(enviados && ReqState.detalheId) ReqDetalhe.recarregar();
+        if(t.length && enviados) setTimeout(ReqFila.enviar, 1500);
+        return enviados;
+      });
+    }).catch(function(){
+      ReqFila.rodando = false;
+      ReqSync.pintar();
+      return 0;
+    });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 3c. AVISO DE SINCRONIA — só aparece quando tem algo a dizer
+// ────────────────────────────────────────────────────────────
+var ReqSync = {
+  estado: "ok",
+  msg:    "",
+
+  pintar: function(estado, msg){
+    if(estado) ReqSync.estado = estado;
+    if(msg !== undefined) ReqSync.msg = msg;
+
+    var el = document.getElementById("sync-pill");
+    if(!el) return;
+    var txt = document.getElementById("sync-txt");
+    var n   = ReqFila.pendentes;
+
+    if(!navigator.onLine){
+      el.className = "sync-pill on err";
+      txt.innerHTML = "<b>Sem internet.</b> " +
+        (n ? n + (n > 1 ? " anexos guardados" : " anexo guardado") + " no aparelho." : "Você ainda vê o que já estava aqui.");
+      return;
+    }
+    if(n){
+      el.className = "sync-pill on fila";
+      txt.innerHTML = "<b>Enviando</b> " + n + (n > 1 ? " anexos" : " anexo") + "…";
+      return;
+    }
+    if(ReqSync.estado === "cache" && ReqSync.msg){
+      el.className = "sync-pill on";
+      txt.textContent = ReqSync.msg;
+      return;
+    }
+    el.className = "sync-pill";
+  },
+
+  // Some sozinho depois que tudo entrou
+  ok: function(){
+    ReqSync.estado = "ok"; ReqSync.msg = "";
+    ReqSync.pintar();
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 3d. VERSÃO — pega arquivo novo sem ninguém precisar dar F5
+//
+// Compara a assinatura do próprio HTML de tempos em tempos. Se mudou,
+// avisa; e recarrega sozinho quando a pessoa está parada e não tem
+// nada pela metade na tela. É isso que evita alguém ficar preso numa
+// versão antiga sem saber.
+// ────────────────────────────────────────────────────────────
+var ReqVersao = {
+  assinatura: null,
+  nova:       false,
+  checando:   false,
+  ultimoToque: Date.now(),
+
+  hash: function(t){
+    var h = 0;
+    for(var i = 0; i < t.length; i++){ h = ((h << 5) - h + t.charCodeAt(i)) | 0; }
+    return String(h);
+  },
+
+  trabalhoEmAndamento: function(){
+    if(document.getElementById("modal").classList.contains("on")) return true;
+    if(ReqAPI.ocupado || ReqFila.rodando) return true;
+    var campos = document.querySelectorAll("#v-nova input, #v-nova textarea, #novo-coment");
+    for(var i = 0; i < campos.length; i++){
+      if(String(campos[i].value || "").trim()) return true;
+    }
+    var a = document.activeElement;
+    return !!(a && ["INPUT","TEXTAREA","SELECT"].indexOf(a.tagName) >= 0);
+  },
+
+  recarregar: function(){
+    location.replace(location.pathname + "?v=" + Date.now() + location.hash);
+  },
+
+  avisar: function(){
+    if(document.getElementById("aviso-versao")) return;
+    var el = document.createElement("div");
+    el.id = "aviso-versao";
+    el.className = "aviso-versao";
+    el.innerHTML = "<span>Nova versão disponível</span>" +
+                   "<button type=\"button\" id=\"bt-atualizar\">Atualizar agora</button>";
+    document.body.appendChild(el);
+    document.getElementById("bt-atualizar").onclick = ReqVersao.recarregar;
+  },
+
+  checar: function(){
+    if(ReqVersao.checando || !navigator.onLine) return Promise.resolve();
+    ReqVersao.checando = true;
+    var url = location.pathname + "?checagem=" + Date.now();
+
+    return fetch(url, {method:"HEAD", cache:"no-store"}).then(function(r){
+      if(!r.ok) return null;
+      return r.headers.get("etag") || r.headers.get("last-modified");
+    }).catch(function(){ return null; }).then(function(assinatura){
+      if(assinatura) return assinatura;
+      return fetch(url, {cache:"no-store"}).then(function(r){
+        if(!r.ok) return null;
+        return r.text().then(function(t){ return t.length + ":" + ReqVersao.hash(t); });
+      }).catch(function(){ return null; });
+    }).then(function(assinatura){
+      if(!assinatura) return;
+      if(!ReqVersao.assinatura){ ReqVersao.assinatura = assinatura; return; }
+      if(assinatura === ReqVersao.assinatura) return;
+      ReqVersao.nova = true;
+      ReqVersao.avisar();
+      if(!ReqVersao.trabalhoEmAndamento() &&
+         Date.now() - ReqVersao.ultimoToque > ReqConfig.ociosoMs) ReqVersao.recarregar();
+    }).catch(function(){}).then(function(){ ReqVersao.checando = false; });
+  },
+
+  iniciar: function(){
+    ReqVersao.checar();
+    setInterval(function(){
+      if(document.visibilityState === "visible") ReqVersao.checar();
+    }, ReqConfig.versaoMs);
+
+    setInterval(function(){
+      if(ReqVersao.nova && document.visibilityState === "visible" &&
+         !ReqVersao.trabalhoEmAndamento() &&
+         Date.now() - ReqVersao.ultimoToque > ReqConfig.ociosoMs) ReqVersao.recarregar();
+    }, 20000);
+
+    ["pointerdown","keydown","touchstart"].forEach(function(ev){
+      document.addEventListener(ev, function(){ ReqVersao.ultimoToque = Date.now(); }, {passive:true});
+    });
+  }
+};
+
 var ReqAPI = {
   // O Apps Script às vezes responde com HTML (tela de login, página de
   // erro, limite de execuções) em vez de JSON. Antes isso estourava como
@@ -849,6 +1162,23 @@ var ReqAPI = {
       .finally(function(){
         ReqAPI.ocupado = false;
         ReqAPI.liberar();
+      });
+  },
+
+  // Gravação de fundo: não tranca a tela nem disputa o "ocupado".
+  // É por aqui que a fila de anexos sobe enquanto a pessoa trabalha.
+  postDireto: function(action, payload){
+    payload = payload || {};
+    payload.email = ReqState.sessao.email;
+    var body = new URLSearchParams();
+    body.append("action", action);
+    body.append("payload", JSON.stringify(payload));
+
+    return fetch(API_URL + "?modulo=requisicoes", {method:"POST", body:body})
+      .then(ReqAPI.lerJson)
+      .then(function(j){
+        if(!j.ok) throw new Error(j.error || "Falha ao gravar");
+        return j.resultado;
       });
   },
 
@@ -1091,12 +1421,21 @@ var ReqLista = {
   // são recortes no cliente — assim os contadores nunca divergem da lista
   // e trocar de fila é instantâneo.
   carregar: function(){
-    document.getElementById("lista").innerHTML = '<div class="carregando">Carregando…</div>';
+    if(!ReqState.lista.length){
+      document.getElementById("lista").innerHTML = '<div class="carregando">Carregando…</div>';
+    }
     return ReqAPI.get("listar", {}).then(function(r){
       ReqState.lista = r.requisicoes || [];
       ReqHome.contar();
       ReqLista.render();
+      ReqSync.ok();
+      ReqLocal.set("lista", ReqState.lista);
     }).catch(function(e){
+      // Se já tem o que estava salvo na tela, não apaga por causa da falha.
+      if(ReqState.lista.length){
+        ReqSync.pintar("cache", "Sem resposta do servidor — mostrando o que estava salvo.");
+        return;
+      }
       document.getElementById("lista").innerHTML =
         '<div class="vazio"><div class="vazio-t">Não deu para carregar</div>' +
         '<div class="vazio-s">' + esc(e.message) + '</div></div>';
@@ -1731,16 +2070,19 @@ var ReqAnexo = {
     var tipo = input.dataset.tipo || "OUTRO";
     toast("Enviando " + arq.name + "…");
 
+    // Guarda no aparelho e sobe pela fila. Se o sinal cair no meio,
+    // o arquivo não se perde — sobe sozinho quando a internet voltar.
     var pronto = function(base64, mime){
-      ReqAPI.post("anexar", {
+      ReqFila.enfileirar({
         id:          ReqState.detalheId,
         tipo:        tipo,
         base64:      base64,
         mimeType:    mime,
-        nomeArquivo: arq.name
+        nomeArquivo: arq.name,
+        anexoUuid:   ReqFila.uid()
       }).then(function(){
-        toast("Anexado.");
-        ReqDetalhe.recarregar();
+        if(ReqFila.pendentes) toast("Guardado. Sobe assim que houver internet.");
+        else { toast("Anexado."); ReqDetalhe.recarregar(); }
       }).catch(function(e){ toast(e.message, true); });
     };
 
@@ -1942,6 +2284,14 @@ var ReqReceb = {
     var fotos = ReqReceb.fotos.filter(function(f){ return f; });
     if(problema && !fotos.length){
       toast("Anexe pelo menos uma foto do que chegou.", true); return;
+    }
+
+    // Confirmar recebimento muda o estado da requisição e avisa a Cris —
+    // não dá para enfileirar sem arriscar aplicar num estado que já mudou.
+    // As fotos continuam na tela: é só registrar quando o sinal voltar.
+    if(!navigator.onLine){
+      toast("Sem internet agora. Suas fotos continuam aqui — registre assim que o sinal voltar.", true);
+      return;
     }
 
     var btn = document.getElementById("rc-ok");
@@ -3300,19 +3650,12 @@ var ReqKpi = {
 // ────────────────────────────────────────────────────────────
 // 12. INICIALIZAÇÃO
 // ────────────────────────────────────────────────────────────
-function ReqInit(){
-  ReqState.sessao = ReqSessao();
-  if(!ReqState.sessao) return;
-
-  ReqIco.hidratar();
-  document.getElementById("rod-ver").textContent = "v" + ReqConfig.versao;
-
+// Pinta a casca da tela a partir da configuração — serve tanto para a
+// configuração que veio do servidor quanto para a que estava guardada
+// no aparelho. Chamar duas vezes é seguro.
+function ReqAplicarConfig(c){
   var nomeSessao = ReqState.sessao.nome || ReqState.sessao.email;
-  ["u-nome","tb-nome"].forEach(function(id){ document.getElementById(id).textContent = nomeSessao; });
-  ["u-av","tb-av"].forEach(function(id){ document.getElementById(id).textContent = ReqIniciais(nomeSessao); });
-
-  ReqAPI.get("config", {}).then(function(c){
-    ReqState.config = c;
+  ReqState.config = c;
 
     var nome = c.usuario.nome || nomeSessao;
     ["u-nome","tb-nome"].forEach(function(id){ document.getElementById(id).textContent = nome; });
@@ -3338,7 +3681,42 @@ function ReqInit(){
         return '<option value="' + esc(k) + '">' + esc(rotuloStatus(k, c.statusLabel[k])) + '</option>';
       }).join("");
 
-    ReqHome.montar();
+    // Montar de novo zeraria a fila que a pessoa acabou de escolher.
+    if(!ReqState.montado){ ReqHome.montar(); ReqState.montado = true; }
+}
+
+function ReqInit(){
+  ReqState.sessao = ReqSessao();
+  if(!ReqState.sessao) return;
+
+  ReqIco.hidratar();
+  document.getElementById("rod-ver").textContent = "v" + ReqConfig.versao;
+
+  var nomeSessao = ReqState.sessao.nome || ReqState.sessao.email;
+  ["u-nome","tb-nome"].forEach(function(id){ document.getElementById(id).textContent = nomeSessao; });
+  ["u-av","tb-av"].forEach(function(id){ document.getElementById(id).textContent = ReqIniciais(nomeSessao); });
+
+  // 1) Abre com o que já está no aparelho. A tela aparece pronta na hora,
+  //    em vez de ficar em branco esperando o Apps Script responder — e
+  //    continua servindo mesmo se o servidor estiver fora do ar.
+  var doCache = ReqLocal.get("config").then(function(c){
+    if(!c || ReqState.config) return;
+    ReqAplicarConfig(c);
+    return ReqLocal.get("lista").then(function(l){
+      if(!l || !l.length || ReqState.lista.length) return;
+      ReqState.lista = l;
+      ReqHome.contar();
+      ReqLista.render();
+      ReqSync.pintar("cache", "Mostrando o que estava salvo — buscando novidades…");
+    });
+  }).catch(function(){});
+
+  // 2) Busca de verdade. O que chegar substitui o que veio do cache.
+  doCache.then(function(){
+    return ReqAPI.get("config", {});
+  }).then(function(c){
+    ReqAplicarConfig(c);
+    ReqLocal.set("config", c);
 
     // Deep link vindo do e-mail: Index_Requisicoes.html?rq=RQ-2026-0001
     var m = location.search.match(/[?&]rq=([^&]+)/);
@@ -3352,11 +3730,40 @@ function ReqInit(){
     ReqNotif.iniciar();
     ReqEntregas.talvezMostrar();
   }).catch(function(e){
+    // Com dados no aparelho a pessoa continua trabalhando; sem eles,
+    // não há o que mostrar além do motivo.
+    if(ReqState.lista.length){
+      ReqSync.pintar("cache", "Sem resposta do servidor — mostrando o que estava salvo.");
+      return;
+    }
     document.getElementById("lista").innerHTML =
       '<div class="vazio"><div class="vazio-t">Não deu para entrar</div>' +
       '<div class="vazio-s">' + esc(e.message) + '</div>' +
       '<a class="btn btn-s" href="Index_Menu.html">Voltar ao menu</a></div>';
   });
+
+  // 3) Fila, versão e conexão
+  ReqFila.contar().then(function(){ return ReqFila.enviar(); });
+  ReqVersao.iniciar();
+  ReqServiceWorker();
+
+  window.addEventListener("online", function(){
+    ReqSync.pintar();
+    ReqFila.enviar();
+    ReqNotif.sincronizar();
+  });
+  window.addEventListener("offline", function(){ ReqSync.pintar(); });
+
+  document.addEventListener("visibilitychange", function(){
+    if(document.visibilityState !== "visible") return;
+    ReqVersao.ultimoToque = Date.now();
+    ReqFila.enviar();
+    ReqVersao.checar();
+  });
+
+  setInterval(function(){
+    if(document.visibilityState === "visible") ReqFila.enviar();
+  }, 60000);
 
   // Eventos de tela
   document.getElementById("btn-nova").onclick   = function(){ ReqForm.abrir(); };
@@ -3390,6 +3797,20 @@ function ReqInit(){
   document.getElementById("f-empresa").onchange = function(){ ReqLista.render(); };
   document.getElementById("f-status").onchange  = function(){ ReqLista.render(); };
   document.getElementById("f-ordem").onchange   = function(){ ReqLista.render(); };
+}
+
+// ────────────────────────────────────────────────────────────
+// 13. SERVICE WORKER — abre o sistema mesmo sem internet
+//
+// O sw.js vive na raiz do qfood-dashboard e vale para os módulos
+// que moram lá. O da Produção fica no plus-liberdade, em outra
+// pasta: são dois alcances separados e um não mexe no outro.
+// ────────────────────────────────────────────────────────────
+function ReqServiceWorker(){
+  if(!("serviceWorker" in navigator) || location.protocol === "file:") return;
+  navigator.serviceWorker.register("sw.js").catch(function(e){
+    console.warn("Service worker não registrado", e);
+  });
 }
 
 ReqInit();
