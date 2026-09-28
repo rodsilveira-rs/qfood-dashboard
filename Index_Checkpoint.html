@@ -577,6 +577,9 @@ div.hd-dd-i{color:var(--mu);font-size:.74rem;cursor:default}
 .reu-f input[type=datetime-local]:focus{border-color:var(--pur)}
 input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 
+.alt-st{font-size:.78rem;font-weight:800;white-space:nowrap}
+.alt-st.ok{color:var(--ok)} .alt-st.fila{color:var(--warn)} .alt-st.sem{color:var(--mu)} .alt-st.falha{color:#ff8a80}
+
 </style>
 </head>
 <body>
@@ -2836,9 +2839,9 @@ function reuEnviar(dado,patch){
   });
 }
 function reuSemSessao(msgId){ if(reuEmail()) return false; reuMsg(msgId,'⚠ Sem sessão ativa — entre pelo menu do sistema para salvar.','#ffaa2b'); return true; }
-/* a coluna "decisoes" precisa existir na aba REUNIOES */
+/* o campo "decisoes" precisa existir na base de dados */
 function reuSemColunaDecisoes(rid){ var r=reuAchar(rid); return !!(r && !Object.prototype.hasOwnProperty.call(r,'decisoes')); }
-var REU_AVISO_COLUNA='⚠ As decisões NÃO ficaram na base de dados: falta a coluna "decisoes" na aba REUNIOES. Rode CKP_addColunasReuniao no Apps Script.';
+var REU_AVISO_COLUNA='⚠ As decisões não foram gravadas: a base de dados ainda não tem o campo de decisões. É preciso concluir a atualização da estrutura no servidor (CKP_addColunasReuniao).';
 
 /* 1 · preparação (nova/editar) */
 function reuNova(){ REU_MODO='nova'; reuAbrirForm(null); }
@@ -3192,29 +3195,101 @@ function cenAbrirReuniao(id){
 function painelAlertas(){
   function chip(ico,t,cls){ return '<span class="alt-chip '+(cls||'')+'">'+ico+' '+t+'</span>'; }
   el('painel').innerHTML=
-    exeTopo('alertas','Alertas Telegram','Abordagem conservadora: só o que exige ação chega ao gestor')+
-    '<div class="card"><div class="ct">✈️ Política de alertas</div>'+
+    exeTopo('alertas','Alertas Telegram','Notificações seletivas: só o que exige ação chega ao gestor')+
+    '<div class="card"><div class="ct">✈️ Política de notificações</div>'+
       '<div class="alt-grid">'+
-        '<div class="alt-col env"><div class="alt-h">Enviamos · eventos críticos e acionáveis</div>'+
+        '<div class="alt-col env"><div class="alt-h">Notificamos · eventos críticos e acionáveis</div>'+
           chip('＋','Novo compromisso')+chip('📋','Preparação da reunião vencendo','am')+chip('⏰','Vence hoje','am')+chip('🟡','Em risco','am')+chip('🔴','Atrasado','vm')+chip('📊','Resumo de exceções','pur')+'</div>'+
-        '<div class="alt-col nao"><div class="alt-h">Não enviamos · baixo valor informativo</div>'+
-          chip('📄','Resumo/ata salvo')+chip('✏️','Alteração sem ação')+chip('✅','Concluído')+chip('🟢','Tudo verde')+'</div>'+
+        '<div class="alt-col nao"><div class="alt-h">Não notificamos · baixo valor informativo</div>'+
+          chip('📄','Resumo salvo')+chip('✏️','Alteração sem ação')+chip('✅','Concluído')+chip('🟢','Tudo em dia')+'</div>'+
       '</div>'+
       '<ul class="alt-regras">'+
-        '<li><strong>Janela:</strong> só entre 07:30 e 18:30 — o que nascer fora disso sai na abertura da próxima janela.</li>'+
-        '<li><strong>Agrupado:</strong> o responsável recebe <strong>uma</strong> mensagem por dia com tudo o que é dele (vence hoje, atrasado, em risco). Quem está em dia não recebe nada.</li>'+
-        '<li><strong>Na hora, só dois casos:</strong> compromisso novo (para o responsável) e compromisso marcado em risco (para quem gerencia).</li>'+
-        '<li><strong>Sem repetição:</strong> cada aviso sai uma vez só por pessoa, mesmo se o dado for relido.</li>'+
-        '<li><strong>Escalonamento:</strong> atraso de 2 dias ou mais vai para o topo do resumo de exceções do Rodrigo, junto com reunião não encerrada e preparação vencida.</li>'+
+        '<li><strong>Horário comercial:</strong> fora da janela de envio, a notificação aguarda a próxima abertura.</li>'+
+        '<li><strong>Consolidado:</strong> cada responsável recebe <strong>uma</strong> mensagem por dia com o que é dele (vence hoje, atrasado, em risco). Quem está em dia não recebe nada.</li>'+
+        '<li><strong>Imediato, só dois casos:</strong> compromisso novo (para o responsável) e compromisso em risco (para a gestão).</li>'+
+        '<li><strong>Sem repetição:</strong> cada notificação é entregue uma única vez por pessoa.</li>'+
+        '<li><strong>Escalonamento:</strong> atraso de 2 dias ou mais sobe para o topo do resumo diário de exceções da gestão, junto com reunião não encerrada e preparação vencida.</li>'+
       '</ul>'+
-      '<div class="reu-sub">O envio roda no projeto do Telegram (plus-liberdade), a cada 10 minutos. Horários, destinatários e o que liga ou desliga ficam na aba <strong>CKP_REGRAS</strong> daquela planilha.</div>'+
+      '<div class="reu-sub">O serviço de notificações verifica o sistema a cada 10 minutos. Horários, destinatários e regras são configurados pela administração.</div>'+
     '</div>'+
-    '<div class="card"><div class="reu-hh"><div class="ct" style="margin:0">👀 Prévia de hoje</div><span class="reu-st ag">prévia calculada aqui</span></div>'+
-      '<div class="reu-sub" style="margin:4px 0 12px">O que cada pessoa tem pedindo ação hoje, calculado a partir dos compromissos das reuniões. É isto que vai na mensagem do dia de cada um.</div>'+
+    '<div class="card"><div class="reu-hh"><div class="ct" style="margin:0">👀 Prévia de hoje</div><span class="reu-st ag">simulação</span></div>'+
+      '<div class="reu-sub" style="margin:4px 0 12px">O que cada pessoa tem pedindo ação hoje, calculado a partir dos compromissos das reuniões. É o conteúdo da notificação diária de cada um.</div>'+
       '<div id="alt-previa"><div class="reu-vazio">⏳ lendo a base de dados...</div></div></div>'+
-    '<div class="card"><div class="ct">🧾 Histórico de envios</div><div class="reu-vazio" style="text-align:left">Cada mensagem enviada fica registrada na aba <strong>GT_NOTIFICACOES</strong> da planilha do Telegram, com origem começando em <strong>ckp_</strong>, status (ENVIADA, SEM_TELEGRAM, FALHOU…) e horário.</div></div>';
+    '<div class="card"><div class="reu-hh"><div class="ct" style="margin:0">🧾 Histórico de envios</div>'+
+      '<div class="cen-chips" id="alt-hist-fil"></div></div>'+
+      '<div id="alt-hist"><div class="reu-vazio">⏳ carregando o histórico...</div></div></div>';
   reuRenderKpis();
   reuRecarregarTudo();
+  altCarregarHistorico();
+}
+/* ── histórico de envios (espelho atualizado pelo serviço de notificações a cada 10 min) ── */
+var ALT_HIST=null, ALT_HIST_ERRO='', ALT_HIST_FILTRO='7d';
+var ALT_TIPOS={ ckp_novo:'Novo compromisso', ckp_risco:'Em risco', ckp_dia:'Pendências do dia', ckp_prep:'Preparação da reunião',
+  ckp_lembrete:'Lembrete de reunião', ckp_excecoes:'Resumo de exceções', ckp_teste:'Teste de conexão' };
+function altCarregarHistorico(){
+  var base=window.__QFOOD_SYNC_URL||CKP_SYNC_URL;
+  if(!qsOnline()){ ALT_HIST_ERRO='offline'; altRenderHistorico(); return; }
+  fetch(base+'?aba=TG_HISTORICO',{method:'GET'}).then(function(r){ return r.json(); }).then(function(d){
+    if(d && d.ok){ ALT_HIST=(d.registros||[]); ALT_HIST_ERRO=''; }
+    else { ALT_HIST=null; ALT_HIST_ERRO=/inv[aá]lida/i.test((d&&d.erro)||'')?'servidor':(/não encontrada/i.test((d&&d.erro)||'')?'vazio':'falha'); }
+    altRenderHistorico();
+  }).catch(function(){ ALT_HIST=null; ALT_HIST_ERRO='falha'; altRenderHistorico(); });
+}
+function altSituacao(h){
+  var s=String(h.status||'').toUpperCase(), prox=String(h.proxima_tentativa||'').substring(11,16);
+  if(s==='ENVIADA') return ['ok','✓ Entregue'];
+  if(s==='PENDENTE') return ['fila',prox?'⏳ Agendada para '+prox:'⏳ Na fila'];
+  if(s==='ERRO') return ['fila','↻ Nova tentativa'+(prox?' às '+prox:'')];
+  if(s==='SEM_TELEGRAM') return ['sem','📵 Telegram não conectado'];
+  if(s==='FALHOU') return ['falha','⚠ Não entregue'];
+  if(s==='EXPIRADA') return ['sem','⌛ Expirada (48 h sem entrega)'];
+  return ['fila',s||'—'];
+}
+function altMotivo(d){
+  d=String(d||'').toLowerCase();
+  if(/blocked/.test(d)) return 'A pessoa bloqueou o bot do Q Food Group.';
+  if(/chat not found|user not found/.test(d)) return 'Contato do Telegram não encontrado — a pessoa precisa enviar /start de novo.';
+  if(/deactivated/.test(d)) return 'Conta do Telegram desativada.';
+  if(/too many|429/.test(d)) return 'Limite de envios do Telegram atingido; será reenviada.';
+  return d?'Falha técnica no envio.':'Não entregue após 5 tentativas.';
+}
+function altFiltrarHist(f){ ALT_HIST_FILTRO=f; altRenderHistorico(); }
+function altRenderHistorico(){
+  var box=el('alt-hist'); if(!box) return;
+  var fil=el('alt-hist-fil');
+  if(ALT_HIST===null){
+    if(fil) fil.innerHTML='';
+    var msg={ offline:'Sem conexão — o histórico aparece quando a internet voltar.',
+      servidor:'O histórico de envios fica disponível assim que a atualização do servidor for publicada.',
+      vazio:'Nenhuma notificação enviada até o momento.',
+      falha:'Não foi possível carregar o histórico agora. Tente novamente em instantes.' }[ALT_HIST_ERRO]||'⏳ carregando o histórico...';
+    box.innerHTML='<div class="reu-vazio">'+msg+'</div>'; return;
+  }
+  var dHoje=hoje(), corte=ALT_HIST_FILTRO==='hoje'?dHoje:reuSomaDias(dHoje,-6);
+  var lista=ALT_HIST.filter(function(h){ return String(h.criado_em||'').substring(0,10)>=corte; })
+    .sort(function(a,b){ return String(b.criado_em).localeCompare(String(a.criado_em)); });
+  if(fil) fil.innerHTML=[['hoje','Hoje'],['7d','Últimos 7 dias']].map(function(f){ return '<button class="'+(ALT_HIST_FILTRO===f[0]?'on':'')+'" onclick="altFiltrarHist(\''+f[0]+'\')">'+f[1]+'</button>'; }).join('');
+  var c={ok:0,fila:0,sem:0,falha:0}, semTg={};
+  lista.forEach(function(h){ var st=altSituacao(h)[0]; c[st]++; if(String(h.status).toUpperCase()==='SEM_TELEGRAM') semTg[h.destinatario]=1; });
+  var resumo='<div class="reu-kpis" style="margin-bottom:12px">'+
+    '<div class="reu-kpi vd"><b>'+c.ok+'</b><span>Entregues</span></div>'+
+    '<div class="reu-kpi am"><b>'+c.fila+'</b><span>Na fila</span></div>'+
+    '<div class="reu-kpi"><b>'+c.sem+'</b><span>Sem Telegram</span></div>'+
+    '<div class="reu-kpi vm"><b>'+c.falha+'</b><span>Não entregues</span></div></div>';
+  var nomesSem=Object.keys(semTg);
+  var aviso=nomesSem.length?'<div class="reu-off" style="background:rgba(255,170,43,.08);border-color:rgba(255,170,43,.45);color:#ffd28a">📵 Ainda sem Telegram conectado: <strong>'+nomesSem.map(esc).join(', ')+'</strong>. Para receber, a pessoa abre o bot do Q Food Group no Telegram e envia <strong>/start</strong>.</div>':'';
+  if(!lista.length){ box.innerHTML=resumo+'<div class="reu-vazio">Nenhuma notificação no período.</div>'; return; }
+  box.innerHTML=resumo+aviso+
+    '<table class="reu-quadro"><thead><tr><th>Quando</th><th>Para</th><th>Notificação</th><th>Situação</th></tr></thead><tbody>'+
+    lista.slice(0,80).map(function(h){
+      var sit=altSituacao(h), cri=String(h.criado_em||''), env=String(h.enviado_em||'');
+      var quando=reuDataBR(cri)+' '+cri.substring(11,16)+(env&&sit[0]==='ok'&&env.substring(11,16)!==cri.substring(11,16)?'<div class="reu-sub">entregue '+env.substring(11,16)+'</div>':'');
+      return '<tr><td data-l="Quando">'+quando+'</td><td data-l="Para">'+esc(h.destinatario||'—')+'</td>'+
+        '<td data-l="Notificação"><strong>'+esc(ALT_TIPOS[h.tipo]||h.titulo||h.tipo||'—')+'</strong></td>'+
+        '<td data-l="Situação"><span class="alt-st '+sit[0]+'">'+sit[1]+'</span>'+(sit[0]==='falha'?'<div class="reu-sub">'+altMotivo(h.detalhe)+'</div>':'')+'</td></tr>';
+    }).join('')+'</tbody></table>'+
+    (lista.length>80?'<div class="reu-sub" style="margin-top:6px">Mostrando as 80 mais recentes de '+lista.length+'.</div>':'')+
+    '<div class="reu-sub" style="margin-top:8px">Atualizado automaticamente a cada 10 minutos.</div>';
 }
 function altRenderPrevia(){
   var box=el('alt-previa'); if(!box) return;
