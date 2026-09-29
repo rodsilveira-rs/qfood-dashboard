@@ -2270,6 +2270,10 @@ var VALIDADES_SYNC_URL = "https://script.google.com/macros/s/AKfycbxohOKq4Au2UYz
 // Token compartilhado — DEVE ser idêntico ao SHARED_SECRET no Apps Script
 var VALIDADES_SYNC_TOKEN = "qfood-rs-2026-xK9pL3mQ7vN2bT8";
 
+// 🆕 Disparo do Telegram. Fica no projeto do Gogui porque a aba TELEGRAM
+// (com os chat_id) mora na planilha daquele projeto.
+var TG_GOGUI_URL = "https://script.google.com/macros/s/AKfycbwBc-EXOlX-SpXNGfYc0g0JekacWor2ty7BHzQ3LJEzYTh6Pg7PALbe26TgjzJZ_-eY/exec";
+
 // URL da aba "EstoqueAtual" — contagem física do Maiko/Jonathas
 var UESTOQUE = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=271375618&single=true&output=csv";
 
@@ -7547,9 +7551,9 @@ var VALAL_LOGINS_PREVIA = [
 ];
 
 var VALAL_ACOES = [
-  { id: "COMUNICADO_COMERCIAL", label: "Comunicado ao Comercial", icone: "\uD83D\uDCE2", cor: "#4d8ef5",
-    previa: "\uD83D\uDC41 Ver PDF", previaAjuda: "Abre o PDF dos clientes sem registrar a ação",
-    ajuda: "Grava a ação, gera o PDF e tira o item da lista" },
+  { id: "COMUNICADO_COMERCIAL", label: "Disparar Telegram", icone: "\uD83D\uDCF2", cor: "#4d8ef5",
+    previa: "\uD83D\uDC41 Ver PDF", previaAjuda: "Abre o PDF dos clientes sem disparar nada nem registrar a ação",
+    ajuda: "Manda no Telegram, para cada vendedor, só os clientes dele — grava a ação e o registro do marco" },
   { id: "PROMOCAO",             label: "Promoção",                icone: "\uD83C\uDFF7\uFE0F", cor: "#36cfa0",
     previa: "\uD83D\uDC41 Ver planilha", previaAjuda: "Baixa a planilha de promoção sem registrar a ação",
     ajuda: "Grava a ação, baixa a planilha e tira o item da lista" },
@@ -8170,7 +8174,9 @@ async function valalAgir(idx, acaoId) {
   }
 
   var ok = confirm(
-    "Confirmar ação?\n\n" +
+    (acaoId === "COMUNICADO_COMERCIAL"
+      ? "Disparar o comunicado no Telegram?\n\nCada vendedor recebe agora, no celular, a lista dos clientes DELE que j\u00e1 compraram este produto.\n\n"
+      : "Confirmar ação?\n\n") +
     "Produto: " + r.descricao + "\n" +
     "Validade: " + valalFmtData(r.validade) + (r.dias < 0 ? " (vencido há " + Math.abs(r.dias) + " dias)" : " (faltam " + r.dias + " dias)") + "\n" +
     "Ação: " + meta.label + "\n" +
@@ -8226,7 +8232,11 @@ async function valalAgir(idx, acaoId) {
 
       // Cada ação entrega o seu artefato junto
       if (acaoId === "COMUNICADO_COMERCIAL") {
-        valalClientesProduto(idx, true).then(function () { valalRenderizar(); });
+        // 1) dispara para os vendedores e registra o marco
+        // 2) abre o PDF, que o Célio guarda como comprovante
+        valalDispararTelegram(r, idx).then(function () {
+          return valalClientesProduto(idx, true);
+        }).then(function () { valalRenderizar(); });
       } else if (acaoId === "PROMOCAO") {
         valalPlanilhaPromocao(r).catch(function (e) {
           if (statusEl) statusEl.innerHTML += ' \u26A0 A planilha não foi gerada: ' + valalEsc(e.message);
@@ -8245,6 +8255,123 @@ async function valalAgir(idx, acaoId) {
       statusEl.style.border = '1px solid rgba(255,120,117,.35)';
       statusEl.innerHTML = '\u274C Não foi possível gravar: ' + valalEsc(e.message) + '. Nada foi alterado — tente de novo.';
     }
+  }
+}
+
+
+// ── Disparo do comunicado por Telegram ─────────────────────────
+// Um clique faz três coisas: manda a lista para cada vendedor (só os
+// clientes dele), grava o registro no marco aberto do ciclo e devolve
+// para a tela o resumo de quem recebeu.
+
+async function valalDispararTelegram(r, idx) {
+  var statusEl = document.getElementById('valal-status');
+  var pintar = function (bg, cor, borda, html) {
+    if (!statusEl) return;
+    statusEl.style.display = 'block';
+    statusEl.style.background = bg;
+    statusEl.style.color = cor;
+    statusEl.style.border = '1px solid ' + borda;
+    statusEl.innerHTML = html;
+  };
+
+  pintar('var(--s2)', 'var(--mu)', 'var(--br)',
+    '⏳ Disparando Telegram para os vendedores de <b>' + valalEsc(r.descricao) + '</b>…');
+
+  try {
+    var resp = await fetch(TG_GOGUI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        token: VALIDADES_SYNC_TOKEN,
+        action: 'val_telegram',
+        tipo: 'val_telegram',
+        dado: {
+          codigo: r.codigo,
+          descricao: r.descricao,
+          validade: r.validade,
+          qtde: r.qtde,
+          unidade: r.unidade,
+          fornecedor: r.fornecedor,
+          login: valalUsuario()
+        }
+      })
+    });
+    var j = await resp.json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || 'resposta sem ok');
+
+    // Resumo na tela — o mesmo que os supervisores recebem no Telegram
+    var linhas = (j.enviados || []).map(function (e) {
+      return '<li><b>' + valalEsc(e.vendedor) + '</b> — ' + e.clientes + ' cliente(s)</li>';
+    }).join('');
+
+    var html =
+      '✅ <b>Telegram disparado</b> — ' + valalEsc(r.descricao) +
+      ' · val. ' + valalFmtData(r.validade) +
+      (j.dias == null ? '' : ' · ' + j.dias + ' dias' +
+        (j.dias_uteis != null ? ' (' + j.dias_uteis + ' úteis)' : '')) +
+      '<ul style="margin:8px 0 0 18px;padding:0;line-height:1.7">' + linhas + '</ul>' +
+      '<div style="margin-top:6px">Total: <b>' + (j.total_clientes || 0) + ' clientes</b> em ' +
+        ((j.enviados || []).length) + ' vendedor(es).</div>';
+
+    if (j.sem_telegram && j.sem_telegram.length) {
+      html += '<div style="margin-top:6px;color:#ffc14d">⚠ Ainda sem Telegram: ' +
+        valalEsc(j.sem_telegram.map(function (s) { return s.vendedor; }).join(', ')) + '</div>';
+    }
+    if (j.falhas && j.falhas.length) {
+      html += '<div style="margin-top:6px;color:#ff7875">❌ Falharam: ' +
+        valalEsc(j.falhas.map(function (f) { return f.vendedor; }).join(', ')) + '</div>';
+    }
+
+    pintar('rgba(54,207,160,.12)', '#36cfa0', 'rgba(54,207,160,.35)', html);
+
+    // Registra sozinho no marco aberto do ciclo
+    if (j.texto_marco) valalRegistrarMarcoAuto(r, j.texto_marco);
+
+    return j;
+
+  } catch (e) {
+    pintar('rgba(255,120,117,.12)', '#ff7875', 'rgba(255,120,117,.35)',
+      '❌ A ação foi gravada, mas o Telegram não saiu: ' + valalEsc(e.message) +
+      '<br><span style="font-size:.78rem">Use o PDF e avise no grupo. Dá para tentar o disparo de novo pelo botão de prévia.</span>');
+    return null;
+  }
+}
+
+// Grava o texto do disparo no marco em aberto, sem pedir nada ao usuário.
+// Se o marco já tiver registro manual, não sobrescreve.
+async function valalRegistrarMarcoAuto(r, texto) {
+  var lista = VALAL.rodadas[r.id] || [];
+  var rd = null;
+  for (var i = lista.length - 1; i >= 0; i--) {
+    if (!lista[i].acao_registro) { rd = lista[i]; break; }
+  }
+  if (!rd) return;
+
+  try {
+    var resp = await fetch(VALIDADES_SYNC_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        token: VALIDADES_SYNC_TOKEN,
+        tipo: 'val_registrar_acao',
+        dado: {
+          unidade: 'qfood',
+          id_rodada: rd.id_rodada,
+          texto: texto,
+          registrado_por: valalUsuario()
+        }
+      })
+    });
+    var j = await resp.json();
+    if (j && j.ok) {
+      rd.acao_registro = texto;
+      rd.acao_registrado_por = j.registrado_por || valalUsuario();
+      rd.acao_registrado_em_br = j.registrado_em_br || new Date().toLocaleString('pt-BR').substring(0, 16);
+      valalRenderizar();
+    }
+  } catch (e) {
+    // O disparo já aconteceu — o registro do marco pode ser feito na mão.
   }
 }
 
