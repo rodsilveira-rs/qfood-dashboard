@@ -1935,6 +1935,51 @@ body.is-aprovador .so-aprov-btn{display:flex !important}
   </div>
 
 </div>
+  <!-- ═══════════════════════════════════════════════════════════════
+       📜 HISTÓRICO DE ENVIOS AO COMERCIAL
+       Tudo o que já foi disparado: quando, de quê, por quem, pra quem.
+       Leitura aberta a quem entra no módulo.
+       ═══════════════════════════════════════════════════════════════ -->
+  <div id="valdisp-painel" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;margin-bottom:20px;overflow:hidden;transition:all .25s">
+    <div id="valdisp-toggle" onclick="toggleValDispPainel()" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;cursor:pointer;user-select:none;background:linear-gradient(90deg,rgba(77,142,245,.10),rgba(160,124,246,.06))">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:1.2rem">&#128220;</span>
+        <div>
+          <div style="font-size:.9rem;font-weight:700;color:var(--tx);letter-spacing:.3px">Hist&#243;rico de Envios ao Comercial</div>
+          <div id="valdisp-subtitulo" style="font-size:.7rem;color:var(--mu);margin-top:2px">O que j&#225; foi disparado, quando e para quem (clique para abrir)</div>
+        </div>
+      </div>
+      <span id="valdisp-arrow" style="font-size:1.1rem;color:var(--mu);transition:transform .25s">&#9656;</span>
+    </div>
+
+    <div id="valdisp-content" style="display:none;padding:18px 20px 20px;border-top:1px solid var(--br)">
+
+      <div id="valdisp-kpis" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px"></div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+        <select id="valdisp-periodo" onchange="valdispCarregar(true)" style="background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 11px;color:var(--tx);font-size:.82rem">
+          <option value="30">&#218;ltimos 30 dias</option>
+          <option value="90" selected>&#218;ltimos 90 dias</option>
+          <option value="180">&#218;ltimos 180 dias</option>
+          <option value="0">Tudo</option>
+        </select>
+        <input type="search" id="valdisp-busca" placeholder="Buscar produto, c&#243;digo ou vendedor..." oninput="valdispRenderizar()" style="flex:1;min-width:200px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 11px;color:var(--tx);font-size:.82rem">
+        <button onclick="valdispCarregar(true)" style="background:var(--sf);border:1px solid var(--br);color:var(--tx);border-radius:8px;padding:8px 13px;font-size:.78rem;font-weight:600;cursor:pointer">&#8635; Atualizar</button>
+        <button onclick="valdispExportar()" style="background:rgba(54,207,160,.12);border:1px solid rgba(54,207,160,.4);color:#36cfa0;border-radius:8px;padding:8px 13px;font-size:.78rem;font-weight:600;cursor:pointer">&#11015; Excel</button>
+      </div>
+
+      <div id="valdisp-status" style="display:none;padding:9px 14px;border-radius:8px;font-size:.78rem;margin-bottom:12px"></div>
+      <div id="valdisp-lista"><div style="text-align:center;padding:26px;color:var(--mu);font-style:italic;font-size:.82rem">Clique em Atualizar para carregar o hist&#243;rico.</div></div>
+
+      <div style="margin-top:16px;font-size:.72rem;color:var(--mu);line-height:1.7;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:10px 13px">
+        Cada linha &#233; um disparo real, gravado no momento do envio. Clique para ver quais vendedores
+        receberam e quantos clientes foram na lista de cada um. Um produto pode aparecer mais de uma
+        vez &#8212; s&#227;o marcos diferentes do mesmo ciclo.
+      </div>
+
+    </div>
+  </div>
+
 </div><!-- /painel-validades -->
 
 <!-- CONTEÚDO DA ABA COMPRAS (extraído do sistema original) -->
@@ -8006,6 +8051,7 @@ function valalRenderizar() {
     html += '<td style="padding:8px 7px;vertical-align:top;word-break:break-word">' +
       '<div style="font-weight:600;color:var(--tx);line-height:1.25">' + valalEsc(r.descricao || '—') + '</div>' +
       '<div style="font-size:.62rem;color:var(--mu2);margin-top:2px">cód. ' + valalEsc(r.codigo) + '</div>' +
+      valalSeloEnvio(r) +
       valalResumoMarcos(r) +
       '</td>';
 
@@ -8373,6 +8419,305 @@ async function valalRegistrarMarcoAuto(r, texto) {
   } catch (e) {
     // O disparo já aconteceu — o registro do marco pode ser feito na mão.
   }
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   HISTÓRICO DE ENVIOS AO COMERCIAL
+   O disparo some da tela; isto não some. Lê a aba VAL_DISPAROS.
+   ══════════════════════════════════════════════════════════════ */
+
+var VALDISP = {
+  aberto: false,
+  carregando: false,
+  carregado: false,
+  itens: [],
+  expandidos: {},
+  erro: ''
+};
+
+function valdispEsc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toggleValDispPainel() {
+  VALDISP.aberto = !VALDISP.aberto;
+  var c = document.getElementById('valdisp-content');
+  var a = document.getElementById('valdisp-arrow');
+  if (c) c.style.display = VALDISP.aberto ? 'block' : 'none';
+  if (a) a.style.transform = VALDISP.aberto ? 'rotate(90deg)' : 'none';
+  if (VALDISP.aberto && !VALDISP.carregado) valdispCarregar();
+}
+
+function valdispStatus(tipo, html) {
+  var el = document.getElementById('valdisp-status');
+  if (!el) return;
+  if (!html) { el.style.display = 'none'; return; }
+  var cores = {
+    erro:  ['rgba(255,120,117,.12)', '#ff7875', 'rgba(255,120,117,.35)'],
+    ok:    ['rgba(54,207,160,.12)',  '#36cfa0', 'rgba(54,207,160,.35)'],
+    neutro:['var(--s2)',             'var(--mu)', 'var(--br)']
+  };
+  var c = cores[tipo] || cores.neutro;
+  el.style.display = 'block';
+  el.style.background = c[0];
+  el.style.color = c[1];
+  el.style.border = '1px solid ' + c[2];
+  el.innerHTML = html;
+}
+
+async function valdispCarregar(forcar) {
+  if (VALDISP.carregando) return;
+  if (VALDISP.carregado && !forcar) { valdispRenderizar(); return; }
+
+  VALDISP.carregando = true;
+  VALDISP.erro = '';
+  valdispStatus('neutro', '⏳ Carregando o histórico…');
+
+  var dias = (document.getElementById('valdisp-periodo') || {}).value || '90';
+
+  try {
+    var url = VALIDADES_SYNC_URL + '?tipo=val_disparos&dias=' + encodeURIComponent(dias) +
+              '&token=' + encodeURIComponent(VALIDADES_SYNC_TOKEN);
+    var r = await fetch(url);
+    var j = await r.json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || 'resposta sem ok');
+
+    // Ordena por data, do mais novo para o mais antigo. O backend já devolve
+    // nessa ordem, mas se alguém mexer na planilha o agrupamento por dia não
+    // pode quebrar.
+    VALDISP.itens = (j.itens || []).sort(function (a, b) {
+      return new Date(b.data_hora || 0) - new Date(a.data_hora || 0);
+    });
+    VALDISP.carregado = true;
+    valdispStatus(null, '');
+    valdispRenderizar();
+
+    // marca na tabela de alertas quais produtos já foram enviados
+    if (typeof valalRenderizar === 'function' && typeof VALAL !== 'undefined' && VALAL.carregado) {
+      valalRenderizar();
+    }
+  } catch (e) {
+    VALDISP.erro = e.message;
+    valdispStatus('erro', '❌ Não consegui carregar o histórico: ' + valdispEsc(e.message));
+  } finally {
+    VALDISP.carregando = false;
+  }
+}
+
+function valdispFiltrados() {
+  var q = String((document.getElementById('valdisp-busca') || {}).value || '').trim().toLowerCase();
+  if (!q) return VALDISP.itens;
+  return VALDISP.itens.filter(function (d) {
+    var alvo = (d.produto + ' ' + d.codigo + ' ' + d.fornecedor + ' ' + d.por + ' ' +
+                (d.enviados || []).map(function (e) { return e.vendedor; }).join(' ') + ' ' +
+                d.sem_telegram).toLowerCase();
+    return alvo.indexOf(q) >= 0;
+  });
+}
+
+function valdispKPIs(lista) {
+  var box = document.getElementById('valdisp-kpis');
+  if (!box) return;
+
+  var prods = {}, vends = {}, clientes = 0, comFalta = 0;
+  lista.forEach(function (d) {
+    prods[d.codigo] = 1;
+    clientes += d.total_clientes || 0;
+    (d.enviados || []).forEach(function (e) { vends[e.vendedor] = 1; });
+    if (d.sem_telegram || d.falhas) comFalta++;
+  });
+
+  var kpi = function (n, rot, cor) {
+    return '<div style="background:var(--s2);border:1px solid ' + (cor || 'var(--br)') +
+           ';border-radius:10px;padding:10px 14px;min-width:104px">' +
+           '<div style="font-size:1.32rem;font-weight:800;color:' + (cor && cor !== 'var(--br)' ? cor : 'var(--tx)') + ';line-height:1.1">' + n + '</div>' +
+           '<div style="font-size:.66rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;font-weight:600;margin-top:2px">' + rot + '</div>' +
+           '</div>';
+  };
+
+  box.innerHTML =
+    kpi(lista.length, 'envios') +
+    kpi(Object.keys(prods).length, 'produtos') +
+    kpi(Object.keys(vends).length, 'vendedores') +
+    kpi(clientes, 'clientes alcançados') +
+    (comFalta ? kpi(comFalta, 'com pendência', '#ffc14d') : '');
+}
+
+function valdispRenderizar() {
+  var box = document.getElementById('valdisp-lista');
+  if (!box) return;
+
+  var lista = valdispFiltrados();
+  valdispKPIs(lista);
+
+  var sub = document.getElementById('valdisp-subtitulo');
+  if (sub) {
+    sub.textContent = VALDISP.carregado
+      ? (VALDISP.itens.length + ' envio(s) no período selecionado')
+      : 'O que já foi disparado, quando e para quem (clique para abrir)';
+  }
+
+  if (!lista.length) {
+    box.innerHTML = '<div style="text-align:center;padding:26px;color:var(--mu);font-style:italic;font-size:.82rem">' +
+      (VALDISP.itens.length ? 'Nenhum envio bate com a busca.' : 'Nenhum envio registrado no período.') +
+      '</div>';
+    return;
+  }
+
+  var html = '', diaAtual = null;
+
+  lista.forEach(function (d) {
+    var dia = String(d.data_br || '').substring(0, 10);
+    if (dia !== diaAtual) {
+      diaAtual = dia;
+      html += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.7px;font-weight:700;color:var(--mu);margin:16px 0 7px;display:flex;align-items:center;gap:8px">' +
+              valdispEsc(dia) + '<span style="flex:1;height:1px;background:var(--br)"></span></div>';
+    }
+
+    var aberto = !!VALDISP.expandidos[d.id];
+    var pend = (d.sem_telegram || d.falhas);
+
+    html +=
+      '<div style="background:var(--s2);border:1px solid var(--br);border-left:3px solid ' +
+        (pend ? '#ffaa2b' : '#36cfa0') + ';border-radius:10px;padding:11px 14px;margin-bottom:8px">' +
+
+        '<div onclick="valdispToggleItem(\'' + valdispEsc(d.id).replace(/'/g, "\\'") + '\')" ' +
+          'style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;align-items:flex-start">' +
+
+          '<div style="flex:1;min-width:200px">' +
+            '<div style="font-size:.86rem;font-weight:700;color:var(--tx);line-height:1.35">' +
+              (d.codigo ? '<span style="color:var(--mu);font-size:.74rem;margin-right:6px">' + valdispEsc(d.codigo) + '</span>' : '') +
+              valdispEsc(d.produto || '—') +
+            '</div>' +
+            '<div style="font-size:.71rem;color:var(--mu);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">' +
+              '<span>⏰ ' + valdispEsc(d.data_br) + '</span>' +
+              '<span>\uD83D\uDC64 ' + valdispEsc(d.por || '—') + '</span>' +
+              (d.validade_br ? '<span>\uD83D\uDCC5 val. ' + valdispEsc(d.validade_br) +
+                (d.dias !== '' ? ' (' + valdispEsc(d.dias) + 'd' +
+                  (d.dias_uteis !== '' ? ' / ' + valdispEsc(d.dias_uteis) + ' úteis' : '') + ')' : '') + '</span>' : '') +
+              (d.fornecedor ? '<span>\uD83C\uDFED ' + valdispEsc(d.fornecedor) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+
+          '<div style="text-align:right;flex:none">' +
+            '<div style="font-size:.84rem;font-weight:700;color:#36cfa0">' +
+              d.total_vendedores + ' vend. · ' + d.total_clientes + ' cli.' +
+            '</div>' +
+            (pend ? '<div style="font-size:.67rem;color:#ffc14d;margin-top:2px">⚠ com pendência</div>' : '') +
+            '<div style="font-size:.67rem;color:var(--mu);margin-top:2px">' + (aberto ? '▴ fechar' : '▾ detalhes') + '</div>' +
+          '</div>' +
+        '</div>';
+
+    if (aberto) {
+      html += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--br)">';
+
+      if ((d.enviados || []).length) {
+        html += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;color:var(--mu);margin-bottom:5px">Receberam</div>' +
+                '<div style="display:grid;gap:3px;margin-bottom:10px">' +
+          d.enviados.map(function (e) {
+            return '<div style="display:flex;justify-content:space-between;font-size:.79rem;color:var(--tx)">' +
+                   '<span>' + valdispEsc(e.vendedor) + '</span>' +
+                   '<span style="color:var(--mu)">' + e.clientes + ' cliente(s)</span></div>';
+          }).join('') + '</div>';
+      }
+
+      if (d.sem_telegram) {
+        html += '<div style="font-size:.76rem;color:#ffc14d;margin-bottom:5px">' +
+                '⚠ <b>Sem Telegram:</b> ' + valdispEsc(d.sem_telegram) +
+                ' <span style="color:var(--mu)">— esses não receberam nada</span></div>';
+      }
+      if (d.falhas) {
+        html += '<div style="font-size:.76rem;color:#ff7875;margin-bottom:5px">' +
+                '❌ <b>Falharam:</b> ' + valdispEsc(d.falhas) + '</div>';
+      }
+
+      html += '<div style="font-size:.68rem;color:var(--mu);margin-top:6px">' +
+                valdispEsc(d.id) + ' · canal ' + valdispEsc(d.canal || 'TELEGRAM') +
+                (d.qtde ? ' · estoque no envio: ' + valdispEsc(d.qtde) + ' ' + valdispEsc(d.unidade || '') : '') +
+              '</div>';
+
+      html += '</div>';
+    }
+
+    html += '</div>';
+  });
+
+  box.innerHTML = html;
+}
+
+function valdispToggleItem(id) {
+  VALDISP.expandidos[id] = !VALDISP.expandidos[id];
+  valdispRenderizar();
+}
+
+/** Baixa o histórico filtrado como CSV (abre no Excel). */
+function valdispExportar() {
+  var lista = valdispFiltrados();
+  if (!lista.length) { alert('Nada para exportar com o filtro atual.'); return; }
+
+  var asp = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
+  var linhas = [[
+    'Data', 'Codigo', 'Produto', 'Validade', 'Dias', 'Dias uteis', 'Estoque', 'Unidade',
+    'Fornecedor', 'Disparado por', 'Vendedores', 'Qtd vendedores', 'Qtd clientes',
+    'Sem Telegram', 'Falhas', 'ID'
+  ].map(asp).join(';')];
+
+  lista.forEach(function (d) {
+    linhas.push([
+      d.data_br, d.codigo, d.produto, d.validade_br, d.dias, d.dias_uteis, d.qtde, d.unidade,
+      d.fornecedor, d.por,
+      (d.enviados || []).map(function (e) { return e.vendedor + ' (' + e.clientes + ')'; }).join(' | '),
+      d.total_vendedores, d.total_clientes, d.sem_telegram, d.falhas, d.id
+    ].map(asp).join(';'));
+  });
+
+  var blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'envios_comercial_' + new Date().toISOString().slice(0, 10) + '.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); document.body.removeChild(a); }, 1000);
+}
+
+/** Último envio de um produto — usado para marcar a tabela de alertas. */
+function valdispUltimoDe(codigo) {
+  if (!VALDISP.carregado || !codigo) return null;
+  var c = String(codigo).trim();
+  for (var i = 0; i < VALDISP.itens.length; i++) {   // já vem do mais novo
+    if (String(VALDISP.itens[i].codigo).trim() === c) return VALDISP.itens[i];
+  }
+  return null;
+}
+
+/* Selo discreto na linha do produto: já foi comunicado ao comercial?
+   Responde a pergunta que o Célio fazia toda hora, sem sair da tela. */
+function valalSeloEnvio(r) {
+  if (typeof valdispUltimoDe !== 'function') return '';
+  var d = valdispUltimoDe(r.codigo);
+  if (!d) return '';
+  var quantos = VALDISP.itens.filter(function (x) {
+    return String(x.codigo).trim() === String(r.codigo).trim();
+  }).length;
+  return '<div title="Clique para ver o histórico completo" onclick="valdispAbrirEm(\'' +
+    valalEsc(String(r.codigo)).replace(/'/g, "\\'") + '\')" ' +
+    'style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:.6rem;font-weight:700;' +
+    'color:#4d8ef5;background:rgba(77,142,245,.10);border:1px solid rgba(77,142,245,.3);' +
+    'border-radius:20px;padding:2px 7px;cursor:pointer">' +
+    '\uD83D\uDCF2 enviado ' + valalEsc(String(d.data_br || '').substring(0, 10)) +
+    (quantos > 1 ? ' (' + quantos + 'x)' : '') + '</div>';
+}
+
+/* Abre o histórico já filtrado naquele produto. */
+function valdispAbrirEm(codigo) {
+  if (typeof VALDISP === 'undefined') return;
+  if (!VALDISP.aberto) toggleValDispPainel();
+  var b = document.getElementById('valdisp-busca');
+  if (b) { b.value = codigo; valdispRenderizar(); }
+  var p = document.getElementById('valdisp-painel');
+  if (p) p.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── Ação por marco: um registro de texto para cada rodada do ciclo ──
@@ -8880,6 +9225,7 @@ function qfIr(nome) {
   if (nome === 'fornecedores')    qfAbrirCard('v3-hist-card', v3CarregarHistorico);
   if (nome === 'transportadoras') qfAbrirCard('v3-transp-card', v3CarregarTransportadoras);
   if (nome === 'validades' && typeof VALAL !== 'undefined' && !VALAL.aberto) toggleValAlertaPainel();
+  if (nome === 'validades' && typeof VALDISP !== 'undefined' && !VALDISP.carregado) valdispCarregar();
   if (nome === 'chegando')        chegRender();
   if (nome === 'visao') qfRenderVisao();
 
