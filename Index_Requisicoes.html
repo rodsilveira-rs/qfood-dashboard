@@ -2818,16 +2818,25 @@ var ReqPrazo = {
   },
 
   // Sugestão = o que a urgência pede, mas nunca depois de quando precisam do item.
-  // Se o prazo é curto, sobra a véspera. Se já estourou, é hoje.
+  // Se o prazo é curto, sobra a véspera. Se a data de necessidade JÁ PASSOU,
+  // ela não serve mais de teto: volta a valer só o que a urgência pede.
   sugerir: function(r){
     var porUrgencia = ReqPrazo.maisDias(ReqPrazo.diasPorUrgencia[r.urgencia] === undefined ? 3 : ReqPrazo.diasPorUrgencia[r.urgencia]);
     var nec = (r.dataNecessidade || "").substring(0, 10);
-    if(!nec) return porUrgencia;
+    if(!nec || ReqPrazo.necVencida(r)) return porUrgencia;
     var vespera = new Date(nec + "T12:00:00");
     vespera.setDate(vespera.getDate() - 1);
     var vIso = vespera.getFullYear() + "-" + ("0"+(vespera.getMonth()+1)).slice(-2) + "-" + ("0"+vespera.getDate()).slice(-2);
     var limite = (porUrgencia < vIso) ? porUrgencia : vIso;
     return (limite < ReqPrazo.hojeIso()) ? ReqPrazo.hojeIso() : limite;
+  },
+
+  // A data em que precisavam do item já ficou para trás. Sem isto, o retorno
+  // precisava ser ao mesmo tempo "hoje ou depois" e "até a necessidade" —
+  // impossível — e a requisição ficava presa sem a Cris conseguir devolver.
+  necVencida: function(r){
+    var nec = ((r && r.dataNecessidade) || "").substring(0, 10);
+    return !!nec && nec < ReqPrazo.hojeIso();
   },
 
   atrasada: function(r){
@@ -2841,12 +2850,18 @@ var ReqPrazo = {
     if(!r){ toast("Recarregue a requisição.", true); return; }
     ReqPrazo.req = r;
 
-    var nec = (r.dataNecessidade || "").substring(0, 10);
+    var vencida = ReqPrazo.necVencida(r);
+    // Data já vencida não limita o campo: some o max e o aviso muda.
+    var nec = vencida ? "" : (r.dataNecessidade || "").substring(0, 10);
     var sugestao = ReqPrazo.sugerir(r);
     var ehCotacao = (status === "EM_COTACAO");
 
     var aviso = "";
-    if(r.urgencia === "Emergencial"){
+    if(vencida){
+      aviso = '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
+              'Precisavam do item até <b>' + esc(dataBr(r.dataNecessidade.substring(0, 10))) +
+              '</b>, e essa data já passou. Informe uma nova data realista — quem pediu passa a ver ela.</div>';
+    } else if(r.urgencia === "Emergencial"){
       aviso = '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
               'Requisição EMERGENCIAL' + (nec ? ' — precisam disso até ' + esc(dataBr(nec)) : '') +
               '. O retorno deve ser hoje.</div>';
@@ -2885,7 +2900,8 @@ var ReqPrazo = {
     var texto = document.getElementById("pz-texto").value.trim();
     var data  = document.getElementById("pz-data").value;
     var r = ReqPrazo.req || {};
-    var nec = (r.dataNecessidade || "").substring(0, 10);
+    // Necessidade vencida não trava mais o retorno (ver ReqPrazo.necVencida).
+    var nec = ReqPrazo.necVencida(r) ? "" : (r.dataNecessidade || "").substring(0, 10);
 
     if(status === "AGUARDANDO_INFORMACAO" && !texto){
       toast("Escreva o que você precisa saber.", true); return;
