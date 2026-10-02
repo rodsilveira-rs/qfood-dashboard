@@ -2275,11 +2275,35 @@ function renderOportunidadesHTML(r, d){
 // ════════════════════════════════════════════════════════════════════
 // CARD COMPLETO (vendedor ou detalhe modal)
 // ════════════════════════════════════════════════════════════════════
+// Troca o mes da ficha sem fechar/reabrir o modal — re-renderiza o card no lugar
+function navCardMes(btn, nome, mesKey, modal){
+  var card = btn.closest(".rem-fullcard");
+  if(!card) return;
+  var holder = document.createElement("div");
+  holder.innerHTML = renderRemCardCompleto(nome, { mesChave: mesKey, modal: !!modal });
+  var novo = holder.firstElementChild;
+  if(novo) card.parentNode.replaceChild(novo, card);
+}
+
 function renderRemCardCompleto(nome, opts){
   opts = opts || {};
   var mesChave = opts.mesChave || MES_SELECIONADO || "atual";
   var d = getDadosPorMes(nome, mesChave);
   var r = calcRemuneracao(d);
+
+  // --- Navegador de meses da ficha (clicar e ver todo o historico do vendedor) ---
+  var mesNavHTML =
+    '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:18px">'+
+      '<span style="font-size:0.64rem;color:var(--mu);text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-right:4px">Período da ficha</span>'+
+      getMesesDisponiveis().map(function(m){
+        var on = (m.valor === mesChave);
+        var lbl;
+        if(m.valor === "atual"){ lbl = "Atual"; }
+        else { var pp = m.label.split("/"); lbl = pp[0].substring(0,3) + "/" + (pp[1]||"").substring(2); }
+        return '<button type="button" onclick="navCardMes(this,\''+nome+'\',\''+m.valor+'\','+(opts.modal?'true':'false')+')" '+
+          'style="background:'+(on?'var(--s2)':'transparent')+';border:1px solid '+(on?'var(--b3)':'var(--br)')+';color:'+(on?'var(--tx)':'var(--mu)')+';padding:5px 11px;border-radius:99px;font-family:var(--fb);font-size:0.72rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s">'+lbl+'</button>';
+      }).join('')+
+    '</div>';
 
   var dm = DM.find(function(v){return v.nome&&v.nome.toLowerCase()===nome.toLowerCase();});
   var av = dm?dm.av:"avLB";
@@ -2425,7 +2449,8 @@ function renderRemCardCompleto(nome, opts){
     '</div>';
 
   return ''+
-    '<div style="background:var(--sf);border:1px solid var(--b2);border-radius:18px;padding:'+(opts.modal?'28px':'24px')+';box-shadow:0 4px 24px rgba(0,0,0,0.2)">'+
+    '<div class="rem-fullcard" style="background:var(--sf);border:1px solid var(--b2);border-radius:18px;padding:'+(opts.modal?'28px':'24px')+';box-shadow:0 4px 24px rgba(0,0,0,0.2)">'+
+      mesNavHTML +
       headerHTML +
       heroHTML +
       avisoHTML +
