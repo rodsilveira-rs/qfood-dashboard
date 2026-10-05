@@ -580,6 +580,41 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .alt-st{font-size:.78rem;font-weight:800;white-space:nowrap}
 .alt-st.ok{color:var(--ok)} .alt-st.fila{color:var(--warn)} .alt-st.sem{color:var(--mu)} .alt-st.falha{color:#ff8a80}
 
+/* ══ Agenda fixa + Reports diários ══ */
+.agf-hero{margin-top:8px;font-size:.84rem}
+.agf-txt{color:var(--tx)} .agf-txt.mu{color:var(--mu)}
+.agf-txt.hoje{color:var(--warn)}
+.agf-prox{color:var(--pur);font-weight:700}
+.agf-txt.hoje .agf-prox{color:var(--warn)}
+.agf-add,.agf-ed{background:none;border:1px dashed var(--b2);border-radius:8px;color:var(--pur);font-family:inherit;font-weight:700;font-size:.78rem;padding:5px 10px;cursor:pointer}
+.agf-ed{border:none;padding:0 4px;text-decoration:underline}
+.agf-form{margin-top:8px;border:1px solid rgba(160,124,246,.45);background:rgba(109,63,224,.08);border-radius:10px;padding:12px}
+.agf-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:6px}
+.agf-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.agf-it{display:flex;gap:10px;align-items:center;border:1px solid var(--br);background:var(--s2);border-radius:10px;padding:8px 10px;cursor:pointer}
+.agf-it:hover{border-color:var(--b3)}
+.agf-it.hoje{border-color:rgba(255,170,43,.6);background:rgba(255,170,43,.08)}
+.agf-dia{width:44px;text-align:center;flex-shrink:0}
+.agf-dia b{display:block;font-size:.72rem;letter-spacing:.6px;color:var(--pur)}
+.agf-it.hoje .agf-dia b{color:var(--warn)}
+.agf-dia span{font-size:.72rem;color:var(--mu)}
+.agf-nome{font-weight:700;font-size:.86rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rpt-filtros{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:800px){.rpt-filtros{grid-template-columns:1fr 1fr}}
+.rpt-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.rpt-dia-h{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--br);padding-bottom:10px;margin-bottom:12px}
+.rpt-dia-t{font-size:1.1rem;font-weight:800;color:#fff}
+.rpt-g{border:1px solid var(--br);border-left:4px solid #6d3fe0;background:var(--s2);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.rpt-g-h{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.rpt-g-h b{display:block;font-size:.92rem}
+.rpt-g-h span{display:block;font-size:.72rem;color:var(--mu)}
+.rpt-q{display:grid;grid-template-columns:200px minmax(0,1fr);gap:12px;padding:6px 0;border-top:1px dashed var(--br)}
+@media(max-width:700px){.rpt-q{grid-template-columns:1fr;gap:2px}}
+.rpt-q-l{font-size:.78rem;font-weight:800;color:var(--pur)}
+.rpt-q-r{font-size:.86rem;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.rpt-q-r.vz{color:var(--mu2);font-style:italic}
+.rpt-falta{font-size:.8rem;color:#ff8a80;margin-top:4px}
+
 </style>
 </head>
 <body>
@@ -1050,7 +1085,7 @@ var CKP_FILA_CHAVES={
   METAS:['gestor_id','mes_ref','kpi_id'], META_PONDERADA:['gestor_id','mes'],
   QDACE_SCORE:['gestor_id','mes'], TRAVA_CAIXA:['ano','tri'], LOJA:['ano','tri'],
   RECEITA_DIARIA:['gestor_id','data_iso'], METAS_EMPRESA:['gestor_id','periodo_iso','nivel'],
-  APURACAO_TRI:['gestor_id','periodo_iso']
+  APURACAO_TRI:['gestor_id','periodo_iso'], AGENDA_FIXA:['gestor_id']
 };
 function ckpFilaLer(){ try{ return JSON.parse(localStorage.getItem(CKP_FILA_KEY)||'[]')||[]; }catch(e){ return []; } }
 function ckpFilaGravar(a){ try{ localStorage.setItem(CKP_FILA_KEY,JSON.stringify(a)); }catch(e){} }
@@ -1603,6 +1638,7 @@ function renderPainel(view){
   var perm=gestoresPermitidos(); var adm=ehAdmin();
   if(!adm && (!perm || perm.length===0)){ el('painel').innerHTML='<div class="card"><div class="ct">Sem acesso</div><p style="color:var(--mu)">Seu usuário não está vinculado a nenhum painel do Checkpoint. Fale com o administrador.</p></div>'; return; }
   if(view==='org') return painelOrg();
+  if(view==='reports') return painelReports();
   if(view==='reunioes') return painelReunioes();
   if(view==='compromissos') return painelCompromissos();
   if(view==='alertas') return painelAlertas();
@@ -1673,11 +1709,12 @@ function painelPessoa(p){
   var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.semPremio?'':(ehLoja?renderPremiacaoB(p):renderPremiacaoCard(p)))):'';
   var blocoReceita=(p.id==='gustavo')?recBlocoGustavo():'';
   el('painel').innerHTML=
-    '<div class="card"><div class="hero">'+avatarHTML(p,56)+'<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+statusInlineHTML(ent)+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
+    '<div class="card"><div class="hero">'+avatarHTML(p,56)+'<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+agfHeroHTML(p)+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+statusInlineHTML(ent)+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
     renderCobranca(p)+blocoReceita+renderReportForm(p)+extra;
   atualizarStatusInline(p.id,ontem());
   if(p.id==='gustavo') recIniciarGustavo();
+  AGF_EDITANDO=null; agfCarregar().then(function(){ agfPintar(p.id); });
   if(KPIS_AREA[p.id]){ recalcScore(p.id); if(!p.semPremio){ if(ehLoja) premBAtualizar(p.id); else premAtualizar(p.id); } }
 }
 function painelRodrigo(){
@@ -2430,6 +2467,7 @@ function painelReunioes(){
   el('painel').innerHTML=
     exeTopo('reunioes','Reuniões','Gestão de reuniões e compromissos · clareza na decisão, disciplina na execução, cobrança por evidências')+
     '<div id="reu-form-wrap"></div>'+
+    '<div id="agf-lista"></div>'+
     '<div class="reu-cols'+(REU_DET?' det':'')+'" id="reu-cols">'+
       '<div class="card reu-hist">'+
         '<div class="reu-hh"><div class="ct" style="margin:0">📅 Histórico de Reuniões</div>'+
@@ -2458,6 +2496,7 @@ function painelReunioes(){
     '</div>';
   reuRenderKpis();
   reuRecarregarTudo();
+  agfCarregar().then(agfRenderLista);
 }
 function reuToggleFiltros(){ REU_FILTROS_ABERTOS=!REU_FILTROS_ABERTOS; var b=el('reu-fmais'); if(b) b.style.display=REU_FILTROS_ABERTOS?'grid':'none'; }
 function reuLimparFiltros(){
@@ -3199,7 +3238,7 @@ function painelAlertas(){
     '<div class="card"><div class="ct">✈️ Política de notificações</div>'+
       '<div class="alt-grid">'+
         '<div class="alt-col env"><div class="alt-h">Notificamos · eventos críticos e acionáveis</div>'+
-          chip('＋','Novo compromisso')+chip('📋','Preparação da reunião vencendo','am')+chip('⏰','Vence hoje','am')+chip('🟡','Em risco','am')+chip('🔴','Atrasado','vm')+chip('📊','Resumo de exceções','pur')+'</div>'+
+          chip('＋','Novo compromisso')+chip('🗓','Reunião fixa · 15 min antes','pur')+chip('📋','Preparação da reunião vencendo','am')+chip('⏰','Vence hoje','am')+chip('🟡','Em risco','am')+chip('🔴','Atrasado','vm')+chip('📊','Resumo de exceções','pur')+'</div>'+
         '<div class="alt-col nao"><div class="alt-h">Não notificamos · baixo valor informativo</div>'+
           chip('📄','Resumo salvo')+chip('✏️','Alteração sem ação')+chip('✅','Concluído')+chip('🟢','Tudo em dia')+'</div>'+
       '</div>'+
@@ -3225,7 +3264,7 @@ function painelAlertas(){
 /* ── histórico de envios (espelho atualizado pelo serviço de notificações a cada 10 min) ── */
 var ALT_HIST=null, ALT_HIST_ERRO='', ALT_HIST_FILTRO='7d';
 var ALT_TIPOS={ ckp_novo:'Novo compromisso', ckp_risco:'Em risco', ckp_dia:'Pendências do dia', ckp_prep:'Preparação da reunião',
-  ckp_lembrete:'Lembrete de reunião', ckp_excecoes:'Resumo de exceções', ckp_teste:'Teste de conexão' };
+  ckp_lembrete:'Lembrete de reunião', ckp_excecoes:'Resumo de exceções', ckp_teste:'Teste de conexão', ckp_fixa:'Reunião fixa (15 min antes)' };
 function altCarregarHistorico(){
   var base=window.__QFOOD_SYNC_URL||CKP_SYNC_URL;
   if(!qsOnline()){ ALT_HIST_ERRO='offline'; altRenderHistorico(); return; }
@@ -3691,7 +3730,7 @@ function shellRenderNav(){
   h+='<button class="sb-it" data-inicio="1"><span class="i">🏠</span><span class="t">Início</span></button>';
   h+='<div class="sb-lbl">Gestão</div>';
   if(adm){
-    h+=shellIt('ceo','👑','Painel do CEO')+shellIt('rodrigo','🧭','Consolidação')+shellIt('metas','🎯','Metas');
+    h+=shellIt('ceo','👑','Painel do CEO')+shellIt('rodrigo','🧭','Consolidação')+shellIt('reports','📝','Reports diários')+shellIt('metas','🎯','Metas');
   }
   h+=shellIt('org','🏢','Organograma');
   h+='<div class="sb-lbl">Execução</div>';
@@ -3782,13 +3821,317 @@ function shellLinkPendente(){
   var h='';
   try{ h=location.hash||localStorage.getItem('chk_link_pendente')||''; localStorage.removeItem('chk_link_pendente'); }catch(e){ h=location.hash||''; }
   if(location.hash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
+  var g=h.match(/#g=([a-z_]+)/);
+  if(g){ if(findLider(g[1])) irPara(g[1],false); return; }
   var m=h.match(/#reu=([^&]+)/);
   if(m){ cenAbrirReuniao(decodeURIComponent(m[1])); return; }
   m=h.match(/#ver=(reunioes|compromissos|alertas)/);
   if(m){ if(m[1]==='compromissos') cenIr(reuPodeEditar()?'abertos':'meus'); else irPara(m[1],false); }
 }
 
-try{ if(/#(ver|reu)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
+/* ══════════════════════════════════════════════════════════════
+   AGENDA FIXA — dia e horário da reunião recorrente de cada gestor
+   Base de dados: aba AGENDA_FIXA (chave gestor_id). Grava: Rodrigo e Adilson.
+   O serviço de notificações avisa 15 min antes (gestor + Rodrigo).
+   ══════════════════════════════════════════════════════════════ */
+var AGF_DIAS = [['1','Segunda-feira','Seg'],['2','Terça-feira','Ter'],['3','Quarta-feira','Qua'],['4','Quinta-feira','Qui'],['5','Sexta-feira','Sex'],['6','Sábado','Sáb'],['7','Domingo','Dom']];
+var AGF_CACHE = null, AGF_EDITANDO = null, AGF_OCUPADO = false;
+
+function agfDiaNome(n,curto){ var d=AGF_DIAS.filter(function(x){ return x[0]===String(n); })[0]; return d?(curto?d[2]:d[1]):''; }
+function agfAtiva(a){ return !!a && String(a.ativo||'sim').toLowerCase()!=='nao' && /^[1-7]$/.test(String(a.dia_semana||'')) && /^\d{2}:\d{2}$/.test(String(a.hora||'').substring(0,5)); }
+/* 1 = segunda … 7 = domingo */
+function agfDowIso(iso){ var d=new Date(iso+'T12:00:00').getDay(); return d===0?7:d; }
+/* próxima ocorrência (data ISO) a partir de hoje, respeitando quinzenal */
+function agfProxima(a){
+  if(!agfAtiva(a)) return '';
+  var h=hoje(), agoraHM=agoraHora(), hora=String(a.hora).substring(0,5);
+  for(var i=0;i<21;i++){
+    var dia=reuSomaDias(h,i);
+    if(String(agfDowIso(dia))!==String(a.dia_semana)) continue;
+    if(i===0 && hora<agoraHM) continue;
+    if(String(a.frequencia)==='quinzenal' && /^\d{4}-\d{2}-\d{2}$/.test(String(a.ref_iso||''))){
+      var sem=Math.round((new Date(dia+'T12:00:00')-new Date(String(a.ref_iso)+'T12:00:00'))/86400000/7);
+      if(Math.abs(sem)%2!==0) continue;
+    }
+    return dia;
+  }
+  return '';
+}
+function agfTexto(a){
+  if(!agfAtiva(a)) return '';
+  return (String(a.frequencia)==='quinzenal'?'A cada 15 dias, ':'Toda ')+agfDiaNome(a.dia_semana).toLowerCase()+' às '+String(a.hora).substring(0,5);
+}
+function agfCarregar(){
+  var base=window.__QFOOD_SYNC_URL||CKP_SYNC_URL;
+  if(!qsOnline()){ if(AGF_CACHE===null){ var c=qsLer('qfood_cache_agenda'); AGF_CACHE=c||{}; } agfSobreporFila(); return Promise.resolve(AGF_CACHE); }
+  return fetch(base+'?aba=AGENDA_FIXA',{method:'GET'}).then(function(r){ return r.json(); }).then(function(d){
+    if(d && d.ok){
+      var m={}; (d.registros||[]).forEach(function(a){ if(a.gestor_id){ a.hora=String(a.hora||'').substring(0,5); m[a.gestor_id]=a; } });
+      AGF_CACHE=m; qsGravarK('qfood_cache_agenda',m);
+    } else if(AGF_CACHE===null){ AGF_CACHE=qsLer('qfood_cache_agenda')||{}; }
+    agfSobreporFila();
+    return AGF_CACHE;
+  }).catch(function(){ if(AGF_CACHE===null) AGF_CACHE=qsLer('qfood_cache_agenda')||{}; agfSobreporFila(); return AGF_CACHE; });
+}
+function agfSobreporFila(){
+  qsPendentesDe('AGENDA_FIXA').forEach(function(i){ AGF_CACHE[i.dado.gestor_id]=Object.assign({}, i.dado, { __pendente:true }); });
+}
+
+/* ── no painel do gestor ── */
+function agfHeroHTML(p){ return '<div class="agf-hero" id="agf-'+p.id+'">'+agfHeroCorpo(p)+'</div>'; }
+function agfHeroCorpo(p){
+  var a=(AGF_CACHE||{})[p.id], ed=reuPodeEditar();
+  if(AGF_EDITANDO===p.id) return agfFormHTML(p,a||{});
+  if(!agfAtiva(a)){
+    return ed?'<button class="agf-add" onclick="agfEditar(\''+p.id+'\')">🗓 Definir reunião fixa</button>':(AGF_CACHE===null?'':'<span class="agf-txt mu">🗓 Reunião fixa ainda não definida</span>');
+  }
+  var prox=agfProxima(a), eHoje=(prox===hoje());
+  return '<span class="agf-txt'+(eHoje?' hoje':'')+'">🗓 <strong>Reunião fixa:</strong> '+esc(agfTexto(a))+
+    (prox?' · <span class="agf-prox">'+(eHoje?'hoje':'próxima '+reuDataBR(prox))+'</span>':'')+
+    (a.__pendente?' <span class="reu-pend-s">⏳ não sincronizado</span>':'')+'</span>'+
+    (ed?' <button class="agf-ed" onclick="agfEditar(\''+p.id+'\')">editar</button>':'');
+}
+function agfFormHTML(p,a){
+  var dias=AGF_DIAS.map(function(d){ return '<option value="'+d[0]+'"'+(String(a.dia_semana)===d[0]?' selected':'')+'>'+d[1]+'</option>'; }).join('');
+  var q=String(a.frequencia)==='quinzenal';
+  return '<div class="agf-form reu-f">'+
+    '<div class="agf-grid">'+
+      '<div><label class="t">Dia da semana</label><select id="agf-dia">'+dias+'</select></div>'+
+      '<div><label class="t">Horário</label><input type="time" id="agf-hora" value="'+reuAttr(String(a.hora||'').substring(0,5))+'"></div>'+
+      '<div><label class="t">Frequência</label><select id="agf-freq" onchange="agfFreqToggle()"><option value="semanal"'+(q?'':' selected')+'>Semanal</option><option value="quinzenal"'+(q?' selected':'')+'>Quinzenal</option></select></div>'+
+      '<div id="agf-ref-box" style="display:'+(q?'block':'none')+'"><label class="t">Uma data da série</label><input type="date" id="agf-ref" value="'+reuAttr(a.ref_iso||'')+'"></div>'+
+    '</div>'+
+    '<div class="hint">O gestor e o Rodrigo recebem lembrete no Telegram 15 minutos antes.</div>'+
+    '<div class="rep-actions" style="margin-top:8px"><button class="btn-save" id="agf-btn" onclick="agfSalvar(\''+p.id+'\')">💾 Salvar</button>'+
+      '<button class="btn-sec" onclick="agfCancelar(\''+p.id+'\')">Cancelar</button>'+
+      (agfAtiva(a)?'<button class="btn-sec perigo" onclick="agfDesativar(\''+p.id+'\')">Remover</button>':'')+
+      '<span class="rep-msg" id="agf-msg"></span></div></div>';
+}
+function agfFreqToggle(){ var b=el('agf-ref-box'); if(b) b.style.display=((el('agf-freq')||{}).value==='quinzenal')?'block':'none'; }
+function agfPintar(id){ var b=el('agf-'+id), p=findLider(id); if(b && p) b.innerHTML=agfHeroCorpo(p); agfRenderLista(); }
+function agfEditar(id){ AGF_EDITANDO=id; agfPintar(id); }
+function agfCancelar(id){ AGF_EDITANDO=null; agfPintar(id); }
+function agfGravar(id,dado,msgOk){
+  if(AGF_OCUPADO) return;
+  if(!reuEmail()) return reuMsg('agf-msg','⚠ Sem sessão ativa — entre pelo menu do sistema para salvar.','#ffaa2b');
+  AGF_OCUPADO=true; var b=el('agf-btn'); if(b) b.disabled=true;
+  reuMsg('agf-msg','⏳ salvando na base de dados...','var(--mu)');
+  enviarSheet('AGENDA_FIXA',dado).then(function(resp){
+    AGF_OCUPADO=false; var b2=el('agf-btn'); if(b2) b2.disabled=false;
+    if(resp.ok || resp.enfileirado){
+      AGF_CACHE=AGF_CACHE||{}; AGF_CACHE[id]=Object.assign({}, dado, resp.enfileirado?{ __pendente:true }:{});
+      qsGravarK('qfood_cache_agenda',AGF_CACHE);
+      AGF_EDITANDO=null; agfPintar(id);
+      return;
+    }
+    reuMsg('agf-msg','✗ Não foi salva — '+resp.erro,'#e63329');
+  });
+}
+function agfDado(id,extra){
+  var p=findLider(id)||{};
+  return Object.assign({ gestor_id:id, gestor_nome:p.nome||id, gestor_email:reuEmailDe(id), editado_por:reuEmail(), salvo_em:new Date().toISOString() }, extra);
+}
+function agfSalvar(id){
+  var dia=(el('agf-dia')||{}).value||'', hora=(el('agf-hora')||{}).value||'', freq=(el('agf-freq')||{}).value||'semanal', ref=(el('agf-ref')||{}).value||'';
+  if(!hora) return reuMsg('agf-msg','⚠ Informe o horário.','#ffaa2b');
+  if(freq==='quinzenal'){
+    if(!ref) return reuMsg('agf-msg','⚠ Na quinzenal, informe uma data em que a reunião acontece.','#ffaa2b');
+    if(String(agfDowIso(ref))!==String(dia)) return reuMsg('agf-msg','⚠ Essa data não cai em '+agfDiaNome(dia).toLowerCase()+'.','#ffaa2b');
+  }
+  agfGravar(id, agfDado(id,{ dia_semana:dia, dia_nome:agfDiaNome(dia), hora:hora, frequencia:freq, ref_iso:freq==='quinzenal'?ref:'', ativo:'sim' }));
+}
+function agfDesativar(id){
+  if(!confirm('Remover a reunião fixa? Os lembretes no Telegram param.')) return;
+  var a=(AGF_CACHE||{})[id]||{};
+  agfGravar(id, agfDado(id,{ dia_semana:a.dia_semana||'', dia_nome:a.dia_nome||'', hora:a.hora||'', frequencia:a.frequencia||'semanal', ref_iso:a.ref_iso||'', ativo:'nao' }));
+}
+
+/* ── na tela Reuniões: agenda fixa da semana ── */
+function agfRenderLista(){
+  var box=el('agf-lista'); if(!box) return;
+  if(AGF_CACHE===null){ box.innerHTML=''; return; }
+  var itens=todosLideres().map(function(p){ var a=AGF_CACHE[p.id]; return agfAtiva(a)?{ p:p, a:a, prox:agfProxima(a) }:null; })
+    .filter(function(x){ return x && x.prox; })
+    .sort(function(x,y){ return (x.prox+' '+x.a.hora).localeCompare(y.prox+' '+y.a.hora); });
+  var sem=todosLideres().filter(function(p){ return p.id!=='adilson' && p.id!=='rodrigo' && !agfAtiva(AGF_CACHE[p.id]); });
+  if(!itens.length && !reuPodeEditar()){ box.innerHTML=''; return; }
+  var h=hoje();
+  box.innerHTML='<div class="card"><div class="reu-hh"><div class="ct" style="margin:0">🗓 Reuniões fixas com os gestores</div><span class="reu-sub">lembrete no Telegram 15 min antes</span></div>'+
+    (itens.length?'<div class="agf-grade">'+itens.map(function(x){
+      var eHoje=x.prox===h;
+      return '<div class="agf-it'+(eHoje?' hoje':'')+'" onclick="irPara(\''+x.p.id+'\',true)">'+
+        '<div class="agf-dia"><b>'+(eHoje?'HOJE':agfDiaNome(agfDowIso(x.prox),true).toUpperCase())+'</b><span>'+reuDataBR(x.prox).substring(0,5)+'</span></div>'+
+        '<div style="min-width:0"><div class="agf-nome">'+x.p.emoji+' '+esc(x.p.nome)+'</div><div class="reu-sub">'+esc(x.a.hora)+(String(x.a.frequencia)==='quinzenal'?' · quinzenal':' · semanal')+'</div></div></div>';
+    }).join('')+'</div>':'<div class="reu-vazio" style="text-align:left;padding:4px 0">Nenhuma reunião fixa definida ainda.</div>')+
+    (reuPodeEditar() && sem.length?'<div class="reu-sub" style="margin-top:8px">Sem reunião fixa: '+sem.map(function(p){ return '<a href="javascript:void(0)" style="color:var(--pur)" onclick="irPara(\''+p.id+'\',true)">'+esc(p.nome)+'</a>'; }).join(', ')+'. Defina no painel de cada gestor.</div>':'')+
+  '</div>';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REPORTS DIÁRIOS — consolidado por período (só administração)
+   Lê a aba DIARIO da base de dados (campos rep_result/plano/risco/acao),
+   agrupa por data (mais antiga primeiro) e gera documento Word.
+   ══════════════════════════════════════════════════════════════ */
+var RPT_DADOS = null, RPT_ERRO = '', RPT_CARREGANDO = false;
+var RPT_FRENTES = [['','Todas as frentes'],['A','Q Food'],['B','Mercearia · Gogui'],['C','Sushi Trip']];
+var RPT_DIAS_SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+
+function rptPessoas(){
+  var frente=(el('rpt-frente')||{}).value||'', gid=(el('rpt-gestor')||{}).value||'';
+  return todasPessoas().filter(function(p){
+    if(gid) return p.id===gid;
+    if(frente) return (p.frente||'A')===frente;
+    return true;
+  });
+}
+function painelReports(){
+  if(!ehAdmin()){ el('painel').innerHTML='<div class="card"><div class="ct">Acesso restrito</div><p style="color:var(--mu)">O consolidado de reports é exclusivo da administração.</p></div>'; return; }
+  var de=reuSomaDias(hoje(),-7), ate=hoje();
+  var gest='<option value="">Todos os gestores</option>'+todasPessoas().map(function(p){ return '<option value="'+p.id+'">'+esc(p.nome)+'</option>'; }).join('');
+  el('painel').innerHTML=
+    '<div class="card exe-head"><div class="exe-tit"><div class="exe-bc">Gestão › Reports diários</div><div class="exe-h1">Reports diários</div>'+
+      '<div class="exe-sub">Consolidado por data, com as quatro perguntas fixas e a resposta de cada gestor</div></div>'+
+      '<div class="exe-kpis" id="rpt-kpis"></div></div>'+
+    '<div class="card"><div class="rpt-filtros reu-f">'+
+      '<div><label class="t">De</label><input type="date" id="rpt-de" value="'+de+'"></div>'+
+      '<div><label class="t">Até</label><input type="date" id="rpt-ate" value="'+ate+'"></div>'+
+      '<div><label class="t">Frente</label><select id="rpt-frente" onchange="rptRender()">'+RPT_FRENTES.map(function(f){ return '<option value="'+f[0]+'">'+f[1]+'</option>'; }).join('')+'</select></div>'+
+      '<div><label class="t">Gestor</label><select id="rpt-gestor" onchange="rptRender()">'+gest+'</select></div>'+
+    '</div>'+
+    '<div class="rpt-acoes">'+
+      '<label class="reu-chk"><input type="checkbox" id="rpt-faltas" checked onchange="rptRender()"> Mostrar quem não entregou</label>'+
+      '<span style="flex:1"></span>'+
+      '<button class="btn-save" onclick="rptCarregar()">🔎 Buscar período</button>'+
+      '<button class="btn-sec" onclick="rptWord()">📄 Gerar Word</button>'+
+      '<button class="btn-sec" onclick="rptImprimir()">🖨 Imprimir / PDF</button>'+
+      '<span class="rep-msg" id="rpt-msg"></span>'+
+    '</div></div>'+
+    '<div id="rpt-lista"></div>';
+  rptCarregar();
+}
+function rptCarregar(){
+  var de=(el('rpt-de')||{}).value||'', ate=(el('rpt-ate')||{}).value||'';
+  if(!de || !ate) return reuMsg('rpt-msg','⚠ Informe o período.','#ffaa2b');
+  if(de>ate) return reuMsg('rpt-msg','⚠ A data inicial é depois da final.','#ffaa2b');
+  if(!qsOnline()){ RPT_DADOS=null; RPT_ERRO='offline'; return rptRender(); }
+  RPT_CARREGANDO=true; reuMsg('rpt-msg','⏳ lendo a base de dados...','var(--mu)');
+  var base=window.__QFOOD_SYNC_URL||CKP_SYNC_URL;
+  fetch(base+'?aba=DIARIO&de='+de+'&ate='+ate,{method:'GET'}).then(function(r){ return r.json(); }).then(function(d){
+    RPT_CARREGANDO=false;
+    if(!d || !d.ok){ RPT_DADOS=null; RPT_ERRO='falha'; return rptRender(); }
+    RPT_DADOS={ de:de, ate:ate, linhas:(d.registros||[]).filter(function(r){
+      var iso=String(r.data_iso||'').substring(0,10);
+      return iso>=de && iso<=ate && REPORT_CAMPOS.some(function(c){ return String(r['rep_'+c.id]||'').trim(); });
+    }) };
+    RPT_ERRO=''; reuMsg('rpt-msg',''); rptRender();
+  }).catch(function(){ RPT_CARREGANDO=false; RPT_DADOS=null; RPT_ERRO='falha'; rptRender(); });
+}
+/* { datas:[iso…], porData:{ iso:{ gid:registro } }, esperados:[pessoas] } */
+function rptMontar(){
+  var pessoas=rptPessoas(), ids={}; pessoas.forEach(function(p){ ids[p.id]=1; });
+  var porData={};
+  (RPT_DADOS?RPT_DADOS.linhas:[]).forEach(function(r){
+    if(!ids[r.gestor_id]) return;
+    var iso=String(r.data_iso).substring(0,10);
+    var atual=(porData[iso]=porData[iso]||{})[r.gestor_id];
+    if(!atual || String(r.salvo_em||'')>String(atual.salvo_em||'')) porData[iso][r.gestor_id]=r;
+  });
+  return { datas:Object.keys(porData).sort(), porData:porData, esperados:pessoas };
+}
+function rptDiaTxt(iso){ return isoBR(iso)+' · '+RPT_DIAS_SEMANA[new Date(iso+'T12:00:00').getDay()]; }
+function rptHora(r){ var h=String(r.hora||''); if(h) return h.substring(0,5); var s=String(r.salvo_em||''); if(!s) return ''; var d=new Date(s); return isNaN(d)?'':String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+function rptRender(){
+  var box=el('rpt-lista'); if(!box) return;
+  var kp=el('rpt-kpis');
+  if(RPT_DADOS===null){
+    if(kp) kp.innerHTML='';
+    box.innerHTML='<div class="card"><div class="reu-vazio">'+({ offline:'Sem conexão — o consolidado precisa da base de dados.', falha:'Não foi possível ler a base de dados agora. Tente novamente em instantes.' }[RPT_ERRO]||'⏳ lendo a base de dados...')+'</div></div>';
+    return;
+  }
+  var m=rptMontar(), faltas=!!((el('rpt-faltas')||{}).checked);
+  var entregues=0; m.datas.forEach(function(d){ entregues+=Object.keys(m.porData[d]).length; });
+  var possiveis=m.datas.length*m.esperados.length;
+  var taxa=possiveis?Math.round(entregues/possiveis*100):0;
+  if(kp) kp.innerHTML=
+    '<div class="exe-kpi k-pur"><div class="i">📅</div><div class="n">'+m.datas.length+'</div><div class="l">Dias com report</div><div class="s">'+isoBR(RPT_DADOS.de)+' a '+isoBR(RPT_DADOS.ate)+'</div></div>'+
+    '<div class="exe-kpi k-gold"><div class="i">📝</div><div class="n">'+entregues+'</div><div class="l">Reports entregues</div><div class="s">'+m.esperados.length+' gestor(es) no filtro</div></div>'+
+    '<div class="exe-kpi '+(taxa>=90?'k-pur':(taxa>=70?'k-gold':'k-red'))+'"><div class="i">🎯</div><div class="n">'+taxa+'%</div><div class="l">Taxa de entrega</div><div class="s">nos dias com report</div></div>';
+  if(!m.datas.length){ box.innerHTML='<div class="card"><div class="reu-vazio">Nenhum report registrado nesse período para o filtro escolhido.</div></div>'; return; }
+  box.innerHTML=m.datas.map(function(iso){
+    var dia=m.porData[iso];
+    var quem=m.esperados.filter(function(p){ return dia[p.id]; });
+    var falt=m.esperados.filter(function(p){ return !dia[p.id]; });
+    return '<div class="card rpt-dia"><div class="rpt-dia-h"><div><div class="rpt-dia-t">Report do dia '+rptDiaTxt(iso)+'</div>'+
+        '<div class="reu-sub">'+quem.length+' de '+m.esperados.length+' entregue(s)</div></div></div>'+
+      quem.map(function(p){
+        var r=dia[p.id];
+        return '<div class="rpt-g"><div class="rpt-g-h">'+avatarHTML(p,32)+'<div><b>'+esc(p.nome)+'</b><span>'+esc(p.funcao||'')+(rptHora(r)?' · enviado às '+rptHora(r):'')+'</span></div></div>'+
+          REPORT_CAMPOS.map(function(c){
+            var v=String(r['rep_'+c.id]||'').trim();
+            return '<div class="rpt-q"><div class="rpt-q-l">'+esc(c.label)+'</div><div class="rpt-q-r'+(v?'':' vz')+'">'+(v?esc(v):'— sem resposta')+'</div></div>';
+          }).join('')+'</div>';
+      }).join('')+
+      (faltas && falt.length?'<div class="rpt-falta">● Não entregaram: '+falt.map(function(p){ return esc(p.nome); }).join(', ')+'</div>':'')+
+    '</div>';
+  }).join('');
+}
+/* documento (Word e impressão) */
+function rptDocHTML(){
+  var m=rptMontar(), faltas=!!((el('rpt-faltas')||{}).checked);
+  var e=function(s){ return esc(String(s==null?'':s)).replace(/\n/g,'<br>'); };
+  var filtro=[(RPT_FRENTES.filter(function(f){ return f[0]===((el('rpt-frente')||{}).value||''); })[0]||['',''])[1],
+    (el('rpt-gestor')||{}).value?(findPessoa(el('rpt-gestor').value)||{}).nome:''].filter(function(x){ return x; }).join(' · ');
+  var corpo='<h1>Reports diários</h1><p class="sub">Q Food Group · Painel QDACE® · período de '+isoBR(RPT_DADOS.de)+' a '+isoBR(RPT_DADOS.ate)+(filtro?' · '+e(filtro):'')+'</p>';
+  if(!m.datas.length) corpo+='<p>Nenhum report registrado nesse período.</p>';
+  m.datas.forEach(function(iso){
+    var dia=m.porData[iso];
+    corpo+='<h2>Report do dia '+rptDiaTxt(iso)+'</h2>';
+    m.esperados.filter(function(p){ return dia[p.id]; }).forEach(function(p){
+      var r=dia[p.id];
+      corpo+='<h3>'+e(p.nome)+' <span class="fn">— '+e(p.funcao||'')+(rptHora(r)?' · enviado às '+rptHora(r):'')+'</span></h3>';
+      REPORT_CAMPOS.forEach(function(c){
+        var v=String(r['rep_'+c.id]||'').trim();
+        corpo+='<p class="q">'+e(c.label)+'</p><p class="r">'+(v?e(v):'<i>sem resposta</i>')+'</p>';
+      });
+    });
+    var falt=m.esperados.filter(function(p){ return !dia[p.id]; });
+    if(faltas && falt.length) corpo+='<p class="falta">Não entregaram: '+falt.map(function(p){ return e(p.nome); }).join(', ')+'</p>';
+  });
+  corpo+='<p class="rod">Gerado em '+isoBR(hoje())+' às '+agoraHora()+' por '+e(reuNomeUsuario())+'.</p>';
+  var css='body{font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#1a1a1a}'+
+    'h1{font-size:20pt;color:#4b2bb3;margin:0 0 2pt}'+
+    '.sub{color:#666;font-size:10pt;margin:0 0 14pt}'+
+    'h2{font-size:14pt;color:#fff;background:#4b2bb3;padding:5pt 8pt;margin:18pt 0 8pt}'+
+    'h3{font-size:12pt;color:#1a1a1a;border-bottom:1pt solid #d9d2f5;padding-bottom:2pt;margin:12pt 0 4pt}'+
+    '.fn{font-weight:normal;color:#777;font-size:10pt}'+
+    '.q{font-weight:bold;color:#4b2bb3;margin:6pt 0 1pt}'+
+    '.r{margin:0 0 4pt 0}'+
+    '.falta{color:#b42318;font-size:10pt;margin-top:8pt}'+
+    '.rod{color:#999;font-size:9pt;margin-top:20pt}';
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'+
+    '<head><meta charset="utf-8"><title>Reports diários</title>'+
+    '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->'+
+    '<style>@page{size:21cm 29.7cm;margin:2cm 2cm 2cm 2cm}'+css+'</style></head><body>'+corpo+'</body></html>';
+}
+function rptWord(){
+  if(!RPT_DADOS) return reuMsg('rpt-msg','⚠ Busque o período antes de gerar o documento.','#ffaa2b');
+  var blob=new Blob(['﻿',rptDocHTML()],{ type:'application/msword' });
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='Reports_diarios_'+RPT_DADOS.de+'_a_'+RPT_DADOS.ate+'.doc';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
+  reuMsg('rpt-msg','✓ Documento gerado.');
+}
+function rptImprimir(){
+  if(!RPT_DADOS) return reuMsg('rpt-msg','⚠ Busque o período antes de imprimir.','#ffaa2b');
+  var w=window.open('','_blank');
+  if(!w) return reuMsg('rpt-msg','⚠ O navegador bloqueou a janela de impressão. Libere pop-ups para este site.','#ffaa2b');
+  w.document.open(); w.document.write(rptDocHTML()); w.document.close();
+  setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} },400);
+}
+
+try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
 (function init(){
   if(window.__NOSESS && !window.__DEVMODE){
     telaBloqueio('Acesso restrito','Este painel exige login. Entre pelo menu do sistema para acessar o seu Checkpoint.',false);
