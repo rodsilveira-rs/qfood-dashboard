@@ -479,16 +479,7 @@
         <button class="cal-refresh" onclick="renderChecklist()">↻</button>
       </div>
     </div>
-    <div class="setores" id="chkSetores">
-      <div class="setor-card cl" data-nome="Rodrigo"  onclick="chkVerPessoa('Rodrigo','Operações / Comercial')"><div class="nome">Operações / Comercial</div><div class="resp">Rodrigo</div></div>
-      <div class="setor-card cl" data-nome="Maiko"    onclick="chkVerPessoa('Maiko','Logística')"><div class="nome">Logística</div><div class="resp">Maiko</div></div>
-      <div class="setor-card cl" data-nome="Célio"    onclick="chkVerPessoa('Célio','Compras / Adm')"><div class="nome">Compras / Adm</div><div class="resp">Célio</div></div>
-      <div class="setor-card cl" data-nome="Gustavo"  onclick="chkVerPessoa('Gustavo','Financeiro / RH')"><div class="nome">Financeiro / RH</div><div class="resp">Gustavo</div></div>
-      <div class="setor-card cl" data-nome="Barbara"  onclick="chkVerPessoa('Barbara','Marketing')"><div class="nome">Marketing</div><div class="resp">Barbara</div></div>
-      <div class="setor-card cl" data-nome="Mariana"  onclick="chkVerPessoa('Mariana','Loja')"><div class="nome">Loja</div><div class="resp">Mariana</div></div>
-      <div class="setor-card cl" data-nome="Elizeu"   onclick="chkVerPessoa('Elizeu','Cozinha')"><div class="nome">Cozinha</div><div class="resp">Elizeu</div></div>
-      <div class="setor-card cl" data-nome="Samara"   onclick="chkVerPessoa('Samara','Sushi Trip')"><div class="nome">Sushi Trip</div><div class="resp">Samara</div></div>
-    </div>
+    <div class="setores" id="chkSetores"><!-- preenchido dinamicamente pela aba SETORES (com fallback embutido) --></div>
     <div id="chkDetalhe"></div>
   </section>
 
@@ -747,7 +738,9 @@ var CSV_URLS = {
   plano:      'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1145722235&single=true&output=csv',
   checklist:  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1981300204&single=true&output=csv',
   // ↓↓↓ aba PLAYBOOK publicada (gid 1605831073) ↓↓↓
-  playbook:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1605831073&single=true&output=csv'
+  playbook:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=1605831073&single=true&output=csv',
+  // ↓↓↓ Crie a aba SETORES, publique e troque COLE_O_GID_SETORES pelo gid dela (até lá, usa o fallback embutido) ↓↓↓
+  setores:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=COLE_O_GID_SETORES&single=true&output=csv'
 };
 
 /* ===== Parser CSV robusto (RFC 4180) ===== */
@@ -1076,8 +1069,9 @@ function alertaAntecedencia(p){
   return '';
 }
 function resolveNome(resp){
-  var f=norm(resp).split(' ')[0];
-  var u=USUARIOS.filter(function(x){ return norm(x.nome).split(' ')[0]===f; })[0];
+  var full=norm(resp), f=full.split(' ')[0];
+  var u=USUARIOS.filter(function(x){ return norm(x.nome)===full; })[0]          // casa pelo nome completo
+     || USUARIOS.filter(function(x){ return norm(x.nome).split(' ')[0]===f; })[0]; // senão, pelo 1º nome
   return u?u.nome:resp;
 }
 
@@ -1547,7 +1541,8 @@ var GENERO_F={barbara:1,mariana:1,samara:1,vera:1,camila:1,eliane:1,dayane:1,cla
 var COR_NOME={
   rodrigo:'#2b6cb0', maiko:'#2f7d5b', celio:'#b8860b', gustavo:'#0f766e',
   elizeu:'#c2410c', ederson:'#1e40af', lucas:'#15803d', kenyo:'#0e7490', adilson:'#475569',
-  barbara:'#db2777', mariana:'#7c3aed', samara:'#c2255c', vera:'#9d4edd',
+  barbara:'#db2777', 'barbara drumond':'#9333ea', 'barbara do carmo':'#db2777',
+  mariana:'#7c3aed', samara:'#c2255c', vera:'#9d4edd',
   camila:'#be185d', eliane:'#6d28d9', dayane:'#e64980', claudia:'#a21caf', deane:'#c026d3',
   cris:'#7e22ce', cristina:'#7e22ce'
 };
@@ -1559,9 +1554,9 @@ function tint(hex,p){
   return 'rgb('+r+','+g+','+b+')';
 }
 function corDoNome(nome){
-  var f=norm(nome).split(' ')[0];
-  var s=COR_NOME[f];
-  if(!s){ var pal=GENERO_F[f]?PAL_F:PAL_M, h=0; for(var i=0;i<f.length;i++) h+=f.charCodeAt(i); s=pal[h%pal.length].s; }
+  var full=norm(nome), f=full.split(' ')[0];
+  var s=COR_NOME[full] || COR_NOME[f];   // nome completo primeiro, depois 1º nome
+  if(!s){ var pal=GENERO_F[f]?PAL_F:PAL_M, h=0; for(var i=0;i<full.length;i++) h+=full.charCodeAt(i); s=pal[h%pal.length].s; }
   return { s:s, b:tint(s,0.86) };
 }
 /* logo da empresa */
@@ -1580,6 +1575,49 @@ function colorirSetores(){
     card.style.background=c.b;
     var r=card.querySelector('.resp'); if(r){ r.style.color=c.s; r.style.fontWeight='800'; }
   });
+}
+
+/* ===== SETORES (postos fixos, pessoa editável — aba SETORES no Sheets) ===== */
+var SETORES = [];
+var SETORES_FALLBACK = [
+  {setor:'Operações / Comercial', responsavel:'Rodrigo'},
+  {setor:'Logística',             responsavel:'Túlio'},
+  {setor:'Compras / Adm',         responsavel:'Célio'},
+  {setor:'Financeiro / RH',       responsavel:'Gustavo'},
+  {setor:'Marketing / Social',    responsavel:'Barbara Drumond'},
+  {setor:'E-commerce / CRM',      responsavel:'Barbara do Carmo'},
+  {setor:'Loja',                  responsavel:'Mariana'},
+  {setor:'Cozinha',               responsavel:'Fabrícia'},
+  {setor:'Sushi Trip',            responsavel:'Samara'}
+];
+function carregarSetores(){
+  return fetch(CSV_URLS.setores + '&_=' + Date.now())
+    .then(function(r){ return r.ok ? r.text() : ''; })
+    .then(function(txt){
+      SETORES = [];
+      if(txt && txt.indexOf('COLE_O_GID_SETORES')<0){
+        csvParaObjetos(txt).forEach(function(o){
+          var g={}; Object.keys(o).forEach(function(k){ g[k.trim().toLowerCase()]=o[k]; });
+          var s=(g['setor']||'').trim(); if(!s) return;
+          SETORES.push({ setor:s, responsavel:(g['responsavel']||'').trim(),
+            empresa:(g['empresa']||'').trim(), ordem:parseInt(g['ordem'],10)||999 });
+        });
+        SETORES.sort(function(a,b){ return a.ordem-b.ordem; });
+      }
+      if(!SETORES.length) SETORES = SETORES_FALLBACK.slice();  // ainda sem aba publicada → usa o embutido
+      renderSetores();
+    })
+    .catch(function(){ SETORES = SETORES_FALLBACK.slice(); renderSetores(); });
+}
+function renderSetores(){
+  var box=document.getElementById('chkSetores'); if(!box) return;
+  box.innerHTML = SETORES.map(function(s){
+    var nome=s.responsavel||'';
+    var jsNome=esc(nome).replace(/'/g,"\\'"), jsSetor=esc(s.setor).replace(/'/g,"\\'");
+    return '<div class="setor-card cl" data-nome="'+esc(nome)+'" onclick="chkVerPessoa(\''+jsNome+'\',\''+jsSetor+'\')">'+
+      '<div class="nome">'+esc(s.setor)+'</div><div class="resp">'+esc(nome||'—')+'</div></div>';
+  }).join('');
+  colorirSetores();
 }
 
 function renderChecklist(){ chkVerGlobal(); }
@@ -1681,7 +1719,7 @@ if(_btnCrono) _btnCrono.addEventListener('click', renderCronograma);
 if(_btnPos)   _btnPos.addEventListener('click', renderPosEvento);
 var _posF=document.getElementById('posFiltro');
 if(_posF) _posF.addEventListener('change', function(){ filtroPos=this.value; renderPosEvento(); });
-colorirSetores();
+carregarSetores();
 
 /* ===== INIT do módulo de escrita ===== */
 document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
