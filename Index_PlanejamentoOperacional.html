@@ -388,7 +388,49 @@
   .pe-reaprov{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink-2);margin-top:6px;cursor:pointer}
   .pe-reaprov input{width:auto}
   .pe-rod{display:flex;align-items:center;gap:8px}
+
+  /* ===== 2.0: tipo, visão geral, sala de comando, recursos, produtos ===== */
+  .tipo-badge{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:3px 8px;border-radius:999px;background:#eef2f1;color:var(--ink-2);border:1px solid var(--line);margin-left:6px;vertical-align:middle}
+  .vg-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .vg-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+  .vg-num{font-size:30px;font-weight:800;line-height:1}
+  .vg-lbl{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .vg-card.alerta .vg-num{color:#b3412c}
+  .vg-card.ok .vg-num{color:#236b4a}
+  .vg-sec{font-size:15px;font-weight:800;margin:18px 0 10px}
+  .vg-tab{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .vg-tab th,.vg-tab td{text-align:left;padding:9px 12px;font-size:13px;border-bottom:1px solid var(--line)}
+  .vg-tab th{background:#f3f6f5;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-2)}
+  .vg-tab tr:last-child td{border-bottom:none}
+  .vg-prazo{font-weight:800}
+  .vg-empresas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .vg-emp{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:10px}
+  .vg-emp b{font-size:20px}
+  .modal-lg{max-width:920px}
+  .det-sec{margin:4px 0 16px}
+  .det-sec h4{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:var(--accent);margin:0 0 8px;border-bottom:1px solid var(--line);padding-bottom:5px}
+  .det-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .det-kpi{background:#f3f6f5;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .det-kpi .n{font-size:20px;font-weight:800}
+  .det-kpi .l{font-size:11.5px;color:var(--muted)}
+  .rp-tab{width:100%;border-collapse:collapse;font-size:13px}
+  .rp-tab th,.rp-tab td{padding:6px 7px;border-bottom:1px solid var(--line);text-align:center}
+  .rp-tab th{font-size:11px;text-transform:uppercase;color:var(--ink-2);background:#f3f6f5}
+  .rp-tab td:first-child,.rp-tab th:first-child{text-align:left}
+  .rp-tab input{width:62px;border:1px solid var(--line);border-radius:7px;padding:5px 6px;font-family:inherit;font-size:13px;text-align:center}
+  .rp-tab input.nome{width:100%;text-align:left}
+  .rp-dif.neg{color:#b3412c;font-weight:800}
+  .rp-dif.ok{color:#236b4a;font-weight:800}
+  .rp-add{border:1px dashed var(--accent);background:#fff;color:#9a4d12;font-family:inherit;font-size:12.5px;font-weight:800;padding:7px 13px;border-radius:9px;cursor:pointer;margin-top:8px}
+  .rp-add:hover{background:var(--accent-soft)}
+  .rp-del{border:none;background:none;color:#b3412c;cursor:pointer;font-size:15px}
+  .ms-dono{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--ink-2);white-space:nowrap}
+  .ms-dono input{width:auto}
+  .ms-ev{width:150px;border:1px solid var(--line);border-radius:8px;padding:7px 9px;font-family:inherit;font-size:12.5px}
+  .dono-chip{font-weight:900}
+  .dono-tag{font-size:10px;font-weight:800;color:#9a4d12;margin-left:3px}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -409,7 +451,8 @@
 
 <!-- ===================== ABAS ===================== -->
 <nav class="abas" id="navAbas">
-  <button class="ativa" data-aba="calendario"><span class="ic">📅</span> Calendário</button>
+  <button class="ativa" data-aba="visao"><span class="ic">🏠</span> Visão Geral</button>
+  <button data-aba="calendario"><span class="ic">📅</span> Calendário</button>
   <button data-aba="plano"><span class="ic">🎯</span> Plano de Ações</button>
   <button data-aba="checklist"><span class="ic">✅</span> Checklist por Setor</button>
   <button data-aba="cronograma"><span class="ic">⏱️</span> Cronograma 30 dias</button>
@@ -418,8 +461,17 @@
 
 <main>
 
+  <!-- ---------- ABA 0: VISÃO GERAL (cockpit) ---------- -->
+  <section class="painel ativo" id="aba-visao">
+    <div class="painel-cab linha">
+      <h2>🏠 Visão Geral</h2>
+      <button class="cal-refresh" onclick="carregarPlanos().then(renderVisaoGeral)">↻ Atualizar</button>
+    </div>
+    <div id="vgConteudo"><div class="cal-estado"><div class="spin"></div><div>Carregando…</div></div></div>
+  </section>
+
   <!-- ---------- ABA 1: CALENDÁRIO ---------- -->
-  <section class="painel ativo" id="aba-calendario">
+  <section class="painel" id="aba-calendario">
     <div class="painel-cab linha">
       <h2>📅 Calendário</h2>
       <button class="btn-add" onclick="abrirNovoEvento()">+ Novo evento</button>
@@ -531,6 +583,18 @@
         </div>
         <small class="pb-dica">Preenche responsáveis, tarefas e prazos automaticamente (D-X a partir da data do evento).</small>
       </div>
+      <div class="campo">
+        <label>Tipo de planejamento</label>
+        <select id="pf-tipo">
+          <option>Evento</option>
+          <option>Campanha/Marketing</option>
+          <option>Comercial</option>
+          <option>Projeto</option>
+          <option>Operacional</option>
+          <option>Reunião</option>
+          <option>Treinamento</option>
+        </select>
+      </div>
       <div class="campo-2">
         <div class="campo">
           <label>Empresa</label>
@@ -588,6 +652,23 @@
     <div class="modal-rod">
       <button class="btn-cancel" onclick="fecharModal('modalPlano')">Cancelar</button>
       <button class="btn-save" id="pf-salvar" onclick="salvarPlano()">✅ Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL: SALA DE COMANDO (detalhe) ===================== -->
+<div class="modal-ov" id="modalDet" onclick="if(event.target===this)fecharModal('modalDet')">
+  <div class="modal-cx modal-lg">
+    <div class="modal-cab">
+      <h3 id="detTitulo">Planejamento</h3>
+      <button class="modal-x" onclick="fecharModal('modalDet')">×</button>
+    </div>
+    <div class="modal-corpo" id="detCorpo"></div>
+    <div class="modal-rod">
+      <button class="btn-pb" onclick="gerarPDF(DET_ID)">📄 Gerar PDF</button>
+      <span style="flex:1"></span>
+      <button class="btn-cancel" onclick="fecharModal('modalDet')">Fechar</button>
+      <button class="btn-save" id="det-salvar" onclick="salvarExtras()">✅ Salvar recursos/produtos</button>
     </div>
   </div>
 </div>
@@ -1005,6 +1086,8 @@ function renderResponsaveis(atrib){
           '<select class="ms-status" onchange="updateDet(this)">'+statusOpts(a?a.status:'')+'</select>'+
           '<span class="ms-dr"></span>'+
           '<span class="ms-cont"></span>'+
+          '<label class="ms-dono"><input type="checkbox" class="ms-dono-cb" '+(a&&a.dono?'checked':'')+' onclick="soUmDono(this)"> ⭐ dono</label>'+
+          '<input class="ms-ev" placeholder="evidência (link)" value="'+esc(a&&a.ev?a.ev:'')+'">'+
         '</div>'+
       '</div>';
     }).join('');
@@ -1026,14 +1109,19 @@ function getAtribuicoes(){
                  t: w.querySelector('.ms-tarefa').value.trim(),
                  p: w.querySelector('.ms-prazo').value,
                  s: w.querySelector('.ms-status').value,
-                 c: w.getAttribute('data-cat')||'' });
+                 c: w.getAttribute('data-cat')||'',
+                 dono: !!(w.querySelector('.ms-dono-cb') && w.querySelector('.ms-dono-cb').checked),
+                 ev: (w.querySelector('.ms-ev') && w.querySelector('.ms-ev').value.trim()) || '' });
     }
   });
   return arr;
 }
+function soUmDono(cb){
+  if(cb.checked){ document.querySelectorAll('#pf-responsaveis .ms-dono-cb').forEach(function(x){ if(x!==cb) x.checked=false; }); }
+}
 function parseAtrib(s){ try{ var a=JSON.parse(s); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
 function atribParaMapa(s){
-  var m={}; parseAtrib(s).forEach(function(x){ if(x&&x.n) m[x.n]={tarefa:x.t||'',prazo:x.p||'',status:x.s||'',cat:x.c||''}; }); return m;
+  var m={}; parseAtrib(s).forEach(function(x){ if(x&&x.n) m[x.n]={tarefa:x.t||'',prazo:x.p||'',status:x.s||'',cat:x.c||'',dono:!!x.dono,ev:x.ev||''}; }); return m;
 }
 function preencherEventosDropdown(sel){
   var dd = document.getElementById('pf-evento');
@@ -1258,7 +1346,8 @@ function carregarPlanos(){
         return { id:o.ID||'', evento:o.Evento_ref||'', data:cleanData(o.Data_evento||''), empresa:o.Empresa||'',
                  objetivo:o.Objetivo||'', responsaveis:o.Responsavel||'', status:o.Status||'Planejado',
                  meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'',
-                 atrib:o.Atribuicoes||'', enc:o.Encerramento||'' };
+                 atrib:o.Atribuicoes||'', enc:o.Encerramento||'',
+                 tipo:o.Tipo||'Evento', recursos:o.Recursos||'', produtos:o.Produtos||'' };
       }).filter(function(p){ return p.evento || p.objetivo; });
       renderPlanos();
     })
@@ -1283,7 +1372,7 @@ function cardPlano(p){
     .map(function(n){ var c=corDoNome(n); return '<span class="resp-chip" style="background:'+c.b+';color:'+c.s+';border-color:'+c.s+'">'+esc(n)+'</span>'; }).join('');
   return '<div class="plano-card st-'+cls+'">'+
     '<div class="plano-topo">'+
-      '<div><div class="plano-evento">'+esc(p.evento||'(sem evento)')+'</div>'+
+      '<div><div class="plano-evento">'+esc(p.evento||'(sem evento)')+tipoBadge(p.tipo)+'</div>'+
         '<div class="plano-empresa">'+logoEmpHtml(p.empresa,18)+' '+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</div></div>'+
       '<span class="plano-stt stt-'+cls+'">'+esc(p.status||'')+'</span>'+
     '</div>'+
@@ -1296,6 +1385,7 @@ function cardPlano(p){
     itensHtml+
     (p.obs?'<div class="plano-obs">'+esc(p.obs)+'</div>':'')+
     '<div class="plano-acoes">'+
+      '<button class="lnk" style="color:#0f766e;font-weight:800" onclick="abrirDetalhe(\''+esc(p.id)+'\')">📂 Abrir</button>'+
       '<button class="lnk mapa-lnk" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button>'+
       '<button class="lnk" onclick="editarPlano(\''+esc(p.id)+'\')">✏ Editar</button>'+
       '<button class="lnk del" onclick="excluirPlano(\''+esc(p.id)+'\')">🗑 Excluir</button>'+
@@ -1305,6 +1395,7 @@ function cardPlano(p){
 function abrirNovoPlano(){
   document.getElementById('planoModalTitulo').textContent='Novo plano de ação';
   document.getElementById('pf-id').value='';
+  document.getElementById('pf-tipo').value='Evento';
   document.getElementById('pf-empresa').value='Q Food';
   document.getElementById('pf-status').value='Planejado';
   document.getElementById('pf-objetivo').value='';
@@ -1324,6 +1415,7 @@ function editarPlano(id){
   var p = PLANOS.filter(function(x){ return x.id===id; })[0]; if(!p) return;
   document.getElementById('planoModalTitulo').textContent='Editar plano';
   document.getElementById('pf-id').value=p.id;
+  document.getElementById('pf-tipo').value=p.tipo||'Evento';
   document.getElementById('pf-empresa').value=p.empresa||'Q Food';
   document.getElementById('pf-status').value=p.status||'Planejado';
   document.getElementById('pf-objetivo').value=p.objetivo||'';
@@ -1347,6 +1439,7 @@ function salvarPlano(){
     action:'savePlano',
     id: document.getElementById('pf-id').value,
     evento: document.getElementById('pf-evento').value,
+    tipo: document.getElementById('pf-tipo').value,
     empresa: document.getElementById('pf-empresa').value,
     objetivo: document.getElementById('pf-objetivo').value,
     status: document.getElementById('pf-status').value,
@@ -1711,6 +1804,181 @@ function abrirMapa(id){
   abrirModal('modalMapa');
 }
 
+/* ============================================================
+   2.0 — TIPO, VISÃO GERAL, SALA DE COMANDO, RECURSOS, PRODUTOS, PDF
+   ============================================================ */
+var TIPO_ICON={'Evento':'🎪','Campanha/Marketing':'📣','Comercial':'💼','Projeto':'🧩','Operacional':'⚙️','Reunião':'👥','Treinamento':'🎓'};
+function tipoBadge(t){ t=t||'Evento'; return '<span class="tipo-badge">'+(TIPO_ICON[t]||'•')+' '+esc(t)+'</span>'; }
+function num(x){ if(x==null) return 0; var s=String(x).replace(/[^\d,.-]/g,'').replace(',','.'); var v=parseFloat(s); return isNaN(v)?0:v; }
+function brl(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function parseJSONArr(s){ try{ var a=JSON.parse(s); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
+function donoDoPlano(p){ var d=parseAtrib(p.atrib).filter(function(a){return a.dono;})[0]; return d?d.n:(((p.responsaveis||'').split(',')[0])||'').trim(); }
+
+/* ---------- VISÃO GERAL (cockpit) ---------- */
+function renderVisaoGeral(){
+  var el=document.getElementById('vgConteudo'); if(!el) return;
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var tarefas=[]; PLANOS.forEach(function(p){ parseAtrib(p.atrib).forEach(function(a){ tarefas.push({p:p,a:a}); }); });
+  function ativa(a){ return a.s!=='Concluído'&&a.s!=='Cancelado'&&a.s!=='Recusado'; }
+  var vencHoje=0, atras=0;
+  tarefas.forEach(function(o){ var d=isoToDate(o.a.p); if(!d||!ativa(o.a)) return; var dd=Math.round((d-hoje)/864e5); if(dd===0)vencHoje++; else if(dd<0)atras++; });
+  var ativos=PLANOS.filter(function(p){ return classeStatus(p.status)!=='concluido'; }).length;
+  var prox=PLANOS.filter(function(p){ var d=brToDate(p.data); if(!d)return false; var dd=Math.round((d-hoje)/864e5); return dd>=0&&dd<=30; });
+  var decis=[];
+  PLANOS.forEach(function(p){
+    if(classeStatus(p.status)==='planejado'){ var d=dEventoDate(p.evento)||brToDate(p.data); if(d){ var dd=Math.round((d-hoje)/864e5); if(dd>=0&&dd<=dEventoAntecedencia(p.evento)) decis.push({ev:p.evento,emp:p.empresa,prob:'Iniciar preparação',dono:donoDoPlano(p),dias:dd}); } }
+  });
+  tarefas.forEach(function(o){ var d=isoToDate(o.a.p); if(d&&ativa(o.a)){ var dd=Math.round((d-hoje)/864e5); if(dd<0) decis.push({ev:o.p.evento,emp:o.p.empresa,prob:(o.a.t||'tarefa'),dono:o.a.n,dias:dd}); } });
+  decis.sort(function(a,b){return a.dias-b.dias;});
+  var emp={}; PLANOS.forEach(function(p){ var e=p.empresa||'—'; emp[e]=(emp[e]||0)+1; });
+
+  var cards='<div class="vg-cards">'+
+    '<div class="vg-card '+(vencHoje?'alerta':'')+'"><div class="vg-num">'+vencHoje+'</div><div class="vg-lbl">Tarefas vencendo hoje</div></div>'+
+    '<div class="vg-card '+(atras?'alerta':'')+'"><div class="vg-num">'+atras+'</div><div class="vg-lbl">Tarefas atrasadas</div></div>'+
+    '<div class="vg-card"><div class="vg-num">'+ativos+'</div><div class="vg-lbl">Planos ativos</div></div>'+
+    '<div class="vg-card ok"><div class="vg-num">'+prox.length+'</div><div class="vg-lbl">Eventos próximos (30d)</div></div>'+
+  '</div>';
+  var tabDecis = decis.length ? '<table class="vg-tab"><tr><th>Evento</th><th>Precisa de decisão</th><th>Dono</th><th>Prazo</th></tr>'+
+    decis.slice(0,12).map(function(d){ return '<tr><td>'+esc(d.ev||'—')+' <small style="color:var(--muted)">'+esc(d.emp||'')+'</small></td><td>'+esc(d.prob)+'</td><td><b style="color:'+corDoNome(d.dono||'').s+'">'+esc(d.dono||'—')+'</b></td><td class="vg-prazo" style="color:'+(d.dias<0?'#b3412c':'#9a6a00')+'">'+(d.dias<0?Math.abs(d.dias)+'d atraso':(d.dias===0?'hoje':'faltam '+d.dias+'d'))+'</td></tr>'; }).join('')+'</table>'
+    : '<div class="cal-estado">Nada pendente de decisão. 👊</div>';
+  var proxHtml = prox.length ? '<table class="vg-tab"><tr><th>Data</th><th>Evento</th><th>Empresa</th><th>Status</th></tr>'+
+    prox.sort(function(a,b){return brToDate(a.data)-brToDate(b.data);}).map(function(p){ return '<tr><td class="vg-prazo">'+esc(p.data||'—')+'</td><td>'+esc(p.evento||'—')+tipoBadge(p.tipo)+'</td><td>'+esc(p.empresa||'')+'</td><td>'+esc(p.status||'')+'</td></tr>'; }).join('')+'</table>'
+    : '<div class="cal-estado">Nenhum evento nos próximos 30 dias.</div>';
+  var empHtml='<div class="vg-empresas">'+Object.keys(emp).map(function(e){ return '<div class="vg-emp">'+logoEmpHtml(e,22)+'<div><b>'+emp[e]+'</b><div style="font-size:11.5px;color:var(--muted)">'+esc(e)+'</div></div></div>'; }).join('')+'</div>';
+  el.innerHTML = cards + '<div class="vg-sec">⚠ Precisa de decisão</div>'+tabDecis+
+    '<div class="vg-sec">📅 Próximos 30 dias</div>'+proxHtml+
+    '<div class="vg-sec">🏢 Por empresa</div>'+empHtml;
+}
+
+/* ---------- SALA DE COMANDO (detalhe) + RECURSOS + PRODUTOS ---------- */
+var DET_ID=null, DET_REC=[], DET_PROD=[];
+function detPlano(){ return PLANOS.filter(function(x){return x.id===DET_ID;})[0]; }
+function abrirDetalhe(id){
+  var p=PLANOS.filter(function(x){return x.id===id;})[0]; if(!p) return;
+  DET_ID=id; DET_REC=parseJSONArr(p.recursos); DET_PROD=parseJSONArr(p.produtos);
+  document.getElementById('detTitulo').textContent=(p.evento||'Planejamento');
+  renderDetalhe(); abrirModal('modalDet');
+}
+function renderDetalhe(){
+  var p=detPlano(); if(!p) return;
+  var nos=parseAtrib(p.atrib);
+  var tarefas = nos.length ? '<table class="rp-tab"><tr><th>Responsável</th><th>Tarefa</th><th>Prazo</th><th>Status</th></tr>'+
+    nos.map(function(a){ return '<tr><td style="text-align:left"><b style="color:'+corDoNome(a.n).s+'">'+esc(a.n)+'</b>'+(a.dono?'<span class="dono-tag">⭐dono</span>':'')+'</td><td style="text-align:left">'+esc(a.t||'—')+(a.ev?' · <a href="'+esc(a.ev)+'" target="_blank" rel="noopener">evidência</a>':'')+'</td><td>'+(a.p?esc(fmtData(a.p)):'—')+'</td><td>'+esc(a.s||'')+'</td></tr>'; }).join('')+'</table>'
+    : '<div style="color:var(--muted);font-size:13px">Sem responsáveis. Edite o plano e atribua.</div>';
+  var corpo =
+    '<div class="det-sec"><div class="pe-cab">'+logoEmpHtml(p.empresa,22)+' <b>'+esc(p.evento||'')+'</b> '+tipoBadge(p.tipo)+' <span>'+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+' · '+esc(p.status||'')+'</span></div></div>'+
+    '<div class="det-sec"><h4>Resumo</h4><div class="det-grid">'+
+        '<div class="det-kpi"><div class="n">'+esc(p.meta||'—')+'</div><div class="l">Meta</div></div>'+
+        '<div class="det-kpi"><div class="n">'+esc(p.real||'—')+'</div><div class="l">Realizado</div></div>'+
+        '<div class="det-kpi"><div class="n">'+nos.length+'</div><div class="l">Responsáveis</div></div>'+
+      '</div>'+(p.objetivo?'<div class="pos-bloco"><b>Objetivo:</b> '+esc(p.objetivo)+'</div>':'')+'</div>'+
+    '<div class="det-sec"><h4>Tarefas</h4>'+tarefas+'</div>'+
+    '<div class="det-sec"><h4>Recursos / Infraestrutura</h4>'+renderRecursosEditor()+'</div>'+
+    '<div class="det-sec"><h4>Produtos do evento</h4>'+renderProdutosEditor()+'<div id="prodTotais">'+prodTotais()+'</div></div>'+
+    '<div class="det-sec"><h4>Financeiro</h4><div class="det-grid">'+
+        '<div class="det-kpi"><div class="n">'+brl(prodReceitaTotal())+'</div><div class="l">Receita produtos</div></div>'+
+        '<div class="det-kpi"><div class="n">'+esc(p.meta||'—')+'</div><div class="l">Meta</div></div>'+
+        '<div class="det-kpi"><div class="n">'+esc(p.real||'—')+'</div><div class="l">Realizado</div></div>'+
+      '</div></div>';
+  document.getElementById('detCorpo').innerHTML=corpo;
+}
+function renderRecursosEditor(){
+  var rows=DET_REC.map(function(r,i){
+    var dif=num(r.rt)-num(r.en);
+    return '<tr>'+
+      '<td><input class="nome" value="'+esc(r.n||'')+'" oninput="DET_REC['+i+'].n=this.value"></td>'+
+      '<td><input type="number" value="'+esc(String(r.pv||''))+'" oninput="DET_REC['+i+'].pv=this.value"></td>'+
+      '<td><input type="number" value="'+esc(String(r.en||''))+'" oninput="recSet('+i+',\'en\',this.value)"></td>'+
+      '<td><input type="number" value="'+esc(String(r.rt||''))+'" oninput="recSet('+i+',\'rt\',this.value)"></td>'+
+      '<td id="recdif'+i+'" class="rp-dif '+(dif<0?'neg':'ok')+'">'+(dif>0?'+':'')+dif+'</td>'+
+      '<td><button class="rp-del" onclick="DET_REC.splice('+i+',1);renderDetalhe()">×</button></td>'+
+    '</tr>';
+  }).join('');
+  return '<table class="rp-tab"><tr><th>Item</th><th>Previsto</th><th>Enviado</th><th>Retornado</th><th>Dif.</th><th></th></tr>'+
+    (rows||'<tr><td colspan="6" style="color:var(--muted)">Nenhum recurso. Adicione o que vai ao evento (fogão, botijão, prateleiras…).</td></tr>')+'</table>'+
+    '<button class="rp-add" onclick="DET_REC.push({n:\'\',pv:\'\',en:\'\',rt:\'\'});renderDetalhe()">+ Item</button>';
+}
+function recSet(i,f,v){ DET_REC[i][f]=v; var c=document.getElementById('recdif'+i); if(c){ var d=num(DET_REC[i].rt)-num(DET_REC[i].en); c.textContent=(d>0?'+':'')+d; c.className='rp-dif '+(d<0?'neg':'ok'); } }
+function renderProdutosEditor(){
+  var rows=DET_PROD.map(function(r,i){
+    var rec=num(r.vd)*num(r.pr);
+    return '<tr>'+
+      '<td><input class="nome" value="'+esc(r.n||'')+'" oninput="DET_PROD['+i+'].n=this.value"></td>'+
+      '<td><input type="number" value="'+esc(String(r.lv||''))+'" oninput="prodSet('+i+',\'lv\',this.value)"></td>'+
+      '<td><input type="number" value="'+esc(String(r.vd||''))+'" oninput="prodSet('+i+',\'vd\',this.value)"></td>'+
+      '<td><input type="number" value="'+esc(String(r.rt||''))+'" oninput="prodSet('+i+',\'rt\',this.value)"></td>'+
+      '<td><input type="number" value="'+esc(String(r.pd||''))+'" oninput="prodSet('+i+',\'pd\',this.value)"></td>'+
+      '<td><input value="'+esc(String(r.pr||''))+'" oninput="prodSet('+i+',\'pr\',this.value)"></td>'+
+      '<td id="prodrec'+i+'">'+brl(rec)+'</td>'+
+      '<td><button class="rp-del" onclick="DET_PROD.splice('+i+',1);renderDetalhe()">×</button></td>'+
+    '</tr>';
+  }).join('');
+  return '<table class="rp-tab"><tr><th>Produto</th><th>Levado</th><th>Vendido</th><th>Retornado</th><th>Perda</th><th>Preço</th><th>Receita</th><th></th></tr>'+
+    (rows||'<tr><td colspan="8" style="color:var(--muted)">Nenhum produto. Adicione o que foi levado ao evento.</td></tr>')+'</table>'+
+    '<button class="rp-add" onclick="DET_PROD.push({n:\'\',lv:\'\',vd:\'\',rt:\'\',pd:\'\',pr:\'\'});renderDetalhe()">+ Produto</button>';
+}
+function prodSet(i,f,v){ DET_PROD[i][f]=v; var c=document.getElementById('prodrec'+i); if(c) c.textContent=brl(num(DET_PROD[i].vd)*num(DET_PROD[i].pr)); var t=document.getElementById('prodTotais'); if(t) t.innerHTML=prodTotais(); }
+function prodReceitaTotal(){ var r=0; DET_PROD.forEach(function(x){ r+=num(x.vd)*num(x.pr); }); return r; }
+function prodTotais(){
+  var lv=0,vd=0,rt=0,pd=0,rec=0;
+  DET_PROD.forEach(function(x){ lv+=num(x.lv); vd+=num(x.vd); rt+=num(x.rt); pd+=num(x.pd); rec+=num(x.vd)*num(x.pr); });
+  if(!lv) return '<div style="color:var(--muted);font-size:12.5px;margin-top:6px">Preencha os produtos para ver sell-through, sobra e perda.</div>';
+  function pct(x){ return Math.round(x/lv*100)+'%'; }
+  return '<div class="det-grid" style="margin-top:10px">'+
+    '<div class="det-kpi"><div class="n">'+pct(vd)+'</div><div class="l">Sell-through</div></div>'+
+    '<div class="det-kpi"><div class="n">'+pct(rt)+'</div><div class="l">Sobra</div></div>'+
+    '<div class="det-kpi"><div class="n">'+pct(pd)+'</div><div class="l">Perda</div></div>'+
+    '<div class="det-kpi"><div class="n">'+brl(rec)+'</div><div class="l">Receita</div></div>'+
+  '</div>';
+}
+function salvarExtras(){
+  if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  var btn=document.getElementById('det-salvar'); btn.disabled=true; btn.textContent='Salvando…';
+  apiPlanejamento({ action:'saveExtras', id:DET_ID,
+    recursos:JSON.stringify(DET_REC), produtos:JSON.stringify(DET_PROD), usuario:(SESSAO&&SESSAO.nome)||'' })
+   .then(function(j){ btn.disabled=false; btn.textContent='✅ Salvar recursos/produtos';
+     if(j&&j.ok){ carregarPlanos(); } else alert('Erro: '+((j&&j.erro)||'desconhecido')); })
+   .catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar recursos/produtos'; alert('Falha: '+e.message); });
+}
+
+/* ---------- PDF prestação de contas ---------- */
+function gerarPDF(id){
+  var p=PLANOS.filter(function(x){return x.id===id;})[0]; if(!p){ alert('Plano não encontrado.'); return; }
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Biblioteca de PDF ainda carregando — tente de novo em 2s.'); return; }
+  var doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'});
+  var M=40, W=515, y=50;
+  function nl(h){ y+=(h||16); if(y>790){ doc.addPage(); y=50; } }
+  function txt(s,x,sz,bold,col){ doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(sz||10); if(col)doc.setTextColor(col[0],col[1],col[2]); else doc.setTextColor(40,40,40); doc.text(String(s==null?'':s),x,y); }
+  function sec(t){ nl(22); doc.setDrawColor(210,180,120); doc.line(M,y-10,M+W,y-10); txt(t,M,12,true,[154,106,0]); nl(6); }
+  txt('Q FOOD GROUP',M,16,true,[30,30,30]); nl(18); txt('Prestação de Contas Operacional',M,11,false,[120,120,120]); nl(20);
+  txt((p.evento||'—'),M,14,true); nl(16);
+  txt((p.tipo||'')+'  ·  '+(p.empresa||'')+'  ·  '+(p.data||'')+'  ·  '+(p.status||''),M,10,false,[110,110,110]); nl(4);
+  if(p.objetivo){ sec('Objetivo'); doc.setFontSize(10); doc.setTextColor(40,40,40); var lo=doc.splitTextToSize(p.objetivo,W); doc.text(lo,M,y); nl(lo.length*13); }
+  sec('Metas'); txt('Meta: '+(p.meta||'—')+'        Realizado: '+(p.real||'—'),M,10); nl(2);
+  var nos=parseAtrib(p.atrib);
+  if(nos.length){ sec('Equipe / Responsáveis'); nos.forEach(function(a){ txt('• '+a.n+(a.dono?' (dono)':'')+' — '+(a.t||'')+(a.p?'  ['+fmtData(a.p)+']':'')+'  '+(a.s||''),M,9); nl(13); }); }
+  var rec=parseJSONArr(p.recursos);
+  if(rec.length){ sec('Infraestrutura (previsto / enviado / retornado / dif.)'); txt('Item                         Prev   Env   Ret   Dif',M,9,true); nl(13);
+    rec.forEach(function(r){ var dif=num(r.rt)-num(r.en); txt(pad(r.n,26)+pad(r.pv,6)+pad(r.en,6)+pad(r.rt,6)+(dif>0?'+':'')+dif,M,9); nl(12); }); }
+  var pr=parseJSONArr(p.produtos);
+  if(pr.length){ sec('Produtos (levado / vendido / retornado / perda / receita)');
+    txt(pad('Produto',24)+pad('Lev',5)+pad('Vend',6)+pad('Ret',5)+pad('Perda',6)+'Receita',M,9,true); nl(13);
+    var tlv=0,tvd=0,trec=0;
+    pr.forEach(function(x){ var r=num(x.vd)*num(x.pr); tlv+=num(x.lv);tvd+=num(x.vd);trec+=r; txt(pad(x.n,24)+pad(x.lv,5)+pad(x.vd,6)+pad(x.rt,5)+pad(x.pd,6)+brl(r),M,9); nl(12); });
+    nl(4); txt('Sell-through: '+(tlv?Math.round(tvd/tlv*100):0)+'%     Receita total: '+brl(trec),M,10,true); nl(2);
+  }
+  var enc=parseEnc(p.enc);
+  if(enc.resultado||enc.aprendizados){ sec('Resultado & Aprendizados');
+    if(enc.resultado){ var lr=doc.splitTextToSize('Resultado: '+enc.resultado,W); doc.setFontSize(10);doc.setTextColor(40,40,40);doc.text(lr,M,y); nl(lr.length*13); }
+    if(enc.aprendizados){ var la=doc.splitTextToSize('Lições: '+enc.aprendizados,W); doc.text(la,M,y); nl(la.length*13); }
+  }
+  nl(20); txt('Gerado em '+new Date().toLocaleString('pt-BR')+' · Grupo Q Food',M,8,false,[150,150,150]);
+  doc.save('Prestacao_'+(p.evento||'evento').replace(/[^\w]+/g,'_')+'.pdf');
+}
+function pad(s,n){ s=String(s==null?'':s); while(s.length<n) s+=' '; return s.slice(0,n); }
+
+var _btnVisao=document.querySelector('button[data-aba="visao"]');
+if(_btnVisao) _btnVisao.addEventListener('click', renderVisaoGeral);
 var _btnChk=document.querySelector('button[data-aba="checklist"]');
 var _btnCrono=document.querySelector('button[data-aba="cronograma"]');
 var _btnPos=document.querySelector('button[data-aba="posevento"]');
@@ -1725,7 +1993,7 @@ carregarSetores();
 document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
 document.getElementById('planoRefresh').addEventListener('click',carregarPlanos);
 carregarPlaybooks();
-carregarUsuarios().then(carregarPlanos);
+carregarUsuarios().then(carregarPlanos).then(renderVisaoGeral);
 </script>
 </body>
 </html>
