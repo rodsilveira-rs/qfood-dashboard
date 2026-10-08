@@ -14,20 +14,22 @@
      Próximos passos: plugar CSV (Calendário) e Apps Script (escrita).
      ============================================================ */
   :root{
-    --ink:#15211f;
-    --ink-2:#3a4d49;
-    --bg:#f4f1ec;
+    --ink:#1e293b;
+    --ink-2:#475569;
+    --bg:#eef1f6;
     --surface:#ffffff;
-    --line:#e3ddd2;
-    --accent:#d97524;      /* âmbar/laranja — energia, gastronomia */
-    --accent-soft:#fbe9d8;
-    --green:#2f7d5b;        /* concluído / nacional */
-    --blue:#2b6cb0;         /* ES / em preparação */
-    --gold:#c79a1f;         /* gastronômico */
-    --red:#b3412c;          /* oriental / risco */
-    --muted:#5b554c;
-    --radius:16px;
-    --shadow:0 1px 2px rgba(21,33,31,.04), 0 8px 24px rgba(21,33,31,.06);
+    --card:#ffffff;
+    --line:#e2e8f0;
+    --accent:#2563eb;       /* azul — primário */
+    --accent-soft:#dbeafe;
+    --green:#16a34a;        /* concluído / nacional */
+    --blue:#2563eb;         /* ES / em preparação */
+    --gold:#d97706;         /* gastronômico */
+    --red:#dc2626;          /* oriental / risco */
+    --muted:#64748b;
+    --side:#0f172a;         /* menu lateral escuro */
+    --radius:14px;
+    --shadow:0 1px 2px rgba(15,23,42,.04), 0 6px 20px rgba(15,23,42,.06);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
@@ -39,54 +41,46 @@
     min-height:100vh;
   }
 
-  /* ---------- Topo ---------- */
-  header.topo{
-    background:var(--ink);
-    color:#fff;
-    padding:18px 22px;
-    display:flex;align-items:center;justify-content:space-between;
-    gap:16px;flex-wrap:wrap;
+  /* ---------- App shell: menu lateral + conteúdo ---------- */
+  .app{display:flex;min-height:100vh}
+  .side{width:234px;flex-shrink:0;background:var(--side);color:#cbd5e1;display:flex;flex-direction:column;padding:16px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+  .side-top{display:flex;align-items:center;gap:10px;padding:6px 8px 16px}
+  .side-q{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#1d4ed8);display:grid;place-items:center;font-weight:800;color:#fff;font-size:18px;flex-shrink:0}
+  .side-nome{font-size:13px;font-weight:800;color:#fff;letter-spacing:.02em;line-height:1.15}
+  .side-nome small{display:block;font-size:11px;font-weight:600;color:#64748b;letter-spacing:0}
+  .side-nav{display:flex;flex-direction:column;gap:2px}
+  .side-nav button{border:none;background:none;cursor:pointer;font-family:inherit;font-size:13.5px;font-weight:600;color:#cbd5e1;text-align:left;padding:10px 12px;border-radius:9px;display:flex;align-items:center;gap:10px;transition:.15s;white-space:nowrap}
+  .side-nav button .ic{font-size:16px;width:20px;text-align:center}
+  .side-nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+  .side-nav button.ativa{background:var(--accent);color:#fff}
+  .side-emp{margin-top:18px;border-top:1px solid rgba(255,255,255,.08);padding-top:14px}
+  .side-emp-t{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;padding:0 8px 8px}
+  .emp-item{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#cbd5e1;padding:7px 8px;border-radius:8px}
+  .emp-item b{margin-left:auto;color:#94a3b8;font-weight:700}
+  .emp-dot{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;background:#334155;color:#cbd5e1;font-size:10px;font-weight:800;flex-shrink:0}
+  .side-voltar{margin-top:auto;color:#94a3b8;text-decoration:none;font-size:12.5px;font-weight:600;padding:12px;border-radius:9px}
+  .side-voltar:hover{background:rgba(255,255,255,.06);color:#fff}
+  .conteudo{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 26px;background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+  .topbar-data{font-size:13px;color:var(--muted);font-weight:600;text-transform:capitalize}
+  .topbar-r{display:flex;align-items:center;gap:10px}
+  .topbar .usuario{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--bg);padding:7px 13px;border-radius:999px}
+  .btn-novo{background:var(--accent);color:#fff;border:none;font-family:inherit;font-weight:700;font-size:13px;padding:10px 16px;border-radius:10px;cursor:pointer}
+  .btn-novo:hover{background:#1d4ed8}
+  .sync-info{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+  .sync-info.on{color:var(--green)}
+  .aviso-versao{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.3);display:flex;align-items:center;gap:14px;font-size:13px;font-weight:600}
+  .aviso-versao button{background:var(--accent);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:12.5px;padding:8px 14px;border-radius:8px;cursor:pointer}
+  @media(max-width:860px){
+    .app{flex-direction:column}
+    .side{width:auto;height:auto;flex-direction:row;position:static;overflow-x:auto;align-items:center;gap:8px;padding:10px}
+    .side-top{padding:4px 8px}
+    .side-nav{flex-direction:row}
+    .side-emp,.side-voltar{display:none}
   }
-  .topo .marca{display:flex;align-items:center;gap:12px}
-  .topo .logo{
-    width:42px;height:42px;border-radius:12px;
-    background:linear-gradient(135deg,var(--accent),#b85d18);
-    display:grid;place-items:center;font-size:22px;flex-shrink:0;
-  }
-  .topo h1{font-size:18px;font-weight:800;letter-spacing:-.01em}
-  .topo .sub{font-size:12px;color:#a9b5b1;font-weight:500}
-  .topo .usuario{
-    display:flex;align-items:center;gap:10px;font-size:13px;
-    background:rgba(255,255,255,.07);padding:8px 14px;border-radius:999px;
-  }
-  .topo .usuario b{font-weight:700}
-  .topo .voltar{
-    color:#a9b5b1;text-decoration:none;font-size:13px;font-weight:600;
-    padding:8px 12px;border-radius:10px;transition:.2s;
-  }
-  .topo .voltar:hover{background:rgba(255,255,255,.08);color:#fff}
-
-  /* ---------- Navegação de abas ---------- */
-  nav.abas{
-    background:var(--surface);
-    border-bottom:1px solid var(--line);
-    padding:0 16px;
-    display:flex;gap:4px;overflow-x:auto;
-    position:sticky;top:0;z-index:20;
-  }
-  nav.abas button{
-    border:none;background:none;cursor:pointer;
-    font-family:inherit;font-size:14px;font-weight:700;color:var(--muted);
-    padding:16px 18px 14px;white-space:nowrap;
-    border-bottom:3px solid transparent;
-    display:flex;align-items:center;gap:8px;transition:.2s;
-  }
-  nav.abas button .ic{font-size:16px}
-  nav.abas button:hover{color:var(--ink-2)}
-  nav.abas button.ativa{color:var(--ink);border-bottom-color:var(--accent)}
 
   /* ---------- Conteúdo ---------- */
-  main{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+  main{max-width:1200px;width:100%;margin:0;padding:24px 26px 60px}
   .painel{display:none;animation:sobe .35s ease}
   .painel.ativo{display:block}
   @keyframes sobe{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -434,30 +428,39 @@
 </head>
 <body>
 
-<!-- ===================== TOPO ===================== -->
-<header class="topo">
-  <div class="marca">
-    <div class="logo">📅</div>
-    <div>
-      <h1>Planejamento Operacional</h1>
-      <div class="sub">Grupo Q Food · Q Food · Sushi Trip · Mercearia Liberdade · Ecommerce</div>
-    </div>
+<div class="app">
+
+<!-- ===================== MENU LATERAL ===================== -->
+<aside class="side">
+  <div class="side-top">
+    <div class="side-q">Q</div>
+    <div class="side-nome">Q FOOD GROUP<small>Planejamento</small></div>
   </div>
-  <div style="display:flex;align-items:center;gap:8px">
+  <nav class="side-nav" id="navAbas">
+    <button class="ativa" data-aba="visao"><span class="ic">🏠</span> Visão Geral</button>
+    <button data-aba="plano"><span class="ic">🗂️</span> Plano de Ações</button>
+    <button data-aba="calendario"><span class="ic">📅</span> Calendário</button>
+    <button data-aba="checklist"><span class="ic">👥</span> Checklist / Equipe</button>
+    <button data-aba="cronograma"><span class="ic">⏱️</span> Cronograma</button>
+    <button data-aba="posevento"><span class="ic">📈</span> Pós-Evento</button>
+  </nav>
+  <div class="side-emp">
+    <div class="side-emp-t">Empresas</div>
+    <div id="sideEmpresas"></div>
+  </div>
+  <a class="side-voltar" href="Index_Menu.html">← Voltar ao Menu</a>
+</aside>
+
+<div class="conteudo">
+<!-- ===================== TOPBAR ===================== -->
+<header class="topbar">
+  <div class="topbar-data" id="topData"></div>
+  <div class="topbar-r">
+    <span class="sync-info" id="syncInfo"></span>
     <div class="usuario">👤 <b id="usuarioNome">Carregando…</b></div>
-    <a class="voltar" href="Index_Menu.html">← Menu</a>
+    <button class="btn-novo" onclick="abrirNovoPlano()">+ Novo planejamento</button>
   </div>
 </header>
-
-<!-- ===================== ABAS ===================== -->
-<nav class="abas" id="navAbas">
-  <button class="ativa" data-aba="visao"><span class="ic">🏠</span> Visão Geral</button>
-  <button data-aba="calendario"><span class="ic">📅</span> Calendário</button>
-  <button data-aba="plano"><span class="ic">🎯</span> Plano de Ações</button>
-  <button data-aba="checklist"><span class="ic">✅</span> Checklist por Setor</button>
-  <button data-aba="cronograma"><span class="ic">⏱️</span> Cronograma 30 dias</button>
-  <button data-aba="posevento"><span class="ic">📈</span> Pós-Evento</button>
-</nav>
 
 <main>
 
@@ -561,6 +564,8 @@
 
   <div class="nota-rodape">Grupo Q Food · Planejamento Operacional</div>
 </main>
+</div><!-- /conteudo -->
+</div><!-- /app -->
 
 <!-- ===================== MODAL: NOVO / EDITAR PLANO ===================== -->
 <div class="modal-ov" id="modalPlano" onclick="if(event.target===this)fecharModal('modalPlano')">
@@ -1814,6 +1819,18 @@ function brl(v){ return 'R$ '+(v||0).toLocaleString('pt-BR',{minimumFractionDigi
 function parseJSONArr(s){ try{ var a=JSON.parse(s); return Array.isArray(a)?a:[]; }catch(_){ return []; } }
 function donoDoPlano(p){ var d=parseAtrib(p.atrib).filter(function(a){return a.dono;})[0]; return d?d.n:(((p.responsaveis||'').split(',')[0])||'').trim(); }
 
+/* ---------- Menu lateral: empresas ---------- */
+var EMPRESAS_SIDE=['Q Food','Gogui','Mercearia Liberdade','Sushi Trip','Prime Sushi','Prime Fish'];
+function renderSideEmpresas(){
+  var box=document.getElementById('sideEmpresas'); if(!box) return;
+  var cont={}; (PLANOS||[]).forEach(function(p){ var e=(p.empresa||'').toLowerCase(); cont[e]=(cont[e]||0)+1; });
+  box.innerHTML=EMPRESAS_SIDE.map(function(e){
+    var logo=logoEmpHtml(e,16); if(!logo) logo='<span class="emp-dot">'+esc(e.charAt(0))+'</span>';
+    var n=cont[e.toLowerCase()]||cont[e.split(' ')[0].toLowerCase()]||0;
+    return '<div class="emp-item">'+logo+' <span>'+esc(e)+'</span>'+(n?'<b>'+n+'</b>':'')+'</div>';
+  }).join('');
+}
+
 /* ---------- VISÃO GERAL (cockpit) ---------- */
 function renderVisaoGeral(){
   var el=document.getElementById('vgConteudo'); if(!el) return;
@@ -1848,6 +1865,7 @@ function renderVisaoGeral(){
   el.innerHTML = cards + '<div class="vg-sec">⚠ Precisa de decisão</div>'+tabDecis+
     '<div class="vg-sec">📅 Próximos 30 dias</div>'+proxHtml+
     '<div class="vg-sec">🏢 Por empresa</div>'+empHtml;
+  renderSideEmpresas();
 }
 
 /* ---------- SALA DE COMANDO (detalhe) + RECURSOS + PRODUTOS ---------- */
@@ -1992,8 +2010,75 @@ carregarSetores();
 /* ===== INIT do módulo de escrita ===== */
 document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
 document.getElementById('planoRefresh').addEventListener('click',carregarPlanos);
+/* ---------- Auto-sync: dados + versão (padrão do Index_Requisicoes) ---------- */
+function abaAtiva(){ var b=document.querySelector('#navAbas button.ativa'); return b?b.getAttribute('data-aba'):'visao'; }
+function rerenderAtual(){
+  var a=abaAtiva();
+  if(a==='visao') renderVisaoGeral();
+  else if(a==='checklist') renderChecklist();
+  else if(a==='cronograma') renderCronograma();
+  else if(a==='posevento') renderPosEvento();
+  /* 'plano' já é re-renderizado pelo carregarPlanos; 'calendario' tem fluxo próprio */
+}
+var PlanSync={
+  dataMs: 4*60*1000, versaoMs: 5*60*1000, ociosoMs: 60*1000,
+  assinatura:null, nova:false, checando:false, ultimoToque:Date.now(),
+  modalAberto:function(){ return !!document.querySelector('.modal-ov.open'); },
+  trabalho:function(){
+    if(PlanSync.modalAberto()) return true;
+    var a=document.activeElement;
+    return !!(a && ['INPUT','TEXTAREA','SELECT'].indexOf(a.tagName)>=0);
+  },
+  marcar:function(){
+    var el=document.getElementById('syncInfo'); if(!el) return;
+    var h=new Date(); el.textContent='atualizado '+('0'+h.getHours()).slice(-2)+':'+('0'+h.getMinutes()).slice(-2);
+    el.classList.add('on'); setTimeout(function(){ el.classList.remove('on'); }, 2000);
+  },
+  dataPoll:function(){
+    if(document.visibilityState!=='visible' || PlanSync.trabalho()) return;
+    carregarPlanos().then(function(){ rerenderAtual(); PlanSync.marcar(); }).catch(function(){});
+  },
+  recarregar:function(){ location.replace(location.pathname+'?v='+Date.now()+location.hash); },
+  avisar:function(){
+    if(document.getElementById('aviso-versao')) return;
+    var el=document.createElement('div'); el.id='aviso-versao'; el.className='aviso-versao';
+    el.innerHTML='<span>🔄 Nova versão disponível</span><button type="button" id="bt-atualizar">Atualizar agora</button>';
+    document.body.appendChild(el);
+    document.getElementById('bt-atualizar').onclick=PlanSync.recarregar;
+  },
+  checar:function(){
+    if(PlanSync.checando || !navigator.onLine) return Promise.resolve();
+    PlanSync.checando=true;
+    var url=location.pathname+'?checagem='+Date.now();
+    return fetch(url,{method:'HEAD',cache:'no-store'}).then(function(r){
+      if(!r.ok) return null; return r.headers.get('etag')||r.headers.get('last-modified');
+    }).catch(function(){ return null; }).then(function(sig){
+      if(sig) return sig;
+      return fetch(url,{cache:'no-store'}).then(function(r){ if(!r.ok) return null; return r.text().then(function(t){ return String(t.length); }); }).catch(function(){ return null; });
+    }).then(function(sig){
+      if(!sig) return;
+      if(!PlanSync.assinatura){ PlanSync.assinatura=sig; return; }
+      if(sig===PlanSync.assinatura) return;
+      PlanSync.nova=true; PlanSync.avisar();
+      if(!PlanSync.trabalho() && Date.now()-PlanSync.ultimoToque>PlanSync.ociosoMs) PlanSync.recarregar();
+    }).catch(function(){}).then(function(){ PlanSync.checando=false; });
+  },
+  iniciar:function(){
+    ['pointerdown','keydown','touchstart'].forEach(function(ev){ document.addEventListener(ev,function(){ PlanSync.ultimoToque=Date.now(); },{passive:true}); });
+    setInterval(function(){ PlanSync.dataPoll(); }, PlanSync.dataMs);
+    document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') PlanSync.dataPoll(); });
+    setInterval(function(){ if(document.visibilityState==='visible') PlanSync.checar(); }, PlanSync.versaoMs);
+    setInterval(function(){
+      if(PlanSync.nova && document.visibilityState==='visible' && !PlanSync.trabalho() && Date.now()-PlanSync.ultimoToque>PlanSync.ociosoMs) PlanSync.recarregar();
+    }, 20000);
+    PlanSync.checar();
+  }
+};
+
+try{ document.getElementById('topData').textContent = new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}); }catch(_){}
+renderSideEmpresas();
 carregarPlaybooks();
-carregarUsuarios().then(carregarPlanos).then(renderVisaoGeral);
+carregarUsuarios().then(carregarPlanos).then(renderVisaoGeral).then(function(){ PlanSync.iniciar(); });
 </script>
 </body>
 </html>
