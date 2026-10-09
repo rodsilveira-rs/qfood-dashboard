@@ -133,6 +133,19 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 .mini-btn:hover{background:var(--s2);color:var(--tx);border-color:var(--b2)}
 .mini-btn.del:hover{color:var(--red);border-color:var(--red)}
 
+/* v5 — botões de status da Ficha de Resultado */
+.st-btn{background:var(--sf);border:1px solid var(--br);color:var(--mu);padding:10px 8px;border-radius:8px;cursor:pointer;font-size:.78rem;font-weight:700;font-family:var(--fb);transition:all .15s;text-align:center}
+.st-btn:hover{color:var(--tx);border-color:var(--b2)}
+.st-btn.on[data-st="EM_NEGOCIACAO"]{background:rgba(77,142,245,.15);border-color:var(--blue);color:var(--blue)}
+.st-btn.on[data-st="CONVERTIDO"]{background:rgba(54,207,160,.15);border-color:var(--ok);color:var(--ok)}
+.st-btn.on[data-st="PERDIDO"]{background:rgba(230,51,41,.15);border-color:var(--red);color:var(--red)}
+.st-btn.on[data-st="PAUSADO"]{background:rgba(255,170,43,.15);border-color:var(--warn);color:var(--warn)}
+
+/* v5 — info do lead no topo da ficha */
+#ficha-lead-info b{color:var(--tx)}
+#ficha-lead-info .fli-row{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
+#ficha-lead-info .fli-row:first-child{margin-top:0}
+
 .empty{text-align:center;padding:40px 20px;color:var(--mu)}
 .empty .em-icon{font-size:3rem;margin-bottom:10px;opacity:.4}
 
@@ -251,10 +264,10 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 
         <!-- CNPJ + Verificar -->
         <div class="fld">
-          <label>CNPJ <span class="req">*</span></label>
+          <label>CNPJ ou CPF <span class="req">*</span></label>
           <div class="fld-cnpj">
-            <input type="text" id="f-cnpj" maxlength="18" placeholder="00.000.000/0000-00" oninput="maskCNPJ(this); resetCnpjStatus()">
-            <button class="btn-check" id="btn-check-cnpj" onclick="verificarCnpj()">🔍 Verificar CNPJ</button>
+            <input type="text" id="f-cnpj" inputmode="numeric" maxlength="18" placeholder="CNPJ ou CPF" oninput="maskDocumento(this); resetCnpjStatus()">
+            <button class="btn-check" id="btn-check-cnpj" onclick="verificarCnpj()">🔍 Verificar</button>
           </div>
           <div class="hint">Confirme com 14 dígitos válidos antes de enviar.</div>
           <div class="cnpj-status" id="cnpj-status"></div>
@@ -454,11 +467,113 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
   </div>
 </div>
 
+<!-- v5: Modal da Ficha de Resultado Comercial -->
+<div class="modal-ov" id="modal-ficha" onclick="if(event.target===this)closeFichaResultado()">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">📊 Ficha de Resultado Comercial</div>
+      <button class="modal-close" onclick="closeFichaResultado()">×</button>
+    </div>
+
+    <div id="ficha-body" style="padding:16px 20px;max-height:70vh;overflow-y:auto">
+      <!-- Dados do lead no topo -->
+      <div id="ficha-lead-info" style="background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.85rem">
+        <!-- Preenchido via JS -->
+      </div>
+
+      <!-- Status comercial -->
+      <div class="fld" style="margin-bottom:14px">
+        <label style="font-weight:700">Status Comercial <span class="req">*</span></label>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px">
+          <button type="button" class="st-btn" data-st="EM_NEGOCIACAO" onclick="setFichaStatus('EM_NEGOCIACAO')">💬 Em negociação</button>
+          <button type="button" class="st-btn" data-st="CONVERTIDO" onclick="setFichaStatus('CONVERTIDO')">✅ Convertido</button>
+          <button type="button" class="st-btn" data-st="PERDIDO" onclick="setFichaStatus('PERDIDO')">❌ Perdido</button>
+          <button type="button" class="st-btn" data-st="PAUSADO" onclick="setFichaStatus('PAUSADO')">⏸️ Pausado</button>
+        </div>
+      </div>
+
+      <!-- Valores (3 em linha) -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px">
+        <div class="fld">
+          <label>Valor Estimado (R$)</label>
+          <input type="text" id="fc-estimado" inputmode="decimal" placeholder="0,00" oninput="maskMoeda(this)">
+        </div>
+        <div class="fld">
+          <label>Valor Proposta (R$)</label>
+          <input type="text" id="fc-proposta" inputmode="decimal" placeholder="0,00" oninput="maskMoeda(this)">
+        </div>
+        <div class="fld">
+          <label>Valor Fechado (R$) <span id="fc-fechado-req" class="req" style="display:none">*</span></label>
+          <input type="text" id="fc-fechado" inputmode="decimal" placeholder="0,00" oninput="maskMoeda(this)">
+        </div>
+      </div>
+
+      <!-- Nº Pedido ERP (só se CONVERTIDO) -->
+      <div class="fld" style="margin-bottom:14px" id="fc-pedido-wrap">
+        <label>Número do Pedido no ERP</label>
+        <input type="text" id="fc-pedido" placeholder="Ex.: 123456">
+      </div>
+
+      <!-- Motivo de perda (só se PERDIDO) -->
+      <div class="fld" style="margin-bottom:14px;display:none" id="fc-motivo-wrap">
+        <label>Motivo da Perda <span class="req">*</span></label>
+        <select id="fc-motivo">
+          <option value="">— Escolha —</option>
+          <option value="PRECO">💰 Preço</option>
+          <option value="SEM_RESPOSTA">🤐 Sem resposta</option>
+          <option value="CONCORRENCIA">⚔️ Concorrência</option>
+          <option value="ENTREGA_FRETE">🚚 Entrega/Frete</option>
+          <option value="PRAZO_PAGAMENTO">💳 Prazo de pagamento</option>
+          <option value="PRODUTO_NAO_ATENDE">📦 Produto não atende</option>
+          <option value="CNPJ_INATIVO">🚫 CNPJ inativo</option>
+          <option value="OUTRO">❓ Outro</option>
+        </select>
+      </div>
+
+      <!-- Próxima ação -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="fld">
+          <label>Próxima Ação</label>
+          <input type="text" id="fc-proxacao" placeholder="Ex.: Ligar na segunda · Enviar proposta revisada · Visitar">
+        </div>
+        <div class="fld">
+          <label>Data da Próxima Ação</label>
+          <input type="date" id="fc-proxdata">
+        </div>
+      </div>
+
+      <!-- Observação comercial -->
+      <div class="fld" style="margin-bottom:10px">
+        <label>Observação Comercial</label>
+        <textarea id="fc-obs" rows="3" placeholder="Contexto, próximos passos, anotações da negociação..."></textarea>
+      </div>
+
+      <div id="fc-meta" style="font-size:.72rem;color:var(--mu);margin-top:8px"></div>
+    </div>
+
+    <div class="modal-footer">
+      <div class="left"></div>
+      <div class="right">
+        <button class="btn-cancel" onclick="closeFichaResultado()">Fechar</button>
+        <button class="btn-submit" id="btn-salvar-ficha" onclick="salvarFichaResultado()">💾 Salvar Ficha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
-   Q FOOD COMPANY — CRM · CADASTRO DE LEADS (BÁRBARA)
-   Backend: Apps Script v1.3 (?modulo=crm) + planilha CRM_LEADS
+   Q FOOD COMPANY — CRM · CADASTRO DE LEADS v5
+   Backend: Apps Script v1.4.3 (?modulo=crm) + planilha CRM_LEADS + CRM_RESULTADOS
    ------------------------------------------------------------
+   v5 (Pacote 1 + Pacote 2):
+     • CNPJ/CPF: detecção automática de 11 (CPF) ou 14 (CNPJ) dígitos
+     • Dropdown de vendedores: TODOS os vendedores (menos Claudia), sem filtro Recebe_Leads
+     • Ficha de Resultado Comercial: botão 📊 na aba Enviados abre modal
+       com Status Comercial (EM_NEGOCIACAO/CONVERTIDO/PERDIDO/PAUSADO), valores
+       estimado/proposta/fechado, nº pedido ERP, próxima ação, motivo de perda
+     • Permissão: qualquer um com acesso ao CRM Lead edita a ficha
+     • Validações client+server: CONVERTIDO exige valor, PERDIDO exige motivo
    v2 — alinhado aos endpoints REAIS do CRM_Backend.gs v1.3:
      • auth: somente parâmetro 'email' no payload
      • cadastrar: action=save_lead (camelCase no payload)
@@ -490,13 +605,6 @@ var FILTER_TIPO = "";                  // filtro tipo: "" / "NOVO" / "EXISTENTE"
 // ─────────────────────────────────────────────────────
 // Auth guard (sessão herdada do Index_Menu)
 // ─────────────────────────────────────────────────────
-// Vendedores com permissão extra para cadastrar lead
-// (igual à lista do Index_Menu.html — manter sincronizado)
-var VENDEDORES_PODEM_CADASTRAR_LEAD = {
-  "DAYANE.NASCIMENTO": true
-  // adicione aqui outras siglas no futuro, ex: "ELIANE.MOREIRA": true
-};
-
 (function checkAuth(){
   var sess = localStorage.getItem("qfood_session");
   if(!sess){ goLogin("Sessão expirada."); return; }
@@ -505,9 +613,7 @@ var VENDEDORES_PODEM_CADASTRAR_LEAD = {
 
   var sigla = (s.crmSigla || "").toString().toUpperCase();
   var isAdmin = sigla === "*";
-  var isLead = sigla === "LEAD";
-  var isVendedorAutorizado = !!VENDEDORES_PODEM_CADASTRAR_LEAD[sigla];
-  var podeLead = isAdmin || isLead || isVendedorAutorizado;
+  var podeLead = isAdmin || sigla === "LEAD";
 
   if(!podeLead){
     document.getElementById("access-denied").style.display = "block";
@@ -519,16 +625,9 @@ var VENDEDORES_PODEM_CADASTRAR_LEAD = {
     email: (s.email || "").toLowerCase(),
     nome:  s.nome || (s.email||"").split("@")[0],
     sigla: sigla,
-    isAdmin: isAdmin,
-    isLead: isLead,
-    isVendedorAutorizado: isVendedorAutorizado
+    isAdmin: isAdmin
   };
-
-  // Rótulo no header: admin / marketing / vendedora autorizada
-  var rotulo = isAdmin ? " · admin"
-             : isLead  ? " · marketing"
-             : " · vendedora";
-  document.getElementById("user-name").textContent = CURRENT_USER.nome + rotulo;
+  document.getElementById("user-name").textContent = CURRENT_USER.nome + (isAdmin ? " · admin" : " · marketing");
   document.getElementById("main-content").style.display = "block";
   init();
 })();
@@ -574,9 +673,15 @@ function loadVendedoras(){
     })
     .catch(function(e){
       console.warn("Falha UUSR:", e);
+      // v5: fallback com todos os vendedores atuais (menos Claudia — supermercado)
       VENDEDORAS = [
-        {email:"dayane@qfoodcompany.com.br", nome:"Dayane Nascimento", sigla:"DAYANE.NASCIMENTO"},
-        {email:"eliane@qfoodcompany.com.br", nome:"Eliane Moreira",    sigla:"ELIANE.MOREIRA"}
+        {email:"lucas@qfoodcompany.com.br",   nome:"Lucas Brites",      sigla:"LUCAS.BRITES"},
+        {email:"vera@qfoodcompany.com.br",    nome:"Vera Silva",        sigla:"VERA.SILVA"},
+        {email:"dayane@qfoodcompany.com.br",  nome:"Dayane Nascimento", sigla:"DAYANE.NASCIMENTO"},
+        {email:"eliane@qfoodcompany.com.br",  nome:"Eliane Moreira",    sigla:"ELIANE.MOREIRA"},
+        {email:"ederson@qfoodcompany.com.br", nome:"Ederson Barcelos",  sigla:"EDERSON.BARCELOS"},
+        {email:"roberta@qfoodcompany.com.br", nome:"Roberta Rosetti",   sigla:"ROBERTA.ROSETTI"},
+        {email:"deane@qfoodcompany.com.br",   nome:"Deane Trevine",     sigla:"DEANE.TREVINE"}
       ];
       TODAS_USERS = VENDEDORAS.slice();
       preencheSelectVendedoras();
@@ -605,8 +710,12 @@ function parseUUSRCSV(txt){
     var rec   = iRec>= 0 ? (rows[r][iRec]||"").trim().toLowerCase() : "";
     var temCRM = crm.indexOf("x") >= 0;
     if(temCRM) todos.push({email:email, nome:nome, sigla:sigla});
-    if(rec === "sim" && temCRM && sigla.indexOf(".") > 0){
-      recebem.push({email:email, nome:nome, sigla:sigla});
+    // v5: todos os vendedores com CRM_Sigla NOME.SOBRENOME podem receber lead,
+    // independente da flag Recebe_Leads. Exclusões (ex: supermercado da Claudia)
+    // ficam na lista abaixo, sincronizada com o backend.
+    var EXCLUIR_RECEBE_LEAD = {"CLAUDIA.GOMES":true, "CLAUDIA.VAREJO":true};
+    if(temCRM && sigla.indexOf(".") > 0 && !EXCLUIR_RECEBE_LEAD[sigla]){
+      recebem.push({email:email, nome:nome, sigla:sigla, recebeFlag:(rec==="sim")});
     }
   }
   todos.sort(function(a,b){ return a.nome.localeCompare(b.nome); });
@@ -726,14 +835,24 @@ function setTab(name){
 // ─────────────────────────────────────────────────────
 // Máscaras + validação
 // ─────────────────────────────────────────────────────
-function maskCNPJ(el){
+// v5: aceita CNPJ (14) ou CPF (11), com máscara automática por tamanho.
+// maskCNPJ mantida como alias por compatibilidade.
+function maskDocumento(el){
   var v = el.value.replace(/\D/g,"").slice(0,14);
-  if(v.length>12) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2}).*/, "$1.$2.$3/$4-$5");
-  else if(v.length>8) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, "$1.$2.$3/$4");
-  else if(v.length>5) v = v.replace(/^(\d{2})(\d{3})(\d{0,3}).*/, "$1.$2.$3");
-  else if(v.length>2) v = v.replace(/^(\d{2})(\d{0,3}).*/, "$1.$2");
+  if(v.length <= 11){
+    // CPF: 000.000.000-00
+    if(v.length>9) v = v.replace(/^(\d{3})(\d{3})(\d{3})(\d{0,2}).*/, "$1.$2.$3-$4");
+    else if(v.length>6) v = v.replace(/^(\d{3})(\d{3})(\d{0,3}).*/, "$1.$2.$3");
+    else if(v.length>3) v = v.replace(/^(\d{3})(\d{0,3}).*/, "$1.$2");
+  } else {
+    // CNPJ: 00.000.000/0000-00
+    if(v.length>12) v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2}).*/, "$1.$2.$3/$4-$5");
+    else v = v.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, "$1.$2.$3/$4");
+  }
   el.value = v;
 }
+function maskCNPJ(el){ return maskDocumento(el); } // alias v4
+
 function maskTel(el){
   var v = el.value.replace(/\D/g,"").slice(0,11);
   if(v.length>10) v = v.replace(/^(\d{2})(\d{5})(\d{0,4}).*/, "($1) $2-$3");
@@ -743,6 +862,19 @@ function maskTel(el){
 }
 function onlyDigits(s){ return (s||"").replace(/\D/g,""); }
 
+// v5: valida CPF (11) com dígitos verificadores
+function isCpfValid(cpf){
+  cpf = onlyDigits(cpf);
+  if(cpf.length !== 11) return false;
+  if(/^(\d)\1+$/.test(cpf)) return false;
+  var s, i, r;
+  s = 0; for(i=0;i<9;i++) s += Number(cpf.charAt(i)) * (10-i);
+  r = (s*10) % 11; if(r === 10) r = 0;
+  if(r !== Number(cpf.charAt(9))) return false;
+  s = 0; for(i=0;i<10;i++) s += Number(cpf.charAt(i)) * (11-i);
+  r = (s*10) % 11; if(r === 10) r = 0;
+  return r === Number(cpf.charAt(10));
+}
 function isCnpjValid(cnpj){
   cnpj = onlyDigits(cnpj);
   if(cnpj.length !== 14) return false;
@@ -755,6 +887,24 @@ function isCnpjValid(cnpj){
     return r < 2 ? 0 : 11 - r;
   };
   return calc(12) === Number(cnpj.charAt(12)) && calc(13) === Number(cnpj.charAt(13));
+}
+function isDocumentoValido(doc){
+  var d = onlyDigits(doc);
+  if(d.length === 11) return isCpfValid(d);
+  if(d.length === 14) return isCnpjValid(d);
+  return false;
+}
+function tipoDocumento(doc){
+  var d = onlyDigits(doc);
+  if(d.length === 11) return "CPF";
+  if(d.length === 14) return "CNPJ";
+  return "";
+}
+function formatDocumento(d){
+  d = onlyDigits(d||"");
+  if(d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2}).*/, "$1.$2.$3-$4");
+  if(d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, "$1.$2.$3/$4-$5");
+  return d;
 }
 
 function resetCnpjStatus(){
@@ -774,17 +924,18 @@ function verificarCnpj(){
 
   if(cnpj.length === 0){
     box.className = "cnpj-status show err";
-    box.innerHTML = "<div class='st-line'>❌ Digite o CNPJ.</div>";
+    box.innerHTML = "<div class='st-line'>❌ Digite o CNPJ ou CPF.</div>";
     return;
   }
-  if(cnpj.length !== 14){
+  if(cnpj.length !== 11 && cnpj.length !== 14){
     box.className = "cnpj-status show err";
-    box.innerHTML = "<div class='st-line'>❌ CNPJ tem que ter 14 dígitos. Você digitou "+cnpj.length+".</div>";
+    box.innerHTML = "<div class='st-line'>❌ Documento deve ter 11 (CPF) ou 14 dígitos (CNPJ). Você digitou "+cnpj.length+".</div>";
     return;
   }
-  if(!isCnpjValid(cnpj)){
+  if(!isDocumentoValido(cnpj)){
+    var tipo = tipoDocumento(cnpj);
     box.className = "cnpj-status show err";
-    box.innerHTML = "<div class='st-line'>❌ CNPJ inválido (dígitos verificadores não conferem).</div>";
+    box.innerHTML = "<div class='st-line'>❌ "+tipo+" inválido (dígitos verificadores não conferem).</div>";
     return;
   }
 
@@ -953,7 +1104,7 @@ function enviarLead(){
   var motivo = document.getElementById("f-motivo").value.trim();
 
   var erros = [];
-  if(!isCnpjValid(cnpj)){ document.getElementById("f-cnpj").classList.add("err"); erros.push("CNPJ inválido"); }
+  if(!isDocumentoValido(cnpj)){ document.getElementById("f-cnpj").classList.add("err"); erros.push("CNPJ/CPF inválido"); }
   if(!fant){ document.getElementById("f-fantasia").classList.add("err"); erros.push("Nome Fantasia"); }
   if(tel.length < 10){ document.getElementById("f-tel").classList.add("err"); erros.push("Telefone"); }
   if(wpp.length < 10){ document.getElementById("f-wpp").classList.add("err"); erros.push("WhatsApp"); }
@@ -1213,6 +1364,7 @@ function renderLeads(){
       '<td>'+resp+'</td>'+
       '<td class="acoes-cell">'+
         '<button class="mini-btn" title="Detalhes" onclick="abrirLead(\''+escapeHtml(l.id)+'\')">👁️</button>'+
+        ' <button class="mini-btn" title="Ficha de Resultado Comercial" onclick="abrirFichaResultado(\''+escapeHtml(l.id)+'\')">📊</button>'+
       '</td>'+
     '</tr>';
   }).join("");
@@ -1593,6 +1745,157 @@ function toast(msg, kind){
   el.textContent = msg;
   el.className = "toast " + (kind||"") + " show";
   setTimeout(function(){ el.classList.remove("show"); }, 3500);
+}
+
+// ============================================================
+// v5 — FICHA DE RESULTADO COMERCIAL (Pacote 2)
+// Endpoints backend: get_resultado, save_resultado
+// ============================================================
+var FICHA_LEAD = null;   // lead ativo na ficha
+var FICHA_STATUS = "";   // status comercial atualmente selecionado
+
+function maskMoeda(el){
+  // Normaliza pra formato "0,00" (aceita vírgula ou ponto como separador)
+  var raw = String(el.value || "").replace(/[^\d,.\-]/g, "");
+  // Mantém vírgula como separador decimal, mas aceita ponto
+  if(raw.indexOf(",") >= 0 && raw.indexOf(".") >= 0) raw = raw.replace(/\./g, "");
+  el.value = raw;
+}
+function parseMoeda(s){
+  if(!s) return 0;
+  s = String(s).trim().replace(/\./g, "").replace(",", ".");
+  var n = parseFloat(s);
+  return isFinite(n) ? n : 0;
+}
+function formatMoeda(n){
+  n = Number(n) || 0;
+  return n.toFixed(2).replace(".", ",");
+}
+
+function abrirFichaResultado(idLead){
+  var l = LEADS.find(function(x){ return x.id === idLead; });
+  if(!l){ toast("Lead não encontrado.", "error"); return; }
+  FICHA_LEAD = l;
+
+  // Preenche o cabeçalho com dados do lead
+  var cnpjFmt = (typeof formatDocumento === "function") ? formatDocumento(l.cnpj) : (l.cnpj || "—");
+  var vdNome = siglaToNome(l.vendedorAtribuido) || l.vendedorAtribuido || "—";
+  var dtEnv = l.dataHoraCadastro ? new Date(l.dataHoraCadastro).toLocaleString("pt-BR", {day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—";
+  document.getElementById("ficha-lead-info").innerHTML =
+    '<div class="fli-row"><span><b>' + escapeHtml(l.nomeFantasia || l.razaoSocial || "—") + '</b></span><span class="mono">' + escapeHtml(cnpjFmt) + '</span></div>' +
+    '<div class="fli-row"><span class="muted">Enviado em ' + escapeHtml(dtEnv) + ' · ' + escapeHtml(l.origem || "—") + '</span><span class="muted">Vendedor: <b>' + escapeHtml(vdNome) + '</b></span></div>';
+
+  // Reset dos campos
+  document.getElementById("fc-estimado").value = "";
+  document.getElementById("fc-proposta").value = "";
+  document.getElementById("fc-fechado").value  = "";
+  document.getElementById("fc-pedido").value   = "";
+  document.getElementById("fc-motivo").value   = "";
+  document.getElementById("fc-proxacao").value = "";
+  document.getElementById("fc-proxdata").value = "";
+  document.getElementById("fc-obs").value      = "";
+  document.getElementById("fc-meta").textContent = "";
+  FICHA_STATUS = "EM_NEGOCIACAO";
+  setFichaStatus("EM_NEGOCIACAO");
+
+  // Abre modal
+  document.getElementById("modal-ficha").classList.add("open");
+
+  // Busca resultado existente no backend (se já tiver sido salvo antes)
+  apiGet("get_resultado", {id_lead: idLead}).then(function(d){
+    var res = d && d.dados;
+    if(!res) return; // nunca foi preenchido ainda — mantém o form limpo
+    setFichaStatus(res.statusComercial || "EM_NEGOCIACAO");
+    if(res.valorEstimado > 0) document.getElementById("fc-estimado").value = formatMoeda(res.valorEstimado);
+    if(res.valorProposta > 0) document.getElementById("fc-proposta").value = formatMoeda(res.valorProposta);
+    if(res.valorFechado  > 0) document.getElementById("fc-fechado").value  = formatMoeda(res.valorFechado);
+    document.getElementById("fc-pedido").value   = res.numeroPedidoErp || "";
+    document.getElementById("fc-motivo").value   = res.motivoPerda || "";
+    document.getElementById("fc-proxacao").value = res.proximaAcao || "";
+    // Data no formato YYYY-MM-DD pra input type=date
+    if(res.dataProximaAcao){
+      var dp = String(res.dataProximaAcao).substring(0, 10);
+      document.getElementById("fc-proxdata").value = dp;
+    }
+    document.getElementById("fc-obs").value = res.observacaoComercial || "";
+    var meta = [];
+    if(res.atualizadoEm) meta.push("Última atualização: " + new Date(res.atualizadoEm).toLocaleString("pt-BR"));
+    if(res.atualizadoPor) meta.push("Por: " + res.atualizadoPor);
+    document.getElementById("fc-meta").textContent = meta.join(" · ");
+  }).catch(function(e){
+    // Se o endpoint não existir ou der erro, mantém o form limpo
+    console.warn("Falha ao buscar resultado existente:", e);
+  });
+}
+
+function closeFichaResultado(){
+  document.getElementById("modal-ficha").classList.remove("open");
+  FICHA_LEAD = null;
+  FICHA_STATUS = "";
+}
+
+function setFichaStatus(st){
+  FICHA_STATUS = st;
+  document.querySelectorAll(".st-btn").forEach(function(b){
+    b.classList.toggle("on", b.dataset.st === st);
+  });
+  // Campo "Valor Fechado" obrigatório só pra CONVERTIDO
+  var reqMark = document.getElementById("fc-fechado-req");
+  if(reqMark) reqMark.style.display = (st === "CONVERTIDO") ? "inline" : "none";
+  // Campo "Motivo da Perda" só pra PERDIDO
+  var motivoWrap = document.getElementById("fc-motivo-wrap");
+  if(motivoWrap) motivoWrap.style.display = (st === "PERDIDO") ? "block" : "none";
+}
+
+function salvarFichaResultado(){
+  if(!FICHA_LEAD){ toast("Nenhum lead selecionado.", "error"); return; }
+  if(!FICHA_STATUS){ toast("Escolha o Status Comercial.", "error"); return; }
+
+  var valorFechado = parseMoeda(document.getElementById("fc-fechado").value);
+  var motivoPerda = document.getElementById("fc-motivo").value;
+
+  // Validações client-side espelham as regras do backend
+  if(FICHA_STATUS === "CONVERTIDO" && valorFechado <= 0){
+    toast("Status CONVERTIDO exige Valor Fechado > 0.", "error");
+    document.getElementById("fc-fechado").classList.add("err");
+    return;
+  }
+  if(FICHA_STATUS === "PERDIDO" && !motivoPerda){
+    toast("Status PERDIDO exige Motivo da Perda.", "error");
+    document.getElementById("fc-motivo").classList.add("err");
+    return;
+  }
+
+  var payload = {
+    idLead:              FICHA_LEAD.id,
+    statusComercial:     FICHA_STATUS,
+    valorEstimado:       parseMoeda(document.getElementById("fc-estimado").value),
+    valorProposta:       parseMoeda(document.getElementById("fc-proposta").value),
+    valorFechado:        valorFechado,
+    numeroPedidoErp:     document.getElementById("fc-pedido").value.trim(),
+    proximaAcao:         document.getElementById("fc-proxacao").value.trim(),
+    dataProximaAcao:     document.getElementById("fc-proxdata").value || "",
+    motivoPerda:         motivoPerda,
+    observacaoComercial: document.getElementById("fc-obs").value.trim()
+  };
+
+  var btn = document.getElementById("btn-salvar-ficha");
+  btn.disabled = true;
+
+  apiPost("save_resultado", {payload: payload}).then(function(d){
+    btn.disabled = false;
+    if(d.ok){
+      toast("✅ Ficha salva! " + (FICHA_STATUS === "CONVERTIDO" ? "Lead marcado como CONVERTIDO." : FICHA_STATUS === "PERDIDO" ? "Lead marcado como PERDIDO." : "Status atualizado."), "ok");
+      closeFichaResultado();
+      // Recarrega a lista de leads pra refletir o status atualizado
+      loadLeads(true);
+    } else {
+      toast("Erro: " + (d.error || "resposta inválida"), "error");
+    }
+  }).catch(function(e){
+    btn.disabled = false;
+    toast("Erro ao salvar: " + e.message, "error");
+  });
 }
 </script>
 </body>
