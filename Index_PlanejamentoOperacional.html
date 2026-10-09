@@ -67,8 +67,13 @@
   .topbar .usuario{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);background:var(--bg);padding:7px 13px;border-radius:999px}
   .btn-novo{background:var(--accent);color:#fff;border:none;font-family:inherit;font-weight:700;font-size:13px;padding:10px 16px;border-radius:10px;cursor:pointer}
   .btn-novo:hover{background:#1d4ed8}
-  .sync-info{font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap}
-  .sync-info.on{color:var(--green)}
+  .sync-info{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);font-weight:700;white-space:nowrap;background:#f1f5f9;border:1px solid var(--line);padding:5px 10px;border-radius:20px}
+  .sync-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0}
+  .sync-info.sync{color:var(--accent);background:#eff6ff;border-color:#bfdbfe}
+  .sync-info.sync .sync-dot{background:var(--accent);animation:syncpulse 1s ease-in-out infinite}
+  .sync-info.ok{color:var(--green);background:#f0fdf4;border-color:#bbf7d0}
+  .sync-info.ok .sync-dot{background:var(--green)}
+  @keyframes syncpulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.6)}}
   .aviso-versao{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;background:var(--ink);color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 10px 30px rgba(15,23,42,.3);display:flex;align-items:center;gap:14px;font-size:13px;font-weight:600}
   .aviso-versao button{background:var(--accent);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:12.5px;padding:8px 14px;border-radius:8px;cursor:pointer}
   @media(max-width:860px){
@@ -684,7 +689,7 @@
 </div>
 
 <!-- ===================== MODAL: NOVO / EDITAR PLANO ===================== -->
-<div class="modal-ov" id="modalPlano" onclick="if(event.target===this)fecharModal('modalPlano')">
+<div class="modal-ov" id="modalPlano">
   <div class="modal-cx">
     <div class="modal-cab">
       <div>
@@ -789,7 +794,7 @@
 </div>
 
 <!-- ===================== MODAL: SALA DE COMANDO (detalhe) ===================== -->
-<div class="modal-ov" id="modalDet" onclick="if(event.target===this)fecharModal('modalDet')">
+<div class="modal-ov" id="modalDet">
   <div class="modal-cx modal-sc" style="position:relative">
     <button class="modal-x" onclick="fecharModal('modalDet')" style="position:absolute;top:16px;right:18px;z-index:3">×</button>
     <div id="detCorpo"></div>
@@ -797,7 +802,7 @@
 </div>
 
 <!-- ===================== MODAL: PÓS-EVENTO ===================== -->
-<div class="modal-ov" id="modalPos" onclick="if(event.target===this)fecharModal('modalPos')">
+<div class="modal-ov" id="modalPos">
   <div class="modal-cx">
     <div class="modal-cab">
       <h3 id="posModalTitulo">Fechamento do evento</h3>
@@ -839,7 +844,7 @@
 </div>
 
 <!-- ===================== MODAL: NOVO EVENTO (CALENDÁRIO) ===================== -->
-<div class="modal-ov" id="modalEvento" onclick="if(event.target===this)fecharModal('modalEvento')">
+<div class="modal-ov" id="modalEvento">
   <div class="modal-cx">
     <div class="modal-cab">
       <h3>Novo evento no calendário</h3>
@@ -2328,21 +2333,32 @@ function rerenderAtual(){
 }
 var PlanSync={
   dataMs: 4*60*1000, versaoMs: 5*60*1000, ociosoMs: 60*1000,
-  assinatura:null, nova:false, checando:false, ultimoToque:Date.now(),
+  assinatura:null, nova:false, checando:false, ativos:0, ultimoToque:Date.now(),
   modalAberto:function(){ return !!document.querySelector('.modal-ov.open'); },
   trabalho:function(){
     if(PlanSync.modalAberto()) return true;
     var a=document.activeElement;
     return !!(a && ['INPUT','TEXTAREA','SELECT'].indexOf(a.tagName)>=0);
   },
-  marcar:function(){
+  pinta:function(){
     var el=document.getElementById('syncInfo'); if(!el) return;
-    var h=new Date(); el.textContent='atualizado '+('0'+h.getHours()).slice(-2)+':'+('0'+h.getMinutes()).slice(-2);
-    el.classList.add('on'); setTimeout(function(){ el.classList.remove('on'); }, 2000);
+    if(PlanSync.ativos>0){
+      el.className='sync-info sync';
+      el.innerHTML='<span class="sync-dot"></span><span>Sincronizando…</span>';
+    } else {
+      var h=new Date();
+      el.className='sync-info ok';
+      el.innerHTML='<span class="sync-dot"></span><span>Sincronizado '+('0'+h.getHours()).slice(-2)+':'+('0'+h.getMinutes()).slice(-2)+'</span>';
+      setTimeout(function(){ if(PlanSync.ativos===0 && el.classList.contains('ok')) el.classList.remove('ok'); }, 2500);
+    }
   },
+  inicio:function(){ PlanSync.ativos++; PlanSync.pinta(); },
+  fim:function(){ PlanSync.ativos=Math.max(0,PlanSync.ativos-1); PlanSync.pinta(); },
+  marcar:function(){ PlanSync.pinta(); },
   dataPoll:function(){
     if(document.visibilityState!=='visible' || PlanSync.trabalho()) return;
-    carregarPlanos().then(function(){ rerenderAtual(); PlanSync.marcar(); }).catch(function(){});
+    PlanSync.inicio();
+    carregarPlanos().then(function(){ rerenderAtual(); }).catch(function(){}).then(function(){ PlanSync.fim(); });
   },
   recarregar:function(){ location.replace(location.pathname+'?v='+Date.now()+location.hash); },
   avisar:function(){
@@ -2354,7 +2370,7 @@ var PlanSync={
   },
   checar:function(){
     if(PlanSync.checando || !navigator.onLine) return Promise.resolve();
-    PlanSync.checando=true;
+    PlanSync.checando=true; PlanSync.inicio();
     var url=location.pathname+'?checagem='+Date.now();
     return fetch(url,{method:'HEAD',cache:'no-store'}).then(function(r){
       if(!r.ok) return null; return r.headers.get('etag')||r.headers.get('last-modified');
@@ -2367,9 +2383,10 @@ var PlanSync={
       if(sig===PlanSync.assinatura) return;
       PlanSync.nova=true; PlanSync.avisar();
       if(!PlanSync.trabalho() && Date.now()-PlanSync.ultimoToque>PlanSync.ociosoMs) PlanSync.recarregar();
-    }).catch(function(){}).then(function(){ PlanSync.checando=false; });
+    }).catch(function(){}).then(function(){ PlanSync.checando=false; PlanSync.fim(); });
   },
   iniciar:function(){
+    PlanSync.pinta();
     ['pointerdown','keydown','touchstart'].forEach(function(ev){ document.addEventListener(ev,function(){ PlanSync.ultimoToque=Date.now(); },{passive:true}); });
     setInterval(function(){ PlanSync.dataPoll(); }, PlanSync.dataMs);
     document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') PlanSync.dataPoll(); });
