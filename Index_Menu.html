@@ -1228,9 +1228,38 @@ function openCrmModal(){
   var sg = (CURRENT_USER.crmSigla || "").trim();
   if(!sg) return;
 
-  // Vendedor: vai direto pra própria carteira
-  if(sg !== "*" && sg !== "LEAD"){
+  // Vendedores com permissão extra para cadastrar lead
+  // (além da carteira própria, veem o botão de cadastro)
+  var VENDEDORES_PODEM_CADASTRAR_LEAD = {
+    "DAYANE.NASCIMENTO": true
+    // adicione aqui outras siglas no futuro, ex: "ELIANE.MOREIRA": true
+  };
+
+  // Vendedor sem permissão extra: vai direto pra própria carteira
+  if(sg !== "*" && sg !== "LEAD" && !VENDEDORES_PODEM_CADASTRAR_LEAD[sg]){
     window.location.href = "Index_CRM.html";
+    return;
+  }
+
+  // Vendedor com permissão extra (Dayane): modal pequeno com 2 escolhas
+  if(VENDEDORES_PODEM_CADASTRAR_LEAD[sg]){
+    var gridV = document.getElementById("crm-modal-grid");
+    gridV.innerHTML =
+      '<a href="Index_CRM.html" class="fin-opt crm-vend">' +
+        '<div class="fo-icon">👤</div>' +
+        '<div class="fo-content">' +
+          '<div class="fo-title">Minha Carteira</div>' +
+          '<div class="fo-sub">Visitas · Pedidos · Histórico</div>' +
+        '</div>' +
+      '</a>' +
+      '<a href="Index_CRM_Lead.html" class="fin-opt crm-lead">' +
+        '<div class="fo-icon">📨</div>' +
+        '<div class="fo-content">' +
+          '<div class="fo-title">Cadastrar Lead</div>' +
+          '<div class="fo-sub">Novo lead · Distribuir no time</div>' +
+        '</div>' +
+      '</a>';
+    document.getElementById("crm-modal-overlay").classList.add("open");
     return;
   }
 
