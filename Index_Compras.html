@@ -7713,6 +7713,19 @@ function valalPodeVerPrevia() {
   return VALAL_LOGINS_PREVIA.indexOf(String(email).split("@")[0]) >= 0;
 }
 
+/* O backend autoriza por LOGIN (parte antes do @), igual ao valalPodeAgir.
+   valalUsuario() devolve o NOME, que serve para exibir — nunca para autorizar.
+   Trocar um pelo outro foi o que derrubou o disparo do Célio. */
+function valalLoginUsuario() {
+  var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
+  var email = "";
+  if (perfil && perfil.email) email = String(perfil.email).toLowerCase().trim();
+  if (!email) {
+    try { email = String((JSON.parse(localStorage.getItem("qfood_session") || "{}").email) || "").toLowerCase().trim(); } catch (e) {}
+  }
+  return email;
+}
+
 function valalUsuario() {
   var perfil = (typeof USR_ATUAL !== 'undefined' && USR_ATUAL) ? USR_ATUAL : null;
   if (perfil && (perfil.nome || perfil.email)) return perfil.nome || perfil.email;
@@ -8078,6 +8091,14 @@ function valalRenderizar() {
         '<div style="font-size:.62rem;color:var(--mu2);margin-top:3px">por ' + valalEsc(r.acaoPor || '—') +
           (r.acaoEm ? ' em ' + valalEsc(valalFmtData(valalParseData(r.acaoEm))) : '') + ' \u00b7 \uD83D\uDD12</div>' +
         (r.observacoes ? '<div style="font-size:.64rem;color:var(--mu);margin-top:4px;font-style:italic">\u201C' + valalEsc(r.observacoes) + '\u201D</div>' : '') +
+        // Reenvio: a ação fica gravada, mas o Telegram pode ser disparado de novo
+        (r.acao === 'COMUNICADO_COMERCIAL' && podeAgir
+          ? '<button type="button" onclick="valalReenviar(' + i + ')" ' +
+            'title="Dispara o Telegram de novo sem mexer na ação já registrada" ' +
+            'style="margin-top:7px;background:rgba(77,142,245,.12);border:1px solid rgba(77,142,245,.4);' +
+            'color:#4d8ef5;padding:4px 9px;border-radius:7px;font-size:.64rem;font-weight:700;cursor:pointer">' +
+            '\uD83D\uDCF2 Reenviar Telegram</button>'
+          : '') +
         '</div>';
     } else {
       // Linha 1 — prévia: gera o arquivo e não encosta na base
@@ -8339,7 +8360,8 @@ async function valalDispararTelegram(r, idx) {
           qtde: r.qtde,
           unidade: r.unidade,
           fornecedor: r.fornecedor,
-          login: valalUsuario()
+          login: valalLoginUsuario(),
+          nome: valalUsuario()
         }
       })
     });
@@ -8374,6 +8396,9 @@ async function valalDispararTelegram(r, idx) {
     // Registra sozinho no marco aberto do ciclo
     if (j.texto_marco) valalRegistrarMarcoAuto(r, j.texto_marco);
 
+    // Recarrega o histórico para o selo "enviado" aparecer na hora
+    if (typeof valdispCarregar === 'function') valdispCarregar(true);
+
     return j;
 
   } catch (e) {
@@ -8382,6 +8407,27 @@ async function valalDispararTelegram(r, idx) {
       '<br><span style="font-size:.78rem">Use o PDF e avise no grupo. Dá para tentar o disparo de novo pelo botão de prévia.</span>');
     return null;
   }
+}
+
+/* Reenvia o comunicado de um item que JÁ teve a ação registrada.
+   Serve para quando o envio falhou mas a ação ficou gravada — o item está
+   travado, e sem isto não haveria como mandar de novo pela tela. */
+async function valalReenviar(idx) {
+  var r = VALAL.visiveis[idx];
+  if (!r) return;
+  if (!valalPodeAgir()) {
+    alert("Somente Célio, Cris ou Rodrigo podem disparar o comunicado.");
+    return;
+  }
+  if (!confirm(
+    "Reenviar o comunicado no Telegram?\n\n" +
+    "Produto: " + r.descricao + "\n" +
+    "Validade: " + valalFmtData(r.validade) + "\n\n" +
+    "A ação registrada não muda. Cada vendedor recebe de novo a lista dos clientes dele."
+  )) return;
+
+  var j = await valalDispararTelegram(r, idx);
+  if (j && typeof valdispCarregar === 'function') valdispCarregar(true);
 }
 
 // Grava o texto do disparo no marco em aberto, sem pedir nada ao usuário.
