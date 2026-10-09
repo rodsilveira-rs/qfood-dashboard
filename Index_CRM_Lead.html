@@ -170,6 +170,58 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
 
 .rank-empty{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:50px 20px;text-align:center;color:var(--mu)}
 
+/* v6 — ABA RESULTADOS COMERCIAIS */
+.res-filtros{display:grid;grid-template-columns:repeat(4,1fr) auto;gap:12px;margin-bottom:20px;background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:14px}
+.res-fld{display:flex;flex-direction:column;gap:4px}
+.res-fld label{font-size:.7rem;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;font-weight:700}
+.res-fld select{background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 10px;color:var(--tx);font-size:.85rem;outline:none;font-family:var(--fb)}
+.res-fld select:focus{border-color:var(--pink)}
+
+/* KPI tiles */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}
+.kpi-row-sm{grid-template-columns:repeat(2,1fr)}
+.kpi-tile{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden;min-height:120px;display:flex;flex-direction:column;justify-content:center}
+.kpi-tile::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--pink),var(--ok))}
+.kpi-tile-sm{min-height:100px}
+.kpi-ico{font-size:1.6rem;margin-bottom:6px;line-height:1}
+.kpi-val{font-family:var(--fh);font-size:2rem;font-weight:800;color:var(--tx);line-height:1.1;margin-bottom:4px;word-break:break-word}
+.kpi-tile-sm .kpi-val{font-size:1.6rem}
+.kpi-lbl{font-size:.78rem;color:var(--mu);text-transform:uppercase;letter-spacing:.4px;font-weight:700}
+.kpi-sub{font-size:.72rem;color:var(--mu);margin-top:4px;font-style:italic}
+
+/* Velocímetro (SVG) */
+.kpi-tile-velo{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 18px}
+.velo-wrap{width:100%;max-width:220px;margin:0 auto}
+.velo-wrap svg{display:block;width:100%;height:auto}
+
+/* Chart cards */
+.chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+.chart-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:16px 18px;min-height:220px}
+.chart-title{font-family:var(--fh);font-size:.95rem;font-weight:800;color:var(--tx);margin-bottom:14px}
+.bar-list{display:flex;flex-direction:column;gap:10px}
+.bar-item{display:flex;flex-direction:column;gap:4px}
+.bar-head{display:flex;justify-content:space-between;font-size:.78rem;color:var(--tx)}
+.bar-head b{color:var(--tx);font-weight:700}
+.bar-head .bar-val{color:var(--mu);font-weight:600}
+.bar-track{height:8px;background:var(--s3);border-radius:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .4s ease}
+.bar-fill.col-1{background:linear-gradient(90deg,var(--pink),#f472b6)}
+.bar-fill.col-2{background:linear-gradient(90deg,var(--blue),#60a5fa)}
+.bar-fill.col-3{background:linear-gradient(90deg,var(--ok),#4ade80)}
+.bar-fill.col-4{background:linear-gradient(90deg,var(--warn),#fbbf24)}
+.chart-empty{text-align:center;padding:20px;color:var(--mu);font-size:.82rem}
+
+@media(max-width:900px){
+  .res-filtros{grid-template-columns:1fr 1fr;}
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kpi-row-sm{grid-template-columns:1fr}
+  .chart-grid{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .kpi-row{grid-template-columns:1fr}
+  .res-filtros{grid-template-columns:1fr}
+}
+
 /* Modal (edição) */
 .modal-ov{position:fixed;inset:0;background:rgba(10,12,20,.78);backdrop-filter:blur(4px);z-index:2000;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
 .modal-ov.open{display:flex}
@@ -253,6 +305,9 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
       </button>
       <button class="tab" data-tab="ranking" onclick="setTab('ranking')">
         🏆 Ranking de Resposta
+      </button>
+      <button class="tab" data-tab="resultados" onclick="setTab('resultados')">
+        📊 Resultados Comerciais
       </button>
     </div>
 
@@ -440,6 +495,121 @@ body{background:var(--bg);color:var(--tx);font-family:var(--fb);min-height:100vh
       <div class="rank-period" id="rank-period">Período: <b id="rank-period-lbl">—</b></div>
       <div id="rank-content">
         <div class="rank-empty">Carregando ranking...</div>
+      </div>
+    </div>
+
+    <!-- ====== ABA 4: RESULTADOS COMERCIAIS (v6) ====== -->
+    <div class="tab-panel" id="panel-resultados">
+      <!-- Barra de filtros -->
+      <div class="res-filtros">
+        <div class="res-fld">
+          <label>Período</label>
+          <select id="res-period" onchange="renderResultados()">
+            <option value="mes_atual">📅 Mês atual</option>
+            <option value="30d">Últimos 30 dias</option>
+            <option value="90d">Últimos 90 dias</option>
+            <option value="tudo" selected>🗂️ Tudo</option>
+          </select>
+        </div>
+        <div class="res-fld">
+          <label>Vendedor</label>
+          <select id="res-vendedor" onchange="renderResultados()">
+            <option value="">Todos</option>
+          </select>
+        </div>
+        <div class="res-fld">
+          <label>Origem</label>
+          <select id="res-origem" onchange="renderResultados()">
+            <option value="">Todas</option>
+            <option>Instagram</option>
+            <option>Site</option>
+            <option>Indicação</option>
+            <option>WhatsApp</option>
+            <option>Feira/Evento</option>
+            <option>Outro</option>
+          </select>
+        </div>
+        <div class="res-fld">
+          <label>Tipo</label>
+          <select id="res-tipo" onchange="renderResultados()">
+            <option value="">Todos</option>
+            <option value="NOVO">🌱 Novos</option>
+            <option value="EXISTENTE">🔄 Existentes</option>
+          </select>
+        </div>
+        <button class="btn-cancel" onclick="recarregarResultados()" style="align-self:end;padding:9px 14px">🔄 Atualizar</button>
+      </div>
+
+      <!-- Loading -->
+      <div id="res-loading" class="rank-empty">⏳ Carregando resultados...</div>
+
+      <!-- Conteúdo (preenchido via JS) -->
+      <div id="res-content" style="display:none">
+        <!-- Linha 1: 4 KPIs principais -->
+        <div class="kpi-row">
+          <div class="kpi-tile">
+            <div class="kpi-ico">📨</div>
+            <div class="kpi-val" id="kpi-leads">—</div>
+            <div class="kpi-lbl">Leads recebidos</div>
+          </div>
+          <div class="kpi-tile kpi-tile-velo">
+            <div class="kpi-lbl" style="margin-bottom:4px">🎯 Taxa de Conversão</div>
+            <div class="velo-wrap">
+              <svg viewBox="0 0 200 110" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+                <!-- Fundo do arco -->
+                <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="var(--s3)" stroke-width="18" stroke-linecap="round"/>
+                <!-- Arco colorido (preenchido via JS) -->
+                <path id="velo-arc" d="M 20 100 A 80 80 0 0 1 20 100" fill="none" stroke="var(--ok)" stroke-width="18" stroke-linecap="round" style="transition:all .5s ease"/>
+                <!-- Percentual grande no centro -->
+                <text id="velo-pct" x="100" y="88" text-anchor="middle" font-family="var(--fh)" font-size="36" font-weight="800" fill="var(--tx)">0%</text>
+              </svg>
+            </div>
+            <div class="kpi-sub" id="velo-sub">0 de 0 leads</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-ico">💰</div>
+            <div class="kpi-val" id="kpi-receita">R$ 0</div>
+            <div class="kpi-lbl">Receita gerada</div>
+            <div class="kpi-sub" id="kpi-receita-sub">0 vendas confirmadas</div>
+          </div>
+          <div class="kpi-tile">
+            <div class="kpi-ico">💬</div>
+            <div class="kpi-val" id="kpi-negoc">R$ 0</div>
+            <div class="kpi-lbl">Em negociação</div>
+            <div class="kpi-sub" id="kpi-negoc-sub">0 leads em aberto</div>
+          </div>
+        </div>
+
+        <!-- Linha 2: 2 KPIs secundários -->
+        <div class="kpi-row kpi-row-sm">
+          <div class="kpi-tile kpi-tile-sm">
+            <div class="kpi-ico">⏱️</div>
+            <div class="kpi-val" id="kpi-tempo">—</div>
+            <div class="kpi-lbl">Tempo médio de resposta</div>
+          </div>
+          <div class="kpi-tile kpi-tile-sm">
+            <div class="kpi-ico">❌</div>
+            <div class="kpi-val" id="kpi-perdidos">0</div>
+            <div class="kpi-lbl">Leads perdidos</div>
+            <div class="kpi-sub" id="kpi-perdidos-sub">Top motivo: —</div>
+          </div>
+        </div>
+
+        <!-- Linha 3: 3 gráficos de barras -->
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">🚫 Motivos de Perda</div>
+            <div class="bar-list" id="chart-motivos"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">📍 Conversão por Origem</div>
+            <div class="bar-list" id="chart-origens"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">👤 Receita por Vendedor</div>
+            <div class="bar-list" id="chart-vendedores"></div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -830,6 +1000,7 @@ function setTab(name){
   });
   if(name === "ranking") loadRanking();
   if(name === "enviados") renderLeads();
+  if(name === "resultados") loadResultados(); // v6
 }
 
 // ─────────────────────────────────────────────────────
@@ -1728,6 +1899,251 @@ function exportCSV(){
 // ─────────────────────────────────────────────────────
 // UI helpers
 // ─────────────────────────────────────────────────────
+// ============================================================
+// v6 — ABA RESULTADOS COMERCIAIS (Pacote 3)
+// Backend: list_resultados + leads_admin
+// ============================================================
+var RESULTADOS = [];        // cache dos resultados vindo do backend
+var RESULTADOS_LOADED = false;
+
+var MOTIVO_LABELS = {
+  "PRECO":              "💰 Preço",
+  "SEM_RESPOSTA":       "🤐 Sem resposta",
+  "CONCORRENCIA":       "⚔️ Concorrência",
+  "ENTREGA_FRETE":      "🚚 Entrega/Frete",
+  "PRAZO_PAGAMENTO":    "💳 Prazo pagamento",
+  "PRODUTO_NAO_ATENDE": "📦 Produto não atende",
+  "CNPJ_INATIVO":       "🚫 CNPJ inativo",
+  "OUTRO":              "❓ Outro"
+};
+
+function loadResultados(){
+  document.getElementById("res-loading").style.display = "block";
+  document.getElementById("res-loading").textContent = "⏳ Carregando resultados...";
+  document.getElementById("res-content").style.display = "none";
+
+  // Popula o dropdown de vendedores (reusa VENDEDORAS carregadas)
+  var selVd = document.getElementById("res-vendedor");
+  if(selVd && selVd.options.length <= 1){
+    VENDEDORAS.forEach(function(v){
+      var opt = document.createElement("option");
+      opt.value = v.sigla;
+      opt.textContent = v.nome;
+      selVd.appendChild(opt);
+    });
+  }
+
+  apiGet("list_resultados").then(function(d){
+    RESULTADOS = (d && d.dados) || [];
+    RESULTADOS_LOADED = true;
+    document.getElementById("res-loading").style.display = "none";
+    document.getElementById("res-content").style.display = "block";
+    renderResultados();
+  }).catch(function(e){
+    document.getElementById("res-loading").style.display = "block";
+    document.getElementById("res-loading").textContent = "❌ Erro ao carregar: " + e.message;
+  });
+}
+
+function recarregarResultados(){
+  RESULTADOS_LOADED = false;
+  loadResultados();
+}
+
+function renderResultados(){
+  if(!RESULTADOS_LOADED){ return; }
+
+  // Filtros
+  var periodo = document.getElementById("res-period").value;
+  var vendedor = document.getElementById("res-vendedor").value;
+  var origem = document.getElementById("res-origem").value;
+  var tipo = document.getElementById("res-tipo").value;
+
+  // Filtra LEADS por período + filtros ativos
+  var now = new Date();
+  var cutoff = null;
+  if(periodo === "mes_atual"){
+    cutoff = new Date(now.getFullYear(), now.getMonth(), 1);
+  } else if(periodo === "30d"){
+    cutoff = new Date(now.getTime() - 30*24*60*60*1000);
+  } else if(periodo === "90d"){
+    cutoff = new Date(now.getTime() - 90*24*60*60*1000);
+  }
+
+  var leadsFiltrados = LEADS.filter(function(l){
+    if(cutoff){
+      var dt = new Date(l.dataHoraCadastro || 0);
+      if(isNaN(dt.getTime()) || dt < cutoff) return false;
+    }
+    if(vendedor && (l.vendedorAtribuido || "").toUpperCase() !== vendedor.toUpperCase()) return false;
+    if(origem && l.origem !== origem) return false;
+    if(tipo && (l.tipoLead || "NOVO").toUpperCase() !== tipo.toUpperCase()) return false;
+    return true;
+  });
+
+  // Cruza com RESULTADOS (map por idLead)
+  var resByLead = {};
+  RESULTADOS.forEach(function(r){ if(r.idLead) resByLead[r.idLead] = r; });
+
+  // Agregações
+  var totalLeads = leadsFiltrados.length;
+  var convertidos = 0, perdidos = 0, emNegoc = 0;
+  var receita = 0, potencial = 0;
+  var somaResp = 0, nResp = 0;
+  var motivosCount = {};
+  var origensCount = {};  // { origem: {total, conv, receita} }
+  var vendedoresCount = {}; // { sigla: {total, conv, receita} }
+
+  leadsFiltrados.forEach(function(l){
+    var r = resByLead[l.id];
+    var statusFinal = (r && r.statusComercial) || (l.status || "NOVO").toUpperCase();
+    var vendedor = (l.vendedorAtribuido || "—").toUpperCase();
+    var orig = l.origem || "—";
+
+    // Tempos de resposta vem do LEAD mesmo
+    if(l.tempoRespostaMin > 0){ somaResp += Number(l.tempoRespostaMin); nResp++; }
+
+    // Status comercial final (prefere RESULTADOS, fallback LEAD status)
+    if(statusFinal === "CONVERTIDO"){
+      convertidos++;
+      if(r && r.valorFechado > 0) receita += Number(r.valorFechado);
+    } else if(statusFinal === "PERDIDO"){
+      perdidos++;
+      var mot = (r && r.motivoPerda) || "OUTRO";
+      motivosCount[mot] = (motivosCount[mot] || 0) + 1;
+    } else if(statusFinal === "EM_NEGOCIACAO"){
+      emNegoc++;
+      if(r && (r.valorProposta > 0 || r.valorEstimado > 0)){
+        potencial += Number(r.valorProposta || r.valorEstimado || 0);
+      }
+    }
+
+    // Origens
+    if(!origensCount[orig]) origensCount[orig] = {total:0, conv:0, receita:0};
+    origensCount[orig].total++;
+    if(statusFinal === "CONVERTIDO"){
+      origensCount[orig].conv++;
+      if(r && r.valorFechado > 0) origensCount[orig].receita += Number(r.valorFechado);
+    }
+
+    // Vendedores
+    if(!vendedoresCount[vendedor]) vendedoresCount[vendedor] = {total:0, conv:0, receita:0};
+    vendedoresCount[vendedor].total++;
+    if(statusFinal === "CONVERTIDO"){
+      vendedoresCount[vendedor].conv++;
+      if(r && r.valorFechado > 0) vendedoresCount[vendedor].receita += Number(r.valorFechado);
+    }
+  });
+
+  var taxaConv = totalLeads > 0 ? (convertidos * 100 / totalLeads) : 0;
+  var tempoMedio = nResp > 0 ? Math.round(somaResp / nResp) : null;
+
+  // ----- Preenche KPIs -----
+  document.getElementById("kpi-leads").textContent = totalLeads;
+
+  // Velocímetro de conversão (SVG arc)
+  renderVelocimetro(taxaConv);
+  document.getElementById("velo-sub").textContent = convertidos + " de " + totalLeads + " leads";
+
+  document.getElementById("kpi-receita").textContent = "R$ " + formatMoedaCurto(receita);
+  document.getElementById("kpi-receita-sub").textContent = convertidos + " venda" + (convertidos !== 1 ? "s" : "") + " confirmada" + (convertidos !== 1 ? "s" : "");
+
+  document.getElementById("kpi-negoc").textContent = "R$ " + formatMoedaCurto(potencial);
+  document.getElementById("kpi-negoc-sub").textContent = emNegoc + " lead" + (emNegoc !== 1 ? "s" : "") + " em aberto";
+
+  document.getElementById("kpi-tempo").textContent = tempoMedio != null ? formatTempo(tempoMedio) : "—";
+  document.getElementById("kpi-perdidos").textContent = perdidos;
+  var topMot = Object.keys(motivosCount).sort(function(a,b){ return motivosCount[b] - motivosCount[a]; })[0];
+  document.getElementById("kpi-perdidos-sub").textContent = topMot ? ("Top motivo: " + (MOTIVO_LABELS[topMot] || topMot)) : "Nenhum motivo registrado";
+
+  // ----- Gráfico: Motivos de Perda -----
+  renderBarChart("chart-motivos", Object.keys(motivosCount).map(function(k){
+    return {label: MOTIVO_LABELS[k] || k, value: motivosCount[k]};
+  }).sort(function(a,b){ return b.value - a.value; }), "col-1", perdidos);
+
+  // ----- Gráfico: Conversão por Origem -----
+  renderBarChart("chart-origens", Object.keys(origensCount).map(function(k){
+    var o = origensCount[k];
+    var pct = o.total > 0 ? Math.round(o.conv * 100 / o.total) : 0;
+    return {label: k, value: o.conv, max: o.total, suffix: " (" + pct + "%)"};
+  }).sort(function(a,b){ return b.value - a.value; }), "col-2", null);
+
+  // ----- Gráfico: Receita por Vendedor -----
+  renderBarChart("chart-vendedores", Object.keys(vendedoresCount).map(function(k){
+    var v = vendedoresCount[k];
+    return {label: siglaToNome(k) || k, value: v.receita, suffix: " R$"};
+  }).filter(function(x){ return x.value > 0; }).sort(function(a,b){ return b.value - a.value; }), "col-3", receita);
+}
+
+// Velocímetro: desenha arco SVG baseado em percentual (0-100)
+function renderVelocimetro(pct){
+  pct = Math.max(0, Math.min(100, pct));
+  var arc = document.getElementById("velo-arc");
+  var text = document.getElementById("velo-pct");
+  // Semicírculo: 180° = PI. Começa em -180° (esquerda) e termina em 0° (direita)
+  var cx = 100, cy = 100, r = 80;
+  var startAngle = Math.PI;              // 180°
+  var endAngle   = Math.PI - (pct/100) * Math.PI; // de 180° → 0°
+  var x1 = cx + r * Math.cos(startAngle);
+  var y1 = cy - r * Math.sin(startAngle);
+  var x2 = cx + r * Math.cos(endAngle);
+  var y2 = cy - r * Math.sin(endAngle);
+  var largeArc = pct > 50 ? 1 : 0;
+  var d = "M " + x1 + " " + y1 + " A " + r + " " + r + " 0 " + largeArc + " 1 " + x2 + " " + y2;
+  arc.setAttribute("d", d);
+  // Cor conforme %
+  var cor = pct >= 50 ? "var(--ok)" : pct >= 25 ? "var(--warn)" : "var(--red)";
+  arc.setAttribute("stroke", cor);
+  text.textContent = pct.toFixed(1).replace(".", ",") + "%";
+  text.setAttribute("fill", cor);
+}
+
+function renderBarChart(elId, items, colorClass, totalRef){
+  var box = document.getElementById(elId);
+  if(!box) return;
+  if(!items.length){
+    box.innerHTML = '<div class="chart-empty">Sem dados no período</div>';
+    return;
+  }
+  var max = Math.max.apply(null, items.map(function(i){ return i.max || i.value; }));
+  if(max === 0){
+    box.innerHTML = '<div class="chart-empty">Sem dados no período</div>';
+    return;
+  }
+  box.innerHTML = items.map(function(i){
+    var pct = Math.max(2, (i.value / max) * 100);
+    var displayVal = (i.suffix === " R$")
+      ? "R$ " + formatMoedaCurto(i.value)
+      : (i.value + (i.suffix || ""));
+    return '<div class="bar-item">'+
+      '<div class="bar-head"><span>'+escapeHtml(i.label)+'</span><span class="bar-val">'+escapeHtml(displayVal)+'</span></div>'+
+      '<div class="bar-track"><div class="bar-fill '+colorClass+'" style="width:'+pct.toFixed(1)+'%"></div></div>'+
+    '</div>';
+  }).join("");
+}
+
+// Formata R$ compacto: 2500 → "2,5 mil", 1500000 → "1,5 mi"
+function formatMoedaCurto(v){
+  v = Number(v) || 0;
+  if(v >= 1000000) return (v/1000000).toFixed(1).replace(".", ",") + " mi";
+  if(v >= 1000)    return (v/1000).toFixed(1).replace(".", ",") + " mil";
+  return v.toFixed(2).replace(".", ",");
+}
+
+// Formata minutos como "5min", "2h 15m", "3d 4h"
+function formatTempo(min){
+  min = Number(min) || 0;
+  if(min < 60) return min + "min";
+  if(min < 1440){
+    var h = Math.floor(min / 60);
+    var rest = min % 60;
+    return h + "h" + (rest ? " " + rest + "m" : "");
+  }
+  var d = Math.floor(min / 1440);
+  var h2 = Math.floor((min % 1440) / 60);
+  return d + "d" + (h2 ? " " + h2 + "h" : "");
+}
+
 function escapeHtml(s){
   return String(s == null ? "" : s)
     .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
