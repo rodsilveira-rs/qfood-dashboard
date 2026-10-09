@@ -490,6 +490,13 @@ var FILTER_TIPO = "";                  // filtro tipo: "" / "NOVO" / "EXISTENTE"
 // ─────────────────────────────────────────────────────
 // Auth guard (sessão herdada do Index_Menu)
 // ─────────────────────────────────────────────────────
+// Vendedores com permissão extra para cadastrar lead
+// (igual à lista do Index_Menu.html — manter sincronizado)
+var VENDEDORES_PODEM_CADASTRAR_LEAD = {
+  "DAYANE.NASCIMENTO": true
+  // adicione aqui outras siglas no futuro, ex: "ELIANE.MOREIRA": true
+};
+
 (function checkAuth(){
   var sess = localStorage.getItem("qfood_session");
   if(!sess){ goLogin("Sessão expirada."); return; }
@@ -498,7 +505,9 @@ var FILTER_TIPO = "";                  // filtro tipo: "" / "NOVO" / "EXISTENTE"
 
   var sigla = (s.crmSigla || "").toString().toUpperCase();
   var isAdmin = sigla === "*";
-  var podeLead = isAdmin || sigla === "LEAD";
+  var isLead = sigla === "LEAD";
+  var isVendedorAutorizado = !!VENDEDORES_PODEM_CADASTRAR_LEAD[sigla];
+  var podeLead = isAdmin || isLead || isVendedorAutorizado;
 
   if(!podeLead){
     document.getElementById("access-denied").style.display = "block";
@@ -510,9 +519,16 @@ var FILTER_TIPO = "";                  // filtro tipo: "" / "NOVO" / "EXISTENTE"
     email: (s.email || "").toLowerCase(),
     nome:  s.nome || (s.email||"").split("@")[0],
     sigla: sigla,
-    isAdmin: isAdmin
+    isAdmin: isAdmin,
+    isLead: isLead,
+    isVendedorAutorizado: isVendedorAutorizado
   };
-  document.getElementById("user-name").textContent = CURRENT_USER.nome + (isAdmin ? " · admin" : " · marketing");
+
+  // Rótulo no header: admin / marketing / vendedora autorizada
+  var rotulo = isAdmin ? " · admin"
+             : isLead  ? " · marketing"
+             : " · vendedora";
+  document.getElementById("user-name").textContent = CURRENT_USER.nome + rotulo;
   document.getElementById("main-content").style.display = "block";
   init();
 })();
