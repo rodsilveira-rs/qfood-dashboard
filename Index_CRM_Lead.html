@@ -2017,7 +2017,9 @@ function enviarLead(){
   apiPost("save_lead", {payload: payload}).then(function(d){
     document.getElementById("btn-submit").disabled = false;
 
-    if(d.ok && d.registro){
+    // v1.7+: backend pode responder com registro, lead, ou dados (schema diferente)
+    var reg = d && (d.registro || d.lead || d.data || (d.ok === true && !d.error ? d : null));
+    if(d && d.ok === true && reg){
       var tipoLbl = MODO_EXISTENTE ? " (cliente existente)" : "";
       toast("✅ Lead enviado para " + (siglaToNome(vend) || vend) + tipoLbl + "!", "ok");
       limparForm();
@@ -2026,8 +2028,7 @@ function enviarLead(){
     }
 
     // Tratamento dos retornos especiais do backend
-    if(d.jaCadastrado){
-      // Não deveria acontecer se forcar=true foi enviado, mas trata por segurança
+    if(d && d.jaCadastrado){
       mostrarBloqueioCNPJ({
         tipo: "ja_cadastrado",
         cnpj: cnpj,
@@ -2036,7 +2037,7 @@ function enviarLead(){
       });
       return;
     }
-    if(d.leadAberto){
+    if(d && d.leadAberto){
       mostrarBloqueioCNPJ({
         tipo: "lead_aberto",
         cnpj: cnpj,
@@ -2045,8 +2046,12 @@ function enviarLead(){
       });
       return;
     }
-    // Erro genérico
-    toast("Erro ao enviar: " + (d.error || "resposta inválida"), "error");
+    // Erro: mostra o JSON cru pra diagnosticar o schema do backend v1.7+
+    var detalhe = d && d.error
+      ? d.error
+      : "resposta inesperada → " + JSON.stringify(d).slice(0, 200);
+    toast("Erro ao enviar: " + detalhe, "error");
+    console.warn("save_lead respondeu:", d);
   }).catch(function(e){
     document.getElementById("btn-submit").disabled = false;
     toast("Erro ao enviar: " + e.message, "error");
