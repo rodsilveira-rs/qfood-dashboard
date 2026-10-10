@@ -1429,9 +1429,16 @@ var FILTER_TIPO = "";                  // filtro tipo: "" / "NOVO" / "EXISTENTE"
   var s; try{ s = JSON.parse(sess); }catch(e){ goLogin(); return; }
   if(!s.email || !s.ts || (Date.now() - s.ts > 8*60*60*1000)){ goLogin("Sessão expirada."); return; }
 
+  // Whitelist de vendedoras que também podem cadastrar lead (além de admin/LEAD).
+  // Para liberar mais alguém, basta adicionar o email aqui.
+  var EMAILS_PODE_LEAD = [
+    "dayane@qfoodcompany.com.br"
+    // "outra.vendedora@qfoodcompany.com.br"
+  ];
   var sigla = (s.crmSigla || "").toString().toUpperCase();
   var isAdmin = sigla === "*";
-  var podeLead = isAdmin || sigla === "LEAD";
+  var email = (s.email || "").toLowerCase();
+  var podeLead = isAdmin || sigla === "LEAD" || EMAILS_PODE_LEAD.indexOf(email) >= 0;
 
   if(!podeLead){
     document.getElementById("access-denied").style.display = "block";
@@ -1504,13 +1511,15 @@ function loadVendedoras(){
       console.warn("Falha UUSR:", e);
       // v5: fallback com todos os vendedores atuais (menos Claudia — supermercado)
       VENDEDORAS = [
-        {email:"lucas@qfoodcompany.com.br",   nome:"Lucas Brites",      sigla:"LUCAS.BRITES"},
-        {email:"vera@qfoodcompany.com.br",    nome:"Vera Silva",        sigla:"VERA.SILVA"},
-        {email:"dayane@qfoodcompany.com.br",  nome:"Dayane Nascimento", sigla:"DAYANE.NASCIMENTO"},
-        {email:"eliane@qfoodcompany.com.br",  nome:"Eliane Moreira",    sigla:"ELIANE.MOREIRA"},
-        {email:"ederson@qfoodcompany.com.br", nome:"Ederson Barcelos",  sigla:"EDERSON.BARCELOS"},
-        {email:"roberta@qfoodcompany.com.br", nome:"Roberta Rosetti",   sigla:"ROBERTA.ROSETTI"},
-        {email:"deane@qfoodcompany.com.br",   nome:"Deane Trevine",     sigla:"DEANE.TREVINE"}
+        {email:"lucas@qfoodcompany.com.br",      nome:"Lucas Brites",       sigla:"LUCAS.BRITES"},
+        {email:"vera@qfoodcompany.com.br",       nome:"Vera Silva",         sigla:"VERA.SILVA"},
+        {email:"dayane@qfoodcompany.com.br",     nome:"Dayane Nascimento",  sigla:"DAYANE.NASCIMENTO"},
+        {email:"eliane@qfoodcompany.com.br",     nome:"Eliane Moreira",     sigla:"ELIANE.MOREIRA"},
+        {email:"ederson@qfoodcompany.com.br",    nome:"Ederson Barcelos",   sigla:"EDERSON.BARCELOS"},
+        {email:"roberta@qfoodcompany.com.br",    nome:"Roberta Rosetti",    sigla:"ROBERTA.ROSETTI"},
+        {email:"deane@qfoodcompany.com.br",      nome:"Deane Trevine",      sigla:"DEANE.TREVINE"},
+        {email:"aparecida@qfoodcompany.com.br",  nome:"Aparecida Vinhal",   sigla:"APARECIDA.VINHAL"},
+        {email:"neucilene@qfoodcompany.com.br",  nome:"Neucilene",          sigla:"NEUCILENE"}
       ];
       TODAS_USERS = VENDEDORAS.slice();
       preencheSelectVendedoras();
