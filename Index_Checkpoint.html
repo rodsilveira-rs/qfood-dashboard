@@ -2094,8 +2094,41 @@ function painelMetas(){
   var per=recTriAtual();
   el('painel').innerHTML='<div class="card"><div class="sec">🎯 Metas por empresa — trimestre</div>'+
     '<div class="rep-head"><label>Trimestre</label><input type="text" id="met-per" value="'+per+'" placeholder="2026-T3" onchange="metRender()" style="width:110px"><span style="font-size:.76rem;color:var(--mu2)">Formato: ANO-Tn · o nível 1 vira a meta mensal do acompanhamento diário</span></div>'+
+    '<div class="rep-actions" style="margin-bottom:12px"><button class="btn-save" style="background:var(--s2);color:var(--tx);border:1px solid var(--b2)" onclick="metCopiarAnterior()">📋 Copiar do trimestre anterior</button><button class="btn-save" onclick="metSalvarTodas()">💾 Salvar todas as empresas</button><span id="met-msg-geral" class="rep-msg"></span></div>'+
     '<div id="met-corpo"></div></div>';
   if(METAS_CACHE===null){ recCarregarMetas().then(metRender); } else { metRender(); }
+}
+/* Trimestre anterior: 2026-T4 → 2026-T3 · 2027-T1 → 2026-T4 */
+function metTriAnterior(per){
+  var p=String(per||'').split('-T'), a=parseInt(p[0],10), t=parseInt(p[1],10);
+  if(!a||!t) return '';
+  return t===1 ? (a-1)+'-T4' : a+'-T'+(t-1);
+}
+/* Preenche a tela com os valores do trimestre anterior. NÃO salva: revise e clique em Salvar. */
+function metCopiarAnterior(){
+  var per=(el('met-per')||{}).value||recTriAtual();
+  var ant=metTriAnterior(per);
+  if(!ant){ setTxt('met-msg-geral','⚠ Trimestre inválido. Use o formato 2026-T4.'); return; }
+  var temOrigem=RECEITA_EMPRESAS.some(function(emp){ var n=recNiveis(emp.id,ant); return n&&Object.keys(n).length; });
+  if(!temOrigem){ setTxt('met-msg-geral','⚠ O trimestre '+ant+' não tem metas cadastradas para copiar.'); var _w=el('met-msg-geral'); if(_w) _w.style.color='#ffaa2b'; return; }
+  var temDestino=RECEITA_EMPRESAS.some(function(emp){ var n=recNiveis(emp.id,per); return n&&Object.keys(n).length; });
+  if(temDestino && !confirm('O trimestre '+per+' já tem metas salvas. Substituir na tela pelos valores do '+ant+'?\n\nNada é gravado até você clicar em Salvar.')) return;
+  RECEITA_EMPRESAS.forEach(function(emp){
+    var n=recNiveis(emp.id,ant)||{};
+    for(var i=1;i<=5;i++){
+      var v=n[i]||{faturamento_tri:'',ebitda_pct:'',premio:''};
+      var f=el('met-'+emp.id+'-'+i+'-fat'), e=el('met-'+emp.id+'-'+i+'-eb'), p=el('met-'+emp.id+'-'+i+'-pr');
+      if(f) f.value=v.faturamento_tri||''; if(e) e.value=v.ebitda_pct||''; if(p) p.value=v.premio||'';
+    }
+    var ap=el('met-'+emp.id+'-apur'); if(ap) ap.value='';   /* EBITDA realizado não se copia: é de cada trimestre */
+  });
+  setTxt('met-msg-geral','📋 Valores do '+ant+' copiados para o '+per+' na tela. Revise e clique em Salvar todas as empresas.');
+  var _m=el('met-msg-geral'); if(_m) _m.style.color='var(--warn)';
+}
+function metSalvarTodas(){
+  RECEITA_EMPRESAS.forEach(function(emp){ metSalvar(emp.id); });
+  setTxt('met-msg-geral','⏳ Salvando as '+RECEITA_EMPRESAS.length+' empresas — confira o resultado em cada uma.');
+  var _m=el('met-msg-geral'); if(_m) _m.style.color='var(--mu)';
 }
 
 function metRender(){
