@@ -2372,8 +2372,8 @@ function painelReceita(){
      (nunca fica abaixo do estipulado; pode ficar acima)
    • distribuída pelo peso de cada dia da semana (perfil da Mariana e da Samara)
    • a meta dos dias que faltam é reajustada pelo que já foi vendido
-   • o gestor pode digitar a meta de um dia (evento, feriado) — a diferença
-     é redistribuída nos outros dias, então o mês nunca cai
+   • o gestor pode digitar a meta de um dia (evento, feriado): abaixo do plano, a
+     diferença vai para os outros dias (o mês nunca cai); acima, o mês sobe
    Vendas: RECEITA_DIARIA · Metas: VENDAS_META · Ação do dia: VENDAS_ACAO
    ══════════════════════════════════════════════════════════════ */
 var VND_VERDE   = 0.95;   /* ≥ 95% do ritmo (ou projeção ≥ meta) = verde */
@@ -2549,18 +2549,16 @@ function vndPlano(emp,mes,cfg){
     return { iso:iso, wd:wd, aberto:aberto, feriado:!!fer[iso], ov:aberto&&ov!=null?ov:null, peso:aberto?Math.max(0,Number(cfg.pesos[wd])||0):0, meta:0 };
   });
   var abertos=lista.filter(function(d){ return d.aberto; });
-  var fixos=0, livres=[], somaP=0;
-  abertos.forEach(function(d){ if(d.ov!=null){ d.meta=d.ov; fixos+=d.ov; } else { livres.push(d); somaP+=d.peso; } });
+  var somaP=0, livres=[], fixos=0;
+  abertos.forEach(function(d){ somaP+=d.peso; if(d.ov==null) livres.push(d); else fixos+=d.ov; });
   var M=est.v;
-  if(M>0){
-    var resto=Math.max(0,M-fixos);
-    if(livres.length){
-      livres.forEach(function(d){ d.meta=somaP>0?resto*d.peso/somaP:resto/livres.length; });
-    } else if(fixos>0 && fixos<M){
-      /* todos os dias com meta digitada e a soma ficou abaixo: completa até a meta estipulada */
-      abertos.forEach(function(d){ d.meta=d.ov*M/fixos; });
-    }
-  }
+  /* 1) parte de cada dia pelo peso  2) dia digitado ABAIXO da sua parte: a diferença vai para
+     os outros dias (o mês nunca cai)  3) dia digitado ACIMA: os outros não baixam (o mês sobe) */
+  abertos.forEach(function(d){ d.base=M>0?(somaP>0?M*d.peso/somaP:M/abertos.length):0; });
+  var deficit=0, pL=0;
+  abertos.forEach(function(d){ if(d.ov!=null){ d.meta=d.ov; deficit+=Math.max(0,d.base-d.ov); } else pL+=d.peso; });
+  livres.forEach(function(d){ d.meta=d.base+(deficit>0?(pL>0?deficit*d.peso/pL:deficit/livres.length):0); });
+  if(!livres.length && M>0 && fixos<M){ abertos.forEach(function(d){ d.meta=fixos>0?d.ov*M/fixos:M/abertos.length; }); }
   var metaMes=0; lista.forEach(function(d){ metaMes+=d.meta||0; });
   return { mes:mes, dias:lista, metaMes:metaMes, temMeta:metaMes>0, estipulada:M, fonte:est.f, cfg:cfg, abertos:abertos.length,
            somaDigitada:fixos, acima:metaMes>M+1 };
@@ -2591,26 +2589,22 @@ function vndCalc(emp,ref,vendaSimulada){
     }
     if(d.iso===ref){ vendaDia=d.venda; metaDia=d.meta; diaRef=d; }
   });
-  /* Meta ajustada dos dias que faltam: o que falta para a meta do mês, pelo peso
-     de cada dia. Nunca abaixo do plano original do dia. */
+  /* Meta ajustada dos dias que faltam: se o que falta passa do plano desses dias,
+     todos sobem na mesma proporção (o jeito da Samara). Nunca fica abaixo do plano. */
   var futuros=pl.dias.filter(function(d){ return d.iso>ref && d.aberto; });
   var falta=pl.temMeta?Math.max(0,pl.metaMes-acum):null;
   if(pl.temMeta){
-    var fixF=0, livF=[], pF=0;
-    futuros.forEach(function(d){ if(d.ov!=null) fixF+=d.ov; else { livF.push(d); pF+=d.peso; } });
-    var resto=Math.max(0,falta-fixF);
-    futuros.forEach(function(d){
-      if(d.ov!=null){ d.ajust=d.ov; return; }
-      var share=pF>0?resto*d.peso/pF:(livF.length?resto/livF.length:0);
-      d.ajust=Math.max(d.meta||0,share);
-    });
+    var planoF=0; futuros.forEach(function(d){ planoF+=d.meta||0; });
+    var k=(planoF>0&&falta>planoF)?falta/planoF:1;
+    futuros.forEach(function(d){ d.ajust=(d.meta||0)*k; });
+    if(planoF===0&&falta>0&&futuros.length) futuros.forEach(function(d){ d.ajust=falta/futuros.length; });
   }
   var restantes=futuros.length;
   var ritmo=(pl.temMeta&&metaAcum>0)?acum/metaAcum:null;
   var projecao;
   if(pl.temMeta && metaAcum>0) projecao=acum+(pl.metaMes-metaAcum)*ritmo;          /* ritmo atual aplicado aos dias úteis que faltam */
   else projecao=abertosAte>0?acum+(acum/abertosAte)*restantes:acum;
-  var cor='cinza';
+  var cor=pl.temMeta?'inicio':'cinza';
   if(pl.temMeta && metaAcum>0){
     if(ritmo>=VND_VERDE || projecao>=pl.metaMes) cor='verde';
     else if(ritmo>=VND_LARANJA) cor='laranja';
@@ -2641,7 +2635,8 @@ var VND_COR = {
   verde:   { c:'var(--ok)',   ico:'🟢', t:'VERDE',    d:'Meta atingida ou projeção acima da meta' },
   laranja: { c:'var(--warn)', ico:'🟠', t:'LARANJA',  d:'Risco de desvio. Ação imediata em andamento' },
   vermelho:{ c:'var(--red)',  ico:'🔴', t:'VERMELHO', d:'Abaixo da meta. Reação obrigatória no mesmo dia' },
-  cinza:   { c:'var(--mu)',   ico:'⚪', t:'SEM META', d:'Sem meta cadastrada — o painel mostra venda, média e projeção' }
+  cinza:   { c:'var(--mu)',   ico:'⚪', t:'SEM META', d:'Sem meta cadastrada — o painel mostra venda, média e projeção' },
+  inicio:  { c:'var(--mu)',   ico:'⚪', t:'INÍCIO DO MÊS', d:'Ainda sem dia de operação no mês até esta data' }
 };
 function vndCorPct(r){ if(r==null) return 'var(--mu)'; return r>=VND_VERDE?'var(--ok)':(r>=VND_LARANJA?'var(--warn)':'var(--red)'); }
 
@@ -2668,7 +2663,7 @@ function vndBloco(gid){
       '</div>'+
       '<div class="vnd-acao-f">'+
         '<label>🎯 O que vou fazer para chegar na meta <span id="vnd-acao-obr-'+emp.id+'"></span></label>'+
-        '<textarea id="vnd-acao-'+emp.id+'" rows="2" placeholder="Medida concreta para os próximos dias. Ex.: ação de rodízio na terça com divulgação no Instagram e lista de clientes; reforço de 2 garçons na sexta."'+dis+'></textarea>'+
+        '<textarea id="vnd-acao-'+emp.id+'" rows="3" placeholder="Medida concreta para os próximos dias. Ex.: ação de rodízio na terça com divulgação no Instagram e lista de clientes; reforço de 2 garçons na sexta."'+dis+'></textarea>'+
         '<div class="vnd-acao-l">'+
           '<div><label>Responsável</label><input type="text" id="vnd-resp-'+emp.id+'" placeholder="'+esc(p?p.nome:'')+'"'+dis+'></div>'+
           '<div><label>Prazo</label><input type="date" id="vnd-prazo-'+emp.id+'"'+dis+'></div>'+
@@ -2776,7 +2771,7 @@ function vndTiles(c){
 }
 function vndSemaforo(c){
   var k=VND_COR[c.cor];
-  return '<div class="vnd-sem" style="border-color:'+k.c+'"><span class="vnd-sem-b" style="background:'+k.c+'"></span><div><b style="color:'+k.c+'">'+k.t+'</b> <span>'+(c.cor!=='cinza'&&!c.lancados?'Nenhuma venda lançada no mês até esta data':k.d)+'</span></div><div class="vnd-sem-ref">'+VND_SEM_LB[vndWd(c.ref)]+' · '+isoBR(c.ref)+'</div></div>';
+  return '<div class="vnd-sem" style="border-color:'+k.c+'"><span class="vnd-sem-b" style="background:'+k.c+'"></span><div><b style="color:'+k.c+'">'+k.t+'</b> <span>'+((c.cor==='verde'||c.cor==='laranja'||c.cor==='vermelho')&&!c.lancados?'Nenhuma venda lançada no mês até esta data':k.d)+'</span></div><div class="vnd-sem-ref">'+VND_SEM_LB[vndWd(c.ref)]+' · '+isoBR(c.ref)+'</div></div>';
 }
 /* Faixa "para fechar o mês": falta, dias úteis, meta ajustada do próximo dia e da semana */
 function vndFechar(c){
@@ -2865,7 +2860,7 @@ function vndEdPintar(empId){
       '<div class="vnd-ed-h">Vale sempre a <b>maior</b> entre a meta cadastrada'+(piso?' e '+piso:'')+'. A meta do mês nunca fica abaixo disso — só pode ficar acima, se as metas digitadas por dia somarem mais.'+(adm?'':' Só a diretoria altera a meta do mês.')+'</div></div>'+
     '<div class="vnd-ed-s">Dias de operação</div><div class="vnd-cks">'+abre+'</div>'+
     '<div class="vnd-ed-s">Peso de cada dia da semana <span>(vale a proporção: pode digitar em R$, como a Mariana, ou em %)</span></div><div class="vnd-sem7">'+pesos+'</div>'+
-    '<div class="vnd-ed-s">Calendário de '+vndMesNome(mes)+' <span>toque no dia para marcar fechado/feriado · digite a meta de um dia com evento ou feriado — a diferença vai para os outros dias'+(adm?'':' · dias que já passaram ficam travados')+'</span></div>'+
+    '<div class="vnd-ed-s">Calendário de '+vndMesNome(mes)+' <span>toque no dia para marcar fechado/feriado · digite a meta de um dia com evento ou feriado: abaixo do plano, a diferença vai para os outros dias; acima, o mês sobe'+(adm?'':' · dias que já passaram ficam travados')+'</span></div>'+
     '<div id="vnd-cal-'+empId+'"></div>'+
     '<div class="rep-actions"><button class="btn-save" onclick="vndEdSalvar(\''+empId+'\')">💾 Salvar metas de '+vndMesNome(mes)+'</button>'+
       '<button class="btn-save vnd-b2" onclick="vndEdCopiar(\''+empId+'\')">📋 Copiar do mês anterior</button>'+
