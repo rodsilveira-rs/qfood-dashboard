@@ -1807,6 +1807,7 @@ function salvarReport(id){
     .then(function(resp){
       var e2 = el('rep-'+id+'-msg');
       if(resp.ok){
+        QS_SUJO=false;
         setTxt('rep-'+id+'-msg','✓ Salvo na base de dados');
         if(e2) e2.style.color = '';
       } else if(resp.enfileirado){
@@ -2751,7 +2752,7 @@ function vndSalvarVenda(empId){
     var o=(val!=null?'Venda':'')+(val!=null&&acao?' e ação':(acao?'Ação':''));
     if(falha) msg('✗ Não foi salvo na base de dados — '+((falha&&falha.erro)||'erro')+'. Ficou só neste aparelho; clique em Salvar novamente.','#e63329');
     else if(fila) msg('⏳ Sem conexão — salvo neste aparelho e na fila. Será enviado sozinho quando a rede voltar.','#ffaa2b');
-    else msg('✓ '+o+' de '+isoBR(iso)+' salva'+(val!=null&&acao?'s':'')+' na base de dados');
+    else { QS_SUJO=false; msg('✓ '+o+' de '+isoBR(iso)+' salva'+(val!=null&&acao?'s':'')+' na base de dados'); }
     vndPintar(empId);
   });
 }
@@ -4514,6 +4515,7 @@ function qsEditando(){
 }
 function qsAtualizarTela(){
   if(!qsOnline() || qsEditando()) return;
+  if(typeof ckpSincronizarDaBase==='function') ckpSincronizarDaBase();
   var v=(typeof VIEW_ATUAL!=='undefined')?VIEW_ATUAL:'';
   if(v==='reunioes'||v==='compromissos'||v==='alertas'){ if(typeof reuRecarregarTudo==='function') reuRecarregarTudo(); }
   else if(typeof reuCarregar==='function'){ reuCarregar().then(function(){ if(typeof shellAtualizarSino==='function') shellAtualizarSino(); }); }
@@ -5029,6 +5031,54 @@ function metasCarregarDaBase(){
   }).catch(function(){ return false; });
 }
 
+/* ── Report diário e Score QDACE®: lê da base de dados ──
+   Antes o report e o score só eram lidos do navegador de quem salvou: em outro
+   computador ou celular o formulário vinha vazio e aparecia "não entregue".
+   Agora todo aparelho busca na base os últimos 60 dias e vale o mais recente. */
+function ckpTempo_(v){ var t=new Date(v||0).getTime(); return isNaN(t)?0:t; }
+function ckpIso_(v){ var s=String(v==null?'':v).trim(); if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10); var d=new Date(s); return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function ckpMes_(v){ var s=String(v==null?'':v).trim(); if(/^\d{4}-\d{2}/.test(s)) return s.substring(0,7); var d=new Date(s); return isNaN(d)?'':d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+var CKP_SYNC_RODANDO=false;
+function ckpSincronizarDaBase(){
+  if(CKP_SYNC_RODANDO || navigator.onLine===false) return Promise.resolve(false);
+  CKP_SYNC_RODANDO=true;
+  var base=window.__QFOOD_SYNC_URL||CKP_SYNC_URL;
+  var d=new Date(); d.setDate(d.getDate()-60);
+  var de=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  function ler(aba,extra){ return fetch(base+'?aba='+aba+(extra||'')+'&_='+Date.now(),{method:'GET'}).then(function(r){ return r.json(); }).catch(function(){ return null; }); }
+  return Promise.all([ler('DIARIO','&de='+de), ler('QDACE_SCORE')]).then(function(res){
+    var mudou=false;
+    if(res[0]&&res[0].ok&&res[0].registros){
+      res[0].registros.forEach(function(r){
+        var g=String(r.gestor_id||'').trim(), iso=ckpIso_(r.data_iso||r.data);
+        if(!g||!iso||!podeVer(g)) return;
+        var loc=loadReport(g,iso);
+        if(loc && ckpTempo_(loc.salvo_em)>=ckpTempo_(r.salvo_em)) return;
+        var o={ gestor_id:g, gestor_nome:String(r.gestor_nome||''), area:String(r.area||''), data_iso:iso, data:isoBR(iso), hora:String(r.hora||''),
+                rep_result:String(r.rep_result||''), rep_plano:String(r.rep_plano||''), rep_risco:String(r.rep_risco||''), rep_acao:String(r.rep_acao||''),
+                salvo_em:String(r.salvo_em||''), origem:'base' };
+        if(loc && ['rep_result','rep_plano','rep_risco','rep_acao'].every(function(k){ return String(loc[k]||'')===o[k]; })) return;
+        try{ localStorage.setItem(reportKey(g,iso),JSON.stringify(o)); mudou=true; }catch(e){}
+      });
+    }
+    if(res[1]&&res[1].ok&&res[1].registros){
+      res[1].registros.forEach(function(r){
+        var g=String(r.gestor_id||'').trim(), mes=ckpMes_(r.mes);
+        if(!g||!mes||!podeVer(g)) return;
+        var loc=loadScore(g,mes);
+        if(loc && ckpTempo_(loc.salvo_em)>=ckpTempo_(r.salvo_em)) return;
+        var det={}; try{ det=JSON.parse(String(r.detalhe_json||'{}'))||{}; }catch(e){}
+        var na={}; (det.na||String(r.kpis_na||'').split(',')).forEach(function(k){ k=String(k).trim(); if(k) na[k]=true; });
+        var o={ mes:mes, kpis:det.kpis||{}, na:na, na_detalhe:det.na_detalhe||{}, ralos:det.ralos_solucao||'', cultura:det.cultura||[], disciplina:det.disciplina||[],
+                desconto:Number(r.desconto)||0, total:Number(r.total)||0, faixa:String(r.faixa||''), kpis_vazios:Number(r.kpis_vazios)||0, salvo_em:String(r.salvo_em||''), origem:'base' };
+        try{ localStorage.setItem(scoreKey(g,mes),JSON.stringify(o)); mudou=true; }catch(e){}
+      });
+    }
+    CKP_SYNC_RODANDO=false;
+    if(mudou && typeof VIEW_ATUAL!=='undefined' && VIEW_ATUAL && !(typeof qsEditando==='function'&&qsEditando())) renderPainel(VIEW_ATUAL);
+    return mudou;
+  }).catch(function(){ CKP_SYNC_RODANDO=false; return false; });
+}
 try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
 (function init(){
   if(window.__NOSESS && !window.__DEVMODE){
@@ -5043,6 +5093,7 @@ try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pend
   avisoDevMode();
   qsIniciar();
   metasCarregarDaBase();
+  ckpSincronizarDaBase();
   reuCarregar().then(shellAtualizarSino);
   /* página disponível sem internet (sw.js na mesma pasta do site) */
   if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('[offline] sw.js não registrado', e); }); }
