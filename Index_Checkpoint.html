@@ -770,6 +770,17 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .vnd-cn-tab{min-width:420px}
 .vnd-cn-nota{font-size:.72rem;color:var(--mu2);margin-top:10px}
 @media(max-width:560px){#vnd-modal .vnd-mod-bg{padding:0}#vnd-modal .vnd-mod{border-radius:0;min-height:100%;padding:16px 14px}.vnd-cn-pct{font-size:1.7rem}}
+
+/* Lançar acumulado do mês */
+.vnd-acum{margin:0 0 12px}
+.vnd-acum-p{font-size:.8rem;color:var(--mu);line-height:1.45;margin-bottom:10px}
+.vnd-acum-l{display:flex;flex-wrap:wrap;gap:10px 14px}
+.vnd-acum-l label{display:block;font-size:.74rem;color:var(--mu);margin-bottom:4px}
+.vnd-acum-l input{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:8px 10px;color:var(--tx);font-family:inherit;font-size:.9rem;outline:none;color-scheme:dark;width:190px}
+.vnd-acum-l input:focus{border-color:var(--cyan)}
+.vnd-acum-prev{font-size:.8rem;color:var(--mu);line-height:1.5;margin-top:10px}
+.vnd-acum-prev b{color:var(--tx)}
+@media(max-width:560px){.vnd-acum-l>div{flex:1 1 100%}.vnd-acum-l input{width:100%}}
 </style>
 </head>
 <body>
@@ -2133,6 +2144,7 @@ function recCarregarBase(){
             var iso=String(reg.data_iso||'').substring(0,10); if(!iso) return;
             cache[emp]=cache[emp]||{};
             cache[emp][iso]=Number(reg.receita)||0;
+            if(typeof REC_ORIGEM!=='undefined'){ if(String(reg.origem||'')==='acumulado'){ REC_ORIGEM[emp]=REC_ORIGEM[emp]||{}; REC_ORIGEM[emp][iso]=1; } else if(REC_ORIGEM[emp]) delete REC_ORIGEM[emp][iso]; }
           });
         }
         RECEITA_CACHE=cache; resolve(true);
@@ -2419,8 +2431,8 @@ function painelReceita(){
 var VND_VERDE   = 0.95;   /* ≥ 95% do ritmo (ou projeção ≥ meta) = verde */
 var VND_LARANJA = 0.70;   /* 70% a 95% = laranja · abaixo de 70% = vermelho */
 var VND_TODOS = [1,1,1,1,1,1,1];
-/* Escala do Gogui definida pelo Adilson: R$ 300 mil (out/26) até R$ 700 mil (set/27) */
-var VND_GOGUI_ESCALA = (function(){ var o={}; for(var i=0;i<12;i++){ var d=new Date(2026,9+i,1); o[d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')]=Math.round((300000+400000*i/11)/100)*100; } return o; })();
+/* Escala do Gogui definida pelo Adilson: R$ 400 mil (out/26) até R$ 700 mil (set/27) */
+var VND_GOGUI_ESCALA = (function(){ var o={}; for(var i=0;i<12;i++){ var d=new Date(2026,9+i,1); o[d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')]=Math.round((400000+300000*i/11)/100)*100; } return o; })();
 var VND_EMPRESAS = [
   { id:'emp_qfood',     nome:'Q Food',                        emoji:'📦', dono:'celio',    abre:[1,1,1,1,1,0,0], feriadosNac:true,
     pesos:[1,1,1,1,1,1,1],
@@ -2430,7 +2442,7 @@ var VND_EMPRESAS = [
     dica:'Distribuição da Mariana: segunda a quinta iguais, sexta, sábado e domingo mais fortes.' },
   { id:'emp_gogui',     nome:'Gogui',                         emoji:'🍲', dono:'fabricia', abre:VND_TODOS,
     pesos:[100,100,100,107,205,214,174], escala:VND_GOGUI_ESCALA, canais:['restaurante','ifood','ecommerce'],
-    dica:'Meta da escala do Adilson (R$ 300 mil em out/26 até R$ 700 mil em set/27). Distribuição: média da Mercearia e da Sushi Trip.' },
+    dica:'Meta da escala do Adilson (R$ 400 mil em out/26 até R$ 700 mil em set/27). Distribuição: média da Mercearia e da Sushi Trip.' },
   { id:'emp_sushitrip', nome:'Sushi Trip',                    emoji:'🍣', dono:'samara',   abre:VND_TODOS,
     pesos:[6000,6000,6000,7000,14000,13000,14000], canais:['restaurante','ifood','ecommerce'],
     dica:'Distribuição da Samara: segunda a quarta mais fracas, quinta média, sexta a domingo fortes.' },
@@ -2853,6 +2865,99 @@ function vndCanaisJanela(empId){
 function vndCanaisEsc(e){ if(e.key==='Escape') vndCanaisFechar(); }
 function vndCanaisFechar(){ var m=el('vnd-modal'); if(m) m.remove(); document.removeEventListener('keydown',vndCanaisEsc); }
 
+/* ══════════════════════════════════════════════════════════════
+   LANÇAR O ACUMULADO DO MÊS (para quem começa a usar no meio do mês)
+   O gestor informa o total vendido de 01 até um dia. O sistema desconta
+   o que já foi lançado no período e distribui o restante nos dias sem
+   lançamento, pelo peso de cada dia. Cada dia vai para RECEITA_DIARIA
+   com origem "acumulado" e aparece com ≈ na tabela dia a dia.
+   ══════════════════════════════════════════════════════════════ */
+var REC_ORIGEM = {};   /* { empId: { iso: 1 } } — dias que vieram do acumulado (lido da base) */
+function vndAcumKey(empId,iso){ return 'qfood_chk_recorigem_'+empId+'_'+iso; }
+function vndEhAcum(empId,iso){
+  var v=recValorDia(empId,iso); if(v===''||v==null) return false;
+  var l=null; try{ l=JSON.parse(localStorage.getItem(vndAcumKey(empId,iso))||'null'); }catch(e){}
+  if(l) return Math.abs((Number(l.v)||0)-Number(v))<0.01;
+  return !!(REC_ORIGEM[empId]&&REC_ORIGEM[empId][iso]);
+}
+function vndAcumHTML(emp,pode){
+  if(!pode) return '';
+  return '<details class="vnd-det vnd-acum" id="vnd-acum-'+emp.id+'" ontoggle="vndAcumAbrir(\''+emp.id+'\')"><summary>📥 Começando agora? Lançar o acumulado do mês</summary><div>'+
+    '<p class="vnd-acum-p">Use uma vez para o que já foi vendido no mês antes de começar a lançar dia a dia. O sistema desconta o que já está lançado e distribui o restante nos dias sem lançamento, pelo peso de cada dia. Depois é só seguir lançando a venda de ontem normalmente.</p>'+
+    '<div class="vnd-acum-l"><div><label>Vendido do dia 01 até</label><input type="date" id="vnd-acum-ate-'+emp.id+'" onchange="vndAcumPrevia(\''+emp.id+'\')"></div>'+
+    '<div><label>Total vendido no período (R$)</label><input type="text" inputmode="decimal" id="vnd-acum-val-'+emp.id+'" placeholder="0,00" oninput="vndAcumPrevia(\''+emp.id+'\')"></div></div>'+
+    '<div class="vnd-acum-prev" id="vnd-acum-prev-'+emp.id+'"></div>'+
+    '<div class="rep-actions"><button class="btn-save vnd-b2" onclick="vndAcumLancar(\''+emp.id+'\')">📥 Lançar acumulado</button><span id="vnd-acum-msg-'+emp.id+'" class="rep-msg"></span></div>'+
+  '</div></details>';
+}
+function vndAcumAbrir(empId){
+  var d=el('vnd-acum-'+empId); if(!d||!d.open) return;
+  var a=el('vnd-acum-ate-'+empId), emp=vndEmp(empId);
+  if(a&&!a.value){ var r=vndIsoDate(vndRef(emp)); r.setDate(r.getDate()-1); var iso=vndDateIso(r); if(iso.substring(0,7)!==vndRef(emp).substring(0,7)) iso=vndRef(emp); a.value=iso; }
+  vndAcumPrevia(empId);
+}
+function vndAcumPlano(emp,ate,valor){
+  var mes=ate.substring(0,7), pl=vndPlano(emp,mes), s=recSomaMes(emp.id,mes);
+  var dias=pl.dias.filter(function(d){ return d.iso<=ate && d.aberto; });
+  var ja=0, nJa=0, livres=[];
+  dias.forEach(function(d){ var v=s.mapa[d.iso]; if(v===undefined||v===null||v===''){ livres.push(d); } else { ja+=Number(v)||0; nJa++; } });
+  var resto=Math.round((valor-ja)*100)/100, partes=[];
+  if(resto>0 && livres.length){
+    var pesoT=0; livres.forEach(function(d){ pesoT+=(d.meta>0?d.meta:1); });
+    var acum=0;
+    livres.forEach(function(d,i){
+      var v=(i===livres.length-1)?Math.round((resto-acum)*100)/100:Math.round(resto*(d.meta>0?d.meta:1)/pesoT*100)/100;
+      acum=Math.round((acum+v)*100)/100; partes.push({iso:d.iso,v:v});
+    });
+  }
+  return { mes:mes, ja:ja, nJa:nJa, livres:livres, resto:resto, partes:partes };
+}
+function vndAcumPrevia(empId){
+  var emp=vndEmp(empId), box=el('vnd-acum-prev-'+empId); if(!emp||!box) return;
+  var ate=(el('vnd-acum-ate-'+empId)||{}).value, bruto=String((el('vnd-acum-val-'+empId)||{}).value||'').trim();
+  if(!ate){ box.innerHTML=''; return; }
+  var p=vndAcumPlano(emp,ate,bruto===''?0:recParseNum(bruto));
+  var h='Período: <b>01 a '+vndDm(ate)+'</b> · já lançado: <b>'+recMoeda(p.ja)+'</b> em '+p.nJa+' dia(s) · sem lançamento: <b>'+p.livres.length+'</b> dia(s).';
+  if(bruto!==''){
+    if(!p.livres.length) h+='<br><span style="color:var(--warn)">Todos os dias do período já têm venda lançada — nada a distribuir.</span>';
+    else if(p.resto<0) h+='<br><span style="color:var(--red)">O total informado é menor que o já lançado no período ('+recMoeda(p.ja)+').</span>';
+    else h+='<br>Serão distribuídos <b>'+recMoeda(p.resto)+'</b> em '+p.livres.length+' dia(s): '+p.partes.slice(0,4).map(function(x){ return vndDm(x.iso)+' '+vndR0(x.v); }).join(' · ')+(p.partes.length>4?' …':'.');
+  }
+  box.innerHTML=h;
+}
+function vndAcumLancar(empId){
+  var emp=vndEmp(empId); if(!emp) return;
+  var ate=(el('vnd-acum-ate-'+empId)||{}).value, bruto=String((el('vnd-acum-val-'+empId)||{}).value||'').trim();
+  var m=el('vnd-acum-msg-'+empId);
+  function msg(t,c){ setTxt('vnd-acum-msg-'+empId,t); if(m) m.style.color=c||''; }
+  if(!ate) return msg('⚠ Escolha até que dia vai o acumulado.','#ffaa2b');
+  if(ate>hoje()) return msg('⚠ A data não pode ser futura.','#ffaa2b');
+  if(bruto==='') return msg('⚠ Digite o total vendido no período.','#ffaa2b');
+  var p=vndAcumPlano(emp,ate,recParseNum(bruto));
+  if(!p.livres.length) return msg('⚠ Todos os dias do período já têm venda lançada.','#ffaa2b');
+  if(p.resto<0) return msg('⚠ O total é menor que o já lançado no período ('+recMoeda(p.ja)+').','#ffaa2b');
+  if(!confirm('Distribuir '+recMoeda(p.resto)+' em '+p.livres.length+' dia(s) sem lançamento, de 01 a '+vndDm(ate)+'?\n\nCada dia pode ser corrigido depois, se precisar.')) return;
+  var editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim(), agora=new Date().toISOString();
+  msg('⏳ lançando '+p.partes.length+' dia(s) na base de dados...','var(--mu)');
+  var envios=p.partes.map(function(x){
+    recLocalSet(x.iso.substring(0,7),empId,x.iso,x.v);
+    try{ localStorage.setItem(vndAcumKey(empId,x.iso),JSON.stringify({v:x.v,em:agora})); }catch(e){}
+    return enviarSheet('RECEITA_DIARIA',{ gestor_id:empId, gestor_nome:emp.nome, empresa:emp.nome, data_iso:x.iso, data:isoBR(x.iso), receita:x.v, origem:'acumulado', lancado_por:editor||'sem-sessao', salvo_em:agora }).then(function(r){
+      if(r&&r.ok){ RECEITA_CACHE=RECEITA_CACHE||{}; RECEITA_CACHE[empId]=RECEITA_CACHE[empId]||{}; RECEITA_CACHE[empId][x.iso]=x.v; REC_ORIGEM[empId]=REC_ORIGEM[empId]||{}; REC_ORIGEM[empId][x.iso]=1; }
+      return r;
+    });
+  });
+  vndPintar(empId);
+  Promise.all(envios).then(function(res){
+    var falha=res.filter(function(r){ return !(r&&r.ok) && !(r&&r.enfileirado); }).length;
+    var fila=res.some(function(r){ return r&&r.enfileirado; });
+    if(falha) msg('✗ '+falha+' dia(s) não foram salvos na base de dados. Ficaram neste aparelho; tente de novo.','#e63329');
+    else if(fila) msg('⏳ Sem conexão — salvo neste aparelho e na fila de envio.','#ffaa2b');
+    else { QS_SUJO=false; msg('✓ Acumulado lançado: '+recMoeda(p.resto)+' em '+p.partes.length+' dia(s).'); var v=el('vnd-acum-val-'+empId); if(v) v.value=''; }
+    vndPintar(empId); vndAcumPrevia(empId);
+  });
+}
+
 function vndBloco(gid){
   return vndEmpDoDono(gid).map(function(emp){
     var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono);
@@ -2874,6 +2979,7 @@ function vndBloco(gid){
         '</div>'+
       '</div>'+
       ((pode||emp.canais)?'<div class="rep-actions">'+(pode?'<button class="btn-save" onclick="vndSalvarVenda(\''+emp.id+'\')">💾 Salvar venda e ação</button>':'')+(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button>':'')+'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div>':'')+
+      vndAcumHTML(emp,pode)+
       '<div id="vnd-corpo-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div>'+
     '</div>';
   }).join('');
@@ -3014,7 +3120,7 @@ function vndTabela(c){
     h+='<tr class="'+(d.aberto?'':'vnd-off')+(d.iso===c.ref?' vnd-hj':'')+'"><td>'+vndDm(d.iso)+'</td><td>'+VND_SEM_LB[d.wd]+(d.feriado?' <small>feriado</small>':'')+(d.ov!=null?' <small class="vnd-dg">digitada</small>':'')+'</td>'+
       '<td>'+(d.aberto?(d.meta>0?vndR0(d.meta):'—'):'fechado')+'</td>'+
       '<td style="color:'+(aj!=null&&aj>d.meta+1?'var(--warn)':'var(--mu)')+'">'+(aj!=null?vndR0(aj):'')+'</td>'+
-      '<td>'+(d.venda!=null?vndR0(d.venda):(passado&&d.aberto?'<span style="color:var(--warn)">falta lançar</span>':''))+'</td>'+
+      '<td>'+(d.venda!=null?(vndEhAcum(c.emp.id,d.iso)?'<small class="vnd-dg" title="distribuído do acumulado">≈</small> ':'')+vndR0(d.venda):(passado&&d.aberto?'<span style="color:var(--warn)">falta lançar</span>':''))+'</td>'+
       '<td style="color:'+vndCorPct(r)+'">'+(r!=null?vndPct(r):'')+'</td>'+
       '<td style="color:'+(desv==null?'':(desv>=0?'var(--ok)':'var(--red)'))+'">'+(desv!=null?vndSinal(desv,vndR0):'')+'</td></tr>';
     sem.m+=d.meta||0; sem.v+=d.venda||0; sem.n++; if(passado) sem.mAte+=d.meta||0; else sem.aj+=aj||0;
@@ -3024,7 +3130,7 @@ function vndTabela(c){
   if(sem.n) h+=linhaTot('vnd-ws','Semana',sem);
   h+=linhaTot('vnd-tt','Mês',tot,true);
   return '<details class="vnd-det"><summary>📅 Dia a dia de '+vndMesNome(c.mes)+'</summary><div class="vnd-tw"><table class="vnd-tab"><thead><tr><th>Dia</th><th></th><th>Meta</th><th>Ajustada</th><th>Vendido</th><th>%</th><th>Desvio</th></tr></thead><tbody>'+h+'</tbody></table>'+
-    '<div class="vnd-tab-n"><b>Meta</b>: plano do mês pelo peso de cada dia. <b>Ajustada</b>: o que precisa vender nos próximos dias para fechar o mês, recalculada a cada venda lançada (nunca abaixo do plano). % e desvio das semanas e do mês comparam com a meta dos dias até '+isoBR(c.ref)+'.</div></div></details>';
+    '<div class="vnd-tab-n"><b>Meta</b>: plano do mês pelo peso de cada dia. <b>Ajustada</b>: o que precisa vender nos próximos dias para fechar o mês, recalculada a cada venda lançada (nunca abaixo do plano). % e desvio das semanas e do mês comparam com a meta dos dias até '+isoBR(c.ref)+'. <b>≈</b>: valor distribuído do acumulado lançado de uma vez.</div></div></details>';
 }
 function vndPintar(empId){
   var emp=vndEmp(empId), box=el('vnd-corpo-'+empId); if(!emp||!box) return;
