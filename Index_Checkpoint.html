@@ -875,8 +875,8 @@ var ORG_A = {
     { id:'celio',   nome:'Célio',   funcao:'Administrativo, Compras e Margens', emoji:'📋', frente:'A', missao:'Dar suporte administrativo para acelerar Financeiro, Compras e Operações.' }
   ],
   linhaFrente: [
-    { id:'jhonatan', nome:'Jonathas', funcao:'Estoque, FIFO e Acuracidade', emoji:'📦', frente:'A', semPremio:true, missao:'Executar com excelência os processos do estoque.' },
-    { id:'eduardo',  nome:'Gean Acylino', funcao:'Segurança e Controle de Entradas e Saídas', emoji:'🛡️', frente:'A', semPremio:true, missao:'Nada entra ou sai do depósito sem conferência, autorização e registro.' }
+    { id:'jhonatan', nome:'Jonathas', funcao:'Estoque, FIFO e Acuracidade', emoji:'📦', frente:'A', semPremio:true, semReport:true, missao:'Executar com excelência os processos do estoque.' },
+    { id:'eduardo',  nome:'Gean Acylino', funcao:'Segurança e Controle de Entradas e Saídas', emoji:'🛡️', frente:'A', semPremio:true, semReport:true, missao:'Nada entra ou sai do depósito sem conferência, autorização e registro.' }
   ]
 };
 var COMITE_EXTRA = [];   /* Tairine saiu da estrutura (out/2026) */
@@ -887,7 +887,7 @@ var ORG_B = {
   ],
   gerenteUnidade: { id:'mariana', nome:'Mariana', funcao:'Gerente · Mercearia Liberdade', emoji:'🧀', frente:'B', missao:'Garantir que cozinha, bar, salão, mercearia, estoque, delivery e Gogui funcionem com excelência.' },
   tecnicas: [
-    { id:'matheus', nome:'Matheus', funcao:'Ordens de Compra da Mercearia',     emoji:'📦', frente:'B', missao:'Ordens de compra da Mercearia Liberdade certas: giro, cobertura, margem e validade — sem ruptura e sem excesso.' }
+    { id:'matheus', nome:'Matheus', funcao:'Ordens de Compra da Mercearia',     emoji:'📦', frente:'B', semReport:true, missao:'Ordens de compra da Mercearia Liberdade certas: giro, cobertura, margem e validade — sem ruptura e sem excesso.' }
   ],
   setores: ['Cozinha','Bar','Salão','Mercearia','Estoque','Delivery','Gogui Korean BBQ']
 };
@@ -896,6 +896,7 @@ var ORG_C = {
   gerenteLoja: { id:'samara', nome:'Samara', funcao:'Gerente · Sushi Trip Praia', emoji:'🍣', frente:'C', missao:'Transformar estratégia em execução diária, desenvolver pessoas e garantir experiência memorável no Sushi Trip.' },
   setores: ['Salão','Sushibar','Cozinha','Delivery / iFood','Caixa']
 };
+/* semReport: por enquanto não fazem report diário (Jonathas, Gean Acylino e Matheus) — não aparecem como pendentes */
 function pessoasParteB(){ return [].concat(COMITE_EXTRA, ORG_B.supervisao, [ORG_B.gerenteUnidade], ORG_B.tecnicas); }
 function pessoasParteC(){ return [ORG_C.gerenteLoja]; }
 function todasPessoas(){ return [].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC()); }
@@ -1867,9 +1868,9 @@ function painelPessoa(p){
   var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.semPremio?'':(ehLoja?renderPremiacaoB(p):renderPremiacaoCard(p)))):'';
   var blocoVendas=vndBloco(p.id);
   el('painel').innerHTML=
-    '<div class="card"><div class="hero">'+avatarHTML(p,56)+'<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+agfHeroHTML(p)+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+statusInlineHTML(ent)+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
+    '<div class="card"><div class="hero">'+avatarHTML(p,56)+'<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+agfHeroHTML(p)+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+(p.semReport?'<span class="chip-status" style="color:var(--mu)">● sem report diário</span>':statusInlineHTML(ent))+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
-    renderCobranca(p)+blocoVendas+renderReportForm(p)+extra;
+    renderCobranca(p)+blocoVendas+(p.semReport?'':renderReportForm(p))+extra;
   atualizarStatusInline(p.id,ontem());
   vndIniciar(p.id);
   AGF_EDITANDO=null; agfCarregar().then(function(){ agfPintar(p.id); });
@@ -2419,11 +2420,13 @@ var VND_LARANJA = 0.70;   /* 70% a 95% = laranja · abaixo de 70% = vermelho */
 var VND_TODOS = [1,1,1,1,1,1,1];
 /* Todo restaurante usa as mesmas quatro classes de venda, sempre nesta ordem */
 var VND_CANAIS_PADRAO = ['restaurante','ifood','mercearia','ecommerce'];
+/* Q Food (distribuidora): clientes externos + vendas para as empresas do grupo */
+var VND_CANAIS_QFOOD = ['qf_clientes','qf_mercearia','qf_sushitrip','qf_ecommerce'];
 /* Escala do Gogui definida pelo Adilson: R$ 400 mil (out/26) até R$ 700 mil (set/27) */
 var VND_GOGUI_ESCALA = (function(){ var o={}; for(var i=0;i<12;i++){ var d=new Date(2026,9+i,1); o[d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')]=Math.round((400000+300000*i/11)/100)*100; } return o; })();
 var VND_EMPRESAS = [
   { id:'emp_qfood',     nome:'Q Food',                        emoji:'📦', dono:'celio',    abre:[1,1,1,1,1,0,0], feriadosNac:true,
-    pesos:[1,1,1,1,1,1,1],
+    pesos:[1,1,1,1,1,1,1], canais:VND_CANAIS_QFOOD,
     dica:'Faturamento de segunda a sexta, peso igual em todos os dias úteis. Sábado, domingo e feriados nacionais já saem fechados — marque no calendário os feriados estaduais e municipais.' },
   { id:'emp_mercearia', nome:'Mercearia Liberdade · Vitória', emoji:'🛒', dono:'mariana',  abre:VND_TODOS,
     pesos:[16500,16500,16500,16500,30000,35000,20500], canais:VND_CANAIS_PADRAO,
@@ -2703,7 +2706,11 @@ var VND_CANAIS_DEF = {
   restaurante:{ nome:'Restaurante', cor:'#9670EE' },
   ifood:      { nome:'iFood',       cor:'#E2600C' },
   mercearia:  { nome:'Mercearia',   cor:'#22A493' },
-  ecommerce:  { nome:'E-commerce',  cor:'#4D8EF5' }
+  ecommerce:  { nome:'E-commerce',  cor:'#4D8EF5' },
+  qf_clientes: { nome:'Clientes (B2B)',      cor:'#9670EE' },
+  qf_mercearia:{ nome:'Mercearia Liberdade', cor:'#22A493', interno:true },
+  qf_sushitrip:{ nome:'Sushi Trip',          cor:'#E2600C', interno:true },
+  qf_ecommerce:{ nome:'E-commerce',          cor:'#4D8EF5' }
 };
 var VND_CANAIS = null;   /* { empId: { iso: {canais:{id:valor}, pedidos:{id:qtd}, total, salvo_em} } } */
 function vndCanaisLocalKey(empId,iso){ return 'qfood_chk_vndcanais_'+empId+'_'+iso; }
@@ -3406,7 +3413,7 @@ function vndAdmPintar(){
 }
 function vndTextoWhats(cs,ref){
   var L=['📊 *PAINEL DIÁRIO DE VENDAS*','📅 Referência: '+isoBR(ref)+' ('+VND_SEM_LB[vndWd(ref)].toLowerCase()+')'];
-  var G={ dia:0, acum:0, proj:0, meta:0, semV:0, semP:0, semM:0, cn:{} };
+  var G={ dia:0, acum:0, proj:0, meta:0, semV:0, semP:0, semM:0, cn:{}, intDia:0, intMes:0 };
   cs.forEach(function(c){
     var k=VND_COR[c.cor], pl=c.plano, ac=c.acao, x=vndExtras(c), s=x.sem;
     G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.meta+=pl.metaMes||0; G.semV+=s.venda; G.semP+=s.proj; G.semM+=s.meta||0;
@@ -3429,6 +3436,7 @@ function vndTextoWhats(cs,ref){
       x.canais.linhas.forEach(function(l){
         L.push('   ↳ '+l.nome+' '+Math.round(l.share*100)+'%: '+vndR(l.projMes)+' | '+vndR(l.projSem));
         G.cn[l.id]=G.cn[l.id]||{ m:0, s:0 }; G.cn[l.id].m+=l.projMes; G.cn[l.id].s+=l.projSem;
+        if(VND_CANAIS_DEF[l.id].interno){ G.intDia+=l.dia||0; G.intMes+=l.mes||0; }
       });
     }
     if(pl.temMeta) L.push('• Falta: '+recMoeda(c.falta)+' em '+c.restantes+(c.restantes===1?' dia útil':' dias úteis')+(c.prox?' · meta ajustada '+vndDm(c.prox.iso)+': '+recMoeda(c.prox.ajust):''));
@@ -3443,6 +3451,7 @@ function vndTextoWhats(cs,ref){
   if(cs.length>1){
     L.push(''); L.push('🏢 *TOTAL DO GRUPO*');
     L.push('• Venda do dia: '+recMoeda(G.dia));
+    if(G.intDia||G.intMes) L.push('   ↳ inclui vendas internas da Q Food para Mercearia/Sushi Trip: '+recMoeda(G.intDia)+' no dia · '+recMoeda(G.intMes)+' no mês');
     L.push('• Acumulado: '+recMoeda(G.acum)+' · projeção do mês '+recMoeda(G.proj)+(G.meta>0?' · metas '+recMoeda(G.meta)+' ('+vndPct(G.proj/G.meta)+')':''));
     L.push('• Semana: vendido '+vndR(G.semV)+' · projeção '+vndR(G.semP)+(G.semM>0?' ('+vndPct(G.semP/G.semM)+' da meta)':''));
     var ids=VND_CANAIS_PADRAO.filter(function(id){ return G.cn[id]; });
@@ -5276,6 +5285,7 @@ var RPT_DIAS_SEMANA = ['domingo','segunda-feira','terça-feira','quarta-feira','
 function rptPessoas(){
   var frente=(el('rpt-frente')||{}).value||'', gid=(el('rpt-gestor')||{}).value||'';
   return todasPessoas().filter(function(p){
+    if(p.semReport) return false;
     if(gid) return p.id===gid;
     if(frente) return (p.frente||'A')===frente;
     return true;
@@ -5284,7 +5294,7 @@ function rptPessoas(){
 function painelReports(){
   if(!ehAdmin()){ el('painel').innerHTML='<div class="card"><div class="ct">Acesso restrito</div><p style="color:var(--mu)">O consolidado de reports é exclusivo da administração.</p></div>'; return; }
   var de=reuSomaDias(hoje(),-7), ate=hoje();
-  var gest='<option value="">Todos os gestores</option>'+todasPessoas().map(function(p){ return '<option value="'+p.id+'">'+esc(p.nome)+'</option>'; }).join('');
+  var gest='<option value="">Todos os gestores</option>'+todasPessoas().filter(function(p){ return !p.semReport; }).map(function(p){ return '<option value="'+p.id+'">'+esc(p.nome)+'</option>'; }).join('');
   el('painel').innerHTML=
     '<div class="card exe-head"><div class="exe-tit"><div class="exe-bc">Gestão › Reports diários</div><div class="exe-h1">Reports diários</div>'+
       '<div class="exe-sub">Consolidado por data, com as quatro perguntas fixas e a resposta de cada gestor</div></div>'+
