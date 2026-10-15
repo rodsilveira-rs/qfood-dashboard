@@ -1910,7 +1910,7 @@ function painelRodrigo(){
 /* Linha automática da Q Food no report do Rodrigo */
 function consLinhaQFood(iso){
   var e=vndEmp('emp_qfood'); if(!e) return '';
-  var c=vndCalc(e,vndRefEmp(e,iso)), pl=c.plano;
+  var c=vndCalcOficial(e,vndRefEmp(e,iso)), pl=c.plano;
   if(!pl.temMeta) return '📦 Q Food: realizado '+recMoeda(c.acum)+' · projeção '+recMoeda(c.projecao)+' (sem meta)';
   var ind=vndIndTexto(e,c.ref);
   return '📦 Q Food'+(c.ref!==iso?' (dia útil '+isoBR(c.ref)+')':'')+': META '+vndR(pl.metaMes)+' → REALIZADO '+vndR(c.acum)+' → GAP '+vndSinal(c.desvioAcum,vndR)+' no ritmo ('+vndPct(c.ritmo)+')\n'+
@@ -1958,7 +1958,7 @@ function consScore(id,mes){
 function gerarConsolidado(){
   var iso=ontem(),mes=mesAtual(),L=[], P=consPessoas();
   var eg=P.filter(function(r){return !!consReport(r.id,iso);}).length;
-  var cs=VND_EMPRESAS.map(function(e){ return vndCalc(e,vndRefEmp(e,iso)); });
+  var cs=VND_EMPRESAS.map(function(e){ return vndCalcOficial(e,vndRefEmp(e,iso)); });
   var lanc=cs.filter(function(c){ return c.vendaDia!=null; }).length;
   L.push('📊 CHECKPOINT DIÁRIO — Q FOOD GROUP'); L.push('📅 '+isoBR(iso)+' ('+VND_SEM_LB[vndWd(iso)].toLowerCase()+')  ·  Enviado por: Rodrigo');
   L.push('🎯 Reports do dia: '+eg+'/'+P.length+' · Vendas lançadas: '+lanc+'/'+cs.length); L.push('━━━━━━━━━━━━━━━');
@@ -1986,14 +1986,15 @@ function gerarConsolidado(){
 }
 /* Bloco de vendas do checkpoint: grupo, empresas (ritmo, projeção, semana, canais) e canais dos restaurantes */
 function consVendasLinhas(cs){
-  var L=[], G={ acum:0, meta:0, metaAcum:0, proj:0, semP:0, semM:0, intMes:0, cn:{} };
+  var L=[], G={ acum:0, meta:0, acumM:0, metaAcum:0, proj:0, projM:0, semP:0, semPM:0, semM:0, intMes:0, cn:{} }, semMeta=[];
   var B=[];
   cs.forEach(function(c){
     var e=c.emp, pl=c.plano, k=VND_COR[c.cor], x=vndExtras(c), s=x.sem;
-    G.acum+=c.acum; G.proj+=c.projecao; G.semP+=s.proj;
-    if(pl.temMeta){ G.meta+=pl.metaMes; G.metaAcum+=c.metaAcum; G.semM+=s.meta||0; }
+    G.acum+=c.acum; G.proj+=c.projecao;
+    if(pl.temMeta){ G.meta+=pl.metaMes; G.acumM+=c.acum; G.metaAcum+=c.metaAcum; G.projM+=c.projecao; G.semPM+=s.proj; G.semM+=s.meta||0; }
+    else semMeta.push(e);
     B.push('');
-    B.push(k.ico+' '+e.emoji+' *'+e.nome.toUpperCase()+'* — '+vndR(c.acum)+(pl.temMeta?' de '+vndR(pl.metaMes):' (sem meta)'));
+    B.push(k.ico+' '+e.emoji+' *'+e.nome.toUpperCase()+'* — '+vndR(c.acum)+(pl.temMeta?' de '+vndR(pl.metaMes)+(pl.metaGestor?' _(meta interna da gestora '+vndR(pl.metaGestor)+')_':''):' (sem meta)'));
     var l2=(pl.temMeta?'Ritmo '+vndPct(c.ritmo)+' · ':'')+'Projeção '+vndR(c.projecao)+(pl.temMeta?' ('+vndSinal(c.desvioProj,vndR)+')':'');
     l2+=' · Ontem '+(c.vendaDia==null?'não lançada':vndR(c.vendaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''));
     if(e.id==='emp_qfood'&&c.ref!==ontem()) l2+=' _(dia útil '+vndDm(c.ref)+')_';
@@ -2007,11 +2008,14 @@ function consVendasLinhas(cs){
       else if(VND_CANAIS_PADRAO.indexOf(l.id)>=0){ G.cn[l.id]=G.cn[l.id]||{ m:0, s:0 }; G.cn[l.id].m+=l.projMes; G.cn[l.id].s+=l.projSem; }
     });
   });
-  var rit=G.metaAcum>0?G.acum/G.metaAcum:null, cor=rit==null?'cinza':(rit>=VND_VERDE?'verde':(rit>=VND_LARANJA?'laranja':'vermelho'));
+  var rit=G.metaAcum>0?G.acumM/G.metaAcum:null, cor=rit==null?'cinza':((rit>=VND_VERDE||G.projM>=G.meta)?'verde':(rit>=VND_LARANJA?'laranja':'vermelho'));
+  var faltaMeta=semMeta.filter(function(e){ return VND_PRINCIPAIS.indexOf(e.id)>=0; });
+  if(faltaMeta.length){ L.push('⚠ *CONFERIR ANTES DE ENVIAR:* sem meta cadastrada — '+faltaMeta.map(function(e){ return e.nome; }).join(', ')); L.push('━━━━━━━━━━━━━━━'); }
   L.push('🏢 *GRUPO — '+vndMesNome(cs[0].mes).toUpperCase()+'*');
   L.push('Vendido: '+vndR(G.acum)+(G.meta>0?' · Meta: '+vndR(G.meta):''));
-  L.push((rit!=null?'Ritmo: '+vndPct(rit)+' '+VND_COR[cor].ico+' · ':'')+'Projeção: '+vndR(G.proj)+(G.meta>0?' ('+vndSinal(G.proj-G.meta,vndR)+')':''));
-  L.push('Semana: projeção '+vndR(G.semP)+(G.semM>0?' ('+vndPct(G.semP/G.semM)+' da meta)':''));
+  L.push((rit!=null?'Ritmo: '+vndPct(rit)+' '+VND_COR[cor].ico+' · ':'')+'Projeção: '+vndR(G.proj)+(G.meta>0?' ('+vndSinal(G.projM-G.meta,vndR)+' nas empresas com meta)':''));
+  L.push('Semana: projeção '+vndR(G.semPM)+(G.semM>0?' ('+vndPct(G.semPM/G.semM)+' da meta)':''));
+  if(semMeta.length) L.push('_Ritmo e metas sem '+semMeta.map(function(e){ return e.nome; }).join(', ')+' (sem meta: entram só no vendido e na projeção total)_');
   if(G.intMes>0) L.push('_Inclui '+vndR(G.intMes)+' de vendas internas (Q Food → Mercearia/Sushi Trip)_');
   L.push('━━━━━━━━━━━━━━━');
   L.push('💰 *VENDAS POR EMPRESA* (ritmo · projeção do mês)');
@@ -2659,8 +2663,15 @@ function vndAcao(emp,iso){
 }
 
 /* ── Meta do mês: a maior entre a estipulada e a do trimestre ÷ 3 ── */
+/* Metas oficiais do grupo (piso). Q Food R$ 6 mi e Mercearia R$ 1,7 mi no trimestre (÷ 3); Sushi Trip R$ 300 mil; Gogui pela escala. */
+var VND_META_OFICIAL = {
+  emp_qfood:     { '2026-10':2000000, '2026-11':2000000, '2026-12':2000000 },
+  emp_mercearia: { '2026-10':1700000/3, '2026-11':1700000/3, '2026-12':1700000/3 },
+  emp_sushitrip: { '2026-10':300000 }
+};
 function vndMetaEstipulada(emp,mes,cfg){
   var op=[];
+  var of=VND_META_OFICIAL[emp.id]&&VND_META_OFICIAL[emp.id][mes]; if(of>0) op.push({v:of,f:'meta oficial do grupo'});
   if(cfg.meta_mes!=null&&cfg.meta_mes>0) op.push({v:cfg.meta_mes,f:'meta do mês cadastrada'});
   if(emp.escala&&emp.escala[mes]) op.push({v:emp.escala[mes],f:'escala definida pelo Adilson'});
   var tri=recMetaMensal(emp.id,mes); if(tri>0) op.push({v:tri,f:'meta do trimestre (nível 1) ÷ 3'});
@@ -2692,6 +2703,24 @@ function vndPlano(emp,mes,cfg){
   return { mes:mes, dias:lista, metaMes:metaMes, temMeta:metaMes>0, estipulada:M, fonte:est.f, cfg:cfg, abertos:abertos.length,
            somaDigitada:fixos, acima:metaMes>M+1 };
 }
+/* Visão para o CEO: tudo medido contra a meta oficial (a estipulada). Se a gestora subiu metas de dias,
+   a meta dela fica guardada em plano.metaGestor e o ritmo/projeção são recalculados pela oficial. */
+function vndCalcOficial(emp,ref){
+  var c=vndCalc(emp,ref), pl=c.plano;
+  var of=VND_META_OFICIAL[emp.id]&&VND_META_OFICIAL[emp.id][c.mes];
+  var est=of>0?of:((emp.escala&&emp.escala[c.mes])?emp.escala[c.mes]:pl.estipulada);   /* a oficial manda no report do CEO */
+  if(!pl.temMeta||!(pl.metaMes>0)||!(est>0)) return c;
+  var f=est/pl.metaMes; if(Math.abs(pl.metaMes-est)<1) return c;
+  var p2={}; Object.keys(pl).forEach(function(k){ p2[k]=pl[k]; }); p2.metaGestor=pl.metaMes; p2.metaMes=est; c.plano=p2;
+  c.metaAcum*=f; c.ritmo=c.metaAcum>0?c.acum/c.metaAcum:null;
+  if(c.metaAcum>0) c.projecao=c.acum+(est-c.metaAcum)*c.ritmo;
+  c.desvioProj=c.projecao-est; c.desvioAcum=c.acum-c.metaAcum; c.falta=Math.max(0,est-c.acum); c.pctMes=c.acum/est;
+  if(c.metaDia!=null){ c.metaDia*=f; c.pctDia=(c.metaDia>0&&c.vendaDia!=null)?c.vendaDia/c.metaDia:null; }
+  var w={}; Object.keys(c.semana).forEach(function(k){ w[k]=c.semana[k]; }); w.meta*=f; w.metaAte*=f; c.semana=w;
+  if(c.metaAcum>0) c.cor=(c.ritmo>=VND_VERDE||c.projecao>=est)?'verde':(c.ritmo>=VND_LARANJA?'laranja':'vermelho');
+  return c;
+}
+var VND_PRINCIPAIS = ['emp_qfood','emp_mercearia','emp_gogui','emp_sushitrip'];
 /* Último dia de operação antes de hoje (Q Food: na segunda, mostra a sexta) */
 function vndRefEmp(emp,ref){
   var d=vndIsoDate(ref);
@@ -3551,16 +3580,17 @@ function vndAdmExtras(c){
 function vndAdmPintar(){
   var box=el('vnd-adm'); if(!box) return;
   var ref=(el('vnd-adm-ref')||{}).value||ontem();
-  var cs=VND_EMPRESAS.map(function(e){ return vndCalc(e,vndRefEmp(e,ref)); });
+  var cs=VND_EMPRESAS.map(function(e){ return vndCalcOficial(e,vndRefEmp(e,ref)); });
   box.innerHTML='<div class="vnd-adm">'+cs.map(vndAdmCard).join('')+'</div>';
   var t=el('vnd-whats'); if(t) t.value=vndTextoWhats(cs,ref);
 }
 function vndTextoWhats(cs,ref){
   var L=['📊 *PAINEL DIÁRIO DE VENDAS*','📅 Referência: '+isoBR(ref)+' ('+VND_SEM_LB[vndWd(ref)].toLowerCase()+')'];
-  var G={ dia:0, acum:0, proj:0, meta:0, semV:0, semP:0, semM:0, cn:{}, intDia:0, intMes:0 };
+  var G={ dia:0, acum:0, proj:0, meta:0, projM:0, semV:0, semP:0, semPM:0, semM:0, cn:{}, intDia:0, intMes:0 };
   cs.forEach(function(c){
     var k=VND_COR[c.cor], pl=c.plano, ac=c.acao, x=vndExtras(c), s=x.sem;
-    G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.meta+=pl.metaMes||0; G.semV+=s.venda; G.semP+=s.proj; G.semM+=s.meta||0;
+    G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.semV+=s.venda; G.semP+=s.proj;
+    if(pl.temMeta){ G.meta+=pl.metaMes; G.projM+=c.projecao; G.semPM+=s.proj; G.semM+=s.meta||0; }
     L.push(''); L.push(k.ico+' *'+c.emp.nome.toUpperCase()+'*'+(c.ref!==ref?' _(dia útil '+isoBR(c.ref)+')_':''));
     L.push('• Venda do dia: '+(c.vendaDia==null?'não lançada':recMoeda(c.vendaDia))+(c.metaDia>0?' · meta '+recMoeda(c.metaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''):''));
     if(c.emp.indicadores) vndIndTexto(c.emp,c.ref).split('\n').forEach(function(t){ L.push('• '+t); });
@@ -3571,7 +3601,7 @@ function vndTextoWhats(cs,ref){
     }
     if(pl.temMeta){
       L.push('• Acumulado: '+recMoeda(c.acum)+' · meta acum. '+recMoeda(c.metaAcum)+' ('+vndPct(c.ritmo)+')');
-      L.push('• Projeção do mês: '+recMoeda(c.projecao)+' · meta '+recMoeda(pl.metaMes)+' ('+vndSinal(c.desvioProj,recMoeda)+' · '+vndSinal(c.desvioProj/pl.metaMes*100,function(v){ return v.toFixed(1).replace('.',',')+'%'; })+')');
+      L.push('• Projeção do mês: '+recMoeda(c.projecao)+' · meta '+recMoeda(pl.metaMes)+(pl.metaGestor?' [meta interna da gestora '+recMoeda(pl.metaGestor)+']':'')+' ('+vndSinal(c.desvioProj,recMoeda)+' · '+vndSinal(c.desvioProj/pl.metaMes*100,function(v){ return v.toFixed(1).replace('.',',')+'%'; })+')');
     } else {
       L.push('• Acumulado: '+recMoeda(c.acum)+' · projeção do mês '+recMoeda(c.projecao)+' (sem meta)');
     }
@@ -3597,8 +3627,8 @@ function vndTextoWhats(cs,ref){
     L.push(''); L.push('🏢 *TOTAL DO GRUPO*');
     L.push('• Venda do dia: '+recMoeda(G.dia));
     if(G.intDia||G.intMes) L.push('   ↳ inclui vendas internas da Q Food para Mercearia/Sushi Trip: '+recMoeda(G.intDia)+' no dia · '+recMoeda(G.intMes)+' no mês');
-    L.push('• Acumulado: '+recMoeda(G.acum)+' · projeção do mês '+recMoeda(G.proj)+(G.meta>0?' · metas '+recMoeda(G.meta)+' ('+vndPct(G.proj/G.meta)+')':''));
-    L.push('• Semana: vendido '+vndR(G.semV)+' · projeção '+vndR(G.semP)+(G.semM>0?' ('+vndPct(G.semP/G.semM)+' da meta)':''));
+    L.push('• Acumulado: '+recMoeda(G.acum)+' · projeção do mês '+recMoeda(G.proj)+(G.meta>0?' · metas '+recMoeda(G.meta)+' ('+vndPct(G.projM/G.meta)+' nas empresas com meta)':''));
+    L.push('• Semana: vendido '+vndR(G.semV)+' · projeção '+vndR(G.semP)+(G.semM>0?' ('+vndPct(G.semPM/G.semM)+' da meta)':''));
     var ids=VND_CANAIS_PADRAO.filter(function(id){ return G.cn[id]; });
     if(ids.length){ L.push('• Restaurantes por canal (projeção mês | semana):'); ids.forEach(function(id){ L.push('   ↳ '+VND_CANAIS_DEF[id].nome+': '+vndR(G.cn[id].m)+' | '+vndR(G.cn[id].s)); }); }
   }
