@@ -900,6 +900,13 @@ var ORG_C = {
 function pessoasParteB(){ return [].concat(COMITE_EXTRA, ORG_B.supervisao, [ORG_B.gerenteUnidade], ORG_B.tecnicas); }
 function pessoasParteC(){ return [ORG_C.gerenteLoja]; }
 function todasPessoas(){ return [].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC()); }
+/* Quem faz report diário e entra no checkpoint do Adilson (Rodrigo primeiro, depois restaurantes, depois Q Food) */
+var CONS_ORDEM = ['rodrigo','mariana','fabricia','samara','gustavo','tulio','barbara','cris','celio','leorick'];
+function consPessoas(){
+  var t=[GERENTE].concat(todasPessoas()).filter(function(p){ return !p.semReport; });
+  t.sort(function(a,b){ var ia=CONS_ORDEM.indexOf(a.id), ib=CONS_ORDEM.indexOf(b.id); return (ia<0?99:ia)-(ib<0?99:ib); });
+  return t;
+}
 function findPessoa(id){ return todasPessoas().filter(function(p){ return p.id===id; })[0]; }
 function todosLideres(){ return [CEO, GERENTE].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC()); }
 function findLider(id){ return todosLideres().filter(function(p){ return p.id===id; })[0]; }
@@ -1056,6 +1063,12 @@ var REPORT_CAMPOS = [
 
 /* Exemplos por gestor — escritos com o indicador da área de cada um */
 var REPORT_EXEMPLOS = {
+  rodrigo:{
+    result:'Q Food: META R$ 2.000.000 → REALIZADO R$ 535.751 → GAP −R$ 321.392 no ritmo. Causa: 2 clientes da curva A sem pedido desde 01/10.',
+    plano:'Visitar os 2 clientes com o vendedor e levar proposta de mix — eu — até 16/10.',
+    risco:'Ruptura do sake mirin e do tonkatsu trava pedidos de restaurantes.',
+    acao:'Visita + proposta de mix · Responsável: Rodrigo · Prazo: 16/10 · Impacto: R$ 80.000.'
+  },
   gustavo:{
     result:'Caixa fechou em R$ 412 mil, R$ 38 mil abaixo do previsto. Inadimplência em 3,2% contra meta de 2,5% — concentrada em 4 clientes.',
     plano:'Conciliar os recebíveis de setembro — eu — até 17h. Fechar folha de outubro com o DP — Célio — até sexta.',
@@ -1835,7 +1848,7 @@ function statusInlineHTML(e){ return e?'<span class="chip-status chip-ok">● en
 function atualizarStatusInline(id,iso){ var e=el('rep-'+id+'-status'); if(e) e.innerHTML=statusInlineHTML(reportEntregue(id,iso)); }
 function reportTrocarData(id){ var iso=el('rep-'+id+'-data').value||hoje(); var d=loadReport(id,iso)||{}; REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); if(e) e.value=d['rep_'+c.id]||''; }); atualizarStatusInline(id,iso); setTxt('rep-'+id+'-msg',''); }
 function salvarReport(id){
-  var r = findPessoa(id); if(!r) return;
+  var r = findPessoa(id)||findLider(id); if(!r) return;
   var iso = el('rep-'+id+'-data').value||ontem();
   var dado = { gestor_id:id, gestor_nome:r.nome, area:r.funcao, frente:r.frente||'', data_iso:iso, data:isoBR(iso), hora:agoraHora(), salvo_em:new Date().toISOString() };
   REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); dado['rep_'+c.id]=e?e.value.trim():''; });
@@ -1878,16 +1891,29 @@ function painelPessoa(p){
 }
 function painelRodrigo(){
   var iso=ontem(),mes=mesAtual();
-  var linhas=ORG_A.responsaveis.map(function(r){ var e=reportEntregue(r.id,iso),sc=loadScore(r.id,mes);
+  var linhas=consPessoas().map(function(r){ var e=reportEntregue(r.id,iso),sc=loadScore(r.id,mes);
     var fc=sc?'<span class="faixa" style="color:'+faixaQDACE(sc.total).cor+';border-color:'+faixaQDACE(sc.total).cor+'">'+faixaIco(sc.faixa)+' · '+sc.total+'</span>':'<span style="color:var(--mu)">—</span>';
     return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td>'+statusInlineHTML(e)+'</td><td>'+fc+'</td><td><button style="all:unset;cursor:pointer;color:var(--pur);font-size:.8rem;text-decoration:underline" onclick="irPara(\''+r.id+'\', true)">abrir →</button></td></tr>'; }).join('');
-  var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length,tot=ORG_A.responsaveis.length;
+  var eg=consPessoas().filter(function(r){return reportEntregue(r.id,iso);}).length,tot=consPessoas().length;
   var report=REPORT_CAMPOS.map(function(c){ return '<li><strong>'+c.label+'</strong> — '+c.hint+'</li>'; }).join('');
   var perg=PERGUNTAS_SEGUNDA.map(function(p,i){ return '<li>'+(i+1)+'. '+p+'</li>'; }).join('');
   el('painel').innerHTML=
+    '<div class="card"><div class="sec">🧭 Seu report — Rodrigo · Operações Comerciais</div><div class="rota-nota" id="rod-qf">⏳ lendo a venda da Q Food...</div>'+
+      '<div class="rota-nota">Formato do Adilson: <b>META → REALIZADO → GAP → CAUSA → AÇÃO → RESPONSÁVEL → PRAZO → R$</b>. A linha da Q Food (lançada pelo Célio) entra sozinha no consolidado.</div></div>'+
+    renderReportForm(GERENTE)+
     '<div class="card"><div class="sec">Consolidação diária · Rodrigo → CEO</div><p style="font-size:.84rem;color:var(--mu);margin-bottom:12px">Fluxo diário do <strong>Q Food</strong> — reports do dia ('+isoBR(iso)+'): <span class="kpi-big" style="color:'+(eg===tot?'var(--ok)':'var(--warn)')+'">'+eg+'/'+tot+'</span> · Score do mês '+mes+'.</p><table class="st"><thead><tr><th>Responsável</th><th>Report</th><th>Score QDACE® (mês)</th><th></th></tr></thead><tbody>'+linhas+'</tbody></table></div>'+
     '<div class="card"><div class="ct">🧾 Consolidado do dia </div><div class="rep-actions" style="margin-bottom:10px"><button class="btn-save" onclick="preencherConsolidado()">Gerar consolidado</button><button class="btn-save" style="background:var(--s3)" onclick="copiarConsolidado()">📋 Copiar</button><span class="rep-msg" id="cons-copy-msg"></span></div><textarea class="cons" id="cons-msg" placeholder="Clique em Gerar consolidado."></textarea></div>'+
     '<div class="grid2"><div class="card"><div class="ct">📝 Modelo do report diário</div><ul class="lst">'+report+'</ul></div><div class="card"><div class="ct">🗓️ As 5 Perguntas de Segunda</div><ul class="lst">'+perg+'</ul></div></div>';
+  atualizarStatusInline('rodrigo',iso);
+  vndCarregarTudo(false).then(function(){ var b=el('rod-qf'); if(b) b.innerHTML=esc(consLinhaQFood(iso)).replace(/\n/g,'<br>'); });
+}
+/* Linha automática da Q Food no report do Rodrigo */
+function consLinhaQFood(iso){
+  var e=vndEmp('emp_qfood'); if(!e) return '';
+  var c=vndCalc(e,vndRefEmp(e,iso)), pl=c.plano;
+  if(!pl.temMeta) return '📦 Q Food: realizado '+recMoeda(c.acum)+' · projeção '+recMoeda(c.projecao)+' (sem meta)';
+  return '📦 Q Food (lançado pelo Célio, dia útil '+isoBR(c.ref)+'): META '+vndR(pl.metaMes)+' → REALIZADO '+vndR(c.acum)+' → GAP '+vndSinal(c.desvioAcum,vndR)+' no ritmo ('+vndPct(c.ritmo)+')\n'+
+    'Projeção do mês '+vndR(c.projecao)+' · ontem '+(c.vendaDia==null?'não lançada':vndR(c.vendaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+' da meta do dia)':''));
 }
 var CONS_NUVEM = null;
 function consolidadoCarregar(iso, mes){
@@ -1929,16 +1955,72 @@ function consScore(id,mes){
   return loadScore(id,mes);
 }
 function gerarConsolidado(){
-  var iso=ontem(),mes=mesAtual(),L=[];
-  var eg=ORG_A.responsaveis.filter(function(r){return !!consReport(r.id,iso);}).length;
-  L.push('📊 CHECKPOINT DIÁRIO — Q FOOD GROUP'); L.push('📅 '+isoBR(iso)+'  ·  Enviado por: Rodrigo'); L.push('🎯 Reports do dia: '+eg+'/'+ORG_A.responsaveis.length); L.push('━━━━━━━━━━━━━━━');
+  var iso=ontem(),mes=mesAtual(),L=[], P=consPessoas();
+  var eg=P.filter(function(r){return !!consReport(r.id,iso);}).length;
+  var cs=VND_EMPRESAS.map(function(e){ return vndCalc(e,vndRefEmp(e,iso)); });
+  var lanc=cs.filter(function(c){ return c.vendaDia!=null; }).length;
+  L.push('📊 CHECKPOINT DIÁRIO — Q FOOD GROUP'); L.push('📅 '+isoBR(iso)+' ('+VND_SEM_LB[vndWd(iso)].toLowerCase()+')  ·  Enviado por: Rodrigo');
+  L.push('🎯 Reports do dia: '+eg+'/'+P.length+' · Vendas lançadas: '+lanc+'/'+cs.length); L.push('━━━━━━━━━━━━━━━');
   if(CONS_NUVEM && (!CONS_NUVEM.okDiario)){ L.push('⚠ Não foi possível ler a base de dados. Os números abaixo são só deste aparelho.'); L.push('━━━━━━━━━━━━━━━'); }
-  var _rec=recResumoConsolidado(); if(_rec){ _rec.forEach(function(l){ L.push(l); }); L.push('━━━━━━━━━━━━━━━'); }
-  ORG_A.responsaveis.forEach(function(r){ var d=consReport(r.id,iso),sc=consScore(r.id,mes);
-    L.push((d?'🟢':'🔴')+' '+r.emoji+' '+r.nome.toUpperCase()+' — '+r.funcao); if(sc) L.push('📊 Score '+mes+': '+sc.total+'/100 ('+sc.faixa+')');
-    if(d){ if(d.rep_result) L.push('• Resultado de ontem: '+d.rep_result); if(d.rep_plano) L.push('• Plano de hoje: '+d.rep_plano); if(d.rep_risco) L.push('• Risco/bloqueio: '+d.rep_risco); if(d.rep_acao) L.push('• Ação corretiva: '+d.rep_acao); } else { L.push('• (report não entregue)'); }
+  consVendasLinhas(cs).forEach(function(l){ L.push(l); });
+  L.push('━━━━━━━━━━━━━━━');
+  P.forEach(function(r){ var d=consReport(r.id,iso),sc=consScore(r.id,mes);
+    var emps=vndEmpDoDono(r.id).filter(function(e){ return r.id!=='rodrigo'; });
+    var acs=emps.map(function(e){ var c=cs.filter(function(x){ return x.emp.id===e.id; })[0]; return { e:e, c:c, a:c?c.acao:null }; });
+    var ruim=acs.some(function(x){ return x.c&&(x.c.cor==='laranja'||x.c.cor==='vermelho'); });
+    L.push((d?'🟢':'🔴')+' '+r.emoji+' *'+r.nome.toUpperCase()+'* — '+r.funcao); if(sc) L.push('📊 Score '+mes+': '+sc.total+'/100 ('+sc.faixa+')');
+    if(r.id==='rodrigo'){ var q=consLinhaQFood(iso); if(q) q.split('\n').forEach(function(x){ L.push(x); }); }
+    if(d){ if(d.rep_result) L.push('• Resultado de ontem: '+d.rep_result); if(d.rep_plano) L.push('• Plano de hoje: '+d.rep_plano); if(d.rep_risco) L.push('• Risco/bloqueio: '+d.rep_risco); if(d.rep_acao) L.push('• Ação corretiva: '+d.rep_acao); }
+    else L.push('• (report não entregue)');
+    acs.forEach(function(x){
+      var pre=acs.length>1?' ('+x.e.nome+')':'', a=x.a;
+      if(a){ L.push('• 🎯 Plano de ação de vendas'+pre+': '+a.acao);
+        var det=[a.responsavel?'Responsável: '+a.responsavel:'',a.prazo?'Prazo: '+isoBR(a.prazo):'',a.impacto?'Impacto: '+recMoeda(a.impacto):''].filter(Boolean);
+        if(det.length) L.push('   ↳ '+det.join(' · ')); }
+      else if(x.c&&(x.c.cor==='laranja'||x.c.cor==='vermelho')) L.push('• ⚠ *SEM PLANO DE AÇÃO DE VENDAS*'+pre+' (semáforo '+VND_COR[x.c.cor].t.toLowerCase()+')');
+    });
     L.push('━━━━━━━━━━━━━━━'); });
+  L.push('🟢 ritmo ≥ 95% · 🟠 70–95% · 🔴 abaixo de 70%');
   L.push('Gerado via Painel QDACE® — Q Food Group'); return L.join('\n');
+}
+/* Bloco de vendas do checkpoint: grupo, empresas (ritmo, projeção, semana, canais) e canais dos restaurantes */
+function consVendasLinhas(cs){
+  var L=[], G={ acum:0, meta:0, metaAcum:0, proj:0, semP:0, semM:0, intMes:0, cn:{} };
+  var B=[];
+  cs.forEach(function(c){
+    var e=c.emp, pl=c.plano, k=VND_COR[c.cor], x=vndExtras(c), s=x.sem;
+    G.acum+=c.acum; G.proj+=c.projecao; G.semP+=s.proj;
+    if(pl.temMeta){ G.meta+=pl.metaMes; G.metaAcum+=c.metaAcum; G.semM+=s.meta||0; }
+    B.push('');
+    B.push(k.ico+' '+e.emoji+' *'+e.nome.toUpperCase()+'* — '+vndR(c.acum)+(pl.temMeta?' de '+vndR(pl.metaMes):' (sem meta)'));
+    var l2=(pl.temMeta?'Ritmo '+vndPct(c.ritmo)+' · ':'')+'Projeção '+vndR(c.projecao)+(pl.temMeta?' ('+vndSinal(c.desvioProj,vndR)+')':'');
+    l2+=' · Ontem '+(c.vendaDia==null?'não lançada':vndR(c.vendaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''));
+    if(e.id==='emp_qfood'&&c.ref!==ontem()) l2+=' _(dia útil '+vndDm(c.ref)+')_';
+    if(x.canais&&x.canais.pedidos) l2+=' · '+x.canais.pedidos+' pedidos · ticket '+recMoeda(x.canais.ticket);
+    B.push(l2);
+    B.push('Semana '+vndDm(s.ini)+'–'+vndDm(s.fim)+': vendido '+vndR(s.venda)+' · projeção '+vndR(s.proj)+(s.pct!=null?' ('+vndPct(s.pct)+' da meta)':''));
+    if(x.canais) x.canais.linhas.forEach(function(l){
+      B.push('   ↳ '+l.nome+' '+Math.round(l.share*100)+'% → mês '+vndR(l.projMes)+' · semana '+vndR(l.projSem));
+      if(VND_CANAIS_DEF[l.id].interno) G.intMes+=l.mes||0;
+      else if(VND_CANAIS_PADRAO.indexOf(l.id)>=0){ G.cn[l.id]=G.cn[l.id]||{ m:0, s:0 }; G.cn[l.id].m+=l.projMes; G.cn[l.id].s+=l.projSem; }
+    });
+  });
+  var rit=G.metaAcum>0?G.acum/G.metaAcum:null, cor=rit==null?'cinza':(rit>=VND_VERDE?'verde':(rit>=VND_LARANJA?'laranja':'vermelho'));
+  L.push('🏢 *GRUPO — '+vndMesNome(cs[0].mes).toUpperCase()+'*');
+  L.push('Vendido: '+vndR(G.acum)+(G.meta>0?' · Meta: '+vndR(G.meta):''));
+  L.push((rit!=null?'Ritmo: '+vndPct(rit)+' '+VND_COR[cor].ico+' · ':'')+'Projeção: '+vndR(G.proj)+(G.meta>0?' ('+vndSinal(G.proj-G.meta,vndR)+')':''));
+  L.push('Semana: projeção '+vndR(G.semP)+(G.semM>0?' ('+vndPct(G.semP/G.semM)+' da meta)':''));
+  if(G.intMes>0) L.push('_Inclui '+vndR(G.intMes)+' de vendas internas (Q Food → Mercearia/Sushi Trip)_');
+  L.push('━━━━━━━━━━━━━━━');
+  L.push('💰 *VENDAS POR EMPRESA* (ritmo · projeção do mês)');
+  B.forEach(function(x){ L.push(x); });
+  var ids=VND_CANAIS_PADRAO.filter(function(id){ return G.cn[id]; });
+  if(ids.length){
+    L.push('━━━━━━━━━━━━━━━'); L.push('📈 *PROJEÇÃO POR CANAL — RESTAURANTES* (mês · semana)');
+    ids.forEach(function(id){ L.push('↳ '+VND_CANAIS_DEF[id].nome+': '+vndR(G.cn[id].m)+' · '+vndR(G.cn[id].s)); });
+  }
+  L.push('_Projeção por canal = projeção da empresa × participação do canal no mês._');
+  return L;
 }
 function preencherConsolidado(){
   var t=el('cons-msg'); if(!t) return;
@@ -1948,6 +2030,7 @@ function preencherConsolidado(){
   var pend=[consolidadoCarregar(iso,mes)];
   if(RECEITA_CACHE===null) pend.push(recCarregarBase());
   if(METAS_CACHE===null) pend.push(recCarregarMetas());
+  pend.push(vndCarregarTudo(true));
   Promise.all(pend).then(function(){
     t.value=gerarConsolidado();
     setTxt('cons-copy-msg', (CONS_NUVEM&&CONS_NUVEM.okDiario)?'✓ lido da base de dados':'⚠ base indisponível — só deste aparelho');
@@ -3469,7 +3552,7 @@ function vndCopiarWhats(){
 
 function painelCEO(){
   var iso=ontem(),mes=mesAtual(),ano=anoAtual();
-  var eg=ORG_A.responsaveis.filter(function(r){return reportEntregue(r.id,iso);}).length,tot=ORG_A.responsaveis.length;
+  var eg=consPessoas().filter(function(r){return reportEntregue(r.id,iso);}).length,tot=consPessoas().length;
   var scoreRows=ORG_A.responsaveis.map(function(r){ var sc=loadScore(r.id,mes); if(!sc) return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td><td style="color:var(--mu)">— sem score</td></tr>';
     var f=faixaQDACE(sc.total),dt=(sc.desconto>0)?' <span style="color:var(--red);font-size:.76rem">(−'+sc.desconto+' disc.)</span>':'';
     return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td style="color:var(--mu)">'+r.funcao+'</td><td><span class="faixa" style="color:'+f.cor+';border-color:'+f.cor+'">'+faixaIco(sc.faixa)+' · '+sc.total+'/100</span>'+dt+'</td></tr>'; }).join('');
