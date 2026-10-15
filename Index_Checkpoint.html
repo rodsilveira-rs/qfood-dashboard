@@ -1912,8 +1912,9 @@ function consLinhaQFood(iso){
   var e=vndEmp('emp_qfood'); if(!e) return '';
   var c=vndCalc(e,vndRefEmp(e,iso)), pl=c.plano;
   if(!pl.temMeta) return '📦 Q Food: realizado '+recMoeda(c.acum)+' · projeção '+recMoeda(c.projecao)+' (sem meta)';
-  return '📦 Q Food (lançado pelo Célio, dia útil '+isoBR(c.ref)+'): META '+vndR(pl.metaMes)+' → REALIZADO '+vndR(c.acum)+' → GAP '+vndSinal(c.desvioAcum,vndR)+' no ritmo ('+vndPct(c.ritmo)+')\n'+
-    'Projeção do mês '+vndR(c.projecao)+' · ontem '+(c.vendaDia==null?'não lançada':vndR(c.vendaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+' da meta do dia)':''));
+  var ind=vndIndTexto(e,c.ref);
+  return '📦 Q Food'+(c.ref!==iso?' (dia útil '+isoBR(c.ref)+')':'')+': META '+vndR(pl.metaMes)+' → REALIZADO '+vndR(c.acum)+' → GAP '+vndSinal(c.desvioAcum,vndR)+' no ritmo ('+vndPct(c.ritmo)+')\n'+
+    'Projeção do mês '+vndR(c.projecao)+' · ontem '+(c.vendaDia==null?'não lançada':vndR(c.vendaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+' da meta do dia)':''))+(ind?'\n'+ind:'');
 }
 var CONS_NUVEM = null;
 function consolidadoCarregar(iso, mes){
@@ -1998,6 +1999,7 @@ function consVendasLinhas(cs){
     if(e.id==='emp_qfood'&&c.ref!==ontem()) l2+=' _(dia útil '+vndDm(c.ref)+')_';
     if(x.canais&&x.canais.pedidos) l2+=' · '+x.canais.pedidos+' pedidos · ticket '+recMoeda(x.canais.ticket);
     B.push(l2);
+    if(e.indicadores) vndIndTexto(e,c.ref).split('\n').forEach(function(t){ B.push(t); });
     B.push('Semana '+vndDm(s.ini)+'–'+vndDm(s.fim)+': vendido '+vndR(s.venda)+' · projeção '+vndR(s.proj)+(s.pct!=null?' ('+vndPct(s.pct)+' da meta)':''));
     if(x.canais) x.canais.linhas.forEach(function(l){
       B.push('   ↳ '+l.nome+' '+Math.round(l.share*100)+'% → mês '+vndR(l.projMes)+' · semana '+vndR(l.projSem));
@@ -2509,7 +2511,7 @@ var VND_CANAIS_QFOOD = ['qf_clientes','qf_mercearia','qf_sushitrip','qf_ecommerc
 var VND_GOGUI_ESCALA = (function(){ var o={}; for(var i=0;i<12;i++){ var d=new Date(2026,9+i,1); o[d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')]=Math.round((400000+300000*i/11)/100)*100; } return o; })();
 var VND_EMPRESAS = [
   { id:'emp_qfood',     nome:'Q Food',                        emoji:'📦', dono:'celio',    abre:[1,1,1,1,1,0,0], feriadosNac:true,
-    pesos:[1,1,1,1,1,1,1], canais:VND_CANAIS_QFOOD,
+    pesos:[1,1,1,1,1,1,1], canais:VND_CANAIS_QFOOD, indicadores:true,
     dica:'Faturamento de segunda a sexta, peso igual em todos os dias úteis. Sábado, domingo e feriados nacionais já saem fechados — marque no calendário os feriados estaduais e municipais.' },
   { id:'emp_mercearia', nome:'Mercearia Liberdade · Vitória', emoji:'🛒', dono:'mariana',  abre:VND_TODOS,
     pesos:[16500,16500,16500,16500,30000,35000,20500], canais:VND_CANAIS_PADRAO,
@@ -2804,11 +2806,12 @@ function vndCarregarCanais(){
       d.registros.forEach(function(r){
         var e=String(r.gestor_id||'').trim(), iso=vndIsoNorm(r.data_iso);
         if(!e||!iso) return;
-        var cn={}, pd={}; try{ var o=JSON.parse(String(r.canais_json||'{}'))||{};
-          Object.keys(o).forEach(function(k){ if(k==='_ped') return; var n=vndNum(o[k]); if(n!=null) cn[k]=n; });
-          if(o._ped&&typeof o._ped==='object') Object.keys(o._ped).forEach(function(k){ var n=vndNum(o._ped[k]); if(n!=null) pd[k]=n; }); }catch(x){}
+        var cn={}, pd={}, ind=null; try{ var o=JSON.parse(String(r.canais_json||'{}'))||{};
+          Object.keys(o).forEach(function(k){ if(k==='_ped'||k==='_ind') return; var n=vndNum(o[k]); if(n!=null) cn[k]=n; });
+          if(o._ped&&typeof o._ped==='object') Object.keys(o._ped).forEach(function(k){ var n=vndNum(o._ped[k]); if(n!=null) pd[k]=n; });
+          if(o._ind&&typeof o._ind==='object'){ ind={}; Object.keys(o._ind).forEach(function(k){ var n=vndNum(o._ind[k]); if(n!=null) ind[k]=n; }); } }catch(x){}
         m[e]=m[e]||{};
-        if(!m[e][iso] || String(r.salvo_em||'')>=String(m[e][iso].salvo_em||'')) m[e][iso]={ canais:cn, pedidos:pd, total:vndNum(r.total), salvo_em:String(r.salvo_em||'') };
+        if(!m[e][iso] || String(r.salvo_em||'')>=String(m[e][iso].salvo_em||'')) m[e][iso]={ canais:cn, pedidos:pd, ind:ind, total:vndNum(r.total), salvo_em:String(r.salvo_em||'') };
       });
     }
     VND_CANAIS=m; return true;
@@ -2830,6 +2833,49 @@ function vndCanaisHTML(emp,dis){
         '<input type="text" inputmode="numeric" class="vnd-cn-ped" id="vnd-pd-'+emp.id+'-'+id+'" placeholder="pedidos" aria-label="'+c.nome+' — pedidos" oninput="vndSomarCanais(\''+emp.id+'\')"'+dis+'></div>'+
         '<div class="vnd-cn-tk" id="vnd-tk-'+emp.id+'-'+id+'"></div></div>';
     }).join('')+'</div><div class="vnd-cn-dia" id="vnd-cn-dia-'+emp.id+'"></div></div>';
+}
+/* ── Indicadores comerciais da Q Food (obrigatórios ao lançar a venda) ── */
+var VND_IND_DEF = [
+  { id:'pdv_ativos',      nome:'PDVs ativos (total)',                tipo:'int' },
+  { id:'pdv_positivados', nome:'PDVs positivados no mês',            tipo:'int' },
+  { id:'pdv_novos',       nome:'Novos PDVs abertos no mês (acum.)',  tipo:'int' },
+  { id:'margem',          nome:'Margem atual (%)',                   tipo:'pct' },
+  { id:'markup',          nome:'Markup atual (%)',                   tipo:'pct' }
+];
+function vndIndHTML(emp,dis){
+  if(!emp.indicadores) return '';
+  return '<div class="vnd-canais vnd-ind"><div class="vnd-canais-t">Indicadores comerciais <span>— obrigatórios para salvar a venda</span></div><div class="vnd-canais-l">'+
+    VND_IND_DEF.map(function(f){ return '<div><label>'+f.nome+' <b style="color:var(--red)">*</b></label><input type="text" inputmode="'+(f.tipo==='int'?'numeric':'decimal')+'" id="vnd-ind-'+emp.id+'-'+f.id+'" placeholder="'+(f.tipo==='int'?'0':'0,0')+'" oninput="vndIndPintar(\''+emp.id+'\')"'+dis+'></div>'; }).join('')+
+    '</div><div class="vnd-cn-dia" id="vnd-ind-calc-'+emp.id+'"></div></div>';
+}
+function vndLerInd(emp){
+  var o={}, falta=[];
+  VND_IND_DEF.forEach(function(f){ var e=el('vnd-ind-'+emp.id+'-'+f.id), t=e?String(e.value||'').trim():'';
+    if(t===''){ falta.push(f); return; }
+    o[f.id]=f.tipo==='int'?parseInt(t.replace(/\D/g,''),10):recParseNum(t.replace('%',''));
+    if(o[f.id]==null||isNaN(o[f.id])){ delete o[f.id]; falta.push(f); } });
+  return { v:o, falta:falta };
+}
+function vndIndCalc(v){
+  if(!v) return null;
+  var a=v.pdv_ativos;
+  return { pctPos:a>0&&v.pdv_positivados!=null?v.pdv_positivados/a:null, pctNovos:a>0&&v.pdv_novos!=null?v.pdv_novos/a:null };
+}
+function vndPctBR(x){ return x==null?'—':(Math.round(x*1000)/10).toFixed(1).replace('.',',')+'%'; }
+function vndNumBR(x){ return x==null?'—':(Math.round(x*10)/10).toFixed(1).replace('.',',')+'%'; }
+function vndIndPintar(empId){
+  var emp=vndEmp(empId), b=el('vnd-ind-calc-'+empId); if(!emp||!b) return;
+  var r=vndLerInd(emp), k=vndIndCalc(r.v);
+  b.innerHTML=(k&&k.pctPos!=null?'Positivação no mês: <b>'+vndPctBR(k.pctPos)+'</b>':'')+(k&&k.pctNovos!=null?' · Novos PDVs no mês: <b>'+vndPctBR(k.pctNovos)+'</b> dos ativos':'');
+}
+/* linha dos indicadores para os reports (do dia de referência) */
+function vndIndTexto(emp,iso){
+  if(!emp.indicadores) return '';
+  var d=vndCanaisDia(emp,iso), v=d&&d.ind;
+  if(!v||v.pdv_ativos==null) return '⚠ Indicadores comerciais não informados';
+  var k=vndIndCalc(v);
+  return 'PDVs: '+v.pdv_ativos+' ativos · '+v.pdv_positivados+' positivados no mês ('+vndPctBR(k.pctPos)+') · '+v.pdv_novos+' novos no mês ('+vndPctBR(k.pctNovos)+')\n'+
+         'Margem '+vndNumBR(v.margem)+' · Markup '+vndNumBR(v.markup);
 }
 /* pedidos digitados: null se nenhum foi preenchido */
 function vndLerPedidos(emp){
@@ -2882,16 +2928,22 @@ function vndPreencherCanais(emp,iso){
   var tot=el('vnd-val-'+emp.id);
   if(tot){ var tem=!!(d&&d.canais&&Object.keys(d.canais).length); tot.readOnly=tem; tot.classList.toggle('vnd-auto',tem); }
   vndPintarTicket(emp);
+  if(emp.indicadores){
+    VND_IND_DEF.forEach(function(f){ var e=el('vnd-ind-'+emp.id+'-'+f.id); if(e) e.value=(d&&d.ind&&d.ind[f.id]!=null)?(f.tipo==='int'?String(d.ind[f.id]):vndFmt(d.ind[f.id])):''; });
+    vndIndPintar(emp.id);
+  }
 }
-function vndEnviarCanais(emp,iso,cn,total,editor,agora,pd){
+function vndEnviarCanais(emp,iso,cn,total,editor,agora,pd,ind){
   pd=pd||{};
-  var reg={ canais:cn, pedidos:pd, total:total, salvo_em:agora }, js={};
-  Object.keys(cn).forEach(function(k){ js[k]=cn[k]; }); if(Object.keys(pd).length) js._ped=pd;
+  var reg={ canais:cn, pedidos:pd, ind:ind||null, total:total, salvo_em:agora }, js={};
+  Object.keys(cn).forEach(function(k){ js[k]=cn[k]; }); if(Object.keys(pd).length) js._ped=pd; if(ind) js._ind=ind;
   try{ localStorage.setItem(vndCanaisLocalKey(emp.id,iso),JSON.stringify(reg)); }catch(e){}
   var k=vndTicket(emp,cn,pd);
   var dado={ gestor_id:emp.id, gestor_nome:emp.nome, empresa:emp.nome, data_iso:iso, data:isoBR(iso), total:total, canais_json:JSON.stringify(js),
              pedidos_total:k.pedidos||'', ticket_medio:k.ticket==null?'':Math.round(k.ticket*100)/100, editado_por:editor||'sem-sessao', salvo_em:agora };
   Object.keys(VND_CANAIS_DEF).forEach(function(id){ dado['canal_'+id]=cn[id]==null?'':cn[id]; dado['pedidos_'+id]=pd[id]==null?'':pd[id]; });
+  if(ind){ var ki=vndIndCalc(ind); VND_IND_DEF.forEach(function(f){ dado[f.id]=ind[f.id]==null?'':ind[f.id]; });
+    dado.pct_positivacao=ki.pctPos==null?'':Math.round(ki.pctPos*1000)/10; dado.pct_novos_pdv=ki.pctNovos==null?'':Math.round(ki.pctNovos*1000)/10; }
   return enviarSheet('VENDAS_CANAIS',dado).then(function(r){
     if(r&&r.ok){ VND_CANAIS=VND_CANAIS||{}; VND_CANAIS[emp.id]=VND_CANAIS[emp.id]||{}; VND_CANAIS[emp.id][iso]=reg; }
     return r;
@@ -3117,7 +3169,7 @@ function vndBloco(gid){
         '<div><label>'+(emp.canais?'Total do dia (R$)':'Venda do dia (R$)')+'</label><input type="text" inputmode="decimal" id="vnd-val-'+emp.id+'" placeholder="0,00" oninput="vndPrevia(\''+emp.id+'\')"'+dis+'></div>'+
         '<div class="vnd-prev" id="vnd-prev-'+emp.id+'"></div>'+
       '</div>'+
-      vndCanaisHTML(emp,dis)+
+      vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+
       '<div class="vnd-acao-f">'+
         '<label>🎯 O que vou fazer para chegar na meta <span id="vnd-acao-obr-'+emp.id+'"></span></label>'+
         '<textarea id="vnd-acao-'+emp.id+'" rows="3" placeholder="Medida concreta para os próximos dias. Ex.: ação de rodízio na terça com divulgação no Instagram e lista de clientes; reforço de 2 garçons na sexta."'+dis+'></textarea>'+
@@ -3178,6 +3230,15 @@ function vndSalvarVenda(empId){
   if(iso>hoje()) return msg('⚠ Não dá para lançar venda de um dia que ainda não chegou.','#ffaa2b');
   if(bruto==='' && !acao) return msg('⚠ Digite a venda do dia e a ação.','#ffaa2b');
   var val=bruto===''?null:recParseNum(bruto);
+  var ind=null;
+  if(emp.indicadores && val!=null){
+    var li=vndLerInd(emp);
+    if(li.falta.length){ var f0=el('vnd-ind-'+empId+'-'+li.falta[0].id); if(f0) f0.focus();
+      return msg('⚠ Preencha os indicadores obrigatórios: '+li.falta.map(function(f){ return f.nome; }).join(', ')+'.','#ffaa2b'); }
+    if(li.v.pdv_positivados>li.v.pdv_ativos) return msg('⚠ PDVs positivados não pode ser maior que PDVs ativos.','#ffaa2b');
+    if(li.v.pdv_novos>li.v.pdv_ativos) return msg('⚠ Novos PDVs não pode ser maior que PDVs ativos.','#ffaa2b');
+    ind=li.v;
+  }
   var c=vndCalc(emp,iso,val);
   if((c.cor==='laranja'||c.cor==='vermelho') && !acao){
     var t=el('vnd-acao-'+empId); if(t) t.focus();
@@ -3192,7 +3253,7 @@ function vndSalvarVenda(empId){
       if(r&&r.ok){ RECEITA_CACHE=RECEITA_CACHE||{}; RECEITA_CACHE[empId]=RECEITA_CACHE[empId]||{}; RECEITA_CACHE[empId][iso]=val; }
       return r;
     }));
-    if(cn||pd) envios.push(vndEnviarCanais(emp,iso,cn||{},val,editor,agora,pd));
+    if(cn||pd||ind) envios.push(vndEnviarCanais(emp,iso,cn||{},val,editor,agora,pd,ind));
   }
   if(acao){
     var a={ acao:acao, responsavel:resp||(p?p.nome:''), prazo:prazo, impacto:impB===''?null:recParseNum(impB), salvo_em:agora };
@@ -3502,6 +3563,7 @@ function vndTextoWhats(cs,ref){
     G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.meta+=pl.metaMes||0; G.semV+=s.venda; G.semP+=s.proj; G.semM+=s.meta||0;
     L.push(''); L.push(k.ico+' *'+c.emp.nome.toUpperCase()+'*'+(c.ref!==ref?' _(dia útil '+isoBR(c.ref)+')_':''));
     L.push('• Venda do dia: '+(c.vendaDia==null?'não lançada':recMoeda(c.vendaDia))+(c.metaDia>0?' · meta '+recMoeda(c.metaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''):''));
+    if(c.emp.indicadores) vndIndTexto(c.emp,c.ref).split('\n').forEach(function(t){ L.push('• '+t); });
     if(x.canais){
       var dia=x.canais.linhas.filter(function(l){ return l.dia; });
       if(dia.length) L.push('   ↳ '+dia.map(function(l){ return l.nome+' '+vndR(l.dia)+(l.ped?' ('+l.ped+' ped.)':''); }).join(' · '));
