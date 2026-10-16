@@ -1239,7 +1239,7 @@ function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</
 
 function reportKey(id,iso){ return 'qfood_chk_'+id+'_report_'+iso; }
 function loadReport(id,iso){ try{ return JSON.parse(localStorage.getItem(reportKey(id,iso))||'null'); }catch(e){ return null; } }
-function reportEntregue(id,iso){ var d=loadReport(id,iso); return !!(d&&(d.rep_result||d.rep_plano||d.rep_risco||d.rep_acao)); }
+function reportEntregue(id,iso){ var d=loadReport(id,iso); if(d&&(d.rep_result||d.rep_plano||d.rep_risco||d.rep_acao)) return true; return id===ECOM_REPORT_GESTOR&&typeof ecomReport==='function'&&!!ecomReport(iso); }
 function scoreKey(id,mes){ return 'qfood_chk_'+id+'_qdace_'+mes; }
 function loadScore(id,mes){ try{ return JSON.parse(localStorage.getItem(scoreKey(id,mes))||'null'); }catch(e){ return null; } }
 var CKP_SYNC_URL   = 'https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec';
@@ -1893,7 +1893,7 @@ function painelRodrigo(){
   var iso=ontem(),mes=mesAtual();
   var linhas=consPessoas().map(function(r){ var e=reportEntregue(r.id,iso),sc=loadScore(r.id,mes);
     var fc=sc?'<span class="faixa" style="color:'+faixaQDACE(sc.total).cor+';border-color:'+faixaQDACE(sc.total).cor+'">'+faixaIco(sc.faixa)+' · '+sc.total+'</span>':'<span style="color:var(--mu)">—</span>';
-    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td>'+statusInlineHTML(e)+'</td><td>'+fc+'</td><td><button style="all:unset;cursor:pointer;color:var(--pur);font-size:.8rem;text-decoration:underline" onclick="irPara(\''+r.id+'\', true)">abrir →</button></td></tr>'; }).join('');
+    return '<tr><td>'+r.emoji+' <strong>'+r.nome+'</strong></td><td id="rod-st-'+r.id+'">'+statusInlineHTML(e)+'</td><td>'+fc+'</td><td><button style="all:unset;cursor:pointer;color:var(--pur);font-size:.8rem;text-decoration:underline" onclick="irPara(\''+r.id+'\', true)">abrir →</button></td></tr>'; }).join('');
   var eg=consPessoas().filter(function(r){return reportEntregue(r.id,iso);}).length,tot=consPessoas().length;
   var report=REPORT_CAMPOS.map(function(c){ return '<li><strong>'+c.label+'</strong> — '+c.hint+'</li>'; }).join('');
   var perg=PERGUNTAS_SEGUNDA.map(function(p,i){ return '<li>'+(i+1)+'. '+p+'</li>'; }).join('');
@@ -1905,6 +1905,7 @@ function painelRodrigo(){
     '<div class="card"><div class="ct">🧾 Consolidado do dia </div><div class="rep-actions" style="margin-bottom:10px"><button class="btn-save" onclick="preencherConsolidado()">Gerar consolidado</button><button class="btn-save" style="background:var(--s3)" onclick="copiarConsolidado()">📋 Copiar</button><span class="rep-msg" id="cons-copy-msg"></span></div><textarea class="cons" id="cons-msg" placeholder="Clique em Gerar consolidado."></textarea></div>'+
     '<div class="grid2"><div class="card"><div class="ct">📝 Modelo do report diário</div><ul class="lst">'+report+'</ul></div><div class="card"><div class="ct">🗓️ As 5 Perguntas de Segunda</div><ul class="lst">'+perg+'</ul></div></div>';
   atualizarStatusInline('rodrigo',iso);
+  ecomCarregar().then(function(){ var c=el('rod-st-'+ECOM_REPORT_GESTOR); if(c&&ecomReport(iso)) c.innerHTML=statusInlineHTML(true)+' <small style="color:var(--mu)">Report 08h</small>'; });
   vndCarregarTudo(false).then(function(){ var b=el('rod-qf'); if(b) b.innerHTML=esc(consLinhaQFood(iso)).replace(/\n/g,'<br>'); });
 }
 /* Linha automática da Q Food no report do Rodrigo */
@@ -1917,6 +1918,37 @@ function consLinhaQFood(iso){
     'Projeção do mês '+vndR(c.projecao)+' · ontem '+(c.vendaDia==null?'não lançada':vndR(c.vendaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+' da meta do dia)':''))+(ind?'\n'+ind:'');
 }
 var CONS_NUVEM = null;
+/* Report 08h do painel de E-commerce (ECOM_DIARIO): vale como report diário da Bárbara */
+var ECOM_REPORT_GESTOR = 'barbara';
+var ECOM_CACHE = null;   /* { iso: registro mais recente } */
+var ECOM_FALHAS = { site:'Site', pagamento:'Pagamento', frete:'Frete', feed:'Feed de produtos', preco:'Preço', cupom:'Cupom', tracking:'Tracking / UTMs' };
+function ecomCarregar(){
+  var base=(window.__QFOOD_SYNC_URL||CKP_SYNC_URL);
+  return fetch(base+'?aba=ECOM_DIARIO&_='+Date.now(),{method:'GET'}).then(function(r){ return r.json(); }).then(function(d){
+    var m={};
+    if(d&&d.ok&&d.registros) d.registros.forEach(function(r){
+      var iso=String(r.data_iso||'').substring(0,10); if(!iso) return;
+      if(!m[iso] || String(r.salvo_em||'')>=String(m[iso].salvo_em||'')) m[iso]=r;
+    });
+    ECOM_CACHE=m; return m;
+  }).catch(function(){ ECOM_CACHE=ECOM_CACHE||{}; return ECOM_CACHE; });
+}
+function ecomReport(iso){ return (ECOM_CACHE&&ECOM_CACHE[iso])||null; }
+function ecomJson(v,def){ if(v&&typeof v==='object') return v; try{ return JSON.parse(String(v||''))||def; }catch(e){ return def; } }
+function ecomLinhas(r){
+  if(!r) return [];
+  var n=function(v){ if(typeof v==='number') return v; var t=String(v==null?'':v).trim(); if(t==='') return null; var x=Number(t.indexOf(',')>=0?t.replace(/\./g,'').replace(',','.'):t); return isNaN(x)?null:x; };
+  var rec=n(r.receita), ped=n(r.pedidos), L=[];
+  L.push('• 🛒 Report 08h (e-commerce): receita '+(rec!=null?recMoeda(rec):'—')+(ped?' · '+ped+' pedidos · ticket '+recMoeda(rec/ped):''));
+  var mk=ecomJson(r.marketplaces_json,[]).filter(function(x){ return x&&x.canal; }).map(function(x){ var v=n(x.receita); return x.canal+(v!=null?' '+recMoeda(v):''); });
+  if(mk.length) L.push('   ↳ Canais: '+mk.join(' · '));
+  if(n(r.rupturas)) L.push('   ↳ Rupturas: '+n(r.rupturas)+(n(r.receita_perdida)?' · receita perdida '+recMoeda(n(r.receita_perdida)):''));
+  var fj=ecomJson(r.falhas_json,{}), fl=Object.keys(ECOM_FALHAS).filter(function(k){ return fj[k]&&fj[k].s==='falha'; }).map(function(k){ return ECOM_FALHAS[k]+(fj[k].d?': '+String(fj[k].d).replace(/[\u2060\u2063]/g,'').trim():''); });
+  if(fl.length) L.push('• Falhas: '+fl.join(' | '));
+  if(String(r.falha_acao||'').trim()) L.push('• Ação: '+String(r.falha_acao).replace(/[\u2060\u2063]/g,'').trim());
+  if(String(r.obs||'').trim()) L.push('• Obs.: '+String(r.obs).trim());
+  return L;
+}
 function consolidadoCarregar(iso, mes){
   var base=(window.__QFOOD_SYNC_URL||CKP_SYNC_URL);
   return Promise.all([
@@ -1957,7 +1989,7 @@ function consScore(id,mes){
 }
 function gerarConsolidado(){
   var iso=ontem(),mes=mesAtual(),L=[], P=consPessoas();
-  var eg=P.filter(function(r){return !!consReport(r.id,iso);}).length;
+  var eg=P.filter(function(r){return !!consReport(r.id,iso) || (r.id===ECOM_REPORT_GESTOR&&!!ecomReport(iso));}).length;
   var cs=VND_EMPRESAS.map(function(e){ return vndCalcOficial(e,vndRefEmp(e,iso)); });
   var lanc=cs.filter(function(c){ return c.vendaDia!=null; }).length;
   L.push('📊 CHECKPOINT DIÁRIO — Q FOOD GROUP'); L.push('📅 '+isoBR(iso)+' ('+VND_SEM_LB[vndWd(iso)].toLowerCase()+')  ·  Enviado por: Rodrigo');
@@ -1965,14 +1997,15 @@ function gerarConsolidado(){
   if(CONS_NUVEM && (!CONS_NUVEM.okDiario)){ L.push('⚠ Não foi possível ler a base de dados. Os números abaixo são só deste aparelho.'); L.push('━━━━━━━━━━━━━━━'); }
   consVendasLinhas(cs).forEach(function(l){ L.push(l); });
   L.push('━━━━━━━━━━━━━━━');
-  P.forEach(function(r){ var d=consReport(r.id,iso),sc=consScore(r.id,mes);
+  P.forEach(function(r){ var d=consReport(r.id,iso),sc=consScore(r.id,mes), ec=(r.id===ECOM_REPORT_GESTOR)?ecomReport(iso):null;
     var emps=vndEmpDoDono(r.id).filter(function(e){ return r.id!=='rodrigo'; });
     var acs=emps.map(function(e){ var c=cs.filter(function(x){ return x.emp.id===e.id; })[0]; return { e:e, c:c, a:c?c.acao:null }; });
     var ruim=acs.some(function(x){ return x.c&&(x.c.cor==='laranja'||x.c.cor==='vermelho'); });
-    L.push((d?'🟢':'🔴')+' '+r.emoji+' *'+r.nome.toUpperCase()+'* — '+r.funcao); if(sc) L.push('📊 Score '+mes+': '+sc.total+'/100 ('+sc.faixa+')');
+    L.push((d||ec?'🟢':'🔴')+' '+r.emoji+' *'+r.nome.toUpperCase()+'* — '+r.funcao); if(sc) L.push('📊 Score '+mes+': '+sc.total+'/100 ('+sc.faixa+')');
     if(r.id==='rodrigo'){ var q=consLinhaQFood(iso); if(q) q.split('\n').forEach(function(x){ L.push(x); }); }
     if(d){ if(d.rep_result) L.push('• Resultado de ontem: '+d.rep_result); if(d.rep_plano) L.push('• Plano de hoje: '+d.rep_plano); if(d.rep_risco) L.push('• Risco/bloqueio: '+d.rep_risco); if(d.rep_acao) L.push('• Ação corretiva: '+d.rep_acao); }
-    else L.push('• (report não entregue)');
+    else if(!ec) L.push('• (report não entregue)');
+    ecomLinhas(ec).forEach(function(x){ L.push(x); });
     acs.forEach(function(x){
       var pre=acs.length>1?' ('+x.e.nome+')':'', a=x.a;
       if(a){ L.push('• 🎯 Plano de ação de vendas'+pre+': '+a.acao);
@@ -2033,7 +2066,7 @@ function preencherConsolidado(){
   t.value='⏳ lendo a base de dados...';
   setTxt('cons-copy-msg','');
   var iso=ontem(), mes=mesAtual();
-  var pend=[consolidadoCarregar(iso,mes)];
+  var pend=[consolidadoCarregar(iso,mes), ecomCarregar()];
   if(RECEITA_CACHE===null) pend.push(recCarregarBase());
   if(METAS_CACHE===null) pend.push(recCarregarMetas());
   pend.push(vndCarregarTudo(true));
