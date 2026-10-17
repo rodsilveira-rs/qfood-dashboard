@@ -162,6 +162,20 @@
   .pr-chip.ok{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
   .pr-chip.exec{background:#eef2ff;color:#4338ca;border-color:#c7d2fe}
   .pr-chip.atr{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+  .pr-chip.apv{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+  .pr-chip.aju{background:#fff7ed;color:#b45309;border-color:#fed7aa}
+  /* aprovação no card */
+  .plano-aprov{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+  .apv-badge{font-size:12px;font-weight:800;padding:4px 10px;border-radius:20px}
+  .apv-badge.none{background:#f1f5f9;color:#64748b}
+  .apv-badge.ok{background:#dcfce7;color:#15803d}
+  .apv-badge.ajustar{background:#ffedd5;color:#b45309}
+  .apv-coment{flex-basis:100%;font-size:12.5px;color:var(--ink-2);margin-top:4px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:7px 10px}
+  .apv-btns{display:flex;gap:8px}
+  .btn-aprovar{background:var(--green);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:12px;padding:7px 12px;border-radius:9px;cursor:pointer}
+  .btn-aprovar:hover{background:#15803d}
+  .btn-ajustar{background:#fff;color:#b45309;border:1px solid #fed7aa;font-family:inherit;font-weight:800;font-size:12px;padding:7px 12px;border-radius:9px;cursor:pointer}
+  .btn-ajustar:hover{background:#fff7ed}
 
   /* logos por empresa */
   .cal-logos{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
@@ -637,6 +651,12 @@
         <option value="Executando">Executando</option>
         <option value="Concluído">Concluído</option>
       </select>
+      <select class="cal-sel" id="fpAprov" onchange="renderPlanos()">
+        <option value="Todos">Aprovação: todas</option>
+        <option value="ok">✅ Aprovados</option>
+        <option value="ajustar">✍️ Pedir ajuste</option>
+        <option value="none">⬜ Sem avaliação</option>
+      </select>
       <input class="fbusca" id="fpBusca" placeholder="🔎 buscar evento, objetivo…" oninput="renderPlanos()">
       <button class="btn-pdf-reuniao" onclick="pdfReuniao()">📄 PDF da reunião</button>
     </div>
@@ -685,6 +705,30 @@
 </main>
 </div><!-- /conteudo -->
 </div><!-- /app -->
+
+<!-- ===================== MODAL: PEDIR AJUSTE (aprovação) ===================== -->
+<div class="modal-ov" id="modalAprov">
+  <div class="modal-cx" style="max-width:480px">
+    <div class="modal-cab">
+      <h3 id="apv-titulo">Pedir ajuste</h3>
+      <button class="modal-x" onclick="fecharModal('modalAprov')">×</button>
+    </div>
+    <div class="modal-corpo">
+      <div class="campo">
+        <label>Observação / o que ajustar</label>
+        <textarea id="apv-coment" placeholder="Ex.: trocar a chamada do carrossel; confirmar oferta antes de publicar…"></textarea>
+      </div>
+      <div class="campo">
+        <label>Prazo para o ajuste (opcional)</label>
+        <input id="apv-prazo" placeholder="dd/mm/aaaa">
+      </div>
+    </div>
+    <div class="modal-rod">
+      <button class="btn-cancel" onclick="fecharModal('modalAprov')">Cancelar</button>
+      <button class="btn-save" id="apv-salvar" onclick="salvarAjuste()">Enviar ajuste</button>
+    </div>
+  </div>
+</div>
 
 <!-- ===================== MODAL: SELETOR DE TIPO (tela 2) ===================== -->
 <div class="modal-ov" id="modalTipo" onclick="if(event.target===this)fecharModal('modalTipo')">
@@ -1498,7 +1542,7 @@ function carregarPlanos(){
                  objetivo:o.Objetivo||'', responsaveis:o.Responsavel||'', status:o.Status||'Planejado',
                  meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'',
                  atrib:o.Atribuicoes||'', enc:o.Encerramento||'',
-                 tipo:o.Tipo||'Evento', recursos:o.Recursos||'', produtos:o.Produtos||'' };
+                 tipo:o.Tipo||'Evento', recursos:o.Recursos||'', produtos:o.Produtos||'', aprovacao:o.Aprovacao||'' };
       }).filter(function(p){ return p.evento || p.objetivo; });
       popularFiltrosPlano();
       renderPlanos();
@@ -1557,11 +1601,12 @@ function popularFiltrosPlano(){
 }
 function planosFiltrados(){
   var emp=fpVal('fpEmpresa','Todas'), resp=fpVal('fpResp','Todos'), mes=fpVal('fpMes','Todos'),
-      tipo=fpVal('fpTipo','Todos'), st=fpVal('fpStatus','Todos'), q=norm(fpVal('fpBusca',''));
+      tipo=fpVal('fpTipo','Todos'), st=fpVal('fpStatus','Todos'), apv=fpVal('fpAprov','Todos'), q=norm(fpVal('fpBusca',''));
   return PLANOS.filter(function(p){
     if(emp!=='Todas' && p.empresa!==emp) return false;
     if(tipo!=='Todos' && p.tipo!==tipo) return false;
     if(st!=='Todos' && p.status!==st) return false;
+    if(apv!=='Todos' && aprovInfo(p).k!==apv) return false;
     if(mes!=='Todos' && mesChave(p.data)!==mes) return false;
     if(resp!=='Todos' && !pessoasDoPlano(p).some(function(n){return norm(n)===norm(resp);})) return false;
     if(q){ var blob=norm([p.evento,p.objetivo,p.obs,p.empresa,p.responsaveis].join(' ')); if(blob.indexOf(q)<0) return false; }
@@ -1575,21 +1620,67 @@ function renderPlanos(){
   // resumo
   var box=document.getElementById('planoResumo');
   if(box){
-    var ok=0,exec=0,prep=0,plan=0,atr=0;
-    lista.forEach(function(p){ var c=classeStatus(p.status); if(c==='concluido')ok++; else if(c==='executando')exec++; else if(c==='preparacao')prep++; else plan++; if(planoAtrasado(p))atr++; });
+    var ok=0,exec=0,prep=0,plan=0,atr=0,apv=0,aju=0,sem=0;
+    lista.forEach(function(p){ var c=classeStatus(p.status); if(c==='concluido')ok++; else if(c==='executando')exec++; else if(c==='preparacao')prep++; else plan++; if(planoAtrasado(p))atr++;
+      var ai=aprovInfo(p).k; if(ai==='ok')apv++; else if(ai==='ajustar')aju++; else sem++; });
     box.innerHTML =
       '<span class="pr-chip tot"><b>'+lista.length+'</b> planos</span>'+
       '<span class="pr-chip">Planejado <b>'+plan+'</b></span>'+
       '<span class="pr-chip">Em preparação <b>'+prep+'</b></span>'+
       '<span class="pr-chip exec">Executando <b>'+exec+'</b></span>'+
       '<span class="pr-chip ok">Concluído <b>'+ok+'</b></span>'+
-      (atr?'<span class="pr-chip atr">⚠ Atrasados <b>'+atr+'</b></span>':'');
+      (atr?'<span class="pr-chip atr">⚠ Atrasados <b>'+atr+'</b></span>':'')+
+      '<span class="pr-chip apv">✅ Aprovados <b>'+apv+'</b></span>'+
+      (aju?'<span class="pr-chip aju">✍️ Ajustar <b>'+aju+'</b></span>':'')+
+      '<span class="pr-chip">⬜ Sem avaliação <b>'+sem+'</b></span>';
   }
   if(!lista.length){
     el.innerHTML = banner + '<div class="cal-estado">Nenhum plano com esse filtro.</div>';
     return;
   }
   el.innerHTML = banner + lista.map(cardPlano).join('');
+}
+/* ===== Aprovação (Aprovar / Pedir ajuste) ===== */
+function parseAprov(s){ try{ var o=JSON.parse(s); return (o&&typeof o==='object')?o:null; }catch(_){ return null; } }
+function aprovInfo(p){
+  var a=parseAprov(p.aprovacao);
+  if(!a||!a.decisao) return {k:'none', lb:'Sem avaliação', cor:'#64748b'};
+  if(a.decisao==='aprovado') return {k:'ok', lb:'Aprovado', cor:'#16a34a', por:a.por, em:a.em};
+  return {k:'ajustar', lb:'Pedir ajuste', cor:'#d97706', por:a.por, em:a.em, comentario:a.comentario, prazo:a.prazo};
+}
+function aprovBadge(p){
+  var a=aprovInfo(p);
+  if(a.k==='none') return '<span class="apv-badge none">Sem avaliação</span>';
+  if(a.k==='ok') return '<span class="apv-badge ok">✅ Aprovado'+(a.por?' · '+esc(a.por):'')+(a.em?' · '+esc(a.em):'')+'</span>';
+  return '<span class="apv-badge ajustar">✍️ Ajustar'+(a.por?' · '+esc(a.por):'')+'</span>'+
+         (a.comentario?'<div class="apv-coment">“'+esc(a.comentario)+'”'+(a.prazo?' <b>(até '+esc(a.prazo)+')</b>':'')+'</div>':'');
+}
+function aprovarPlano(id){
+  if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  apiPlanejamento({ action:'saveAprovacao', id:id, decisao:'aprovado', comentario:'', prazo:'', usuario:(SESSAO&&SESSAO.nome)||'' })
+    .then(function(j){ if(j&&j.ok){ carregarPlanos(); } else alert('Erro: '+((j&&j.erro)||'desconhecido')); })
+    .catch(function(e){ alert('Falha: '+e.message); });
+}
+var APV_ID=null;
+function abrirPedirAjuste(id){
+  APV_ID=id;
+  var p=PLANOS.filter(function(x){return x.id===id;})[0];
+  document.getElementById('apv-titulo').textContent='Pedir ajuste · '+((p&&p.evento)||'');
+  var a=parseAprov(p&&p.aprovacao)||{};
+  document.getElementById('apv-coment').value=a.comentario||'';
+  document.getElementById('apv-prazo').value=a.prazo||'';
+  abrirModal('modalAprov');
+}
+function salvarAjuste(){
+  if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  var com=document.getElementById('apv-coment').value.trim();
+  if(!com){ alert('Escreva a observação do ajuste.'); return; }
+  var btn=document.getElementById('apv-salvar'); btn.disabled=true; btn.textContent='Salvando…';
+  apiPlanejamento({ action:'saveAprovacao', id:APV_ID, decisao:'ajustar', comentario:com,
+    prazo:document.getElementById('apv-prazo').value.trim(), usuario:(SESSAO&&SESSAO.nome)||'' })
+    .then(function(j){ btn.disabled=false; btn.textContent='Enviar ajuste';
+      if(j&&j.ok){ fecharModal('modalAprov'); carregarPlanos(); } else alert('Erro: '+((j&&j.erro)||'desconhecido')); })
+    .catch(function(e){ btn.disabled=false; btn.textContent='Enviar ajuste'; alert('Falha: '+e.message); });
 }
 function cardPlano(p){
   var cls=classeStatus(p.status);
@@ -1612,6 +1703,12 @@ function cardPlano(p){
     (resp?'<div class="plano-resp">'+resp+'</div>':'')+
     itensHtml+
     (p.obs?'<div class="plano-obs">'+esc(p.obs)+'</div>':'')+
+    '<div class="plano-aprov">'+aprovBadge(p)+
+      '<div class="apv-btns">'+
+        '<button class="btn-aprovar" onclick="aprovarPlano(\''+esc(p.id)+'\')">✅ Aprovar</button>'+
+        '<button class="btn-ajustar" onclick="abrirPedirAjuste(\''+esc(p.id)+'\')">✍️ Pedir ajuste</button>'+
+      '</div>'+
+    '</div>'+
     '<div class="plano-acoes">'+
       '<button class="lnk" style="color:#0f766e;font-weight:800" onclick="abrirDetalhe(\''+esc(p.id)+'\')">📂 Abrir</button>'+
       '<button class="lnk mapa-lnk" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button>'+
@@ -2424,10 +2521,12 @@ function pdfReuniao(){
   txt('Q FOOD GROUP',M,16,true,[15,23,42]); nl(18);
   txt('Reunião de Marketing · Plano de Ações',M,12,true,[37,99,235]); nl(14);
   txt(ctx.length? ('Filtro: '+ctx.join('   ·   ')) : 'Todos os planos', M,10,false,[110,110,110]); nl(6);
-  var ok=0,exec=0,prep=0,plan=0,atr=0;
-  lista.forEach(function(p){ var c=classeStatus(p.status); if(c==='concluido')ok++;else if(c==='executando')exec++;else if(c==='preparacao')prep++;else plan++; if(planoAtrasado(p))atr++; });
+  var ok=0,exec=0,prep=0,plan=0,atr=0,apv=0,aju=0,sem=0;
+  lista.forEach(function(p){ var c=classeStatus(p.status); if(c==='concluido')ok++;else if(c==='executando')exec++;else if(c==='preparacao')prep++;else plan++; if(planoAtrasado(p))atr++;
+    var ai=aprovInfo(p).k; if(ai==='ok')apv++;else if(ai==='ajustar')aju++;else sem++; });
   doc.setDrawColor(225,230,235); doc.line(M,y+2,M+W,y+2); nl(16);
-  txt(lista.length+' planos    ·    Planejado '+plan+'    ·    Em prep. '+prep+'    ·    Executando '+exec+'    ·    Concluído '+ok+(atr?('    ·    Atrasados '+atr):''), M,9.5,true); nl(8);
+  txt(lista.length+' planos    ·    Planejado '+plan+'    ·    Em prep. '+prep+'    ·    Executando '+exec+'    ·    Concluído '+ok+(atr?('    ·    Atrasados '+atr):''), M,9.5,true); nl(12);
+  txt('Aprovação:  ✅ Aprovados '+apv+'    ·    ✍ Pedir ajuste '+aju+'    ·    Sem avaliação '+sem, M,9.5,true,[21,128,61]); nl(8);
   var grupos={}, ordem=[];
   lista.forEach(function(p){ var e=p.empresa||'(sem empresa)'; if(!grupos[e]){ grupos[e]=[]; ordem.push(e); } grupos[e].push(p); });
   ordem.sort();
@@ -2441,14 +2540,17 @@ function pdfReuniao(){
     grupos[e].forEach(function(p){
       var atrs=planoAtrasado(p);
       var cor = atrs?[185,28,28]:(classeStatus(p.status)==='concluido'?[21,128,61]:[45,45,45]);
+      var ai=aprovInfo(p);
+      var marca = ai.k==='ok'?'✅ ':(ai.k==='ajustar'?'✍ ':'');
       txt((atrs?'⚠ ':'')+(p.status||'—'), M, 9, false, cor);
-      var titulo=doc.splitTextToSize(p.evento||p.objetivo||'—', 200);
+      var titulo=doc.splitTextToSize(marca+(p.evento||p.objetivo||'—'), 200);
       txt(titulo[0], M+92, 9, true, cor);
       txt(donoDoPlano(p)||'—', M+300, 9, false, [80,80,80]);
       var fim=dataFimPlano(p);
       txt(fim?(('0'+fim.getDate()).slice(-2)+'/'+('0'+(fim.getMonth()+1)).slice(-2)+'/'+fim.getFullYear()):(p.data||'—'), M+445, 9, false, cor);
       nl(13);
       if(titulo.length>1){ for(var k=1;k<titulo.length && k<3;k++){ txt(titulo[k], M+92, 8.5, false, [120,120,120]); nl(11); } }
+      if(ai.k==='ajustar' && ai.comentario){ var lc=doc.splitTextToSize('↳ ajuste: '+ai.comentario+(ai.prazo?(' (até '+ai.prazo+')'):''), 410); txt(lc[0], M+92, 8.5, false, [180,83,9]); nl(11); }
     });
   });
   nl(22); txt('Gerado em '+new Date().toLocaleString('pt-BR')+' · Grupo Q Food · Plano de Ações',M,8,false,[150,150,150]);
