@@ -176,6 +176,14 @@
   .btn-aprovar:hover{background:#15803d}
   .btn-ajustar{background:#fff;color:#b45309;border:1px solid #fed7aa;font-family:inherit;font-weight:800;font-size:12px;padding:7px 12px;border-radius:9px;cursor:pointer}
   .btn-ajustar:hover{background:#fff7ed}
+  .apv-sel{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;margin-right:auto}
+  .apv-sel input{width:16px;height:16px;cursor:pointer;accent-color:var(--green)}
+  .plano-card.sel{outline:2px solid var(--green);outline-offset:1px}
+  .bulk-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:22px;z-index:60;display:none;align-items:center;gap:14px;background:#0f2a1e;color:#fff;padding:11px 16px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+  .bulk-bar b{font-size:15px}
+  .bulk-bar .bulk-ok{background:var(--green);color:#fff;border:none;font-family:inherit;font-weight:800;font-size:13px;padding:9px 16px;border-radius:10px;cursor:pointer}
+  .bulk-bar .bulk-ok:hover{background:#15803d}
+  .bulk-bar .bulk-clear{background:none;border:none;color:#cbd5c0;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline}
 
   /* logos por empresa */
   .cal-logos{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
@@ -732,6 +740,11 @@
     </div>
     <div class="plano-resumo" id="planoResumo"></div>
     <div id="planoConteudo"></div>
+    <div class="bulk-bar" id="bulkAprovBar">
+      <b><span id="bulkAprovN">0</span></b> selecionado(s)
+      <button class="bulk-ok" onclick="aprovarSelecionados()">✅ Aprovar selecionados</button>
+      <button class="bulk-clear" onclick="limparSelPlanos()">limpar</button>
+    </div>
   </section>
 
   <!-- ---------- ABA 3: CHECKLIST POR SETOR ---------- -->
@@ -1963,11 +1976,38 @@ function aprovBadge(p){
   return '<span class="apv-badge ajustar">✍️ Ajustar'+(a.por?' · '+esc(a.por):'')+'</span>'+
          (a.comentario?'<div class="apv-coment">“'+esc(a.comentario)+'”'+(a.prazo?' <b>(até '+esc(a.prazo)+')</b>':'')+'</div>':'');
 }
+var PLANOS_SEL={};
+function agoraBR(){ var d=new Date(); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
+function marcarAprovadoLocal(id){ var p=PLANOS.filter(function(x){return x.id===id;})[0];
+  if(p) p.aprovacao=JSON.stringify({decisao:'aprovado',comentario:'',prazo:'',por:(SESSAO&&SESSAO.nome)||'',em:agoraBR()}); }
 function aprovarPlano(id){
   if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  marcarAprovadoLocal(id); delete PLANOS_SEL[id]; renderPlanos(); atualizarBulkBar();   // otimista: resposta imediata
   apiPlanejamento({ action:'saveAprovacao', id:id, decisao:'aprovado', comentario:'', prazo:'', usuario:(SESSAO&&SESSAO.nome)||'' })
-    .then(function(j){ if(j&&j.ok){ carregarPlanos(); } else alert('Erro: '+((j&&j.erro)||'desconhecido')); })
-    .catch(function(e){ alert('Falha: '+e.message); });
+    .then(function(j){ if(!(j&&j.ok)){ alert('Não consegui salvar a aprovação no servidor. Recarregando…'); carregarPlanos().then(renderPlanos); } })
+    .catch(function(e){ alert('Falha ao salvar: '+e.message+'. Recarregando…'); carregarPlanos().then(renderPlanos); });
+}
+/* ----- Seleção e aprovação coletiva ----- */
+function togglePlanoSel(id,on){ if(on) PLANOS_SEL[id]=true; else delete PLANOS_SEL[id]; renderPlanos(); atualizarBulkBar(); }
+function limparSelPlanos(){ PLANOS_SEL={}; renderPlanos(); atualizarBulkBar(); }
+function atualizarBulkBar(){
+  var bar=document.getElementById('bulkAprovBar'); if(!bar) return;
+  var n=Object.keys(PLANOS_SEL).length;
+  bar.style.display = n ? 'flex' : 'none';
+  var c=document.getElementById('bulkAprovN'); if(c) c.textContent=n;
+}
+function aprovarSelecionados(){
+  if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
+  var ids=Object.keys(PLANOS_SEL); if(!ids.length) return;
+  var usuario=(SESSAO&&SESSAO.nome)||'';
+  ids.forEach(marcarAprovadoLocal);                 // otimista: marca todos já
+  PLANOS_SEL={}; renderPlanos(); atualizarBulkBar();
+  Promise.all(ids.map(function(id){
+    return apiPlanejamento({action:'saveAprovacao',id:id,decisao:'aprovado',comentario:'',prazo:'',usuario:usuario})
+      .then(function(j){ return (j&&j.ok)?null:id; }).catch(function(){ return id; });
+  })).then(function(res){ var falhas=res.filter(Boolean);
+    if(falhas.length){ alert(falhas.length+' aprovação(ões) podem não ter sido salvas no servidor. Recarregando para conferir…'); carregarPlanos().then(renderPlanos); }
+  });
 }
 var APV_ID=null;
 function abrirPedirAjuste(id){
@@ -1997,7 +2037,7 @@ function cardPlano(p){
       return '<span class="pit">'+esc(it.d)+' ×'+esc(String(it.q))+'</span>'; }).join('')+'</div>' : '';
   var resp=(p.responsaveis||'').split(',').map(function(s){return s.trim();}).filter(Boolean)
     .map(function(n){ var c=corDoNome(n); return '<span class="resp-chip" style="background:'+c.b+';color:'+c.s+';border-color:'+c.s+'">'+esc(n)+'</span>'; }).join('');
-  return '<div class="plano-card st-'+cls+'">'+
+  return '<div class="plano-card st-'+cls+(PLANOS_SEL[p.id]?' sel':'')+'">'+
     '<div class="plano-topo">'+
       '<div><div class="plano-evento">'+esc(p.evento||'(sem evento)')+tipoBadge(p.tipo)+'</div>'+
         '<div class="plano-empresa">'+logoEmpHtml(p.empresa,18)+' '+esc(p.empresa||'')+(p.data?' · '+esc(p.data):'')+'</div></div>'+
@@ -2011,14 +2051,16 @@ function cardPlano(p){
     (resp?'<div class="plano-resp">'+resp+'</div>':'')+
     itensHtml+
     (p.obs?'<div class="plano-obs">'+esc(p.obs)+'</div>':'')+
-    '<div class="plano-aprov">'+aprovBadge(p)+
+    '<div class="plano-aprov">'+
+      '<label class="apv-sel"><input type="checkbox" '+(PLANOS_SEL[p.id]?'checked':'')+' onclick="togglePlanoSel(\''+esc(p.id)+'\',this.checked)"> selecionar</label>'+
+      aprovBadge(p)+
       '<div class="apv-btns">'+
         '<button class="btn-aprovar" onclick="aprovarPlano(\''+esc(p.id)+'\')">✅ Aprovar</button>'+
         '<button class="btn-ajustar" onclick="abrirPedirAjuste(\''+esc(p.id)+'\')">✍️ Pedir ajuste</button>'+
       '</div>'+
     '</div>'+
     '<div class="plano-acoes">'+
-      '<button class="lnk" style="color:#0f766e;font-weight:800" onclick="abrirDetalhe(\''+esc(p.id)+'\')">📂 Abrir</button>'+
+      '<button class="lnk" style="color:#0f766e;font-weight:800" onclick="abrirDetalhe(\''+esc(p.id)+'\')">🎛️ Gerenciar</button>'+
       '<button class="lnk mapa-lnk" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button>'+
       '<button class="lnk" onclick="editarPlano(\''+esc(p.id)+'\')">✏ Editar</button>'+
       '<button class="lnk del" onclick="excluirPlano(\''+esc(p.id)+'\')">🗑 Excluir</button>'+
@@ -2842,95 +2884,170 @@ function salvarExtras(){
    .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent='✅ Salvar recursos/produtos'; } alert('Falha: '+e.message); });
 }
 
-/* ---------- PDF prestação de contas ---------- */
+/* ---------- PDF: Relatório Gerencial de Resultado do Evento ---------- */
 function gerarPDF(id){
   var p=PLANOS.filter(function(x){return x.id===id;})[0]; if(!p){ alert('Plano não encontrado.'); return; }
   if(!window.jspdf || !window.jspdf.jsPDF){ alert('Biblioteca de PDF ainda carregando — tente de novo em 2s.'); return; }
   var doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'});
-  var M=40, W=515, y=50;
-  function nl(h){ y+=(h||16); if(y>790){ doc.addPage(); y=50; } }
-  function txt(s,x,sz,bold,col){ doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(sz||10); if(col)doc.setTextColor(col[0],col[1],col[2]); else doc.setTextColor(40,40,40); doc.text(String(s==null?'':s),x,y); }
-  function sec(t){ nl(22); doc.setDrawColor(210,180,120); doc.line(M,y-10,M+W,y-10); txt(t,M,12,true,[154,106,0]); nl(6); }
-  txt('Q FOOD GROUP',M,16,true,[30,30,30]); nl(18); txt('Prestação de Contas Operacional',M,11,false,[120,120,120]); nl(20);
-  txt((p.evento||'—'),M,14,true); nl(16);
-  txt((p.tipo||'')+'  ·  '+(p.empresa||'')+'  ·  '+(p.data||'')+'  ·  '+(p.status||''),M,10,false,[110,110,110]); nl(4);
-  if(p.objetivo){ sec('Objetivo'); doc.setFontSize(10); doc.setTextColor(40,40,40); var lo=doc.splitTextToSize(p.objetivo,W); doc.text(lo,M,y); nl(lo.length*13); }
-  sec('Metas'); txt('Meta: '+(p.meta||'—')+'        Realizado: '+(p.real||'—'),M,10); nl(2);
-  var nos=parseAtrib(p.atrib);
-  if(nos.length){ sec('Equipe / Responsáveis'); nos.forEach(function(a){ txt('• '+a.n+(a.dono?' (dono)':'')+' — '+(a.t||'')+(a.p?'  ['+fmtData(a.p)+']':'')+'  '+(a.s||''),M,9); nl(13); }); }
-  var rec=parseJSONArr(p.recursos);
-  if(rec.length){ sec('Infraestrutura (previsto / enviado / retornado / dif.)'); txt('Item                         Prev   Env   Ret   Dif',M,9,true); nl(13);
-    rec.forEach(function(r){ var dif=num(r.rt)-num(r.en); txt(pad(r.n,26)+pad(r.pv,6)+pad(r.en,6)+pad(r.rt,6)+(dif>0?'+':'')+dif,M,9); nl(12); }); }
-  var pr=parseJSONArr(p.produtos);
-  if(pr.length){ sec('Produtos (enviado / vendido / retornado / perda)');
-    txt(pad('Produto',20)+pad('Lev',5)+pad('Vend',6)+pad('Ret',5)+pad('Perda',6)+pad('C.un',6)+pad('Receita',12)+'CMV',M,8.5,true); nl(13);
-    var tlv=0,tvd=0,trec=0,tcmv=0;
-    pr.forEach(function(x){ var r=num(x.vd)*num(x.pr), cm=num(x.vd)*num(x.cu); tlv+=num(x.lv);tvd+=num(x.vd);trec+=r;tcmv+=cm;
-      txt(pad(x.n,20)+pad(x.lv,5)+pad(x.vd,6)+pad(x.rt,5)+pad(x.pd,6)+pad(x.cu||'-',6)+pad(brl(r),12)+brl(cm),M,8.5); nl(12); });
-    nl(4); txt('Sell-through: '+(tlv?Math.round(tvd/tlv*100):0)+'%     Receita: '+brl(trec)+'     CMV: '+brl(tcmv),M,9.5,true); nl(2);
+  var PW=595, PH=842, M=48, W=PW-2*M, y=0;
+  var NAVY=[31,43,61], GREEN=[25,107,74], RED=[176,65,44], INK=[38,46,58], GRAY=[112,122,133], LINE=[223,228,234], CARD=[246,248,250], ZEBRA=[248,250,252], WHITE=[255,255,255];
+  function setC(c){ doc.setTextColor(c[0],c[1],c[2]); }
+  function setF(c){ doc.setFillColor(c[0],c[1],c[2]); }
+  function font(b,sz){ doc.setFont('helvetica',b?'bold':'normal'); doc.setFontSize(sz); }
+  function T(s,x,yy,o){ o=o||{}; font(o.b,o.sz||10); setC(o.c||INK); doc.text(Array.isArray(s)?s:String(s==null?'':s),x,yy,o.align?{align:o.align}:undefined); }
+  function brl0(v){ return 'R$ '+Math.round(v||0).toLocaleString('pt-BR'); }
+  function pct1(n){ return (Math.round(n*10)/10).toString().replace('.',',')+'%'; }
+
+  // ----- dados -----
+  var enc=parseEnc(p.enc), fin=enc.fin||{};
+  var fechado = fin.status==='fechado';
+  var SUF = fechado ? '' : ' preliminar';
+  var pr=parseJSONArr(p.produtos), tlv=0,tvd=0,trt=0,tpd=0,prodRec=0;
+  pr.forEach(function(x){ tlv+=num(x.lv);tvd+=num(x.vd);trt+=num(x.rt);tpd+=num(x.pd);prodRec+=num(x.vd)*num(x.pr); });
+  var bruto = fin.faturamentoBruto!=null?fin.faturamentoBruto:pnum(p.real);
+  var desc = pnum(fin.descontos);
+  var recLiq = fin.receitaLiquida!=null?fin.receitaLiquida:(bruto-desc);
+  var cmv=fin.cmv||0, perdas=fin.perdas||0, taxas=fin.taxas||0;
+  var custoManual=fin.custoManual!=null?fin.custoManual:0;
+  var demais = custoManual - taxas;
+  var resultado = fin.lucro!=null?fin.lucro:(recLiq-cmv-perdas-custoManual);
+  var margem = recLiq>0 ? (resultado/recLiq*100) : 0;
+  var meta=pnum(p.meta), ating = meta>0?Math.round(bruto/meta*100):0, sup=bruto-meta;
+  var canais=fin.canais||[];
+  var diffConc = bruto - prodRec;
+  var outros=0; (fin.custos||[]).forEach(function(r){ if((r.cat||'')==='Outros') outros+=pnum(r.v); });
+
+  function rodape(){ var pg=doc.internal.getNumberOfPages(); for(var i=1;i<=pg;i++){ doc.setPage(i);
+    doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.line(M,PH-40,PW-M,PH-40);
+    T('Q FOOD GROUP · Relatório gerencial de evento',M,PH-26,{sz:8,c:GRAY});
+    T('Página '+i+'/'+pg,PW-M,PH-26,{sz:8,c:GRAY,align:'right'});
+  } }
+  function secTit(n,t){ if(y>700){ doc.addPage(); y=58; } y+=26; T(n+' | '+t,M,y,{b:true,sz:13,c:NAVY}); y+=6; }
+  function par(lb,txt){ if(y>770){ doc.addPage(); y=58; }
+    font(true,10); setC(NAVY); doc.text(lb+':',M,y);
+    var lw=doc.getTextWidth(lb+': ');
+    font(false,10); setC(INK);
+    var rest=doc.splitTextToSize(txt,W-lw);
+    doc.text(rest[0]||'',M+lw,y);
+    for(var i=1;i<rest.length;i++){ y+=14; if(y>800){ doc.addPage(); y=58; } doc.text(rest[i],M,y); }
+    y+=18;
   }
-  // Orçamento previsto x realizado
-  var orc=parseJSONArr(p.orcamento);
-  var encO=parseEnc(p.enc), finO=encO.fin;
-  if(orc.length){ sec('Orçamento (previsto / realizado / desvio)');
-    txt(pad('Categoria',26)+pad('Previsto',12)+pad('Realizado',12)+'Desvio',M,9,true); nl(13);
-    var tp=0,tr=0;
-    orc.forEach(function(o){ var prev=num(o.prev), real=realizadoPorCat(finO,o.cat), dz=prev-real; tp+=prev; tr+=real;
-      txt(pad(o.cat,26)+pad(brl(prev),12)+pad(brl(real),12)+(dz<0?'- ':'')+brl(Math.abs(dz)),M,9); nl(12); });
-    nl(2); var dzt=tp-tr; txt(pad('Total',26)+pad(brl(tp),12)+pad(brl(tr),12)+(dzt<0?'- ':'')+brl(Math.abs(dzt)),M,9.5,true); nl(2);
-  }
-  var enc=parseEnc(p.enc);
-  var fin=enc.fin;
-  if(fin && ((fin.canais&&fin.canais.length) || (fin.custos&&fin.custos.length) || fin.faturamento || fin.custoTotal)){
-    var stMap={apuracao:'Em apuração',parcial:'Parcial',fechado:'Fechado'};
-    sec('Resultado Financeiro do Evento'+(stMap[fin.status]?'  ('+stMap[fin.status]+')':''));
-    if(fin.canais && fin.canais.length){
-      txt('Vendas por canal',M,10,true); nl(13);
-      fin.canais.forEach(function(r){ txt(pad(r.c,30)+brl(pnum(r.v)),M,9); nl(12); });
-      nl(2);
-    }
-    if(fin.custos && fin.custos.length){
-      txt('Custos lançados',M,10,true); nl(13);
-      fin.custos.forEach(function(r){ txt(pad(r.cat,28)+pad((r.d||''),22)+brl(pnum(r.v)),M,9); nl(12); });
-      nl(4);
-    }
-    // Cascata: formação do resultado
-    if(y>650){ doc.addPage(); y=50; }
-    txt('Formação do resultado',M,10,true); nl(14);
-    function linha(lb,v,bold){ doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(bold?10:9.5); doc.setTextColor(bold?40:90,bold?40:90,bold?40:90);
-      doc.text(lb,M,y); doc.text((v<0?'- ':'')+brl(Math.abs(v)),M+W,y,{align:'right'}); nl(13); }
-    var cmv=fin.cmv||0, perdas=fin.perdas||0, taxas=fin.taxas||0, custoManual=(fin.custoManual!=null?fin.custoManual:((fin.custoTotal||0)-cmv-perdas));
-    linha('Faturamento bruto', fin.faturamentoBruto!=null?fin.faturamentoBruto:(fin.faturamento||0));
-    if(fin.descontos && pnum(fin.descontos)) linha('(-) Descontos / cancelamentos', -pnum(fin.descontos));
-    linha('= Receita liquida', fin.receitaLiquida!=null?fin.receitaLiquida:(fin.faturamento||0), true);
-    if(cmv) linha('(-) CMV (produtos vendidos)', -cmv);
-    if(perdas) linha('(-) Perdas de produto', -perdas);
-    if(taxas) linha('(-) Taxas de pagamento / canal', -taxas);
-    linha('(-) Demais custos do evento', -(custoManual-taxas));
-    nl(2);
-    if(y>740){ doc.addPage(); y=50; }
-    var resPos=(fin.lucro||0)>=0;
-    if(resPos){ doc.setFillColor(35,107,74); } else { doc.setFillColor(155,45,31); }
-    doc.roundedRect(M,y-4,W,48,7,7,'F');
-    doc.setTextColor(255,255,255);
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text((fin.status==='fechado'?'RESULTADO OPERACIONAL (FECHADO)':'RESULTADO OPERACIONAL (PRELIMINAR)'),M+16,y+13);
-    doc.setFontSize(19); doc.text(brl(fin.lucro||0),M+16,y+35);
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text('MARGEM',M+W-140,y+13);
-    doc.setFontSize(19); doc.text((fin.margem||0)+'%',M+W-140,y+35);
-    nl(56); doc.setTextColor(40,40,40);
-  }
-  if(enc.resultado||enc.aprendizados){ sec('Resultado & Aprendizados');
-    if(enc.resultado){ var lr=doc.splitTextToSize('Resultado: '+enc.resultado,W); doc.setFontSize(10);doc.setTextColor(40,40,40);doc.text(lr,M,y); nl(lr.length*13); }
-    if(enc.aprendizados){ var la=doc.splitTextToSize('Lições: '+enc.aprendizados,W); doc.text(la,M,y); nl(la.length*13); }
-  }
-  var pend=agruparTarefas(nos).filter(function(g){ return statusTarefa(g.status).k!=='ok'; });
-  if(pend.length){ sec('Tarefas não concluídas');
-    pend.forEach(function(g){ var st=statusTarefa(g.status); txt('• '+(g.tarefa||'—')+' — '+(g.dono||'—')+'  ['+st.lb+']'+(g.prazo?'  '+fmtData(g.prazo):''),M,9); nl(12); });
-    nl(2);
-  }
-  nl(20); txt('Gerado em '+new Date().toLocaleString('pt-BR')+' · Grupo Q Food',M,8,false,[150,150,150]);
-  doc.save('Prestacao_'+(p.evento||'evento').replace(/[^\w]+/g,'_')+'.pdf');
+
+  // ===== CABEÇALHO =====
+  y=58;
+  T(('Q FOOD GROUP / '+(p.empresa||'')).toUpperCase(),M,y,{b:true,sz:10,c:GREEN}); y+=26;
+  T('Relatório de resultado do evento',M,y,{b:true,sz:23,c:NAVY}); y+=18;
+  T((p.evento||'—')+'   |   '+(p.data||'—')+(p.objetivo?'   |   Objetivo: '+p.objetivo:''),M,y,{sz:10,c:GRAY}); y+=16;
+  var bg,bd,tc,btxt;
+  if(fechado){ bg=[233,245,239]; bd=[191,227,208]; tc=GREEN; btxt='RESULTADO FECHADO   |   Custos confirmados.'; }
+  else { bg=[253,243,219]; bd=[233,206,135]; tc=[138,96,0]; btxt='APURAÇÃO '+(fin.status==='parcial'?'PARCIAL':'EM ANDAMENTO')+'   |   Os custos apresentados ainda não representam fechamento definitivo.'; }
+  setF(bg); doc.setDrawColor(bd[0],bd[1],bd[2]); doc.roundedRect(M,y,W,30,5,5,'FD');
+  T(btxt,M+14,y+19,{sz:9.5,c:tc}); y+=30;
+
+  // ===== 01 RESUMO EXECUTIVO =====
+  secTit('01','Resumo executivo'); y+=8;
+  var cards=[['Faturamento bruto',brl0(bruto),false],['Receita líquida',brl0(recLiq),false],['Resultado'+SUF,brl0(resultado),resultado<0],['Margem'+SUF,pct1(margem),resultado<0]];
+  var cw=(W-3*10)/4, ch=58;
+  cards.forEach(function(cd,i){ var x=M+i*(cw+10);
+    setF(CARD); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.roundedRect(x,y,cw,ch,5,5,'FD');
+    T(cd[0],x+12,y+21,{sz:8.5,c:GRAY});
+    T(cd[1],x+12,y+43,{b:true,sz:15,c:cd[2]?RED:NAVY});
+  });
+  y+=ch+16;
+  T('Meta: '+(meta?brl0(meta):'—')+'    |    Realizado: '+brl0(bruto)+'    |    Atingimento: '+(meta?ating+'%':'—')+'    |    '+(sup>=0?'Superação: ':'Déficit: ')+brl0(Math.abs(sup)),M,y,{sz:9.5,c:INK}); y+=4;
+
+  // ===== 02 DESEMPENHO DOS PRODUTOS =====
+  secTit('02','Desempenho dos produtos'); y+=10;
+  var cR=[M+12, M+205, M+285, M+375, M+440, PW-M-12];
+  setF(NAVY); doc.rect(M,y,W,22,'F');
+  T('Produto',cR[0],y+15,{b:true,sz:9,c:WHITE});
+  T('Levado',cR[1],y+15,{b:true,sz:9,c:WHITE,align:'right'});
+  T('Vendido',cR[2],y+15,{b:true,sz:9,c:WHITE,align:'right'});
+  T('Retornado',cR[3],y+15,{b:true,sz:9,c:WHITE,align:'right'});
+  T('Perda',cR[4],y+15,{b:true,sz:9,c:WHITE,align:'right'});
+  T('Receita',cR[5],y+15,{b:true,sz:9,c:WHITE,align:'right'});
+  y+=22;
+  if(!pr.length){ T('Nenhum produto lançado.',cR[0],y+14,{sz:9.5,c:GRAY}); y+=20; }
+  pr.forEach(function(x,i){ if(y>760){ doc.addPage(); y=58; }
+    if(i%2){ setF(ZEBRA); doc.rect(M,y,W,20,'F'); }
+    T(x.n||'—',cR[0],y+14,{sz:9.5});
+    T(num(x.lv),cR[1],y+14,{sz:9.5,align:'right'});
+    T(num(x.vd),cR[2],y+14,{sz:9.5,align:'right'});
+    T(num(x.rt),cR[3],y+14,{sz:9.5,align:'right'});
+    T(num(x.pd),cR[4],y+14,{sz:9.5,align:'right'});
+    T(brl0(num(x.vd)*num(x.pr)),cR[5],y+14,{sz:9.5,align:'right'});
+    y+=20;
+  });
+  doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.line(M,y,PW-M,y);
+  T('TOTAL',cR[0],y+15,{b:true,sz:9.5});
+  T(tlv,cR[1],y+15,{b:true,sz:9.5,align:'right'});
+  T(tvd,cR[2],y+15,{b:true,sz:9.5,align:'right'});
+  T(trt,cR[3],y+15,{b:true,sz:9.5,align:'right'});
+  T(tpd,cR[4],y+15,{b:true,sz:9.5,align:'right'});
+  T(brl0(prodRec),cR[5],y+15,{b:true,sz:9.5,align:'right'});
+  y+=26;
+  var st=tlv?(tvd/tlv*100):0, rr=tlv?(trt/tlv*100):0, pp=tlv?(tpd/tlv*100):0;
+  T('Sell-through: '+pct1(st)+(tlv?' ('+tvd+' de '+tlv+' un.)':'')+'   |   Retorno: '+pct1(rr)+'   |   Perdas: '+pct1(pp)+'.',M,y,{sz:8.5,c:GRAY}); y+=12;
+  var l2='Receita dos produtos detalhados: '+brl0(prodRec)+'.';
+  if(Math.abs(diffConc)>1) l2+=' Diferença de '+brl0(Math.abs(diffConc))+' para o faturamento bruto: requer conciliação por item/canal.';
+  var l2w=doc.splitTextToSize(l2,W); T(l2w,M,y,{sz:8.5,c:(Math.abs(diffConc)>1?RED:GRAY)}); y+=l2w.length*11;
+
+  // ===== 03 FORMAÇÃO DO RESULTADO =====
+  if(y>620){ doc.addPage(); y=58; }
+  secTit('03','Formação do resultado financeiro'); y+=10;
+  setF(NAVY); doc.rect(M,y,W,22,'F');
+  T('Composição',M+12,y+15,{b:true,sz:9,c:WHITE});
+  T('Valor',PW-M-12,y+15,{b:true,sz:9,c:WHITE,align:'right'});
+  y+=22;
+  var casc=[['Faturamento bruto',bruto,false]];
+  if(desc) casc.push(['(-) Descontos e cancelamentos',-desc,false]);
+  casc.push(['= Receita líquida',recLiq,true]);
+  if(cmv) casc.push(['(-) CMV dos produtos vendidos',-cmv,false]);
+  if(perdas) casc.push(['(-) Perdas de produtos',-perdas,false]);
+  if(taxas) casc.push(['(-) Taxas de pagamento / canal',-taxas,false]);
+  casc.push(['(-) Demais custos do evento',-demais,false]);
+  var ci=0;
+  casc.forEach(function(r){ if(ci%2){ setF(ZEBRA); doc.rect(M,y,W,20,'F'); } ci++;
+    T(r[0],M+12,y+14,{b:r[2],sz:9.5,c:r[2]?NAVY:INK});
+    T((r[1]<0?'- ':'')+brl0(Math.abs(r[1])),PW-M-12,y+14,{b:r[2],sz:9.5,c:r[1]<0?RED:(r[2]?NAVY:INK),align:'right'});
+    y+=20;
+  });
+  var rc = resultado>=0?NAVY:RED;
+  setF(rc); doc.rect(M,y,W,28,'F');
+  T('RESULTADO OPERACIONAL'+(fechado?'':' PRELIMINAR'),M+12,y+18,{b:true,sz:10,c:WHITE});
+  T(brl0(resultado)+'   ·   '+pct1(margem),PW-M-12,y+18,{b:true,sz:12,c:WHITE,align:'right'});
+  y+=28+14;
+  var canL='';
+  if(canais.length){ canL='Receita por canal: '+canais.map(function(c){ var v=pnum(c.v); return c.c+' '+brl0(v)+(bruto?' ('+Math.round(v/bruto*100)+'%)':''); }).join('   |   ')+'.'; }
+  if(canL){ var cw2=doc.splitTextToSize(canL,W); T(cw2,M,y,{sz:8.5,c:GRAY}); y+=cw2.length*11; }
+  var disc=(fin.custos||[]).filter(function(r){ return (r.cat||'')!=='Outros' && pnum(r.v); }).map(function(r){ return (r.d? r.d : r.cat)+' '+brl0(pnum(r.v)); });
+  var dL='Custos discriminados: '+(disc.length?disc.join('; '):'—')+'.';
+  if(outros>1) dL+=' '+brl0(outros)+' em “Outros” ainda não discriminados.';
+  var dw=doc.splitTextToSize(dL,W); T(dw,M,y,{sz:8.5,c:(outros>1?RED:GRAY)}); y+=dw.length*11;
+
+  // ===== 04 LEITURA GERENCIAL =====
+  secTit('04','Leitura gerencial e próximos ajustes'); y+=14;
+  par('Desempenho','a meta de faturamento foi '+(ating>=100?'superada':'não atingida')+(meta?' ('+ating+'% da meta)':'')+'. O resultado operacional de '+brl0(resultado)+' e a margem de '+pct1(margem)+' são '+(fechado?'definitivos':'preliminares, sujeitos à confirmação de todos os custos')+'.');
+  par('Operação','sell-through de '+pct1(st)+', com '+pct1(rr)+' de retorno e '+pct1(pp)+' de perdas'+(trt>0?'. O retorno ao estoque não foi lançado como custo do evento':'')+'.');
+  var pend=[];
+  if(Math.abs(diffConc)>1) pend.push('conciliar '+brl0(prodRec)+' de receita dos produtos com '+brl0(bruto)+' de faturamento por canal');
+  if(outros>1) pend.push('discriminar '+brl0(outros)+' lançados em “Outros”');
+  if(!fechado) pend.push('confirmar CMV, perdas, taxas e demais despesas e marcar o evento como Fechado');
+  if(pend.length) par('Pendências para fechamento', pend.join('; ')+'.');
+
+  // ===== 05 REGISTRO E RECOMENDAÇÃO =====
+  secTit('05','Registro e recomendação'); y+=14;
+  if(enc.resultado) par('Ocorrência', enc.resultado);
+  if(enc.aprendizados) par('Lição registrada', enc.aprendizados);
+  var rec = fechado
+    ? (resultado>=0 ? 'repetir o formato — o evento fechou com resultado positivo de '+brl0(resultado)+' ('+pct1(margem)+' de margem). Replicar aprendizados e dimensionamento.' : 'rever o formato antes de repetir — o evento fechou com prejuízo de '+brl0(Math.abs(resultado))+'. Revisar custos e precificação.')
+    : 'repetir o formato somente após conciliar receitas e custos e revisar o volume de produtos e embalagens. Decisão financeira definitiva: pendente.';
+  par('Recomendação', rec);
+
+  rodape();
+  doc.save('Relatorio_'+(p.evento||'evento').replace(/[^\w]+/g,'_')+'.pdf');
 }
+
 function pad(s,n){ s=String(s==null?'':s); while(s.length<n) s+=' '; return s.slice(0,n); }
 
 /* ===== PDF da reunião (Plano de Ações filtrado — p/ cobrança de MKT) ===== */
