@@ -149,6 +149,19 @@
   .cal-refresh{margin-left:auto;border:1px solid var(--line);background:#fff;cursor:pointer;
     font-family:inherit;font-size:12.5px;font-weight:700;color:var(--ink-2);padding:7px 14px;border-radius:999px}
   .cal-refresh:hover{border-color:var(--accent)}
+  /* filtros da aba Plano de Ações */
+  .plano-filtros{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+  .plano-filtros .cal-sel{margin:0}
+  .plano-filtros .fbusca{border:1px solid var(--line);border-radius:9px;padding:7px 11px;font-family:inherit;font-size:12.5px;min-width:150px;flex:1}
+  .btn-pdf-reuniao{margin-left:auto;background:#0f172a;color:#fff;border:none;font-family:inherit;font-weight:800;font-size:12.5px;padding:8px 14px;border-radius:9px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+  .btn-pdf-reuniao:hover{background:#1e293b}
+  .plano-resumo{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;align-items:center}
+  .pr-chip{font-size:12px;font-weight:800;padding:5px 11px;border-radius:20px;background:#f1f5f9;color:var(--ink-2);border:1px solid var(--line)}
+  .pr-chip b{font-weight:900}
+  .pr-chip.tot{background:#eff6ff;color:#1d4ed8;border-color:#bfdbfe}
+  .pr-chip.ok{background:#f0fdf4;color:#15803d;border-color:#bbf7d0}
+  .pr-chip.exec{background:#eef2ff;color:#4338ca;border-color:#c7d2fe}
+  .pr-chip.atr{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
 
   /* logos por empresa */
   .cal-logos{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 18px}
@@ -608,17 +621,26 @@
     <div class="painel-cab linha">
       <h2>🎯 Plano de Ações</h2>
       <div class="cab-acoes">
-        <select class="cal-sel" id="planoFiltroStatus">
-          <option value="Todos">Todos os status</option>
-          <option value="Planejado">Planejado</option>
-          <option value="Em preparação">Em preparação</option>
-          <option value="Executando">Executando</option>
-          <option value="Concluído">Concluído</option>
-        </select>
         <button class="cal-refresh" id="planoRefresh">↻</button>
         <button class="btn-add" onclick="abrirTipoPicker()">+ Novo plano</button>
       </div>
     </div>
+    <div class="plano-filtros" id="planoFiltros">
+      <select class="cal-sel" id="fpEmpresa" onchange="renderPlanos()"><option value="Todas">Todas as empresas</option></select>
+      <select class="cal-sel" id="fpResp" onchange="renderPlanos()"><option value="Todos">Todas as pessoas</option></select>
+      <select class="cal-sel" id="fpMes" onchange="renderPlanos()"><option value="Todos">Todos os meses</option></select>
+      <select class="cal-sel" id="fpTipo" onchange="renderPlanos()"><option value="Todos">Todos os tipos</option></select>
+      <select class="cal-sel" id="fpStatus" onchange="renderPlanos()">
+        <option value="Todos">Todos os status</option>
+        <option value="Planejado">Planejado</option>
+        <option value="Em preparação">Em preparação</option>
+        <option value="Executando">Executando</option>
+        <option value="Concluído">Concluído</option>
+      </select>
+      <input class="fbusca" id="fpBusca" placeholder="🔎 buscar evento, objetivo…" oninput="renderPlanos()">
+      <button class="btn-pdf-reuniao" onclick="pdfReuniao()">📄 PDF da reunião</button>
+    </div>
+    <div class="plano-resumo" id="planoResumo"></div>
     <div id="planoConteudo"></div>
   </section>
 
@@ -1458,7 +1480,6 @@ function salvarComoPlaybook(){
 
 /* ===== PLANO DE AÇÕES ===== */
 var PLANOS = [];
-var filtroPlanoStatus = 'Todos';
 function classeStatus(s){
   s=(s||'').toLowerCase();
   if(s.indexOf('conclu')>=0) return 'concluido';
@@ -1479,16 +1500,93 @@ function carregarPlanos(){
                  atrib:o.Atribuicoes||'', enc:o.Encerramento||'',
                  tipo:o.Tipo||'Evento', recursos:o.Recursos||'', produtos:o.Produtos||'' };
       }).filter(function(p){ return p.evento || p.objetivo; });
+      popularFiltrosPlano();
       renderPlanos();
     })
     .catch(function(err){ el.innerHTML='<div class="cal-estado erro">⚠ Erro ao carregar planos.<br><small>'+esc(err.message)+'</small></div>'; });
 }
+/* ===== Filtros da aba Plano de Ações ===== */
+var MESES_NOME=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function fpVal(id,def){ var e=document.getElementById(id); return e? e.value : def; }
+function pessoasDoPlano(p){
+  var set={};
+  (p.responsaveis||'').split(',').forEach(function(s){ s=s.trim(); if(s) set[s]=1; });
+  parseAtrib(p.atrib).forEach(function(a){ if(a && a.n) set[String(a.n).trim()]=1; });
+  return Object.keys(set);
+}
+function mesChave(d){
+  d=String(d||''); var ya=d.match(/(\d{4})/); var mm=d.match(/\b(\d{1,2})\/(\d{1,2})\b/);
+  if(!ya||!mm) return '';
+  return ('0'+mm[2]).slice(-2)+'/'+ya[1];       // mm/aaaa
+}
+function mesLabel(ch){ var p=ch.split('/'); return (MESES_NOME[(+p[0])-1]||p[0])+'/'+p[1]; }
+function dataFimPlano(p){
+  var ms=String(p.data||'').match(/\d{1,2}\/\d{1,2}\/\d{4}/g);
+  if(ms&&ms.length) return brToDate(ms[ms.length-1]);
+  return null;
+}
+function planoAtrasado(p){
+  if(classeStatus(p.status)==='concluido') return false;
+  var f=dataFimPlano(p); if(!f) return false;
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  return f < hoje;
+}
+function popularFiltrosPlano(){
+  function enche(id, valores, rotulo){
+    var sel=document.getElementById(id); if(!sel) return;
+    var atual=sel.value;
+    sel.innerHTML='<option value="Todos">'+rotulo+'</option>'+valores.map(function(v){
+      var lb=(id==='fpMes')?mesLabel(v):v;
+      return '<option value="'+esc(v)+'">'+esc(lb)+'</option>';
+    }).join('');
+    if(atual && Array.prototype.some.call(sel.options,function(o){return o.value===atual;})) sel.value=atual;
+  }
+  var emps={}, resp={}, meses={}, tipos={};
+  PLANOS.forEach(function(p){
+    if(p.empresa) emps[p.empresa]=1;
+    if(p.tipo) tipos[p.tipo]=1;
+    var mc=mesChave(p.data); if(mc) meses[mc]=1;
+    pessoasDoPlano(p).forEach(function(n){ resp[n]=1; });
+  });
+  var selE=document.getElementById('fpEmpresa'); if(selE){ var a=selE.value;
+    selE.innerHTML='<option value="Todas">Todas as empresas</option>'+Object.keys(emps).sort().map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join('');
+    if(a) Array.prototype.forEach.call(selE.options,function(o){ if(o.value===a) selE.value=a; }); }
+  enche('fpResp', Object.keys(resp).sort(), 'Todas as pessoas');
+  enche('fpMes', Object.keys(meses).sort(), 'Todos os meses');
+  enche('fpTipo', Object.keys(tipos).sort(), 'Todos os tipos');
+}
+function planosFiltrados(){
+  var emp=fpVal('fpEmpresa','Todas'), resp=fpVal('fpResp','Todos'), mes=fpVal('fpMes','Todos'),
+      tipo=fpVal('fpTipo','Todos'), st=fpVal('fpStatus','Todos'), q=norm(fpVal('fpBusca',''));
+  return PLANOS.filter(function(p){
+    if(emp!=='Todas' && p.empresa!==emp) return false;
+    if(tipo!=='Todos' && p.tipo!==tipo) return false;
+    if(st!=='Todos' && p.status!==st) return false;
+    if(mes!=='Todos' && mesChave(p.data)!==mes) return false;
+    if(resp!=='Todos' && !pessoasDoPlano(p).some(function(n){return norm(n)===norm(resp);})) return false;
+    if(q){ var blob=norm([p.evento,p.objetivo,p.obs,p.empresa,p.responsaveis].join(' ')); if(blob.indexOf(q)<0) return false; }
+    return true;
+  });
+}
 function renderPlanos(){
   var el=document.getElementById('planoConteudo');
-  var lista = PLANOS.filter(function(p){ return filtroPlanoStatus==='Todos' || p.status===filtroPlanoStatus; });
   var banner = WEBAPP_PLANEJAMENTO ? '' : avisoSetup();
+  var lista = planosFiltrados();
+  // resumo
+  var box=document.getElementById('planoResumo');
+  if(box){
+    var ok=0,exec=0,prep=0,plan=0,atr=0;
+    lista.forEach(function(p){ var c=classeStatus(p.status); if(c==='concluido')ok++; else if(c==='executando')exec++; else if(c==='preparacao')prep++; else plan++; if(planoAtrasado(p))atr++; });
+    box.innerHTML =
+      '<span class="pr-chip tot"><b>'+lista.length+'</b> planos</span>'+
+      '<span class="pr-chip">Planejado <b>'+plan+'</b></span>'+
+      '<span class="pr-chip">Em preparação <b>'+prep+'</b></span>'+
+      '<span class="pr-chip exec">Executando <b>'+exec+'</b></span>'+
+      '<span class="pr-chip ok">Concluído <b>'+ok+'</b></span>'+
+      (atr?'<span class="pr-chip atr">⚠ Atrasados <b>'+atr+'</b></span>':'');
+  }
   if(!lista.length){
-    el.innerHTML = banner + '<div class="cal-estado">Nenhum plano ainda. Clique em <b>+ Novo plano</b> para criar o primeiro.</div>';
+    el.innerHTML = banner + '<div class="cal-estado">Nenhum plano com esse filtro.</div>';
     return;
   }
   el.innerHTML = banner + lista.map(cardPlano).join('');
@@ -1955,7 +2053,7 @@ function abrirMapa(id){
 /* ============================================================
    2.0 — TIPO, VISÃO GERAL, SALA DE COMANDO, RECURSOS, PRODUTOS, PDF
    ============================================================ */
-var TIPO_ICON={'Evento':'🎪','Campanha/Marketing':'📣','Comercial':'💼','Projeto':'🧩','Operacional':'⚙️','Implantação':'🚀','Reunião':'👥','Treinamento':'🎓'};
+var TIPO_ICON={'Evento':'🎪','Campanha/Marketing':'📣','Comercial':'💼','Projeto':'🧩','Operacional':'⚙️','Implantação':'🚀','Reunião':'👥','Treinamento':'🎓','Conteúdo':'📱'};
 // Cards do seletor "O que você está planejando?" (tela 2 do mockup)
 var TIPOS_PLAN=[
   {val:'Projeto',           nome:'Projeto',                 icon:'📘', cor:'#2563eb', desc:'Implantação CRM, novo sistema, etc.'},
@@ -2308,6 +2406,55 @@ function gerarPDF(id){
 }
 function pad(s,n){ s=String(s==null?'':s); while(s.length<n) s+=' '; return s.slice(0,n); }
 
+/* ===== PDF da reunião (Plano de Ações filtrado — p/ cobrança de MKT) ===== */
+function pdfReuniao(){
+  if(!window.jspdf || !window.jspdf.jsPDF){ alert('Biblioteca de PDF ainda carregando — tente de novo em 2s.'); return; }
+  var lista=planosFiltrados();
+  if(!lista.length){ alert('Nenhum plano no filtro atual para gerar o PDF.'); return; }
+  var doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'});
+  var M=40, W=515, y=50;
+  function nl(h){ y+=(h||16); if(y>790){ doc.addPage(); y=50; } }
+  function txt(s,x,sz,bold,col){ doc.setFont('helvetica',bold?'bold':'normal'); doc.setFontSize(sz||10); if(col)doc.setTextColor(col[0],col[1],col[2]); else doc.setTextColor(40,40,40); doc.text(String(s==null?'':s),x,y); }
+  var ctx=[];
+  var fe=fpVal('fpEmpresa','Todas'); if(fe!=='Todas') ctx.push(fe);
+  var fm=fpVal('fpMes','Todos'); if(fm!=='Todos') ctx.push(mesLabel(fm));
+  var fr=fpVal('fpResp','Todos'); if(fr!=='Todos') ctx.push(fr);
+  var ft=fpVal('fpTipo','Todos'); if(ft!=='Todos') ctx.push(ft);
+  var fsx=fpVal('fpStatus','Todos'); if(fsx!=='Todos') ctx.push(fsx);
+  txt('Q FOOD GROUP',M,16,true,[15,23,42]); nl(18);
+  txt('Reunião de Marketing · Plano de Ações',M,12,true,[37,99,235]); nl(14);
+  txt(ctx.length? ('Filtro: '+ctx.join('   ·   ')) : 'Todos os planos', M,10,false,[110,110,110]); nl(6);
+  var ok=0,exec=0,prep=0,plan=0,atr=0;
+  lista.forEach(function(p){ var c=classeStatus(p.status); if(c==='concluido')ok++;else if(c==='executando')exec++;else if(c==='preparacao')prep++;else plan++; if(planoAtrasado(p))atr++; });
+  doc.setDrawColor(225,230,235); doc.line(M,y+2,M+W,y+2); nl(16);
+  txt(lista.length+' planos    ·    Planejado '+plan+'    ·    Em prep. '+prep+'    ·    Executando '+exec+'    ·    Concluído '+ok+(atr?('    ·    Atrasados '+atr):''), M,9.5,true); nl(8);
+  var grupos={}, ordem=[];
+  lista.forEach(function(p){ var e=p.empresa||'(sem empresa)'; if(!grupos[e]){ grupos[e]=[]; ordem.push(e); } grupos[e].push(p); });
+  ordem.sort();
+  ordem.forEach(function(e){
+    nl(26); doc.setFillColor(15,23,42); doc.rect(M,y-11,W,18,'F'); txt(e+'   ('+grupos[e].length+')',M+6,11,true,[255,255,255]); nl(14);
+    txt('Status', M, 8.5, true, [120,120,120]);
+    txt('Ação / Evento', M+92, 8.5, true, [120,120,120]);
+    txt('Responsável', M+300, 8.5, true, [120,120,120]);
+    txt('Prazo', M+445, 8.5, true, [120,120,120]); nl(12);
+    grupos[e].sort(function(a,b){ return (dataFimPlano(a)||0)-(dataFimPlano(b)||0); });
+    grupos[e].forEach(function(p){
+      var atrs=planoAtrasado(p);
+      var cor = atrs?[185,28,28]:(classeStatus(p.status)==='concluido'?[21,128,61]:[45,45,45]);
+      txt((atrs?'⚠ ':'')+(p.status||'—'), M, 9, false, cor);
+      var titulo=doc.splitTextToSize(p.evento||p.objetivo||'—', 200);
+      txt(titulo[0], M+92, 9, true, cor);
+      txt(donoDoPlano(p)||'—', M+300, 9, false, [80,80,80]);
+      var fim=dataFimPlano(p);
+      txt(fim?(('0'+fim.getDate()).slice(-2)+'/'+('0'+(fim.getMonth()+1)).slice(-2)+'/'+fim.getFullYear()):(p.data||'—'), M+445, 9, false, cor);
+      nl(13);
+      if(titulo.length>1){ for(var k=1;k<titulo.length && k<3;k++){ txt(titulo[k], M+92, 8.5, false, [120,120,120]); nl(11); } }
+    });
+  });
+  nl(22); txt('Gerado em '+new Date().toLocaleString('pt-BR')+' · Grupo Q Food · Plano de Ações',M,8,false,[150,150,150]);
+  doc.save('Reuniao_MKT_'+(fe!=='Todas'?fe.replace(/[^\w]+/g,'_')+'_':'')+new Date().toISOString().slice(0,10)+'.pdf');
+}
+
 var _btnVisao=document.querySelector('button[data-aba="visao"]');
 if(_btnVisao) _btnVisao.addEventListener('click', renderVisaoGeral);
 var _btnChk=document.querySelector('button[data-aba="checklist"]');
@@ -2321,7 +2468,6 @@ if(_posF) _posF.addEventListener('change', function(){ filtroPos=this.value; ren
 carregarSetores();
 
 /* ===== INIT do módulo de escrita ===== */
-document.getElementById('planoFiltroStatus').addEventListener('change',function(){ filtroPlanoStatus=this.value; renderPlanos(); });
 document.getElementById('planoRefresh').addEventListener('click',carregarPlanos);
 /* ---------- Auto-sync: dados + versão (padrão do Index_Requisicoes) ---------- */
 function abaAtiva(){ var b=document.querySelector('#navAbas button.ativa'); return b?b.getAttribute('data-aba'):'visao'; }
