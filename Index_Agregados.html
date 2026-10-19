@@ -346,6 +346,7 @@ tbody tr:hover td{background:var(--s2);}
     <div class="fld"><label>Motorista</label><select id="lc-filt-motorista" onchange="agrRenderLancamentos()"><option value="">Todos</option></select></div>
     <div class="fld"><label>De</label><input type="date" id="lc-filt-de" onchange="agrRenderLancamentos()"></div>
     <div class="fld"><label>Até</label><input type="date" id="lc-filt-ate" onchange="agrRenderLancamentos()"></div>
+    <div class="fld"><label>Valor x tabela</label><label style="display:flex;align-items:center;gap:6px;font-size:.8rem;text-transform:none;letter-spacing:0;cursor:pointer;padding:8px 0"><input type="checkbox" id="lc-so-div" onchange="agrRenderLancamentos()"> Só ⚠️ divergentes</label></div>
   </div>
   <div class="twrap">
     <table>
@@ -361,7 +362,12 @@ tbody tr:hover td{background:var(--s2);}
 
 <!-- ============ TAB VALIDAÇÃO ============ -->
 <div class="page" id="tab-validacao">
-  <div class="sec">Aguardando validação</div>
+  <div class="sec" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+    <span>Aguardando validação</span>
+    <label style="display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:500;text-transform:none;letter-spacing:0;cursor:pointer">
+      <input type="checkbox" id="val-so-div" onchange="agrRenderValidacao()"> Só ⚠️ divergentes <span id="val-div-count" style="color:#ffc53d;font-weight:700"></span>
+    </label>
+  </div>
   <div class="twrap">
     <table>
       <thead><tr>
@@ -617,15 +623,16 @@ function logout(){ localStorage.removeItem("qfood_session"); window.location.hre
 // PERMISSÕES
 // ════════════════════════════════════════════════════════════════
 // Ajuste os e-mails abaixo se algum colaborador mudar de função.
-var AGR_ADMINS   = ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
-var AGR_LANCADOR = ["jonathas@qfoodcompany.com.br"];
-var AGR_PAGADOR  = ["gustavo@qfoodcompany.com.br"];
+var AGR_ADMINS    = ["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
+var AGR_LANCADOR  = ["jonathas@qfoodcompany.com.br"];
+var AGR_PAGADOR   = ["gustavo@qfoodcompany.com.br"];
+var AGR_APROVADOR = ["tulio@qfoodcompany.com.br"]; // pode aprovar/reprovar para pagamento
 
 var AGR_EMAIL = (CURRENT_USER.email || "").toLowerCase();
 var AGR_PERM = {
   isAdmin:    AGR_ADMINS.indexOf(AGR_EMAIL) >= 0,
   canLancar:  AGR_ADMINS.indexOf(AGR_EMAIL) >= 0 || AGR_LANCADOR.indexOf(AGR_EMAIL) >= 0,
-  canValidar: AGR_ADMINS.indexOf(AGR_EMAIL) >= 0,
+  canValidar: AGR_ADMINS.indexOf(AGR_EMAIL) >= 0 || AGR_APROVADOR.indexOf(AGR_EMAIL) >= 0,
   canConfig:  AGR_ADMINS.indexOf(AGR_EMAIL) >= 0,
   canMarcarPago: AGR_ADMINS.indexOf(AGR_EMAIL) >= 0 || AGR_PAGADOR.indexOf(AGR_EMAIL) >= 0
 };
@@ -1032,11 +1039,70 @@ function agrEnviarValidacao(id){
   }
 }
 
+// ════════════════════════════════════════════════════════════════
+// CRÍTICA DE VALOR (valor lançado x tabela AGR_ROTAS)
+// ════════════════════════════════════════════════════════════════
+// Motoristas com valor fixo (não estão na tabela). Nome sem acento e em maiúsculo.
+var AGR_VALOR_FIXO = { 'JOSE JESUS': 600 };
+
+(function(){
+  try{
+    var st = document.createElement('style');
+    st.textContent =
+      '.crit{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;white-space:nowrap}'+
+      '.crit-ok{background:rgba(82,196,26,.15);color:#73d13d}'+
+      '.crit-diff{background:rgba(250,173,20,.18);color:#ffc53d;border:1px solid rgba(250,173,20,.55)}';
+    document.head.appendChild(st);
+  }catch(e){}
+})();
+
+function agrSemAcento(s){
+  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
+}
+// Retorna {estado:'ok'|'diff'|'na', esperado, todos, dif, origem}
+function agrCritica(r){
+  var tipo = agrSemAcento(r.tipo);
+  if(tipo !== 'DIARIA' && tipo !== 'ROTA') return {estado:'na'};
+  var vals = [], origem = 'tabela de rotas';
+  var fixo = AGR_VALOR_FIXO[agrSemAcento(r.motorista)];
+  if(fixo !== undefined){
+    vals = [fixo]; origem = 'valor fixo do motorista';
+  } else {
+    var lista = [];
+    if(r.rotaId){
+      lista = AGR.rotas.filter(function(x){ return String(x.id)===String(r.rotaId); });
+    }
+    if(!lista.length){
+      lista = AGR.rotas.filter(function(x){ return agrSemAcento(x.rota)===agrSemAcento(r.microrregiao); });
+    }
+    vals = lista.map(function(x){ return Number(x.valor)||0; });
+  }
+  if(!vals.length) return {estado:'na'};
+  var v = Number(r.valor)||0;
+  if(vals.some(function(e){ return Math.abs(e-v) < 0.005; })) return {estado:'ok', esperado:v, origem:origem};
+  var alvo = vals.reduce(function(a,b){ return Math.abs(b-v) < Math.abs(a-v) ? b : a; });
+  return {estado:'diff', esperado:alvo, todos:vals, dif:v-alvo, origem:origem};
+}
+function agrCriticaHtml(r){
+  var c = agrCritica(r);
+  if(c.estado==='ok') return '<span class="crit crit-ok" title="Confere com '+c.origem+'">✓ confere</span>';
+  if(c.estado==='diff'){
+    var sinal = c.dif > 0 ? '+' : '−';
+    var ref = c.todos.length > 1
+      ? c.todos.map(function(x){ return agrFmtMoeda(x); }).join(' ou ')
+      : agrFmtMoeda(c.esperado);
+    return '<span class="crit crit-diff" title="Esperado ('+c.origem+'): '+ref+'">⚠️ tabela '+ref+' ('+sinal+agrFmtMoeda(Math.abs(c.dif))+')</span>';
+  }
+  return '';
+}
+
 function agrRenderLancamentos(){
   var status = document.getElementById('lc-filt-status').value;
   var motorista = document.getElementById('lc-filt-motorista').value;
   var de = document.getElementById('lc-filt-de').value;
   var ate = document.getElementById('lc-filt-ate').value;
+  var chkDiv = document.getElementById('lc-so-div');
+  var soDiv = !!(chkDiv && chkDiv.checked);
 
   var meus = AGR_PERM.isAdmin ? AGR.lancamentos : AGR.lancamentos.filter(function(r){ return r.lancadoPor === CURRENT_USER.nome; });
   var rows = meus.filter(function(r){
@@ -1044,6 +1110,7 @@ function agrRenderLancamentos(){
     if(motorista && r.motorista!==motorista) return false;
     if(de && r.data < de) return false;
     if(ate && r.data > ate) return false;
+    if(soDiv && agrCritica(r).estado !== 'diff') return false;
     return true;
   }).sort(function(a,b){ return b.data.localeCompare(a.data); });
 
@@ -1064,7 +1131,7 @@ function agrRenderLancamentos(){
       '<td>'+r.microrregiao+'</td>'+
       '<td class="tac">'+r.nfs+'</td>'+
       '<td class="tac">'+r.devolucoes+'</td>'+
-      '<td class="tnum">'+agrFmtMoeda(r.valor)+'</td>'+
+      '<td class="tnum">'+agrFmtMoeda(r.valor)+agrCriticaHtml(r)+'</td>'+
       '<td class="tac">'+agrStatusPill(r.status)+'</td>'+
       '<td><div class="actions">'+acoes+'</div></td>'+
     '</tr>';
@@ -1075,10 +1142,16 @@ function agrRenderLancamentos(){
 // VALIDAÇÃO (Rodrigo / Adilson)
 // ════════════════════════════════════════════════════════════════
 function agrRenderValidacao(){
-  var pend = AGR.lancamentos.filter(function(r){ return r.status==='AGUARDANDO'; })
+  var todos = AGR.lancamentos.filter(function(r){ return r.status==='AGUARDANDO'; })
     .sort(function(a,b){ return a.data.localeCompare(b.data); });
+  var nDiv = todos.filter(function(r){ return agrCritica(r).estado==='diff'; }).length;
+  var cnt = document.getElementById('val-div-count');
+  if(cnt) cnt.textContent = nDiv ? '('+nDiv+')' : '';
+  var chk = document.getElementById('val-so-div');
+  var pend = (chk && chk.checked) ? todos.filter(function(r){ return agrCritica(r).estado==='diff'; }) : todos;
+
   var tb = document.getElementById('val-tbody');
-  if(!pend.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">Nenhum lançamento aguardando validação. 🎉</td></tr>'; }
+  if(!pend.length){ tb.innerHTML = '<tr class="empty-row"><td colspan="9">'+(todos.length ? 'Nenhuma divergência entre os pendentes. ✓' : 'Nenhum lançamento aguardando validação. 🎉')+'</td></tr>'; }
   else {
     tb.innerHTML = pend.map(function(r){
       return '<tr>'+
@@ -1088,7 +1161,7 @@ function agrRenderValidacao(){
         '<td>'+r.tipo+'</td>'+
         '<td>'+r.microrregiao+'</td>'+
         '<td class="tac">'+r.nfs+'</td>'+
-        '<td class="tnum"><input type="number" step="0.01" value="'+r.valor+'" style="width:90px;background:var(--bg);border:1px solid var(--br);border-radius:6px;color:var(--tx);padding:4px 6px;text-align:right" onchange="agrAjustarValor(\''+r.id+'\',this.value)"></td>'+
+        '<td class="tnum"><input type="number" step="0.01" value="'+r.valor+'" style="width:90px;background:var(--bg);border:1px solid var(--br);border-radius:6px;color:var(--tx);padding:4px 6px;text-align:right" onchange="agrAjustarValor(\''+r.id+'\',this.value)"><div id="crit-'+r.id+'" style="margin-top:4px">'+agrCriticaHtml(r)+'</div></td>'+
         '<td>'+r.lancadoPor+'</td>'+
         '<td><div class="actions">'+
           '<button class="act-btn ok" onclick="agrAprovar(\''+r.id+'\')">✓</button>'+
@@ -1108,7 +1181,11 @@ function agrRenderValidacao(){
 }
 function agrAjustarValor(id, novo){
   var r = AGR.lancamentos.find(function(x){return x.id===id;});
-  if(r) r.valor = Number(novo)||0; // aplicado na hora; vai junto no payload quando aprovar
+  if(r){
+    r.valor = Number(novo)||0; // aplicado na hora; vai junto no payload quando aprovar
+    var el = document.getElementById('crit-'+id);
+    if(el) el.innerHTML = agrCriticaHtml(r);
+  }
 }
 function agrAprovar(id){
   var r = AGR.lancamentos.find(function(x){return x.id===id;});

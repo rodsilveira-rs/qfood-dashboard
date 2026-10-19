@@ -4,7 +4,10 @@
    e continua abrindo o sistema quando não há.
    Publique este arquivo na MESMA pasta do Index_Producao.html. */
 
-const CACHE = 'controle-producao-v1';
+// Cache versionado — bump o número aqui sempre que atualizar arquivos
+// críticos (Index_CRM_Lead.html, Index_Menu.html, etc.) pra forçar o
+// Service Worker a descartar a cópia antiga em todos os navegadores.
+const CACHE = 'qfood-dashboard-v2';
 
 self.addEventListener('install', ev => {
   self.skipWaiting();
@@ -33,7 +36,13 @@ self.addEventListener('fetch', ev => {
     const cache = await caches.open(CACHE);
     try {
       const resp = await fetch(req);
-      if (resp && resp.ok && (resp.type === 'basic' || resp.type === 'cors')) cache.put(req, resp.clone());
+      // Só cacheia respostas COMPLETAS (status 200). Status 206 (Partial Content)
+      // vem de Range requests do navegador (vídeos, áudios, arquivos grandes) e
+      // o Cache API não aceita — gera "Partial response (status code 206) is unsupported".
+      // O try/catch extra blinda contra qualquer outra resposta que o cache rejeite.
+      if (resp && resp.status === 200 && (resp.type === 'basic' || resp.type === 'cors')) {
+        try { cache.put(req, resp.clone()); } catch(_){}
+      }
       return resp;
     } catch (e) {
       const salvo = await cache.match(req, { ignoreSearch: mesmaOrigem });

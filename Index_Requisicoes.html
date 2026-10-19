@@ -750,7 +750,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apW
 // 1. CONFIG
 // ────────────────────────────────────────────────────────────
 var ReqConfig = {
-  versao:         "2026.09.27-b",  // aparece no rodapé da lateral
+  versao:         "2026.10.15-a",  // aparece no rodapé da lateral
   pollingMs:      5 * 60 * 1000,   // 5 min, só com a aba visível
   maxLadoFoto:    1600,            // px — comprime antes de subir
   qualidadeFoto:  0.8,
@@ -1805,7 +1805,10 @@ var ReqDetalhe = {
         (r.recebidoPor ? '<br>' + esc(nomeDe(r.recebidoPor)) + ' · ' + esc(dataBr(r.dataRecebimento)) : '')
       : '';
 
+    ReqState.similaresAtual = (!r.encerrada && d.similares) ? d.similares : [];
+
     h += '<div class="tab-p' + (aba === "geral" ? ' on' : '') + '" data-aba="geral">' +
+      ReqDup.quadro(ReqState.similaresAtual, "detalhe", p) +
       ReqDetalhe.suaAcao(r, p) +
       '<div class="resumo">' +
         ReqDetalhe.linhaResumo("minhas", "Pedido",
@@ -1824,13 +1827,7 @@ var ReqDetalhe = {
           'Última atualização ' + esc(desde(r.ultimaAtualizacao)) + '<br>Ver histórico', "historico") +
       '</div>' +
       ReqAprov.bloco(r, d.eventos) +
-      (r.obsCompras || r.numeroPedido || r.nf
-        ? '<div class="card"><div class="card-t">Detalhes da compra</div><dl class="kv">' +
-            ReqDetalhe.kv("Nº do pedido", r.numeroPedido) +
-            ReqDetalhe.kv("NF", r.nf) +
-            ReqDetalhe.kv("Observação", r.obsCompras) +
-          '</dl></div>'
-        : '') +
+      ReqAcoes.compraFeita(r, p) +
       (r.obsRecebimento || evid.length
         ? '<div class="card"><div class="card-t">Recebimento</div><dl class="kv">' +
             ReqDetalhe.kv("Observação", r.obsRecebimento) + '</dl>' +
@@ -1927,30 +1924,27 @@ var ReqAcoes = {
            '</div></div>';
     }
 
-    if(p.registrarCompra && !r.encerrada){
+    // Depois de comprada, o formulário sai daqui: Compras já fez a parte dela
+    // e a vez é de quem recebe. Antes ele continuava na tela, a Cris achava que
+    // não tinha gravado e registrava a mesma compra de novo.
+    var jaComprada = (r.status === "COMPRADA" || r.status === "AGUARDANDO_ENTREGA");
+    if(p.registrarCompra && !r.encerrada && !jaComprada){
       h += '<div class="card"><div class="card-t">Registrar a compra</div>' +
            '<div class="rq-meta" style="margin-bottom:12px">Os campos com <span class="obrig">*</span> são obrigatórios para marcar como comprada.</div>' +
-           '<div class="linha">' +
-             '<div class="campo"><label class="lbl" for="c-forn">Fornecedor <span class="obrig">*</span></label>' +
-               '<input class="inp" id="c-forn" value="' + esc(r.fornecedor) + '"></div>' +
-             '<div class="campo"><label class="lbl" for="c-valor">Valor total <span class="obrig">*</span></label>' +
-               '<input class="inp" id="c-valor" placeholder="R$ 0,00" value="' + esc(r.valorFinal) + '"></div>' +
-           '</div>' +
-           '<div class="linha3">' +
-             '<div class="campo"><label class="lbl" for="c-prazo">Previsão de entrega <span class="obrig">*</span></label>' +
-               '<input class="inp" id="c-prazo" type="date" value="' + esc((r.prazoEntrega||"").substring(0,10)) + '"></div>' +
-             '<div class="campo"><label class="lbl" for="c-ped">Nº do pedido <i>opcional</i></label>' +
-               '<input class="inp" id="c-ped" value="' + esc(r.numeroPedido) + '"></div>' +
-             '<div class="campo"><label class="lbl" for="c-nf">NF <i>opcional — pode completar depois</i></label>' +
-               '<input class="inp" id="c-nf" value="' + esc(r.nf) + '"></div>' +
-           '</div>' +
-           '<div class="campo"><label class="lbl" for="c-obs">Observação para quem pediu</label>' +
-             '<textarea class="inp" id="c-obs" placeholder="Ex.: esse modelo saiu de linha, comprei o equivalente.">' + esc(r.obsCompras) + '</textarea></div>' +
+           ReqAcoes.camposCompra(r) +
            '<div class="btns">' +
              '<button class="btn btn-p" onclick="ReqAcoes.registrarCompra()">Marcar como comprada</button>' +
              '<button class="btn btn-s" onclick="ReqPrazo.abrir(\'EM_COTACAO\')">Estou cotando</button>' +
-             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Preciso de informação</button>' +
-           '</div></div>';
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Fazer uma pergunta</button>' +
+             (p.jaComprado
+               ? '<button class="btn btn-s" onclick="ReqJaComprado.abrir()">Já foi comprado / pedido repetido</button>'
+               : '') +
+           '</div>' +
+           (p.jaComprado
+             ? '<div class="rq-meta" style="margin-top:10px">“Fazer uma pergunta” manda para quem pediu e volta para você quando a pessoa responder. ' +
+               'Para encerrar porque já foi comprado, use “Já foi comprado / pedido repetido”.</div>'
+             : '') +
+           '</div>';
     }
 
     if(p.confirmarRecebimento){
@@ -2014,7 +2008,68 @@ var ReqAcoes = {
     ReqAcoes.status(novo, t.trim());
   },
 
-  registrarCompra: function(){
+  // Campos da compra. Os mesmos servem para registrar e para corrigir.
+  camposCompra: function(r){
+    return '<div class="linha">' +
+        '<div class="campo"><label class="lbl" for="c-forn">Fornecedor <span class="obrig">*</span></label>' +
+          '<input class="inp" id="c-forn" value="' + esc(r.fornecedor) + '"></div>' +
+        '<div class="campo"><label class="lbl" for="c-valor">Valor total <span class="obrig">*</span></label>' +
+          '<input class="inp" id="c-valor" placeholder="R$ 0,00" value="' + esc(r.valorFinal) + '"></div>' +
+      '</div>' +
+      '<div class="linha3">' +
+        '<div class="campo"><label class="lbl" for="c-prazo">Previsão de entrega <span class="obrig">*</span></label>' +
+          '<input class="inp" id="c-prazo" type="date" min="' + esc(ReqPrazo.hojeIso()) + '" value="' + esc((r.prazoEntrega||"").substring(0,10)) + '"></div>' +
+        '<div class="campo"><label class="lbl" for="c-ped">Nº do pedido <i>opcional</i></label>' +
+          '<input class="inp" id="c-ped" value="' + esc(r.numeroPedido) + '"></div>' +
+        '<div class="campo"><label class="lbl" for="c-nf">NF <i>opcional — pode completar depois</i></label>' +
+          '<input class="inp" id="c-nf" value="' + esc(r.nf) + '"></div>' +
+      '</div>' +
+      '<div class="campo"><label class="lbl" for="c-obs">Observação para quem pediu</label>' +
+        '<textarea class="inp" id="c-obs" placeholder="Ex.: esse modelo saiu de linha, comprei o equivalente.">' + esc(r.obsCompras) + '</textarea></div>';
+  },
+
+  // Cartão "Detalhes da compra" da visão geral. Depois de comprada, é aqui
+  // que Compras corrige um dado digitado errado, sem voltar o status.
+  compraFeita: function(r, p){
+    var jaComprada = (r.status === "COMPRADA" || r.status === "AGUARDANDO_ENTREGA");
+    var temDados = r.fornecedor || r.obsCompras || r.numeroPedido || r.nf;
+    if(!temDados) return "";
+    var podeCorrigir = jaComprada && p && p.registrarCompra;
+    var previsaoVencida = jaComprada && r.prazoEntrega &&
+                          r.prazoEntrega.substring(0, 10) < ReqPrazo.hojeIso();
+    return '<div class="card"><div class="card-t">Detalhes da compra</div>' +
+      (previsaoVencida
+        ? '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
+          'A previsão de entrega (' + esc(dataBr(r.prazoEntrega)) + ') já passou e ninguém deu baixa.' +
+          (podeCorrigir ? ' Se a data foi digitada errada, corrija abaixo.' : '') + '</div>'
+        : '') +
+      '<dl class="kv">' +
+        ReqDetalhe.kv("Fornecedor", r.fornecedor) +
+        ReqDetalhe.kv("Previsão de entrega", r.prazoEntrega ? dataBr(r.prazoEntrega) : "") +
+        ReqDetalhe.kv("Nº do pedido", r.numeroPedido) +
+        ReqDetalhe.kv("NF", r.nf) +
+        ReqDetalhe.kv("Observação", r.obsCompras) +
+      '</dl>' +
+      (podeCorrigir
+        ? '<div class="btns" style="margin-top:12px" id="corr-btn">' +
+            '<button class="btn btn-s" onclick="ReqAcoes.corrigirCompra()">Corrigir dados da compra</button></div>' +
+          '<div id="corr-form" style="display:none;margin-top:14px">' + ReqAcoes.camposCompra(r) +
+            '<div class="btns">' +
+              '<button class="btn btn-p" onclick="ReqAcoes.registrarCompra(true)">Salvar correção</button>' +
+              '<button class="btn btn-s" onclick="ReqAcoes.corrigirCompra(false)">Cancelar</button>' +
+            '</div></div>'
+        : '') +
+    '</div>';
+  },
+
+  corrigirCompra: function(abrir){
+    var mostrar = abrir !== false;
+    document.getElementById("corr-form").style.display = mostrar ? "block" : "none";
+    document.getElementById("corr-btn").style.display  = mostrar ? "none" : "flex";
+    if(mostrar){ moeda(document.getElementById("c-valor")); document.getElementById("c-forn").focus(); }
+  },
+
+  registrarCompra: function(correcao){
     var dados = {
       id:           ReqState.detalheId,
       fornecedor:   document.getElementById("c-forn").value.trim(),
@@ -2032,10 +2087,24 @@ var ReqAcoes = {
       toast("Preencha antes de marcar como comprada: " + faltando.join(", "), true);
       return;
     }
+    // Previsão no passado é quase sempre erro de digitação (ex.: 20/02 no lugar de 20/10).
+    if(dados.prazoEntrega < ReqPrazo.hojeIso()){
+      toast("A previsão de entrega está no passado (" + dataBr(dados.prazoEntrega) + "). Confira a data.", true);
+      return;
+    }
 
-    ReqAPI.post("registrarCompra", dados).then(function(){
-      toast("Compra registrada. Quem pediu já consegue ver.");
-      ReqDetalhe.recarregar();
+    ReqAPI.post("registrarCompra", dados, correcao ? "Salvando correção…" : "Registrando a compra…").then(function(){
+      var r = ReqState.reqAtual || {};
+      var rec = ((ReqState.config && ReqState.config.recebedores) || [])
+                  .filter(function(x){ return x.chave === r.empresa; })
+                  .map(function(x){ return nomeDe(x.valor); })[0];
+      toast(correcao
+        ? "Dados da compra corrigidos."
+        : "Compra registrada. Agora é com " + (rec || "quem recebe") + ": ele dá baixa quando chegar.");
+      // Volta para a fila: a requisição sai da lista "Comprar" na hora,
+      // e fica claro que a parte de Compras terminou.
+      if(correcao) ReqDetalhe.recarregar();
+      else ReqDetalhe.voltar();
     }).catch(function(e){ toast(e.message, true); });
   },
 
@@ -2818,16 +2887,25 @@ var ReqPrazo = {
   },
 
   // Sugestão = o que a urgência pede, mas nunca depois de quando precisam do item.
-  // Se o prazo é curto, sobra a véspera. Se já estourou, é hoje.
+  // Se o prazo é curto, sobra a véspera. Se a data de necessidade JÁ PASSOU,
+  // ela não serve mais de teto: volta a valer só o que a urgência pede.
   sugerir: function(r){
     var porUrgencia = ReqPrazo.maisDias(ReqPrazo.diasPorUrgencia[r.urgencia] === undefined ? 3 : ReqPrazo.diasPorUrgencia[r.urgencia]);
     var nec = (r.dataNecessidade || "").substring(0, 10);
-    if(!nec) return porUrgencia;
+    if(!nec || ReqPrazo.necVencida(r)) return porUrgencia;
     var vespera = new Date(nec + "T12:00:00");
     vespera.setDate(vespera.getDate() - 1);
     var vIso = vespera.getFullYear() + "-" + ("0"+(vespera.getMonth()+1)).slice(-2) + "-" + ("0"+vespera.getDate()).slice(-2);
     var limite = (porUrgencia < vIso) ? porUrgencia : vIso;
     return (limite < ReqPrazo.hojeIso()) ? ReqPrazo.hojeIso() : limite;
+  },
+
+  // A data em que precisavam do item já ficou para trás. Sem isto, o retorno
+  // precisava ser ao mesmo tempo "hoje ou depois" e "até a necessidade" —
+  // impossível — e a requisição ficava presa sem a Cris conseguir devolver.
+  necVencida: function(r){
+    var nec = ((r && r.dataNecessidade) || "").substring(0, 10);
+    return !!nec && nec < ReqPrazo.hojeIso();
   },
 
   atrasada: function(r){
@@ -2841,12 +2919,18 @@ var ReqPrazo = {
     if(!r){ toast("Recarregue a requisição.", true); return; }
     ReqPrazo.req = r;
 
-    var nec = (r.dataNecessidade || "").substring(0, 10);
+    var vencida = ReqPrazo.necVencida(r);
+    // Data já vencida não limita o campo: some o max e o aviso muda.
+    var nec = vencida ? "" : (r.dataNecessidade || "").substring(0, 10);
     var sugestao = ReqPrazo.sugerir(r);
     var ehCotacao = (status === "EM_COTACAO");
 
     var aviso = "";
-    if(r.urgencia === "Emergencial"){
+    if(vencida){
+      aviso = '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
+              'Precisavam do item até <b>' + esc(dataBr(r.dataNecessidade.substring(0, 10))) +
+              '</b>, e essa data já passou. Informe uma nova data realista — quem pediu passa a ver ela.</div>';
+    } else if(r.urgencia === "Emergencial"){
       aviso = '<div class="aguardando" style="background:rgba(255,77,79,.12);border-color:rgba(255,77,79,.35);color:#ff8a8b">' +
               'Requisição EMERGENCIAL' + (nec ? ' — precisam disso até ' + esc(dataBr(nec)) : '') +
               '. O retorno deve ser hoje.</div>';
@@ -2856,7 +2940,7 @@ var ReqPrazo = {
     }
 
     document.getElementById("modal-cx").innerHTML =
-      '<div class="modal-t">' + (ehCotacao ? "Estou cotando" : "Preciso de informação") + '</div>' +
+      '<div class="modal-t">' + (ehCotacao ? "Estou cotando" : "Fazer uma pergunta") + '</div>' +
       '<div class="modal-s">' + (ehCotacao
         ? "Informe até quando você volta com a cotação. Quem pediu passa a ver essa data."
         : "Diga o que falta e até quando você precisa da resposta.") + '</div>' +
@@ -2885,7 +2969,8 @@ var ReqPrazo = {
     var texto = document.getElementById("pz-texto").value.trim();
     var data  = document.getElementById("pz-data").value;
     var r = ReqPrazo.req || {};
-    var nec = (r.dataNecessidade || "").substring(0, 10);
+    // Necessidade vencida não trava mais o retorno (ver ReqPrazo.necVencida).
+    var nec = ReqPrazo.necVencida(r) ? "" : (r.dataNecessidade || "").substring(0, 10);
 
     if(status === "AGUARDANDO_INFORMACAO" && !texto){
       toast("Escreva o que você precisa saber.", true); return;
@@ -2919,6 +3004,164 @@ var ReqPrazo = {
 };
 
 // ────────────────────────────────────────────────────────────
+// 9b. PEDIDOS PARECIDOS — "isso já foi pedido antes?"
+//
+// Não bloqueia nada. No formulário, avisa quem está pedindo; no
+// detalhe, mostra para todos — e para Compras é o que decide se
+// segue com a compra ou encerra como "já foi comprado".
+// ────────────────────────────────────────────────────────────
+var ReqDup = {
+  lista:   [],
+  ciente:  false,
+  ultima:  "",
+
+  limpar: function(){
+    ReqDup.lista = []; ReqDup.ciente = false; ReqDup.ultima = "";
+  },
+
+  verificar: function(){
+    var el = function(id){ var x = document.getElementById(id); return x ? x.value.trim() : ""; };
+    var titulo = el("n-titulo"), desc = el("i-desc");
+    var links = (ReqState.anexosNovos || []).filter(function(a){ return a.url; })
+                  .map(function(a){ return a.url; }).join("\n");
+    var chave = titulo + "|" + desc + "|" + links;
+    if(chave === ReqDup.ultima) return;
+    ReqDup.ultima = chave;
+    if(!titulo && !desc && !links){ ReqDup.lista = []; ReqDup.pintar(); return; }
+
+    ReqAPI.get("similares", {titulo:titulo, desc:desc, links:links}).then(function(r){
+      if(ReqDup.ultima !== chave) return;           // a pessoa já digitou outra coisa
+      var antes = ReqDup.lista.map(function(x){ return x.id; }).join();
+      ReqDup.lista = (r && r.similares) || [];
+      if(ReqDup.lista.map(function(x){ return x.id; }).join() !== antes) ReqDup.ciente = false;
+      ReqDup.pintar();
+    }).catch(function(){ /* aviso é ajuda, não pode atrapalhar quem está pedindo */ });
+  },
+
+  pintar: function(){
+    var caixa = document.getElementById("dup-aviso");
+    if(caixa) caixa.innerHTML = ReqDup.quadro(ReqDup.lista, "form");
+  },
+
+  // Uma linha por pedido parecido: quem pediu, quando, e onde está a compra
+  linha: function(x, podeAbrir){
+    var sit;
+    if(x.status === "CONCLUIDA" || x.status === "RECEBIDA_OK"){
+      sit = '<b class="c-ok">Entregue</b>' + (x.recebidaEm ? ' em ' + esc(dataBr(x.recebidaEm)) : '') +
+            (x.recebidaPor ? ' · recebida por ' + esc(x.recebidaPor) : '');
+    } else if(x.status === "COMPRADA" || x.status === "AGUARDANDO_ENTREGA"){
+      sit = '<b style="color:var(--blue)">A caminho</b>' +
+            (x.previsaoEntrega ? ' · previsão ' + esc(dataBr(x.previsaoEntrega)) : '');
+    } else if(x.status === "RECEBIDA_PARCIAL" || x.status === "RECEBIDA_DIVERGENCIA"){
+      sit = '<b class="c-red">' + esc(x.statusLabel) + '</b>' + (x.recebidaEm ? ' em ' + esc(dataBr(x.recebidaEm)) : '');
+    } else {
+      sit = '<b>Ainda não comprada</b> · ' + esc(rotuloStatus(x.status, x.statusLabel));
+    }
+    var compra = x.compradaEm
+      ? 'Comprada' + (x.compradaPor ? ' por ' + esc(x.compradaPor) : '') + ' em ' + esc(dataBr(x.compradaEm)) +
+        (x.fornecedor ? ' · ' + esc(x.fornecedor) : '')
+      : '';
+    var num = podeAbrir
+      ? '<a href="?rq=' + encodeURIComponent(x.id) + '" target="_blank" rel="noopener" style="color:inherit"><b>#' + esc(x.id) + '</b></a>'
+      : '<b>#' + esc(x.id) + '</b>';
+    return '<div class="item">' +
+      '<div class="item-d">' + num + ' · ' + esc(x.titulo) +
+        (x.motivo === "link" ? ' <span class="bdg urg-a" style="margin-left:4px">mesmo link</span>' : '') + '</div>' +
+      '<div class="item-e">Pedida por ' + esc(x.solicitante || "—") +
+        (x.abertaEm ? ' em ' + esc(dataBr(x.abertaEm)) : '') +
+        ' · ' + esc([x.unidade, nomeEmpresa(x.empresa)].filter(Boolean).join(" · ")) + '</div>' +
+      (compra ? '<div class="item-e">' + compra + '</div>' : '') +
+      '<div class="item-e">' + sit + '</div>' +
+    '</div>';
+  },
+
+  quadro: function(lista, onde, p){
+    if(!lista || !lista.length) return "";
+    var u = (ReqState.config && ReqState.config.usuario) || {};
+    var podeAbrir = !!u.isCompras;          // Compras enxerga todas; os demais podem não ter acesso
+    var titulo = lista.length === 1 ? "Este item já foi solicitado" : "Itens parecidos já foram solicitados";
+    var sub = onde === "form"
+      ? "Antes de enviar, confira se não está pedindo de novo algo que já foi comprado ou está a caminho."
+      : (p && p.jaComprado
+          ? "Se for o mesmo pedido, encerre com “Já foi comprado / pedido repetido” em vez de comprar de novo."
+          : "Pode ser compra repetida. Compras confere antes de seguir.");
+    return '<div class="card" style="border-color:rgba(255,184,77,.45);background:rgba(255,184,77,.06)">' +
+      '<div class="card-t" style="color:var(--warn)">⚠️ ' + esc(titulo) + '</div>' +
+      '<div class="rq-meta" style="margin-bottom:10px">' + esc(sub) + '</div>' +
+      lista.map(function(x){ return ReqDup.linha(x, podeAbrir); }).join("") +
+      (onde === "detalhe" && p && p.jaComprado
+        ? '<div class="btns" style="margin-top:12px"><button class="btn btn-s" onclick="ReqJaComprado.abrir()">Já foi comprado / pedido repetido</button></div>'
+        : '') +
+    '</div>';
+  }
+};
+
+// ────────────────────────────────────────────────────────────
+// 9c. JÁ FOI COMPRADO / PEDIDO REPETIDO
+//
+// Encerra a requisição sem comprar. Antes a Cris usava "Preciso de
+// informação" para isso — e quando quem pediu respondia, a requisição
+// voltava para a fila dela (é a regra de devolver quando respondem).
+// Esta é final: não volta.
+// ────────────────────────────────────────────────────────────
+var ReqJaComprado = {
+  abrir: function(){
+    var r = ReqState.reqAtual;
+    if(!r){ toast("Recarregue a requisição.", true); return; }
+    var sims = ReqState.similaresAtual || [];
+    var opcoes = sims.map(function(x, i){
+      return '<option value="' + esc(x.id) + '"' + (i === 0 ? ' selected' : '') + '>#' + esc(x.id) + ' — ' +
+             esc(x.titulo).slice(0, 60) + '</option>';
+    }).join("");
+
+    document.getElementById("modal-cx").innerHTML =
+      '<div class="modal-t">Já foi comprado / pedido repetido</div>' +
+      '<div class="modal-s">A requisição ' + esc(r.id) + ' é encerrada sem compra. Quem pediu vê o motivo, e ela não volta para a sua fila.</div>' +
+      '<div class="campo"><label class="lbl" for="jc-ref">Qual requisição já cobre este pedido?</label>' +
+        '<select class="sel" id="jc-ref" onchange="ReqJaComprado.trocou()">' + opcoes +
+          '<option value="__outra"' + (sims.length ? '' : ' selected') + '>Outra — vou digitar o número</option>' +
+          '<option value="">Nenhuma — foi comprado por fora</option>' +
+        '</select></div>' +
+      '<div class="campo" id="jc-num-cx" style="display:' + (sims.length ? 'none' : 'block') + '">' +
+        '<label class="lbl" for="jc-num">Número da requisição</label>' +
+        '<input class="inp" id="jc-num" placeholder="Ex.: RQ-2026-0041"></div>' +
+      '<div class="campo"><label class="lbl" for="jc-texto">Observação para quem pediu</label>' +
+        '<textarea class="inp" id="jc-texto" placeholder="Ex.: já comprei na semana passada, chega na terça."></textarea></div>' +
+      '<div class="btns" style="margin-top:6px">' +
+        '<button class="btn btn-p" id="jc-ok" onclick="ReqJaComprado.confirmar()">Encerrar requisição</button>' +
+        '<button class="btn btn-s" onclick="ReqPrazo.fechar()">Cancelar</button>' +
+      '</div>';
+    document.getElementById("modal").classList.add("on");
+  },
+
+  trocou: function(){
+    var v = document.getElementById("jc-ref").value;
+    document.getElementById("jc-num-cx").style.display = (v === "__outra") ? "block" : "none";
+  },
+
+  confirmar: function(){
+    var sel = document.getElementById("jc-ref").value;
+    var ref = sel === "__outra" ? document.getElementById("jc-num").value.trim().toUpperCase() : sel;
+    var texto = document.getElementById("jc-texto").value.trim();
+    if(sel === "__outra" && !ref){ toast("Digite o número da requisição, ou escolha “Nenhuma”.", true); return; }
+    if(ref && !/^RQ-\d{4}-\d{1,5}$/.test(ref)){ toast("Número no formato RQ-2026-0041.", true); return; }
+    if(!ref && !texto){ toast("Sem requisição de referência, escreva o que aconteceu.", true); return; }
+
+    var btn = document.getElementById("jc-ok");
+    btn.disabled = true; btn.textContent = "Encerrando…";
+    ReqAPI.post("jaComprado", {id: ReqState.detalheId, referencia: ref, texto: texto}, "Encerrando…")
+      .then(function(){
+        ReqPrazo.fechar();
+        toast("Encerrada como já comprada." + (ref ? " Referência: " + ref + "." : ""));
+        ReqDetalhe.recarregar();
+      }).catch(function(e){
+        toast(e.message, true);
+        btn.disabled = false; btn.textContent = "Encerrar requisição";
+      });
+  }
+};
+
+// ────────────────────────────────────────────────────────────
 // 10. NOVA REQUISIÇÃO
 // ────────────────────────────────────────────────────────────
 var ReqForm = {
@@ -2943,7 +3186,7 @@ var ReqForm = {
 
     '<div class="card"><div class="card-t">O que você precisa?</div>' +
       '<div class="campo"><label class="lbl" for="n-titulo">Em poucas palavras</label>' +
-        '<input class="inp" id="n-titulo" placeholder="Ex.: geladeira nova para a cozinha" maxlength="120"></div>' +
+        '<input class="inp" id="n-titulo" placeholder="Ex.: geladeira nova para a cozinha" maxlength="120" onblur="ReqDup.verificar()"></div>' +
       '<div class="campo"><label class="lbl" for="n-desc">Explique com suas palavras</label>' +
         '<textarea class="inp" id="n-desc" placeholder="Escreva do jeito que falaria. Se tiver foto ou link, dá para anexar depois de criar."></textarea></div>' +
     '</div>' +
@@ -2971,7 +3214,7 @@ var ReqForm = {
     '<div class="card"><div class="card-t">Item</div>' +
       '<div class="linha3">' +
         '<div class="campo" style="grid-column:span 2"><label class="lbl" for="i-desc">O que é</label>' +
-          '<input class="inp" id="i-desc" placeholder="Ex.: geladeira expositora 1200 litros"></div>' +
+          '<input class="inp" id="i-desc" placeholder="Ex.: geladeira expositora 1200 litros" onblur="ReqDup.verificar()"></div>' +
         '<div class="campo"><label class="lbl" for="i-qtd">Quantidade <i>opcional</i></label>' +
           '<input class="inp" id="i-qtd" placeholder="Ex.: 5 caixas"></div>' +
       '</div>' +
@@ -3018,12 +3261,15 @@ var ReqForm = {
       '</div>' +
     '</div>' +
 
+    '<div id="dup-aviso"></div>' +
+
     '<div class="btns" style="margin-bottom:30px" id="btns-envio">' +
       '<button class="btn btn-p" id="btn-enviar" onclick="ReqForm.enviar(false)">Enviar requisição</button>' +
       '<button class="btn btn-s" onclick="ReqForm.fechar()">Cancelar</button>' +
     '</div>';
 
     ReqState.anexosNovos = [];
+    ReqDup.limpar();
     moeda(document.getElementById("i-preco"));
     document.getElementById("n-titulo").focus();
   },
@@ -3117,6 +3363,7 @@ var ReqForm = {
     if(!url || !url.trim()) return;
     ReqState.anexosNovos.push({url: url.trim()});
     ReqForm.renderLinks();
+    ReqDup.verificar();
   },
 
   removerLink: function(i){
@@ -3168,6 +3415,22 @@ var ReqForm = {
         precoEstimado: document.getElementById("i-preco").value.trim(),
         especificacao: document.getElementById("i-espec").value.trim()
       });
+    }
+
+    // Pedido parecido encontrado e a pessoa ainda não olhou: pergunta uma vez.
+    if(ReqDup.lista.length && !ReqDup.ciente){
+      var n = ReqDup.lista.length;
+      var segue = confirm(
+        (n === 1 ? "Encontramos 1 pedido parecido" : "Encontramos " + n + " pedidos parecidos") +
+        " já feito" + (n === 1 ? "" : "s") + " (veja o quadro acima do botão).\n\n" +
+        "Se já foi comprado ou está a caminho, talvez não precise pedir de novo.\n\n" +
+        "Quer enviar assim mesmo?");
+      if(!segue){
+        var caixa = document.getElementById("dup-aviso");
+        if(caixa) caixa.scrollIntoView({behavior:"smooth", block:"center"});
+        return;
+      }
+      ReqDup.ciente = true;
     }
 
     if(!ReqState.anexosNovos.length){
