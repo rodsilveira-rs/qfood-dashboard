@@ -722,6 +722,33 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 
 .vnd-prev{align-self:center}
 .vnd-prev-b{display:inline-block;border:1px solid;border-radius:20px;padding:5px 11px;font-size:.76rem;font-weight:700}
+/* ── Report único ao CEO ── */
+.rpu-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.rpu-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}.rpu-btns .btn-save{padding:7px 12px;font-size:.78rem;font-weight:600}
+.rpu-st{border:1px solid var(--br);border-radius:12px;padding:12px 14px;margin:0 0 10px;background:var(--s2)}
+.rpu-st .vnd-lanc{margin-bottom:8px}
+.rpu-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.rpu-h>b{font-family:var(--fh);font-size:.78rem;letter-spacing:.5px;text-transform:uppercase;color:var(--pur)}
+.rpu-n{width:22px;height:22px;border-radius:50%;background:var(--pur);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:700;flex:0 0 22px}
+.rpu-auto{font-size:.72rem;color:var(--mu)}
+.rpu-h>span[id^=rep-]{margin-left:auto}
+.rpu-onde{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rpu-k{background:var(--sf);border:1px solid var(--b2);border-radius:10px;padding:9px 11px}
+.rpu-k small{display:block;font-size:.72rem;color:var(--mu)}.rpu-k b{display:block;font-size:1.02rem;color:var(--tx)}.rpu-k em{font-style:normal;font-size:.72rem;color:var(--mu)}
+.rpu-plano.rpu-req{border-color:rgba(245,158,11,.6);background:linear-gradient(180deg,rgba(245,158,11,.07),var(--s2))}
+.rpu-ta{width:100%;background:var(--sf);border:1px solid var(--b2);border-radius:8px;padding:8px 10px;color:var(--tx);font-family:inherit;font-size:.86rem;resize:vertical;outline:none;margin-bottom:8px}
+.rpu-ta:focus{border-color:var(--cyan)}
+.rpu-4{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.rpu-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0 4px}
+.rpu-save{padding:12px 22px;font-size:.9rem}
+.btn-save.rpu-wa{background:#16a34a;padding:12px 20px;font-size:.9rem}
+.btn-save.rpu-wa:disabled{background:var(--s3);color:var(--mu2);cursor:not-allowed}
+.rpu-pulse{animation:rpuP 1.4s ease-in-out 3}
+@keyframes rpuP{50%{box-shadow:0 0 0 6px rgba(22,163,74,.35)}}
+.rpu-nota{font-size:.74rem;color:var(--mu);margin-bottom:10px}
+.rpu-mais{margin-top:6px}
+@media(max-width:760px){.rpu-onde{grid-template-columns:1fr 1fr}.rpu-4{grid-template-columns:1fr}.rpu-btns{margin-left:0}.rpu-foot .btn-save{flex:1 1 100%}}
+
 .vnd-acao-f{background:var(--s2);border:1px solid var(--br);border-radius:10px;padding:10px 12px;margin-bottom:10px}
 .vnd-acao-f>label,.vnd-acao-l label{display:block;font-size:.74rem;color:var(--mu);margin-bottom:4px}
 .vnd-acao-f>label{font-size:.8rem;color:var(--tx);font-weight:700}
@@ -1998,12 +2025,12 @@ function renderReportForm(r){
     return '<div class="rep-field"><label>'+c.label+'</label><div class="hint">'+c.hint+bloco+'</div><textarea id="rep-'+r.id+'-'+c.id+'" placeholder="'+c.hint+'">'+esc(d['rep_'+c.id])+'</textarea></div>';
   }).join('');
   var nota='Salva no aparelho e envia ao banco de dados.';
-  return '<div class="card"><div class="sec">📝 Report diário — 4 linhas</div><div class="rep-head"><label>Data</label><input type="date" id="rep-'+r.id+'-data" value="'+iso+'" onchange="reportTrocarData(\''+r.id+'\')"><span id="rep-'+r.id+'-status"></span></div>'+campos+'<div class="rep-actions"><button class="btn-save" onclick="salvarReport(\''+r.id+'\')">💾 Salvar report</button><span id="rep-'+r.id+'-msg" class="rep-msg"></span></div><div class="rota-nota">'+nota+'</div></div>';
+  return '<div class="card"><div class="sec">📝 Report diário — 4 linhas</div><div class="rep-head"><label>Data</label><input type="date" id="rep-'+r.id+'-data" value="'+iso+'" onchange="reportTrocarData(\''+r.id+'\')"><span id="rep-'+r.id+'-status"></span></div>'+campos+'<div class="rep-actions"><button class="btn-save" onclick="salvarReport(\''+r.id+'\')">💾 Salvar report</button><button class="btn-save rpu-wa" id="rpu-wa-'+r.id+'" onclick="repEnviarWhats(\''+r.id+'\')"'+(reportEntregue(r.id,iso)?'':' disabled')+'>📲 Enviar ao '+CEO_NOME+' no WhatsApp</button><span id="rep-'+r.id+'-msg" class="rep-msg"></span></div><div class="rota-nota">'+nota+'</div></div>';
 }
 function statusInlineHTML(e){ return e?'<span class="chip-status chip-ok">● entregue</span>':'<span class="chip-status chip-na">● não entregue</span>'; }
 function atualizarStatusInline(id,iso){ var e=el('rep-'+id+'-status'); if(e) e.innerHTML=statusInlineHTML(reportEntregue(id,iso)); }
-function reportTrocarData(id){ var iso=el('rep-'+id+'-data').value||hoje(); var d=loadReport(id,iso)||{}; REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); if(e) e.value=d['rep_'+c.id]||''; }); atualizarStatusInline(id,iso); setTxt('rep-'+id+'-msg',''); }
-function salvarReport(id){
+function reportTrocarData(id){ var iso=el('rep-'+id+'-data').value||hoje(); var d=loadReport(id,iso)||{}; REPORT_CAMPOS.forEach(function(c){ var e=el('rep-'+id+'-'+c.id); if(e) e.value=d['rep_'+c.id]||''; }); atualizarStatusInline(id,iso); setTxt('rep-'+id+'-msg',''); repWhatsEstado(id); }
+function salvarReport(id,silencioso){
   var r = findPessoa(id)||findLider(id); if(!r) return;
   var iso = el('rep-'+id+'-data').value||ontem();
   var dado = { gestor_id:id, gestor_nome:r.nome, area:r.funcao, frente:r.frente||'', data_iso:iso, data:isoBR(iso), hora:agoraHora(), salvo_em:new Date().toISOString() };
@@ -2011,9 +2038,10 @@ function salvarReport(id){
   try{ localStorage.setItem(reportKey(id, iso), JSON.stringify(dado)); }catch(e){}
   setTxt('rep-'+id+'-msg','⏳ salvando na base de dados...');
   var _m = el('rep-'+id+'-msg'); if(_m) _m.style.color = 'var(--mu)';
-  enviarSheet('DIARIO', { gestor_id:id, gestor_nome:r.nome, area:r.funcao, data_iso:iso, data:isoBR(iso), hora:agoraHora(), rep_result:dado.rep_result, rep_plano:dado.rep_plano, rep_risco:dado.rep_risco, rep_acao:dado.rep_acao, salvo_em:dado.salvo_em })
+  var pr=enviarSheet('DIARIO', { gestor_id:id, gestor_nome:r.nome, area:r.funcao, data_iso:iso, data:isoBR(iso), hora:agoraHora(), rep_result:dado.rep_result, rep_plano:dado.rep_plano, rep_risco:dado.rep_risco, rep_acao:dado.rep_acao, salvo_em:dado.salvo_em })
     .then(function(resp){
       var e2 = el('rep-'+id+'-msg');
+      if(silencioso) return resp;
       if(resp.ok){
         QS_SUJO=false;
         setTxt('rep-'+id+'-msg','✓ Salvo na base de dados');
@@ -2025,9 +2053,12 @@ function salvarReport(id){
         setTxt('rep-'+id+'-msg','✗ Não foi salvo na base de dados — '+resp.erro+'. Ficou salvo só neste aparelho; clique em Salvar novamente.');
         if(e2) e2.style.color = '#e63329';
       }
+      repWhatsEstado(id);
+      return resp;
     });
   atualizarStatusInline(id, iso);
   var hs=el('hero-status-'+id); if(hs && iso===ontem()) hs.innerHTML=statusInlineHTML(true);
+  return pr;
 }
 function painelPessoa(p){
   var ent=reportEntregue(p.id,ontem());
@@ -2035,11 +2066,12 @@ function painelPessoa(p){
   var nota=PAINEL_MINIMO[p.id]?('Painel mínimo cobrado: '+PAINEL_MINIMO[p.id]):(p.frente==='B'?'Frente: Mercearia Liberdade • Gogui (Restaurantes)':(p.frente==='C'?'Frente: Sushi Trip · reporta ao Rodrigo':''));
   var ehLoja=(p.frente==='B'||p.frente==='C');
   var extra=KPIS_AREA[p.id]?(renderScoreCard(p)+(p.semPremio?'':(ehLoja?renderPremiacaoB(p):renderPremiacaoCard(p)))):'';
-  var blocoVendas=vndBloco(p.id);
+  var repUnico=!p.semReport&&vndEmpDoDono(p.id).length>0;
+  var blocoVendas=vndBloco(p.id,repUnico?p:null);
   el('painel').innerHTML=
     '<div class="card"><div class="hero">'+avatarHTML(p,56)+'<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+agfHeroHTML(p)+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+(p.semReport?'<span class="chip-status" style="color:var(--mu)">● sem report diário</span>':statusInlineHTML(ent))+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
-    renderCobranca(p)+blocoVendas+(p.semReport?'':renderReportForm(p))+extra;
+    renderCobranca(p)+blocoVendas+((p.semReport||repUnico)?'':renderReportForm(p))+extra;
   atualizarStatusInline(p.id,ontem());
   vndIniciar(p.id);
   AGF_EDITANDO=null; agfCarregar().then(function(){ agfPintar(p.id); });
@@ -3617,6 +3649,7 @@ function pnDatas(empId){
 function pnUsarPesos(empId){
   vndCanaisFechar();
   var d=el('vnd-ed-'+empId); if(!d) return;
+  var pai=d.closest&&d.closest('details.rpu-mais'); if(pai) pai.open=true;
   d.open=true; vndEdToggle(empId);
   setTimeout(function(){ vndEdUsarHistorico(empId); try{ d.scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){} },150);
 }
@@ -3769,9 +3802,152 @@ function vndAcumLancar(empId){
   });
 }
 
-function vndBloco(gid){
-  return vndEmpDoDono(gid).map(function(emp){
-    var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono);
+/* ══════════════════════════════════════════════════════════════
+   REPORT ÚNICO AO CEO — cada gestor preenche venda, plano e as 4 linhas
+   no mesmo card, salva com um botão e envia direto ao Adilson pelo WhatsApp
+   ══════════════════════════════════════════════════════════════ */
+var VND_MAIS = window.VND_MAIS||{};   /* painel completo aberto/fechado por empresa */
+var CEO_WHATS = '5527997094353';   /* Adilson — +55 27 99709-4353 */
+var CEO_NOME  = 'Adilson';
+function repEtapa(n,t,extra){ return '<div class="rpu-h"><span class="rpu-n" id="rpu-n-'+n.id+'">'+n.n+'</span><b>'+t+'</b>'+(extra||'')+'</div>'; }
+function repOndeHTML(emp){ return '<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">2</span><b>Onde estamos</b><span class="rpu-auto">automático</span></div><div class="rpu-onde" id="vnd-onde-'+emp.id+'"></div></div>'; }
+function repOndePintar(emp,c){
+  var box=el('vnd-onde-'+emp.id); if(!box) return;
+  var pl=c.plano, k=VND_COR[c.cor];
+  if(!pl.temMeta){ box.innerHTML='<div class="rpu-k"><small>Acumulado do mês</small><b>'+vndK(c.acum)+'</b><em>'+c.lancados+' dia(s) lançado(s)</em></div><div class="rpu-k"><small>Projeção do mês</small><b>'+vndK(c.projecao)+'</b><em>sem meta definida</em></div><div class="rpu-k"><small>Média por dia</small><b>'+vndK(c.mediaAtual)+'</b><em>'+c.restantes+' dias restantes</em></div>'; return; }
+  box.innerHTML=
+    '<div class="rpu-k"><small>Acumulado</small><b>'+vndK(c.acum)+'</b><em style="color:'+k.c+'">'+vndPct(c.ritmo)+' da meta acumulada</em></div>'+
+    '<div class="rpu-k"><small>Projeção do mês</small><b>'+vndK(c.projecao)+'</b><em style="color:'+(c.desvioProj>=0?'var(--ok)':'var(--red)')+'">'+vndSinal(c.desvioProj,vndK)+' da meta</em></div>'+
+    '<div class="rpu-k"><small>Meta do mês</small><b>'+vndK(pl.metaMes)+'</b><em>'+(c.falta>0?'falta '+vndK(c.falta):'meta batida ✓')+'</em></div>'+
+    '<div class="rpu-k"><small>Precisa por dia</small><b>'+(c.mediaNec!=null?vndK(c.mediaNec):'—')+'</b><em>'+c.restantes+(c.restantes===1?' dia aberto':' dias abertos')+'</em></div>';
+}
+function repCamposHTML(r,iso){
+  var d=loadReport(r.id,iso)||{};
+  return '<div class="rpu-4">'+REPORT_CAMPOS.map(function(c){
+    var ex=repExemplo(r.id,c.id);
+    var bloco=ex?('<a class="rep-exl" id="rep-exl-'+r.id+'-'+c.id+'" onclick="repToggleEx(\''+r.id+'\',\''+c.id+'\')">ver exemplo</a>'+
+      '<div class="rep-ex" id="rep-ex-'+r.id+'-'+c.id+'" style="display:none">'+esc(ex)+'<div><a class="rep-exl" onclick="repUsarEx(\''+r.id+'\',\''+c.id+'\')">usar como base</a></div></div>'):'';
+    return '<div class="rep-field"><label>'+c.label+'</label><div class="hint">'+c.hint+bloco+'</div><textarea id="rep-'+r.id+'-'+c.id+'" placeholder="'+c.hint+'">'+esc(d['rep_'+c.id])+'</textarea></div>';
+  }).join('')+'</div>';
+}
+function repRodapeHTML(r){
+  return '<div class="rpu-foot"><button class="btn-save rpu-save" onclick="repSalvarTudo(\''+r.id+'\')">💾 Salvar report</button>'+
+    '<button class="btn-save rpu-wa" id="rpu-wa-'+r.id+'" onclick="repEnviarWhats(\''+r.id+'\')" disabled>📲 Enviar ao '+CEO_NOME+' no WhatsApp</button>'+
+    '<span id="rep-'+r.id+'-msg" class="rep-msg"></span></div>'+
+    '<div class="rpu-nota" id="rpu-nota-'+r.id+'">Um botão salva tudo: venda, canais, plano e as 4 linhas. Depois de salvar, o botão verde abre o WhatsApp do '+CEO_NOME+' com o report pronto — é só conferir e enviar.</div>';
+}
+/* data única do report = dia da venda */
+function repDataRef(pid){
+  var e=vndEmpDoDono(pid)[0], d=e?el('vnd-data-'+e.id):null;
+  return (d&&d.value)||(el('rep-'+pid+'-data')||{}).value||ontem();
+}
+function repSincData(pid){
+  var h=el('rep-'+pid+'-data'); if(!h) return;
+  var iso=repDataRef(pid); if(h.value!==iso){ h.value=iso; reportTrocarData(pid); }
+  repWhatsEstado(pid);
+}
+function repWhatsEstado(pid){
+  var b=el('rpu-wa-'+pid); if(!b) return;
+  var iso=(el('rep-'+pid+'-data')||{}).value||ontem();
+  b.disabled=!reportEntregue(pid,iso);
+}
+function repSalvarTudo(pid){
+  var r=findPessoa(pid)||findLider(pid); if(!r) return;
+  var m=el('rep-'+pid+'-msg');
+  function msg(t,c){ setTxt('rep-'+pid+'-msg',t); if(m) m.style.color=c||''; return false; }
+  var emps=vndEmpDoDono(pid).filter(vndPodeEditar);
+  for(var i=0;i<emps.length;i++){ if(vndSalvarVenda(emps[i].id,'validar')!==true) return msg('⚠ Confira a venda e o plano acima (mensagem em laranja).','#ffaa2b'); }
+  var falta=REPORT_CAMPOS.filter(function(c){ var e=el('rep-'+pid+'-'+c.id); return !e||!String(e.value||'').trim(); });
+  if(falta.length){ var f=el('rep-'+pid+'-'+falta[0].id); if(f) f.focus(); return msg('⚠ Preencha o report diário: '+falta.map(function(c){ return c.label.replace(/^\d\.\s*/,''); }).join(', ')+'.','#ffaa2b'); }
+  var h=el('rep-'+pid+'-data'); if(h) h.value=repDataRef(pid);
+  msg('⏳ salvando venda, plano e report...','var(--mu)');
+  var envios=emps.map(function(e){ return vndSalvarVenda(e.id); });
+  envios.push(salvarReport(pid,true));
+  Promise.all(envios).then(function(res){
+    var falha=res.filter(function(x){ return x&&x.ok===false&&!x.enfileirado; })[0], fila=res.some(function(x){ return x&&x.enfileirado; });
+    if(falha) msg('✗ Não foi salvo na base de dados — '+(falha.erro||'erro')+'. Ficou só neste aparelho; clique em Salvar novamente.','#e63329');
+    else if(fila) msg('⏳ Sem conexão — salvo neste aparelho e na fila. Já pode enviar ao '+CEO_NOME+'.','#ffaa2b');
+    else msg('✓ Salvo às '+agoraHora()+' — venda, plano e report. Agora envie ao '+CEO_NOME+'.','var(--ok)');
+    repWhatsEstado(pid);
+    var b=el('rpu-wa-'+pid); if(b&&!b.disabled) b.classList.add('rpu-pulse');
+  });
+}
+function repTextoCEO(pid,iso){
+  var r=findPessoa(pid)||findLider(pid)||{ nome:pid };
+  var L=[CEO_NOME+', segue meu report do dia 👇',''];
+  vndEmpDoDono(pid).forEach(function(emp){
+    var c=vndCalc(emp,iso), pl=c.plano, k=VND_COR[c.cor];
+    L.push(emp.emoji+' *'+emp.nome.toUpperCase()+' — '+vndDm(iso)+' ('+VND_SEM_LB[vndWd(iso)].toLowerCase()+')*');
+    L.push('Gestor: '+r.nome); L.push('');
+    L.push('💰 Venda do dia: *'+(c.vendaDia==null?'não lançada':recMoeda(c.vendaDia).replace(/,00$/,''))+'*'+(c.metaDia>0?' · meta '+vndK(c.metaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''):''));
+    var aq=c.vendaDia==null?null:vndAlertaQueda(emp,iso,c.vendaDia);
+    if(aq) L.push('🔴 '+VND_SEM_NOME[vndWd(iso)]+' fora do padrão: −'+Math.round(aq.pct*100)+'% vs. média de '+vndK(aq.base));
+    if(pl.temMeta){
+      L.push(k.ico+' Ritmo: '+vndPct(c.ritmo)+' da meta acumulada');
+      L.push('📊 Acumulado: '+vndK(c.acum)+' / meta '+vndK(pl.metaMes));
+      L.push('📈 Projeção: *'+vndK(c.projecao)+'* ('+vndSinal(c.desvioProj,vndK)+')');
+      if(c.mediaNec!=null&&c.falta>0) L.push('🎯 Precisa: '+vndK(c.mediaNec)+'/dia');
+    } else { L.push('📊 Acumulado: '+vndK(c.acum)+' · projeção '+vndK(c.projecao)+' (sem meta)'); }
+    var d=vndCanaisDia(emp,iso);
+    if(d&&d.canais){ var tk=vndTicket(emp,d.canais,d.pedidos), cl=[];
+      (emp.canais||[]).forEach(function(id){ var p=tk.por[id]; if(!p||!(p.v>0)) return; cl.push(VND_CANAIS_DEF[id].nome+' '+vndK(p.v)+(p.n?' ('+p.n+' ped.)':'')); });
+      if(cl.length){ L.push(''); L.push('🧾 Canais: '+cl.join(' · ')); }
+      if(tk.pedidos) L.push('🛍️ Pedidos: '+tk.pedidos+' · ticket '+recMoeda(tk.ticket));
+      if(d.ind){ var ii=d.ind, il=[];
+        if(ii.pdv_ativos!=null) il.push('PDVs ativos '+ii.pdv_ativos);
+        if(ii.pdv_positivados!=null) il.push('positivados '+ii.pdv_positivados+(ii.pdv_ativos?' ('+Math.round(ii.pdv_positivados/ii.pdv_ativos*100)+'%)':''));
+        if(ii.pdv_novos!=null) il.push('novos '+ii.pdv_novos);
+        if(ii.margem!=null) il.push('margem '+String(ii.margem).replace('.',',')+'%');
+        if(ii.markup!=null) il.push('markup '+String(ii.markup).replace('.',',')+'%');
+        if(il.length) L.push('📌 '+il.join(' · ')); }
+    }
+    var ac=String((el('vnd-acao-'+emp.id)||{}).value||'').trim(), a0=c.acao;
+    var resp=String((el('vnd-resp-'+emp.id)||{}).value||'').trim()||(a0&&a0.responsavel)||'', prazo=(el('vnd-prazo-'+emp.id)||{}).value||(a0&&a0.prazo)||'';
+    var imp=String((el('vnd-imp-'+emp.id)||{}).value||'').trim(); imp=imp===''?(a0&&a0.impacto):recParseNum(imp);
+    ac=ac||(a0&&a0.acao)||'';
+    L.push('');
+    if(ac){ L.push('⚡ *PLANO PARA A META*'); L.push(ac); var meta=[resp?'👤 '+resp:'',prazo?'📅 '+vndDm(prazo):'',imp?'💵 +'+vndK(imp):''].filter(Boolean).join(' · '); if(meta) L.push(meta); }
+    else L.push((c.cor==='laranja'||c.cor==='vermelho')?'⚠ *SEM PLANO DE AÇÃO*':'⚡ Plano: manter o ritmo');
+    L.push('');
+  });
+  var rp=loadReport(pid,iso)||{};
+  L.push('📝 *REPORT'+(vndEmpDoDono(pid).length?'':' — '+r.nome.toUpperCase()+' · '+vndDm(iso))+'*');
+  REPORT_CAMPOS.forEach(function(c,i){ var v=String(rp['rep_'+c.id]||(el('rep-'+pid+'-'+c.id)||{}).value||'').trim(); L.push((i+1)+'. '+(v||'—')); });
+  return L.join('\n');
+}
+function repEnviarWhats(pid){
+  var iso=(el('rep-'+pid+'-data')||{}).value||ontem();
+  if(!reportEntregue(pid,iso)){ setTxt('rep-'+pid+'-msg','⚠ Salve o report antes de enviar.'); return; }
+  var url='https://wa.me/'+CEO_WHATS+'?text='+encodeURIComponent(repTextoCEO(pid,iso));
+  var w=window.open(url,'_blank'); if(!w) location.href=url;
+  var b=el('rpu-wa-'+pid); if(b) b.classList.remove('rpu-pulse');
+}
+
+function vndBloco(gid,rep){
+  var lista=vndEmpDoDono(gid), iso0=ontem();
+  return lista.map(function(emp,ix){
+    var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono), ult=rep&&ix===lista.length-1;
+    var cons=(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+(pode?'<button class="btn-save vnd-b2" onclick="vndAcumIr(\''+emp.id+'\')">📥 Acumulado do mês</button>':'');
+    if(rep) return '<div class="card vnd rpu" id="vnd-'+emp.id+'">'+
+      '<div class="rpu-top"><div class="sec" style="margin:0">📊 Report diário ao CEO — '+emp.emoji+' '+esc(emp.nome)+'</div><div class="rpu-btns">'+cons+'</div></div>'+
+      '<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">1</span><b>Venda do dia</b></div>'+
+      '<div class="vnd-lanc">'+
+        '<div><label>Dia da venda</label><input type="date" id="vnd-data-'+emp.id+'" onchange="vndTrocarData(\''+emp.id+'\')"></div>'+
+        '<div><label>'+(emp.canais?'Total do dia (R$)':'Venda do dia (R$)')+'</label><input type="text" inputmode="decimal" id="vnd-val-'+emp.id+'" placeholder="0,00" oninput="vndPrevia(\''+emp.id+'\')"'+dis+'></div>'+
+        '<div class="vnd-prev" id="vnd-prev-'+emp.id+'"></div>'+
+      '</div>'+vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+'</div>'+
+      repOndeHTML(emp)+
+      '<div class="rpu-st rpu-plano" id="rpu-plano-'+emp.id+'"><div class="rpu-h"><span class="rpu-n">3</span><b>O que vou fazer para chegar na meta</b> <span id="vnd-acao-obr-'+emp.id+'"></span></div>'+
+        '<textarea class="rpu-ta" id="vnd-acao-'+emp.id+'" rows="3" placeholder="Medida concreta para os próximos dias. Ex.: ação de rodízio na terça com divulgação no Instagram e lista de clientes; reforço de 2 garçons na sexta."'+dis+'></textarea>'+
+        '<div class="vnd-acao-l">'+
+          '<div><label>Responsável</label><input type="text" id="vnd-resp-'+emp.id+'" placeholder="'+esc(p?p.nome:'')+'"'+dis+'></div>'+
+          '<div><label>Prazo</label><input type="date" id="vnd-prazo-'+emp.id+'"'+dis+'></div>'+
+          '<div><label>Impacto esperado (R$)</label><input type="text" inputmode="decimal" id="vnd-imp-'+emp.id+'" placeholder="0,00"'+dis+'></div>'+
+        '</div><span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div>'+
+      (ult?'<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">4</span><b>Report diário — 4 linhas</b><span id="rep-'+rep.id+'-status"></span></div><input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+repCamposHTML(rep,iso0)+'</div>'+repRodapeHTML(rep):'')+
+      vndAcumHTML(emp,pode)+
+      '<details class="vnd-det rpu-mais"'+(VND_MAIS[emp.id]?' open':'')+' ontoggle="VND_MAIS[\''+emp.id+'\']=this.open"><summary>📊 Ver painel completo do mês (semáforo, projeção, dia a dia)</summary><div id="vnd-corpo-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div></details>'+
+    '</div>';
     return '<div class="card vnd" id="vnd-'+emp.id+'">'+
       '<div class="sec">📊 Painel diário de vendas — '+emp.emoji+' '+esc(emp.nome)+'</div>'+
       '<div class="vnd-lanc">'+
@@ -3797,7 +3973,7 @@ function vndBloco(gid){
 }
 function vndIniciar(gid){
   var emps=vndEmpDoDono(gid); if(!emps.length) return;
-  vndCarregarTudo(false).then(function(){ emps.forEach(function(emp){ vndPreencherLanc(emp); vndPintar(emp.id); }); });
+  vndCarregarTudo(false).then(function(){ emps.forEach(function(emp){ vndPreencherLanc(emp); vndPintar(emp.id); }); repSincData(gid); });
 }
 function vndPreencherLanc(emp){
   var ref=vndRef(emp), d=el('vnd-data-'+emp.id), v=el('vnd-val-'+emp.id);
@@ -3816,6 +3992,7 @@ function vndTrocarData(empId){
   var d=el('vnd-data-'+empId); if(!d||!d.value) return;
   VND_REF[empId]=d.value; delete VND_EDIT[empId];
   vndPreencherLanc(emp); setTxt('vnd-msg-'+empId,''); vndPintar(empId);
+  repSincData(emp.dono);
 }
 /* Mostra, enquanto digita, como fica o semáforo com o valor digitado */
 function vndPrevia(empId){
@@ -3823,6 +4000,8 @@ function vndPrevia(empId){
   var iso=(el('vnd-data-'+empId)||{}).value, bruto=String((el('vnd-val-'+empId)||{}).value||'').trim();
   if(!iso){ box.innerHTML=''; return; }
   var c=vndCalc(emp,iso,bruto===''?null:recParseNum(bruto)), k=VND_COR[c.cor];
+  repOndePintar(emp,c);
+  var pz=el('rpu-plano-'+empId); if(pz) pz.classList.toggle('rpu-req',c.cor==='laranja'||c.cor==='vermelho');
   var obr=el('vnd-acao-obr-'+empId);
   if(obr) obr.innerHTML=(c.cor==='laranja'||c.cor==='vermelho')?'<b style="color:'+k.c+'">· obrigatória ('+k.t.toLowerCase()+')</b>':'<span style="color:var(--mu2)">· recomendada</span>';
   var aq=bruto===''?null:vndAlertaQueda(emp,iso,recParseNum(bruto));
@@ -3830,7 +4009,7 @@ function vndPrevia(empId){
     (aq?' <span class="vnd-prev-b" style="color:var(--red);border-color:var(--red)">🔴 '+VND_SEM_NOME[vndWd(iso)]+' fora do padrão (−'+Math.round(aq.pct*100)+'%)</span>':'');
   if(aq&&obr) obr.innerHTML='<b style="color:var(--red)">· obrigatória (venda '+Math.round(aq.pct*100)+'% abaixo do normal)</b>';
 }
-function vndSalvarVenda(empId){
+function vndSalvarVenda(empId,modo){
   var emp=vndEmp(empId); if(!emp) return;
   var iso=(el('vnd-data-'+empId)||{}).value, bruto=String((el('vnd-val-'+empId)||{}).value||'').trim();
   var acao=String((el('vnd-acao-'+empId)||{}).value||'').trim();
@@ -3838,7 +4017,7 @@ function vndSalvarVenda(empId){
   var impB=String((el('vnd-imp-'+empId)||{}).value||'').trim();
   var cn=vndLerCanais(emp), pd=vndLerPedidos(emp); if(cn){ var _s=0; Object.keys(cn).forEach(function(k){ _s+=cn[k]; }); bruto=vndFmt(_s); }
   var m=el('vnd-msg-'+empId);
-  function msg(t,c){ setTxt('vnd-msg-'+empId,t); if(m) m.style.color=c||''; }
+  function msg(t,c){ setTxt('vnd-msg-'+empId,t); if(m) m.style.color=c||''; return false; }
   if(!iso) return msg('⚠ Escolha o dia da venda.','#ffaa2b');
   if(iso>hoje()) return msg('⚠ Não dá para lançar venda de um dia que ainda não chegou.','#ffaa2b');
   if(bruto==='' && !acao) return msg('⚠ Digite a venda do dia e a ação.','#ffaa2b');
@@ -3857,6 +4036,7 @@ function vndSalvarVenda(empId){
     var t=el('vnd-acao-'+empId); if(t) t.focus();
     return msg('⚠ Semáforo '+VND_COR[c.cor].t.toLowerCase()+': escreva o que vai fazer para chegar na meta antes de salvar.','#ffaa2b');
   }
+  if(modo==='validar'){ setTxt('vnd-msg-'+empId,''); return true; }
   VND_REF[empId]=iso;
   var editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim(), agora=new Date().toISOString(), p=findPessoa(emp.dono);
   var envios=[];
@@ -3880,7 +4060,7 @@ function vndSalvarVenda(empId){
   }
   msg('⏳ salvando na base de dados...','var(--mu)');
   vndPintar(empId);
-  Promise.all(envios).then(function(res){
+  return Promise.all(envios).then(function(res){
     var falha=res.filter(function(r){ return !(r&&r.ok) && !(r&&r.enfileirado); })[0];
     var fila=res.some(function(r){ return r&&r.enfileirado; });
     var o=(val!=null?'Venda':'')+(val!=null&&acao?' e ação':(acao?'Ação':''));
@@ -3888,6 +4068,7 @@ function vndSalvarVenda(empId){
     else if(fila) msg('⏳ Sem conexão — salvo neste aparelho e na fila. Será enviado sozinho quando a rede voltar.','#ffaa2b');
     else { QS_SUJO=false; msg('✓ '+o+' de '+isoBR(iso)+' salva'+(val!=null&&acao?'s':'')+' na base de dados'); }
     vndPintar(empId);
+    return falha||(fila?{ok:false,enfileirado:true}:{ok:true});
   });
 }
 
