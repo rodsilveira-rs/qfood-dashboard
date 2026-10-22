@@ -722,6 +722,17 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 
 .vnd-prev{align-self:center}
 .vnd-prev-b{display:inline-block;border:1px solid;border-radius:20px;padding:5px 11px;font-size:.76rem;font-weight:700}
+
+.qf-puxar{margin-top:8px;font-size:.78rem;padding:7px 12px}
+.qf-mod{max-width:760px}
+.qf-alerta{display:flex;gap:12px;align-items:flex-start;background:rgba(245,158,11,.1);border:1.5px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:12px;font-size:.9rem;line-height:1.5}
+.qf-alerta small{display:block;color:var(--mu);font-size:.78rem;margin-top:4px}.qf-ico{font-size:1.6rem}
+.qf-ok{color:var(--ok);font-weight:700;margin:12px 0 8px}.qf-err{color:var(--red);margin-top:12px;font-size:.86rem}
+.qf-res-g{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}
+.qf-res-g>div{background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:9px 10px}.qf-res-g small{display:block;font-size:.7rem;color:var(--mu)}.qf-res-g b{display:block;font-size:1.05rem}.qf-res-g em{font-style:normal;font-size:.68rem;color:var(--mu)}
+.qf-conf{font-size:.8rem;background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:9px 12px;margin-bottom:10px}.qf-conf.qf-dif{border-color:var(--warn);color:#fbbf24}
+.rpu-aviso{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.35);border-radius:10px;padding:8px 12px;color:var(--tx)}
+@media(max-width:760px){.qf-res-g{grid-template-columns:1fr 1fr}}
 /* ── Report único ao CEO ── */
 .rpu-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .rpu-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}.rpu-btns .btn-save{padding:7px 12px;font-size:.78rem;font-weight:600}
@@ -2088,6 +2099,7 @@ function painelRodrigo(){
   el('painel').innerHTML=
     '<div class="card"><div class="sec">🧭 Seu report — Rodrigo · Operações Comerciais</div><div class="rota-nota" id="rod-qf">⏳ lendo a venda da Q Food...</div>'+
       '<div class="rota-nota">Formato do Adilson: <b>META → REALIZADO → GAP → CAUSA → AÇÃO → RESPONSÁVEL → PRAZO → R$</b>. A linha da Q Food (lançada pelo Célio) entra sozinha no consolidado.</div></div>'+
+    qfCardRodrigo()+
     renderReportForm(GERENTE)+
     '<div class="card"><div class="sec">Consolidação diária · Rodrigo → CEO</div><p style="font-size:.84rem;color:var(--mu);margin-bottom:12px">Fluxo diário do <strong>Q Food</strong> — reports do dia ('+isoBR(iso)+'): <span class="kpi-big" style="color:'+(eg===tot?'var(--ok)':'var(--warn)')+'">'+eg+'/'+tot+'</span> · Score do mês '+mes+'.</p><table class="st"><thead><tr><th>Responsável</th><th>Report</th><th>Score QDACE® (mês)</th><th></th></tr></thead><tbody>'+linhas+'</tbody></table></div>'+
     '<div class="card"><div class="ct">🎯 Painel do Adilson — simples</div><p style="font-size:.8rem;color:var(--mu);margin:-4px 0 10px">Por empresa: dia × meta, mês × meta até hoje, projeção e ação. É o que vai para o Adilson.</p><div class="rep-actions" style="margin-bottom:10px"><button class="btn-save" onclick="preencherConsolidado()">Gerar</button><button class="btn-save" style="background:var(--s3)" onclick="copiarPainelAdilson()">📋 Copiar painel</button><span class="rep-msg" id="cons-adi-msg"></span></div><textarea class="cons" id="cons-adilson" placeholder="Clique em Gerar."></textarea></div>'+
@@ -2095,7 +2107,8 @@ function painelRodrigo(){
     '<div class="grid2"><div class="card"><div class="ct">📝 Modelo do report diário</div><ul class="lst">'+report+'</ul></div><div class="card"><div class="ct">🗓️ As 5 Perguntas de Segunda</div><ul class="lst">'+perg+'</ul></div></div>';
   atualizarStatusInline('rodrigo',iso);
   ecomCarregar().then(function(){ var c=el('rod-st-'+ECOM_REPORT_GESTOR); if(c&&ecomReport(iso)) c.innerHTML=statusInlineHTML(true)+' <small style="color:var(--mu)">Report 08h</small>'; });
-  vndCarregarTudo(false).then(function(){ var b=el('rod-qf'); if(b) b.innerHTML=esc(consLinhaQFood(iso)).replace(/\n/g,'<br>'); });
+  vndCarregarTudo(false).then(function(){ var b=el('rod-qf'); if(b) b.innerHTML=esc(consLinhaQFood(iso)).replace(/\n/g,'<br>');
+    var q=vndEmp('emp_qfood'); if(q&&el('vnd-emp_qfood')){ vndPreencherLanc(q); vndPintar(q.id); qfEnvioEstado(q.id); } });
 }
 /* Linha automática da Q Food no report do Rodrigo */
 function consLinhaQFood(iso){
@@ -2744,7 +2757,7 @@ var VND_CANAIS_QFOOD = ['qf_clientes','qf_mercearia','qf_sushitrip','qf_ecommerc
 /* Escala do Gogui definida pelo Adilson: R$ 400 mil (out/26) até R$ 700 mil (set/27) */
 var VND_GOGUI_ESCALA = (function(){ var o={}; for(var i=0;i<12;i++){ var d=new Date(2026,9+i,1); o[d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')]=Math.round((400000+300000*i/11)/100)*100; } return o; })();
 var VND_EMPRESAS = [
-  { id:'emp_qfood',     nome:'Q Food',                        emoji:'📦', dono:'celio',    abre:[1,1,1,1,1,0,0], feriadosNac:true,
+  { id:'emp_qfood',     nome:'Q Food',                        emoji:'📦', dono:'celio', envioPor:'rodrigo',    abre:[1,1,1,1,1,0,0], feriadosNac:true,
     pesos:[1,1,1,1,1,1,1], canais:VND_CANAIS_QFOOD, indicadores:true,
     dica:'Faturamento de segunda a sexta, peso igual em todos os dias úteis. Sábado, domingo e feriados nacionais já saem fechados — marque no calendário os feriados estaduais e municipais.' },
   { id:'emp_mercearia', nome:'Mercearia Liberdade · Vitória', emoji:'🛒', dono:'mariana',  abre:VND_TODOS,
@@ -3105,7 +3118,7 @@ function vndIndHTML(emp,dis){
   if(!emp.indicadores) return '';
   return '<div class="vnd-canais vnd-ind"><div class="vnd-canais-t">Indicadores comerciais <span>— obrigatórios para salvar a venda</span></div><div class="vnd-canais-l">'+
     VND_IND_DEF.map(function(f){ return '<div><label>'+f.nome+' <b style="color:var(--red)">*</b></label><input type="text" inputmode="'+(f.tipo==='int'?'numeric':'decimal')+'" id="vnd-ind-'+emp.id+'-'+f.id+'" placeholder="'+(f.tipo==='int'?'0':'0,0')+'" oninput="vndIndPintar(\''+emp.id+'\')"'+dis+'></div>'; }).join('')+
-    '</div><div class="vnd-cn-dia" id="vnd-ind-calc-'+emp.id+'"></div></div>';
+    '</div>'+(dis?'':'<button type="button" class="btn-save vnd-b2 qf-puxar" onclick="qfPuxarInd(\''+emp.id+'\')">🔄 Puxar do Comercial (PERF_INDIVIDUAL)</button>')+'<div class="vnd-cn-dia" id="vnd-ind-calc-'+emp.id+'"></div></div>';
 }
 function vndLerInd(emp){
   var o={}, falta=[];
@@ -3855,7 +3868,10 @@ function repSalvarTudo(pid){
   var r=findPessoa(pid)||findLider(pid); if(!r) return;
   var m=el('rep-'+pid+'-msg');
   function msg(t,c){ setTxt('rep-'+pid+'-msg',t); if(m) m.style.color=c||''; return false; }
-  var emps=vndEmpDoDono(pid).filter(vndPodeEditar);
+  var emps=vndEmpDoDono(pid).filter(vndPodeEditar).filter(function(e){
+    if(!e.envioPor||e.envioPor===pid) return true;
+    return String((el('vnd-val-'+e.id)||{}).value||'').trim()!==''||String((el('vnd-acao-'+e.id)||{}).value||'').trim()!=='';
+  });
   for(var i=0;i<emps.length;i++){ if(vndSalvarVenda(emps[i].id,'validar')!==true) return msg('⚠ Confira a venda e o plano acima (mensagem em laranja).','#ffaa2b'); }
   var falta=REPORT_CAMPOS.filter(function(c){ var e=el('rep-'+pid+'-'+c.id); return !e||!String(e.value||'').trim(); });
   if(falta.length){ var f=el('rep-'+pid+'-'+falta[0].id); if(f) f.focus(); return msg('⚠ Preencha o report diário: '+falta.map(function(c){ return c.label.replace(/^\d\.\s*/,''); }).join(', ')+'.','#ffaa2b'); }
@@ -3872,13 +3888,11 @@ function repSalvarTudo(pid){
     var b=el('rpu-wa-'+pid); if(b&&!b.disabled) b.classList.add('rpu-pulse');
   });
 }
-function repTextoCEO(pid,iso){
-  var r=findPessoa(pid)||findLider(pid)||{ nome:pid };
-  var L=[CEO_NOME+', segue meu report do dia 👇',''];
-  vndEmpDoDono(pid).forEach(function(emp){
+function repBlocoEmp(emp,iso,nomeResp){
+  var L=[];
     var c=vndCalc(emp,iso), pl=c.plano, k=VND_COR[c.cor];
     L.push(emp.emoji+' *'+emp.nome.toUpperCase()+' — '+vndDm(iso)+' ('+VND_SEM_LB[vndWd(iso)].toLowerCase()+')*');
-    L.push('Gestor: '+r.nome); L.push('');
+    L.push('Responsável: '+nomeResp); L.push('');
     L.push('💰 Venda do dia: *'+(c.vendaDia==null?'não lançada':recMoeda(c.vendaDia).replace(/,00$/,''))+'*'+(c.metaDia>0?' · meta '+vndK(c.metaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''):''));
     var aq=c.vendaDia==null?null:vndAlertaQueda(emp,iso,c.vendaDia);
     if(aq) L.push('🔴 '+VND_SEM_NOME[vndWd(iso)]+' fora do padrão: −'+Math.round(aq.pct*100)+'% vs. média de '+vndK(aq.base));
@@ -3909,9 +3923,15 @@ function repTextoCEO(pid,iso){
     if(ac){ L.push('⚡ *PLANO PARA A META*'); L.push(ac); var meta=[resp?'👤 '+resp:'',prazo?'📅 '+vndDm(prazo):'',imp?'💵 +'+vndK(imp):''].filter(Boolean).join(' · '); if(meta) L.push(meta); }
     else L.push((c.cor==='laranja'||c.cor==='vermelho')?'⚠ *SEM PLANO DE AÇÃO*':'⚡ Plano: manter o ritmo');
     L.push('');
-  });
+  return L;
+}
+function repTextoCEO(pid,iso){
+  var r=findPessoa(pid)||findLider(pid)||{ nome:pid };
+  var L=[CEO_NOME+', segue meu report do dia 👇',''];
+  var emps=vndEmpDoDono(pid).filter(function(e){ return !e.envioPor||e.envioPor===pid; });
+  emps.forEach(function(emp){ L=L.concat(repBlocoEmp(emp,iso,r.nome)); });
   var rp=loadReport(pid,iso)||{};
-  L.push('📝 *REPORT'+(vndEmpDoDono(pid).length?'':' — '+r.nome.toUpperCase()+' · '+vndDm(iso))+'*');
+  L.push('📝 *REPORT'+(emps.length?'':' — '+r.nome.toUpperCase()+' · '+vndDm(iso))+'*');
   REPORT_CAMPOS.forEach(function(c,i){ var v=String(rp['rep_'+c.id]||(el('rep-'+pid+'-'+c.id)||{}).value||'').trim(); L.push((i+1)+'. '+(v||'—')); });
   return L.join('\n');
 }
@@ -3923,13 +3943,113 @@ function repEnviarWhats(pid){
   var b=el('rpu-wa-'+pid); if(b) b.classList.remove('rpu-pulse');
 }
 
-function vndBloco(gid,rep){
-  var lista=vndEmpDoDono(gid), iso0=ontem();
-  return lista.map(function(emp,ix){
-    var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono), ult=rep&&ix===lista.length-1;
-    var cons=(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+(pode?'<button class="btn-save vnd-b2" onclick="vndAcumIr(\''+emp.id+'\')">📥 Acumulado do mês</button>':'');
-    if(rep) return '<div class="card vnd rpu" id="vnd-'+emp.id+'">'+
-      '<div class="rpu-top"><div class="sec" style="margin:0">📊 Report diário ao CEO — '+emp.emoji+' '+esc(emp.nome)+'</div><div class="rpu-btns">'+cons+'</div></div>'+
+/* ══════════════════════════════════════════════════════════════
+   Q FOOD — venda, onde estamos e plano são enviados pelo Rodrigo.
+   O Célio envia só o report de 4 linhas. Indicadores comerciais podem
+   ser puxados do Comercial (PERF_INDIVIDUAL + META_MENSAL publicadas em CSV).
+   ══════════════════════════════════════════════════════════════ */
+var QF_CSV_PERF = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=6112221&single=true&output=csv';
+var QF_CSV_META = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQPVyIo5MxwR6mcxIQcNYjPvBFJIkHNceED2efR0UInsselVC6h3d_KQ2-uLtFUwMYAE-XyIIOK-h7W/pub?gid=0&single=true&output=csv';
+var QF_PUXADO = null;   /* último cálculo puxado (para o detalhe) */
+function qfCsv(t){
+  var L=[], row=[], cel='', q=false;
+  for(var i=0;i<t.length;i++){ var ch=t[i];
+    if(q){ if(ch==='"'){ if(t[i+1]==='"'){ cel+='"'; i++; } else q=false; } else cel+=ch; }
+    else if(ch==='"') q=true; else if(ch===','){ row.push(cel); cel=''; }
+    else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&t[i+1]==='\n') i++; row.push(cel); L.push(row); row=[]; cel=''; }
+    else cel+=ch; }
+  if(cel!==''||row.length){ row.push(cel); L.push(row); }
+  var H=(L.shift()||[]).map(function(h){ return String(h).trim().toLowerCase(); });
+  return L.filter(function(r){ return r.some(function(x){ return String(x).trim()!==''; }); }).map(function(r){ var o={}; H.forEach(function(h,i){ o[h]=String(r[i]==null?'':r[i]).trim(); }); return o; });
+}
+function qfNum(v){ v=String(v==null?'':v).replace(/[R$\s%]/g,''); if(v==='') return 0;
+  if(v.indexOf(',')>=0) v=v.replace(/\./g,'').replace(',','.'); var n=Number(v); return isNaN(n)?0:n; }
+/* soma da carteira + margem PONDERADA pela venda realizada de cada vendedor (META_MENSAL) */
+function qfCalcInd(perf,meta){
+  var M={}; meta.forEach(function(r){ M[String(r.nome||'').trim().toLowerCase()]={ meta:qfNum(r.meta), real:qfNum(r.realizado) }; });
+  var V=[], car=0, at=0, nv=0, real=0, lucro=0, semVenda=[], somaM=0, somaK=0, nM=0;
+  perf.forEach(function(r){
+    var nome=String(r.sigla||r.nome||r.vendedor||'').trim(), c=qfNum(r.carteira), a=qfNum(r.atendidos), n=qfNum(r.novos), mg=qfNum(r.margem), mk=qfNum(r.markup);
+    if(!nome||(!c&&!a&&!mg)) return;
+    var mm=M[nome.toLowerCase()]||{ meta:0, real:0 };
+    car+=c; at+=a; nv+=n; if(mg>0){ somaM+=mg; somaK+=mk; nM++; }
+    if(mm.real>0&&mg>0){ real+=mm.real; lucro+=mm.real*mg/100; } else if(mg>0) semVenda.push(nome);
+    V.push({ nome:nome, car:c, at:a, novos:n, margem:mg, markup:mk, real:mm.real, meta:mm.meta });
+  });
+  var mPond=real>0?lucro/real*100:null, kPond=(real>0&&real>lucro)?lucro/(real-lucro)*100:null;
+  var tMeta=0, tReal=0; meta.forEach(function(r){ tMeta+=qfNum(r.meta); tReal+=qfNum(r.realizado); });
+  return { vend:V, ativos:car, positivados:at, novos:nv, margem:mPond, markup:kPond,
+           margemSimples:nM?somaM/nM:null, markupSimples:nM?somaK/nM:null, realizado:tReal, metaMes:tMeta, semVenda:semVenda };
+}
+function qfPuxarInd(empId){
+  var emp=vndEmp(empId); if(!emp) return;
+  var iso=(el('vnd-data-'+empId)||{}).value||vndRef(emp);
+  vndCanaisFechar();
+  var h='<div class="vnd-mod-bg" onclick="if(event.target===this)vndCanaisFechar()"><div class="vnd-mod qf-mod" role="dialog">'+
+    '<div class="qf-alerta"><div class="qf-ico">⚠️</div><div><b>Antes de puxar, confirme:</b><br>As vendas de <b>'+isoBR(iso)+' ('+VND_SEM_NOME[vndWd(iso)].toLowerCase()+')</b> já foram atualizadas na planilha do Comercial (PERF_INDIVIDUAL e META_MENSAL)?'+
+    '<small>Hoje é '+isoBR(hoje())+'. Se a planilha ainda estiver com os números de antes, os indicadores vão sair desatualizados.</small></div></div>'+
+    '<div class="rep-actions" style="justify-content:flex-end"><button class="btn-save vnd-b2" onclick="vndCanaisFechar()">Ainda não</button><button class="btn-save" onclick="qfPuxarAgora(\''+empId+'\')">✓ Sim, já atualizei — puxar</button></div>'+
+    '<div id="qf-res"></div></div></div>';
+  var w=document.createElement('div'); w.id='vnd-modal'; w.innerHTML=h; document.body.appendChild(w);
+  document.addEventListener('keydown',vndCanaisEsc);
+}
+function qfPuxarAgora(empId){
+  var emp=vndEmp(empId), box=el('qf-res'); if(!emp||!box) return;
+  box.innerHTML='<div class="rota-nota">⏳ lendo PERF_INDIVIDUAL e META_MENSAL...</div>';
+  var t='&t='+Date.now();
+  Promise.all([fetch(QF_CSV_PERF+t).then(function(r){ return r.text(); }),fetch(QF_CSV_META+t).then(function(r){ return r.text(); })]).then(function(tx){
+    if(/^\s*</.test(tx[0])||/^\s*</.test(tx[1])) throw new Error('planilha não publicada como CSV');
+    var k=qfCalcInd(qfCsv(tx[0]),qfCsv(tx[1])); QF_PUXADO=k;
+    if(!k.vend.length) throw new Error('PERF_INDIVIDUAL veio vazia');
+    var put=function(id,v,dec){ var e=el('vnd-ind-'+empId+'-'+id); if(e&&v!=null) e.value=dec?String(Math.round(v*10)/10).replace('.',','):String(Math.round(v)); };
+    put('pdv_ativos',k.ativos); put('pdv_positivados',k.positivados); put('pdv_novos',k.novos); put('margem',k.margem,1); put('markup',k.markup,1);
+    if(typeof vndIndPintar==='function') vndIndPintar(empId);
+    var iso=(el('vnd-data-'+empId)||{}).value||vndRef(emp), mes=iso.substring(0,7), acum=recSomaMes(empId,mes).total||0;
+    var bruto=String((el('vnd-val-'+empId)||{}).value||'').trim(), jaDia=recValorDia(empId,iso);
+    var acumComDia=acum+((jaDia===''||jaDia==null)&&bruto!==''?recParseNum(bruto):0), dif=k.realizado-acumComDia;
+    box.innerHTML='<div class="qf-ok">✓ Indicadores preenchidos. Confira e salve.</div>'+
+      '<div class="qf-res-g"><div><small>PDVs ativos</small><b>'+k.ativos+'</b></div><div><small>Positivados</small><b>'+k.positivados+'</b><em>'+(k.ativos?Math.round(k.positivados/k.ativos*1000)/10:0).toString().replace('.',',')+'%</em></div><div><small>Novos no mês</small><b>'+k.novos+'</b></div>'+
+      '<div><small>Margem ponderada</small><b>'+(k.margem==null?'—':k.margem.toFixed(1).replace('.',',')+'%')+'</b><em>média simples seria '+(k.margemSimples==null?'—':k.margemSimples.toFixed(1).replace('.',',')+'%')+'</em></div>'+
+      '<div><small>Markup ponderado</small><b>'+(k.markup==null?'—':k.markup.toFixed(1).replace('.',',')+'%')+'</b><em>média simples seria '+(k.markupSimples==null?'—':k.markupSimples.toFixed(1).replace('.',',')+'%')+'</em></div></div>'+
+      '<div class="qf-conf'+(Math.abs(dif)>Math.max(1000,k.realizado*0.01)?' qf-dif':'')+'"><b>Conferência do realizado:</b> planilha do Comercial '+recMoeda(k.realizado)+' × Checkpoint até '+isoBR(iso)+' '+recMoeda(acumComDia)+
+        (Math.abs(dif)>Math.max(1000,k.realizado*0.01)?' → <b>diferença de '+recMoeda(dif)+'</b>. Confira se a venda do dia está lançada ou se a planilha está atualizada.':' → batem ✓')+'</div>'+
+      '<details class="vnd-det"><summary>Ver por vendedor</summary><div class="vnd-tw"><table class="vnd-tab"><thead><tr><th>Vendedor</th><th>Carteira</th><th>Positiv.</th><th>Novos</th><th>Margem</th><th>Realizado</th><th>Peso na margem</th></tr></thead><tbody>'+
+        k.vend.map(function(v){ var tot=k.vend.reduce(function(s,x){ return s+(x.margem>0?x.real:0); },0);
+          return '<tr><td>'+esc(v.nome)+'</td><td>'+v.car+'</td><td>'+v.at+'</td><td>'+v.novos+'</td><td>'+String(v.margem).replace('.',',')+'%</td><td>'+vndR0(v.real)+'</td><td>'+(tot&&v.margem>0?Math.round(v.real/tot*100)+'%':'—')+'</td></tr>'; }).join('')+
+      '</tbody></table></div><div class="vnd-tab-n">Margem ponderada = soma do lucro de cada vendedor (realizado × margem) ÷ soma do realizado. Markup = lucro ÷ custo, calculado a partir da mesma margem ponderada. Assim quem vende R$ 40 mil pesa o proporcional, e não o mesmo que quem vende R$ 360 mil.'+(k.semVenda.length?' Sem venda no META_MENSAL (fora da margem): '+esc(k.semVenda.join(', '))+'.':'')+'</div></details>'+
+      '<div class="rep-actions" style="justify-content:flex-end"><button class="btn-save" onclick="vndCanaisFechar()">Fechar</button></div>';
+  }).catch(function(e){
+    box.innerHTML='<div class="qf-err">✗ Não consegui ler a planilha do Comercial ('+esc(String(e&&e.message||e))+'). Os campos continuam como estavam; preencha à mão se precisar.</div>';
+  });
+}
+/* card de envio da Q Food na tela do Rodrigo */
+function qfCardRodrigo(){
+  var emp=vndEmp('emp_qfood'); if(!emp) return '';
+  return vndCardRep(emp,null,false,'rodrigo');
+}
+function qfEnvioEstado(empId){
+  var b=el('rpu-wa-'+empId); if(!b) return;
+  var emp=vndEmp(empId), iso=(el('vnd-data-'+empId)||{}).value||vndRef(emp), v=recValorDia(empId,iso);
+  b.disabled=(v===''||v==null);
+}
+function qfSalvarEnvio(empId){
+  var r=vndSalvarVenda(empId); if(!r||r===true) return;
+  r.then(function(){ qfEnvioEstado(empId); var b=el('rpu-wa-'+empId); if(b&&!b.disabled) b.classList.add('rpu-pulse'); });
+}
+function qfEnviarWhats(empId){
+  var emp=vndEmp(empId), iso=(el('vnd-data-'+empId)||{}).value||vndRef(emp), v=recValorDia(empId,iso);
+  if(v===''||v==null){ setTxt('vnd-msg-'+empId,'⚠ Salve a venda antes de enviar.'); return; }
+  var txt=CEO_NOME+', segue o report da '+emp.nome+' do dia 👇\n\n'+repBlocoEmp(emp,iso,'Rodrigo').join('\n');
+  var url='https://wa.me/'+CEO_WHATS+'?text='+encodeURIComponent(txt);
+  var w=window.open(url,'_blank'); if(!w) location.href=url;
+  var b=el('rpu-wa-'+empId); if(b) b.classList.remove('rpu-pulse');
+}
+
+function vndCardRep(emp,rep,ult,envio){
+  var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono), iso0=ontem();
+  var cons=(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+(pode?'<button class="btn-save vnd-b2" onclick="vndAcumIr(\''+emp.id+'\')">📥 Acumulado do mês</button>':'');
+  return '<div class="card vnd rpu" id="vnd-'+emp.id+'">'+
+      '<div class="rpu-top"><div class="sec" style="margin:0">📊 '+(envio?'Venda ao CEO (você envia)':'Report diário ao CEO')+' — '+emp.emoji+' '+esc(emp.nome)+'</div><div class="rpu-btns">'+cons+'</div></div>'+
       '<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">1</span><b>Venda do dia</b></div>'+
       '<div class="vnd-lanc">'+
         '<div><label>Dia da venda</label><input type="date" id="vnd-data-'+emp.id+'" onchange="vndTrocarData(\''+emp.id+'\')"></div>'+
@@ -3943,11 +4063,20 @@ function vndBloco(gid,rep){
           '<div><label>Responsável</label><input type="text" id="vnd-resp-'+emp.id+'" placeholder="'+esc(p?p.nome:'')+'"'+dis+'></div>'+
           '<div><label>Prazo</label><input type="date" id="vnd-prazo-'+emp.id+'"'+dis+'></div>'+
           '<div><label>Impacto esperado (R$)</label><input type="text" inputmode="decimal" id="vnd-imp-'+emp.id+'" placeholder="0,00"'+dis+'></div>'+
-        '</div><span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div>'+
+        '</div>'+(envio?'':'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>')+'</div>'+
+      (envio?'<div class="rpu-foot"><button class="btn-save rpu-save" onclick="qfSalvarEnvio(\''+emp.id+'\')">💾 Salvar venda e plano</button><button class="btn-save rpu-wa" id="rpu-wa-'+emp.id+'" onclick="qfEnviarWhats(\''+emp.id+'\')" disabled>📲 Enviar '+esc(emp.nome)+' ao '+CEO_NOME+'</button><span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div><div class="rpu-nota">Você envia a venda da '+esc(emp.nome)+' (etapas 1 a 3). O report de 4 linhas é enviado pelo próprio responsável.</div>':'')+
+      (!envio&&emp.envioPor&&rep&&emp.envioPor!==rep.id?'<div class="rpu-nota rpu-aviso">ℹ️ A venda da '+esc(emp.nome)+' (etapas 1 a 3) é enviada ao '+CEO_NOME+' pelo Rodrigo. Seu envio leva só o report de 4 linhas — mas lance a venda normalmente.</div>':'')+
       (ult?'<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">4</span><b>Report diário — 4 linhas</b><span id="rep-'+rep.id+'-status"></span></div><input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+repCamposHTML(rep,iso0)+'</div>'+repRodapeHTML(rep):'')+
       vndAcumHTML(emp,pode)+
       '<details class="vnd-det rpu-mais"'+(VND_MAIS[emp.id]?' open':'')+' ontoggle="VND_MAIS[\''+emp.id+'\']=this.open"><summary>📊 Ver painel completo do mês (semáforo, projeção, dia a dia)</summary><div id="vnd-corpo-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div></details>'+
     '</div>';
+}
+function vndBloco(gid,rep){
+  var lista=vndEmpDoDono(gid), iso0=ontem();
+  return lista.map(function(emp,ix){
+    var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono), ult=rep&&ix===lista.length-1;
+    var cons=(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+(pode?'<button class="btn-save vnd-b2" onclick="vndAcumIr(\''+emp.id+'\')">📥 Acumulado do mês</button>':'');
+    if(rep) return vndCardRep(emp,rep,ult);
     return '<div class="card vnd" id="vnd-'+emp.id+'">'+
       '<div class="sec">📊 Painel diário de vendas — '+emp.emoji+' '+esc(emp.nome)+'</div>'+
       '<div class="vnd-lanc">'+
@@ -3992,7 +4121,7 @@ function vndTrocarData(empId){
   var d=el('vnd-data-'+empId); if(!d||!d.value) return;
   VND_REF[empId]=d.value; delete VND_EDIT[empId];
   vndPreencherLanc(emp); setTxt('vnd-msg-'+empId,''); vndPintar(empId);
-  repSincData(emp.dono);
+  repSincData(emp.dono); qfEnvioEstado(empId);
 }
 /* Mostra, enquanto digita, como fica o semáforo com o valor digitado */
 function vndPrevia(empId){
