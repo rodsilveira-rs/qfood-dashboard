@@ -750,7 +750,7 @@ var API_URL = "https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apW
 // 1. CONFIG
 // ────────────────────────────────────────────────────────────
 var ReqConfig = {
-  versao:         "2026.10.15-a",  // aparece no rodapé da lateral
+  versao:         "2026.10.22-a",  // aparece no rodapé da lateral
   pollingMs:      5 * 60 * 1000,   // 5 min, só com a aba visível
   maxLadoFoto:    1600,            // px — comprime antes de subir
   qualidadeFoto:  0.8,
@@ -1928,7 +1928,31 @@ var ReqAcoes = {
     // e a vez é de quem recebe. Antes ele continuava na tela, a Cris achava que
     // não tinha gravado e registrava a mesma compra de novo.
     var jaComprada = (r.status === "COMPRADA" || r.status === "AGUARDANDO_ENTREGA");
-    if(p.registrarCompra && !r.encerrada && !jaComprada){
+    // Entrega com pendência (chegou parcial ou com problema) não é compra nova:
+    // Compras decide se o restante está a caminho ou se já está resolvido.
+    // Antes aparecia o formulário de compra e o "Já foi comprado", e nenhum
+    // dos dois servia para dizer "o resto chega dia 24".
+    var pendencia = (r.status === "RECEBIDA_PARCIAL" || r.status === "RECEBIDA_DIVERGENCIA");
+
+    if(p.registrarCompra && !r.encerrada && pendencia){
+      h += '<div class="card"><div class="card-t">' +
+             (r.status === "RECEBIDA_PARCIAL" ? 'Chegou só uma parte' : 'Chegou com problema') + '</div>' +
+           (r.obsRecebimento
+             ? '<div class="aguardando">' + esc(nomeDe(r.recebidoPor) || "Quem recebeu") + ' registrou: ' +
+               esc(r.obsRecebimento) + '</div>'
+             : '') +
+           '<div class="rq-meta" style="margin-bottom:12px">Se o restante (ou a troca) ainda vai chegar, confira a previsão e clique em ' +
+             '<b>“O restante está a caminho”</b>: a requisição volta para quem recebe dar baixa quando chegar. ' +
+             'Se já está tudo resolvido, encerre.</div>' +
+           ReqAcoes.camposCompra(r) +
+           '<div class="btns">' +
+             '<button class="btn btn-p" onclick="ReqAcoes.registrarCompra(false, true)">O restante está a caminho</button>' +
+             '<button class="btn btn-ok" onclick="ReqAcoes.statusComTexto(\'CONCLUIDA\',\'Como foi resolvido? (ex.: o restante chegou, fornecedor reembolsou)\')">Resolvido — encerrar</button>' +
+             '<button class="btn btn-w" onclick="ReqPrazo.abrir(\'AGUARDANDO_INFORMACAO\')">Fazer uma pergunta</button>' +
+           '</div></div>';
+    }
+
+    if(p.registrarCompra && !r.encerrada && !jaComprada && !pendencia){
       h += '<div class="card"><div class="card-t">Registrar a compra</div>' +
            '<div class="rq-meta" style="margin-bottom:12px">Os campos com <span class="obrig">*</span> são obrigatórios para marcar como comprada.</div>' +
            ReqAcoes.camposCompra(r) +
@@ -2069,7 +2093,9 @@ var ReqAcoes = {
     if(mostrar){ moeda(document.getElementById("c-valor")); document.getElementById("c-forn").focus(); }
   },
 
-  registrarCompra: function(correcao){
+  // correcao = só ajustando dados de uma compra já feita.
+  // restante = entrega veio parcial ou com problema e o resto ainda vai chegar.
+  registrarCompra: function(correcao, restante){
     var dados = {
       id:           ReqState.detalheId,
       fornecedor:   document.getElementById("c-forn").value.trim(),
@@ -2084,7 +2110,7 @@ var ReqAcoes = {
     var faltando = Object.keys(rotulos).filter(function(k){ return !dados[k]; })
                                        .map(function(k){ return rotulos[k]; });
     if(faltando.length){
-      toast("Preencha antes de marcar como comprada: " + faltando.join(", "), true);
+      toast("Preencha antes de salvar: " + faltando.join(", "), true);
       return;
     }
     // Previsão no passado é quase sempre erro de digitação (ex.: 20/02 no lugar de 20/10).
@@ -2093,15 +2119,19 @@ var ReqAcoes = {
       return;
     }
 
-    ReqAPI.post("registrarCompra", dados, correcao ? "Salvando correção…" : "Registrando a compra…").then(function(){
+    var rotulo = correcao ? "Salvando correção…" : (restante ? "Salvando…" : "Registrando a compra…");
+    ReqAPI.post("registrarCompra", dados, rotulo).then(function(){
       var r = ReqState.reqAtual || {};
       var rec = ((ReqState.config && ReqState.config.recebedores) || [])
                   .filter(function(x){ return x.chave === r.empresa; })
                   .map(function(x){ return nomeDe(x.valor); })[0];
       toast(correcao
         ? "Dados da compra corrigidos."
-        : "Compra registrada. Agora é com " + (rec || "quem recebe") + ": ele dá baixa quando chegar.");
-      // Volta para a fila: a requisição sai da lista "Comprar" na hora,
+        : restante
+          ? "Pronto. O restante está a caminho (previsão " + dataBr(dados.prazoEntrega) + "): " +
+            (rec || "quem recebe") + " dá baixa quando chegar."
+          : "Compra registrada. Agora é com " + (rec || "quem recebe") + ": ele dá baixa quando chegar.");
+      // Volta para a fila: a requisição sai da lista dela na hora,
       // e fica claro que a parte de Compras terminou.
       if(correcao) ReqDetalhe.recarregar();
       else ReqDetalhe.voltar();
@@ -3141,10 +3171,19 @@ var ReqJaComprado = {
 
   confirmar: function(){
     var sel = document.getElementById("jc-ref").value;
-    var ref = sel === "__outra" ? document.getElementById("jc-num").value.trim().toUpperCase() : sel;
+    // Aceita o número do jeito que a pessoa digitar: "#RQ-2026-0041", "rq 2026 41"…
+    var digitado = document.getElementById("jc-num").value.toUpperCase().replace(/[#\s]/g, "").replace(/^RQ-?/, "");
+    var partes = digitado.match(/^(\d{4})-?(\d{1,5})$/);
+    var ref = sel === "__outra"
+      ? (partes ? "RQ-" + partes[1] + "-" + ("0000" + partes[2]).slice(-4) : digitado)
+      : sel;
     var texto = document.getElementById("jc-texto").value.trim();
     if(sel === "__outra" && !ref){ toast("Digite o número da requisição, ou escolha “Nenhuma”.", true); return; }
-    if(ref && !/^RQ-\d{4}-\d{1,5}$/.test(ref)){ toast("Número no formato RQ-2026-0041.", true); return; }
+    if(ref && !/^RQ-\d{4}-\d{4,5}$/.test(ref)){ toast("Não entendi o número. Use o formato RQ-2026-0041.", true); return; }
+    if(ref && ref === String(ReqState.detalheId || "").toUpperCase()){
+      toast("Esse é o número desta mesma requisição. Informe a OUTRA requisição que já cobre o pedido, ou escolha “Nenhuma — foi comprado por fora”.", true);
+      return;
+    }
     if(!ref && !texto){ toast("Sem requisição de referência, escreva o que aconteceu.", true); return; }
 
     var btn = document.getElementById("jc-ok");
