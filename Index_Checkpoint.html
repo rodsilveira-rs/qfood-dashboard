@@ -3514,6 +3514,12 @@ function pnNomeCanal(id){ return id==='restaurante'?'Salão':VND_CANAIS_DEF[id].
 function pnPeriodo(per){
   var h=hoje(), ate=vndDateIso((function(){ var x=vndIsoDate(h); x.setDate(x.getDate()-1); return x; })());
   if(!per||per==='tudo') return { de:'', ate:ate, dias:null };
+  if(per==='mes'){
+    var de=ate.substring(0,8)+'01', n=parseInt(ate.substring(8),10);
+    var ma=vndIsoDate(de); ma.setMonth(ma.getMonth()-1);
+    var antDe=vndDateIso(ma), fimAnt=new Date(ma.getFullYear(),ma.getMonth()+1,0).getDate();
+    return { de:de, ate:ate, dias:n, antDe:antDe, antAte:antDe.substring(0,8)+String(Math.min(n,fimAnt)).padStart(2,'0') };
+  }
   if(per.indexOf('|')>0){ var p=per.split('|'); var n=Math.round((vndIsoDate(p[1])-vndIsoDate(p[0]))/864e5)+1; return { de:p[0], ate:p[1], dias:n }; }
   var x=vndIsoDate(h); x.setDate(x.getDate()-parseInt(per,10)); return { de:vndDateIso(x), ate:ate, dias:parseInt(per,10) };
 }
@@ -3543,12 +3549,16 @@ function vndPanorama(empId,per,opc){
   var emp=vndEmp(empId); if(!emp) return;
   per=per||'90'; opc=opc||{};
   var P=pnPeriodo(per), k=vndPanoCalc(emp,P.de,P.ate), kAnt=null;
-  if(P.dias&&P.de){ var a1=vndIsoDate(P.de); a1.setDate(a1.getDate()-1); var a0=new Date(a1); a0.setDate(a0.getDate()-P.dias+1); kAnt=vndPanoCalc(emp,vndDateIso(a0),vndDateIso(a1)); if(!kAnt.n) kAnt=null; }
+  if(P.dias&&P.de){
+    if(P.antDe){ kAnt=vndPanoCalc(emp,P.antDe,P.antAte); }
+    else { var a1=vndIsoDate(P.de); a1.setDate(a1.getDate()-1); var a0=new Date(a1); a0.setDate(a0.getDate()-P.dias+1); kAnt=vndPanoCalc(emp,vndDateIso(a0),vndDateIso(a1)); }
+    if(!kAnt.n) kAnt=null;
+  }
   var mob=window.innerWidth<=760, abre=function(sec){ return (!mob||sec==='wd'||sec==='evo'||opc[sec])?' open':''; };
-  var tabs=[['tudo','Todo o histórico'],['180','6 meses'],['90','90 dias'],['30','30 dias']];
+  var tabs=[['tudo','Todo o histórico'],['180','6 meses'],['90','90 dias'],['30','30 dias'],['mes','Mês atual']];
   var head='<div class="pn-head"><div class="pn-brand"><span class="pn-logo">'+emp.emoji+'</span><div><h2>Panorama de Vendas</h2><h3>'+esc(emp.nome)+'</h3></div></div>'+
     '<div class="pn-tabs">'+tabs.map(function(t){ return '<button class="'+(t[0]===per?'on':'')+'" onclick="vndPanorama(\''+empId+'\',\''+t[0]+'\')">'+t[1]+'</button>'; }).join('')+'</div>'+
-    '<select class="pn-msel" onchange="vndPanorama(\''+empId+'\',this.value)">'+tabs.map(function(t){ return '<option value="'+t[0]+'"'+(t[0]===per?' selected':'')+'>'+(t[0]==='tudo'?t[1]:'Últimos '+t[1])+'</option>'; }).join('')+(per.indexOf('|')>0?'<option selected>Personalizado</option>':'')+'</select>'+
+    '<select class="pn-msel" onchange="vndPanorama(\''+empId+'\',this.value)">'+tabs.map(function(t){ return '<option value="'+t[0]+'"'+(t[0]===per?' selected':'')+'>'+((t[0]==='tudo'||t[0]==='mes')?t[1]:'Últimos '+t[1])+'</option>'; }).join('')+(per.indexOf('|')>0?'<option selected>Personalizado</option>':'')+'</select>'+
     '<div class="pn-dates">'+pnDataCampo('pn-de',P.de||(k.n?k.dias[0].iso:''),empId)+'<span>'+pnI('arrow')+'</span>'+pnDataCampo('pn-ate',P.ate,empId)+pnI('cal','pn-dcal')+'</div>'+
     '<button class="pn-x" onclick="vndCanaisFechar()" aria-label="Fechar">'+pnI('x')+'</button></div>';
   var corpo;
