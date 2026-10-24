@@ -373,6 +373,23 @@ body.pan-tv #btnPanTV{display:block;}
 .tre-ebtn.on{color:#fff;}
 .tre-ebtn.on .ct{opacity:.85;}
 .tre-etag{font-size:.66rem;font-weight:800;text-transform:uppercase;letter-spacing:.4px;padding:4px 9px;border-radius:6px;color:#fff;}
+
+/* ══ AVISO DE VERSÃO NOVA ══ */
+#verBar{position:fixed;left:0;right:0;bottom:0;z-index:200;background:var(--accent);color:#fff;
+  display:none;align-items:center;gap:12px;padding:13px 16px;box-shadow:0 -6px 24px rgba(0,0,0,.22);}
+#verBar.on{display:flex;}
+#verBar .tx{flex:1;font-weight:800;font-size:.92rem;line-height:1.3;}
+#verBar .tx small{display:block;font-weight:600;opacity:.9;font-size:.78rem;margin-top:2px;}
+#verBar button{border:0;border-radius:10px;font-weight:800;font-size:.9rem;padding:0 16px;height:42px;cursor:pointer;}
+#verBar .go{background:#fff;color:var(--accent2);}
+#verBar .no{background:rgba(255,255,255,.18);color:#fff;padding:0 12px;}
+@media(max-width:760px){
+  #verBar{padding:12px;gap:8px;}
+  #verBar .tx{font-size:.86rem;}
+  #verBar button{height:44px;font-size:.86rem;}
+  .top .lnk{font-size:.8rem;padding:9px 11px;}
+  #btnAtualizar{background:var(--accent)!important;color:#fff!important;font-weight:800!important;}
+}
 </style>
 </head>
 <body>
@@ -386,8 +403,7 @@ body.pan-tv #btnPanTV{display:block;}
   <button class="lnk" onclick="window.open('Guia_Checklist_Digital.html','_blank')">📖 Manual</button>
   <button class="lnk" onclick="location.href='Index_Menu.html'">Menu</button>
   <button class="lnk" onclick="alternarModo()" id="btnModo">🧩 Modo simples</button>
-  <button class="lnk" onclick="recarregar()">↻ Atualizar</button>
-  <button class="lnk" onclick="recarregarVersao()" id="btnVersao" title="Baixa a versão mais nova do sistema">⟳ Nova versão</button>
+  <button class="lnk" onclick="atualizarTudo()" id="btnAtualizar" title="Busca a versão mais nova do sistema e recarrega os dados">↻ Atualizar</button>
 </div>
 
 <div class="tabs" id="tabs">
@@ -587,6 +603,11 @@ body.pan-tv #btnPanTV{display:block;}
 <!-- MODAIS -->
 <div class="ov" id="ov"><div class="modal"><div class="mh"><div class="mt" id="ovTitle">—</div><button class="x" onclick="fecharOv()">×</button></div><div class="mb" id="ovBody"></div></div></div>
 <div class="toast" id="toast"></div>
+<div id="verBar">
+  <div class="tx">✨ Nova versão disponível<small>Toque em Atualizar para carregar as novidades.</small></div>
+  <button class="go" onclick="atualizarTudo()">Atualizar</button>
+  <button class="no" onclick="document.getElementById('verBar').classList.remove('on')">Agora não</button>
+</div>
 
 <script>
 // ════════════════════════════════════════════════════════════
@@ -658,6 +679,81 @@ function rotuloRec(v){ var r=ST.listas.filter(function(l){return norm(l.tipo)===
 // ════════════════════════════════════════════════════════════
 function recarregar(){ carregarTudo(true); }
 
+// ════════════════════════════════════════════════════════════
+// ATUALIZAÇÃO — um botão só
+// ------------------------------------------------------------
+// Existem DUAS coisas que podem estar velhas: os DADOS (planilha) e o
+// ARQUIVO (HTML no GitHub Pages). Ninguém na operação tem que saber disso.
+// O botão descobre sozinho: se o arquivo mudou, recarrega a página inteira;
+// se não mudou, só busca os dados de novo, sem piscar a tela.
+//
+// Como descobre: um HEAD na própria URL e comparação do ETag/Last-Modified
+// que o GitHub Pages devolve. São alguns bytes por consulta — não baixa o
+// arquivo de 200 KB de novo, o que no 4G do tablet faria diferença.
+// ════════════════════════════════════════════════════════════
+var APP_VER = "2026-10-24a";
+var VER_MARCA = null;            // assinatura do arquivo no momento em que abriu
+var VER_CHECA_MIN = 5;           // de quanto em quanto tempo olha se mudou
+
+function _verMarca(r){
+  return (r.headers.get("etag") || "") + "|" + (r.headers.get("last-modified") || "");
+}
+// Promise<boolean>: true = tem versão nova publicada.
+function verificarVersao(){
+  var url = location.pathname + "?_ck=" + Date.now();
+  return fetch(url, { method:"HEAD", cache:"no-store" }).then(function(r){
+    var m = _verMarca(r);
+    if(m === "|") return false;                 // servidor não informa: nada a comparar
+    if(VER_MARCA === null){ VER_MARCA = m; return false; }
+    return m !== VER_MARCA;
+  }).catch(function(){ return false; });        // sem rede: não inventa aviso
+}
+
+function atualizarTudo(){
+  var b = document.getElementById("btnAtualizar");
+  var rot = b ? b.textContent : "";
+  if(b){ b.disabled = true; b.textContent = "↻ Verificando…"; }
+  verificarVersao().then(function(temNova){
+    if(temNova){ recarregarVersao(); return; }  // recarrega a página inteira
+    carregarTudo(true);                          // só os dados
+    document.getElementById("verBar").classList.remove("on");
+    if(b){ b.disabled = false; b.textContent = rot || "↻ Atualizar"; }
+    toast("Dados atualizados. Você já está na versão mais nova.");
+  });
+}
+
+// Recarga forçada: limpa o cache e troca a URL, para o navegador e o CDN não
+// conseguirem servir o arquivo velho. É o F5 que o celular e o tablet não têm.
+function recarregarVersao(){
+  if(EXEC && !confirm("Você está no meio de um checklist.\n\nAtualizar agora vai perder o que já foi marcado.\n\nAtualizar mesmo assim?")) {
+    var b = document.getElementById("btnAtualizar");
+    if(b){ b.disabled = false; b.textContent = "↻ Atualizar"; }
+    return;
+  }
+  try{
+    if(window.caches && caches.keys){
+      caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
+    }
+  }catch(e){}
+  var u = location.href.split("#")[0].replace(/([?&])_v=\d+/, "$1").replace(/[?&]$/, "");
+  u += (u.indexOf("?") >= 0 ? "&" : "?") + "_v=" + Date.now();
+  location.replace(u);
+}
+
+// Olha sozinho de tempos em tempos e quando o aparelho volta do bolso.
+(function(){
+  verificarVersao();                             // guarda a assinatura de agora
+  var avisar = function(){
+    verificarVersao().then(function(tem){
+      if(tem) document.getElementById("verBar").classList.add("on");
+    });
+  };
+  setInterval(avisar, VER_CHECA_MIN * 60 * 1000);
+  document.addEventListener("visibilitychange", function(){ if(!document.hidden) avisar(); });
+  var b = document.getElementById("btnAtualizar");
+  if(b) b.title = "Versão carregada: " + APP_VER;
+})();
+
 // Modo de exibição — contexto do APARELHO, não permissão.
 // Sem escolha salva, o padrão vem do perfil: quem não é editor entra no simples.
 function modoSimples(){
@@ -677,26 +773,6 @@ function rotuloModo(){
   b.textContent = modoSimples() ? "🧰 Modo completo" : "🧩 Modo simples";
   b.title = modoSimples() ? "Mostrar filtros e ferramentas de gestão" : "Deixar a tela simples para operação/tablet";
 }
-
-// Versão do arquivo — ATUALIZE a cada publicação no GitHub
-var APP_VER = "2026-09-21a";
-
-// Recarrega o HTML do zero, furando o cache do navegador e do CDN.
-// É o "F5 forçado" — serve para tablet/celular, que não têm Ctrl+Shift+R.
-function recarregarVersao(){
-  try{
-    if(window.caches && caches.keys){
-      caches.keys().then(function(ks){ ks.forEach(function(k){ caches.delete(k); }); });
-    }
-  }catch(e){}
-  var u = location.href.split("#")[0].replace(/([?&])_v=\d+/, "$1").replace(/[?&]$/, "");
-  u += (u.indexOf("?") >= 0 ? "&" : "?") + "_v=" + Date.now();
-  location.replace(u);
-}
-(function(){
-  var b=document.getElementById("btnVersao");
-  if(b) b.title="Versão carregada: "+APP_VER+" — toque para buscar a mais nova";
-})();
 function carregarTudo(force){
   document.getElementById("execList").innerHTML = '<div class="loading">Carregando…</div>';
   return Promise.all([
@@ -715,7 +791,18 @@ function carregarTudo(force){
     ST.modelos       = ST.modelos.filter(function(m){return _perm.indexOf(m.empresa)>=0;});
     ST.colaboradores = ST.colaboradores.filter(function(c){return _perm.indexOf(c.empresa)>=0;});
     ST.respostas     = ST.respostas.filter(function(r){return _perm.indexOf(r.empresa)>=0;});
-    if(ST.empresaAtiva && _perm.indexOf(ST.empresaAtiva)<0) ST.empresaAtiva=null;
+    // Visão restrita: deixa só o que é da própria pessoa.
+    var _meu = soMeuColab();
+    if(_meu){
+      ST.modelos       = ST.modelos.filter(function(m){ return String(m.responsavel_colab)===_meu; });
+      ST.respostas     = ST.respostas.filter(function(r){ return String(r.responsavel_colab)===_meu; });
+      ST.colaboradores = ST.colaboradores.filter(function(c){ return String(c.id)===_meu; });
+      // E só as empresas onde ela realmente tem rotina, para não sobrar
+      // aba de empresa que abriria vazia.
+      var _emp={}; ST.modelos.forEach(function(m){ _emp[m.empresa]=1; });
+      if(Object.keys(_emp).length) ST.empresas = ST.empresas.filter(function(e){ return _emp[e.id]; });
+    }
+    if(ST.empresaAtiva && !ST.empresas.some(function(e){return e.id===ST.empresaAtiva;})) ST.empresaAtiva=null;
     if(!ST.empresaAtiva && ST.empresas.length) ST.empresaAtiva = ST.empresas[0].id;
     if(!ST.empresaAtiva && ST.empresas.length) ST.empresaAtiva = ST.empresas[0].id;
     renderTudo();
@@ -743,10 +830,13 @@ function renderTudo(){
   var simples = modoSimples();
   rotuloModo();
   document.body.classList.toggle("simples", simples);
-  document.getElementById("euBox").classList.toggle("hidden", !simples);
+  // Na visão restrita não há o que escolher: a lista já é só dela.
+  var _meu = soMeuColab();
+  document.getElementById("euBox").classList.toggle("hidden", !simples || !!_meu);
   document.getElementById("progBox").classList.toggle("hidden", !simples);
   renderEmpresas(); renderSetorFiltro();
-  if(simples) euRestaurar();
+  if(_meu){ document.getElementById("execColab").value=""; try{ localStorage.removeItem("qfood_ck_eu"); }catch(e){} }
+  else if(simples) euRestaurar();
   renderExec(); renderPainel(); renderTreino();
 }
 var ORG_ADMINS=["rodrigo@qfoodcompany.com.br","adilson@qfoodcompany.com.br"];
@@ -773,8 +863,8 @@ var ACESSO={
   "celio@qfoodcompany.com.br":          ["qfood"],
   "gustavo@qfoodcompany.com.br":        ["qfood","mercearia","sushi"],
   "maiko@qfoodcompany.com.br":          ["qfood"],
-  "dayane@qfoodcompany.com.br":         ["qfood","mercearia"],
-  "roberta@qfoodcompany.com.br":        ["qfood","mercearia"],
+  "dayane@qfoodcompany.com.br":         ["qfood"],
+  "roberta@qfoodcompany.com.br":        ["qfood"],
   "jonathas@qfoodcompany.com.br":       ["qfood"],
   "expedicao@qfoodcompany.com.br":      ["qfood"],
   "compras@qfoodcompany.com.br":        ["qfood"],
@@ -795,6 +885,19 @@ var ACESSO={
 function empresasPermitidas(){
   var e=(ST.user&&ST.user.email||"").toLowerCase();
   return ACESSO[e] || [];   // e-mail não listado: sem acesso (restrito)
+}
+
+// ── Visão restrita: só os próprios checklists ──
+// Quem estiver aqui enxerga APENAS as rotinas em que é o responsável, e mais
+// nada: nem de colega, nem de outro setor. O corte é feito na carga dos dados
+// (carregarTudo), não na tela — então Executar, Painel, mapa mental e
+// rankings herdam a restrição de uma vez, sem brecha.
+// Chave: e-mail de login.  Valor: id do colaborador em CKL_COLABORADORES.
+var SO_MEUS={
+  "roberta@qfoodcompany.com.br": "col_roberta_loja"
+};
+function soMeuColab(){
+  return SO_MEUS[(ST.user&&ST.user.email||"").toLowerCase()] || "";
 }
 
 // ════════════════════════════════════════════════════════════
