@@ -354,7 +354,7 @@ button{font-family:inherit;cursor:pointer}
 
       <div class="fld">
         <label>Dia</label>
-        <select id="regData"></select>
+        <input id="regData" type="date">
       </div>
 
       <div id="regProdBox">
@@ -371,7 +371,7 @@ button{font-family:inherit;cursor:pointer}
     </div>
     <div class="modal-f">
       <button class="btn" onclick="fechar('ovReg')">Cancelar</button>
-      <button class="btn btn-prim" onclick="salvarReg()">Salvar lançamento</button>
+      <button class="btn btn-prim" id="regSalvar" onclick="salvarReg()">Salvar lançamento</button>
     </div>
   </div>
 </div>
@@ -387,8 +387,31 @@ button{font-family:inherit;cursor:pointer}
 
 /* ---- parâmetros ---- */
 var RUPTURA_LIMITE = 6;            // final esperado <= isso => risco de ruptura
+var WEBAPP = "https://script.google.com/macros/s/AKfycbyW68EjQKPo2DXijPH7aMDdxc3eNJ8yQEWqTE-z0M3zehhqZ8GnW3sH6eSQv0ok0DK_zw/exec";
 var qs = new URLSearchParams(location.search);
-var DEMO = qs.get('id') ? false : true;   // sem ?id= => roda em modo demonstração
+var EVENTO_ID = qs.get('id') || '';
+var USUARIO   = qs.get('u')  || 'Bárbara';
+var DEMO = !EVENTO_ID;             // sem ?id= => roda em modo demonstração
+
+/* ---- API (mesmo método do Index: POST form-urlencoded; GET com modulo=planejamento) ---- */
+function apiGet(params){
+  var p = new URLSearchParams(Object.assign({modulo:'planejamento'}, params));
+  return fetch(WEBAPP+'?'+p.toString()).then(function(r){ return r.json(); });
+}
+function apiPost(params){
+  params = Object.assign({modulo:'planejamento'}, params);
+  var body = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+  return fetch(WEBAPP,{ method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}, body:body }).then(function(r){ return r.json(); });
+}
+/* ---- datas ---- */
+var SEMANA=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function brToIso(s){ var m=String(s||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?(m[3]+'-'+m[2]+'-'+m[1]):''; }
+function isoAny(v){ if(!v) return ''; var s=String(v);
+  var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[1]+'-'+m[2]+'-'+m[3];
+  var b=s.match(/(\d{2})\/(\d{2})\/(\d{4})/); if(b) return b[3]+'-'+b[2]+'-'+b[1];
+  return s.substring(0,10); }
+function lblDia(isoD){ var p=String(isoD).split('-'); if(p.length<3) return isoD; var d=new Date(+p[0],+p[1]-1,+p[2]); return SEMANA[d.getDay()]+' '+p[2]; }
 
 /* ---- helpers ---- */
 function brl(v){ return 'R$ '+(Math.round((v||0)*100)/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -447,6 +470,39 @@ function carregarDemo(){
     {data:'2026-10-25',classe:'CUSTO',cat:'Horas extras',valor:300}
   ];
 }
+
+/* ---- dados REAIS (via Web App) ---- */
+function carregarReal(){
+  return apiGet({ action:'evt_data', eventoId:EVENTO_ID }).then(function(j){
+    if(!j || !j.ok) throw new Error((j&&j.erro)||'resposta inválida');
+    var pl = j.plano || {};
+    var status = (String(pl.Status||'').toLowerCase().indexOf('conclu')>=0) ? 'concluido' : 'andamento';
+
+    // Produtos: do EVENTO_PRODUTOS; se vazio, cai no cardápio planejado (coluna Produtos da PLANO_ACOES)
+    PRODS = (j.produtos||[]).map(function(p){ return { id:String(p.ProdID||''), n:p.Produto||'', custo:pnum(p.Custo), preco:pnum(p.Preco) }; });
+    if(!PRODS.length && pl.Produtos){
+      try{ var arr=JSON.parse(pl.Produtos); if(Array.isArray(arr))
+        PRODS=arr.map(function(x,i){ return { id:'P'+(i+1), n:x.n||'', custo:pnum(x.cu), preco:pnum(x.pr) }; }); }catch(_){}
+    }
+    MOV = (j.movimentos||[]).map(function(m){ return { data:isoAny(m.Data), prod:String(m.ProdID||''), tipo:String(m.Tipo||'').toUpperCase(), qtd:pnum(m.Qtd) }; });
+    FIN = (j.financeiro||[]).map(function(f){ return { data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor) }; });
+
+    // Dias do evento = data do plano + dias com lançamento (+ hoje, se em andamento)
+    var set={}, start=brToIso(pl.Data_evento);
+    if(start) set[start]=1;
+    MOV.forEach(function(m){ if(m.data) set[m.data]=1; });
+    FIN.forEach(function(f){ if(f.data) set[f.data]=1; });
+    if(status==='andamento') set[iso(new Date())]=1;
+    var dias=Object.keys(set).sort().map(function(d){ return { d:d, lb:lblDia(d) }; });
+    if(!dias.length){ var hj=iso(new Date()); dias=[{d:hj,lb:lblDia(hj)}]; }
+
+    EV = { id:EVENTO_ID, nome:pl.Evento_ref||pl.Evento||'Evento', empresa:pl.Empresa||'',
+           resp:pl.Responsavel||USUARIO, dias:dias, status:status };
+  });
+}
+function ensureDia(d){ for(var i=0;i<EV.dias.length;i++) if(EV.dias[i].d===d) return;
+  EV.dias.push({d:d,lb:lblDia(d)}); EV.dias.sort(function(a,b){ return a.d<b.d?-1:1; }); }
+function resVisivel(){ return !document.getElementById('mode-res').classList.contains('hide'); }
 
 /* ======================= MOTOR DE AGREGAÇÃO ======================= */
 function diaIdx(data){ for(var i=0;i<EV.dias.length;i++) if(EV.dias[i].d===data) return i; return -1; }
@@ -629,9 +685,9 @@ function abrirReg(ctx,prodId){
   if(ctx==='ocor'){ toast('Ocorrência será registrada no histórico (próxima onda)'); return; }
   regTipo(map[ctx]||'VENDA');
   // data default = dia selecionado ou hoje
-  var sel=document.getElementById('regData');
-  sel.innerHTML=EV.dias.map(function(d){return '<option value="'+d.d+'">'+esc(d.lb)+' ('+fmtBR(d.d)+')</option>';}).join('');
-  sel.value = (PERIODO!=='total')?PERIODO:hojeData();
+  var inp=document.getElementById('regData');
+  inp.value = (PERIODO!=='total')?PERIODO:hojeData();
+  if(EV.dias.length){ inp.min=EV.dias[0].d; }
   document.getElementById('regProd').innerHTML=PRODS.map(function(p){return '<option value="'+p.id+'">'+esc(p.n)+'</option>';}).join('');
   if(prodId) document.getElementById('regProd').value=prodId;
   document.getElementById('regQtd').value=''; document.getElementById('regVal').value='';
@@ -657,20 +713,43 @@ function regTipo(t){
 }
 function salvarReg(){
   var data=document.getElementById('regData').value;
-  if(REG_TIPO==='DESPESA'||REG_TIPO==='RECEITA'){
+  if(!data){ toast('Escolha o dia.'); return; }
+  var fin=(REG_TIPO==='DESPESA'||REG_TIPO==='RECEITA');
+  var reg, envio;
+  if(fin){
     var val=pnum(document.getElementById('regVal').value);
     if(!val){ toast('Informe o valor.'); return; }
-    FIN.push({data:data, classe:(REG_TIPO==='DESPESA'?'CUSTO':'RECEITA'), cat:document.getElementById('regCat').value, valor:val});
+    var cat=document.getElementById('regCat').value;
+    var classe=(REG_TIPO==='DESPESA'?'CUSTO':'RECEITA');
+    reg={data:data, classe:classe, cat:cat, valor:val};
+    envio={action:'evt_addFin', eventoId:EVENTO_ID, data:data, classe:classe, categoria:cat, valor:val, usuario:USUARIO};
   } else {
     var prod=document.getElementById('regProd').value;
     var qtd=pnum(document.getElementById('regQtd').value);
     if(!qtd){ toast('Informe a quantidade.'); return; }
-    MOV.push({data:data, prod:prod, tipo:REG_TIPO, qtd:qtd});
+    reg={data:data, prod:prod, tipo:REG_TIPO, qtd:qtd};
+    envio={action:'evt_addMov', eventoId:EVENTO_ID, data:data, prodId:prod, tipo:REG_TIPO, qtd:qtd, usuario:USUARIO};
   }
-  // AQUI (integração real): enviar ao Apps Script -> addMovimento / addFinanceiro
-  fechar('ovReg'); renderOperacao();
-  if(!document.getElementById('mode-res').classList.contains('hide')) renderResultado();
-  toast('Lançamento registrado ✓');
+
+  function aplicar(){
+    if(fin) FIN.push(reg); else MOV.push(reg);
+    ensureDia(data);
+    fechar('ovReg'); renderOperacao();
+    if(resVisivel()) renderResultado();
+  }
+
+  if(DEMO){ aplicar(); toast('Lançamento registrado ✓ (demo)'); return; }
+
+  // real: grava no Apps Script e só então atualiza a tela
+  var btn=document.getElementById('regSalvar'); if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  apiPost(envio).then(function(j){
+    if(!j || !j.ok) throw new Error((j&&j.erro)||'falha ao salvar');
+    aplicar(); toast('Lançamento registrado ✓');
+  }).catch(function(err){
+    toast('Erro ao salvar: '+(err&&err.message||err));
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent='Salvar lançamento'; }
+  });
 }
 
 /* ======================= UTIL UI ======================= */
@@ -680,10 +759,19 @@ var toastT;
 function toast(msg){ var el=document.getElementById('toast'); el.textContent=msg; el.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(function(){el.classList.remove('on');},2600); }
 
 /* ======================= BOOT ======================= */
-(function init(){
-  carregarDemo();   // integração real troca isto por fetch dos CSVs + ?id=
+function boot(){
   renderHead();
   setMode('op');
+}
+(function init(){
+  if(DEMO){ carregarDemo(); boot(); return; }
+  // real: mostra carregando, busca o evento e só então renderiza
+  var tit=document.getElementById('evNome'); if(tit) tit.textContent='Carregando…';
+  carregarReal().then(boot).catch(function(err){
+    carregarDemo();  // fallback para não deixar a tela vazia
+    boot();
+    toast('Não consegui carregar o evento ('+(err&&err.message||err)+') — mostrando demo.');
+  });
 })();
 </script>
 </body>
