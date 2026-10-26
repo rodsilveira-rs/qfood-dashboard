@@ -2119,28 +2119,35 @@ function editarPlano(id){
 }
 function salvarPlano(){
   if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado. Publique o Code_PLANEJAMENTO.gs e cole a URL em WEBAPP_PLANEJAMENTO.'); return; }
-  var btn=document.getElementById('pf-salvar'); btn.disabled=true; btn.textContent='Salvando…';
-  var atrib = getAtribuicoes();
-  apiPlanejamento({
-    action:'savePlano',
-    id: document.getElementById('pf-id').value,
-    evento: document.getElementById('pf-evento').value,
-    tipo: document.getElementById('pf-tipo').value,
-    empresa: document.getElementById('pf-empresa').value,
-    objetivo: document.getElementById('pf-objetivo').value,
-    status: document.getElementById('pf-status').value,
-    meta: document.getElementById('pf-meta').value,
-    real: document.getElementById('pf-real').value,
-    responsaveis: atrib.map(function(a){return a.n;}).join(', '),
-    atribuicoes: JSON.stringify(atrib),
-    itens: JSON.stringify(planoItens),
-    obs: document.getElementById('pf-obs').value,
-    usuario: (SESSAO && SESSAO.nome) || ''
-  }).then(function(j){
+  var btn=document.getElementById('pf-salvar'); if(!btn){ alert('Botão de salvar não encontrado — recarregue a página (Ctrl+Shift+R).'); return; }
+  btn.disabled=true; btn.textContent='Salvando…';
+  try{
+    if(!SESSAO){ throw new Error('Sua sessão expirou. Saia e entre de novo.'); }
+    var atrib = getAtribuicoes();
+    apiPlanejamento({
+      action:'savePlano',
+      id: document.getElementById('pf-id').value,
+      evento: document.getElementById('pf-evento').value,
+      tipo: document.getElementById('pf-tipo').value,
+      empresa: document.getElementById('pf-empresa').value,
+      objetivo: document.getElementById('pf-objetivo').value,
+      status: document.getElementById('pf-status').value,
+      meta: document.getElementById('pf-meta').value,
+      real: document.getElementById('pf-real').value,
+      responsaveis: atrib.map(function(a){return a.n;}).join(', '),
+      atribuicoes: JSON.stringify(atrib),
+      itens: JSON.stringify(planoItens),
+      obs: document.getElementById('pf-obs').value,
+      usuario: (SESSAO && SESSAO.nome) || ''
+    }).then(function(j){
+      btn.disabled=false; btn.textContent='✅ Salvar';
+      if(j && j.ok){ fecharModal('modalPlano'); carregarPlanos(); }
+      else alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
+    }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar'; alert('Falha no envio: '+e.message); });
+  }catch(err){
     btn.disabled=false; btn.textContent='✅ Salvar';
-    if(j && j.ok){ fecharModal('modalPlano'); carregarPlanos(); }
-    else alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
-  }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar'; alert('Falha: '+e.message); });
+    alert('Não consegui preparar o envio: '+err.message);
+  }
 }
 function excluirPlano(id){
   if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
