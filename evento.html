@@ -96,7 +96,10 @@ button{font-family:inherit;cursor:pointer}
 .per{border:1px solid var(--line);background:#fff;color:var(--ink-2);font-weight:600;font-size:13px;padding:8px 14px;border-radius:9px}
 .per:hover{border-color:#d4d9e6}
 .per.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.per.cal{display:inline-flex;align-items:center;gap:7px;color:var(--ink-2)}
+.per.cal{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);cursor:pointer;padding:6px 11px}
+.per.cal input{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:inherit;padding:0;cursor:pointer;width:116px}
+.per.cal input:focus{outline:none}
+.per.cal.on,.per.cal.on input{background:var(--blue);border-color:var(--blue);color:#fff}
 
 /* ---- kpi cards ---- */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
@@ -608,18 +611,11 @@ function renderPeriodo(){
     if(PERIODO===d.d) achouCustom=true;
     h+='<button class="per'+(PERIODO===d.d?' on':'')+'" onclick="setPeriodo(\''+d.d+'\')">'+esc(d.lb)+'</button>';
   });
-  // dia personalizado (fora da lista de chips) vira um chip ativo próprio
-  var custOn=(PERIODO!=='total' && !achouCustom);
-  h+='<button class="per cal'+(custOn?' on':'')+'" onclick="abrirPeriodoCustom()">📅 '+(custOn?fmtBR(PERIODO):'Personalizado')+'</button>';
-  h+='<input type="date" id="perCustom" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="setPeriodo(this.value)">';
+  // campo de data direto: clicar já abre o calendário; escolher um dia filtra o período
+  var custVal=(PERIODO!=='total' && !achouCustom)?PERIODO:'';
+  h+='<label class="per cal'+(custVal?' on':'')+'" title="Escolher um dia específico">📅 '+
+     '<input type="date" id="perCustom"'+(EV.dias.length?' min="'+EV.dias[0].d+'"':'')+(custVal?' value="'+custVal+'"':'')+' onchange="setPeriodo(this.value)"></label>';
   el.innerHTML=h;
-}
-function abrirPeriodoCustom(){
-  var inp=document.getElementById('perCustom');
-  if(EV.dias.length){ inp.min=EV.dias[0].d; }
-  inp.value = (PERIODO!=='total')?PERIODO:hojeData();
-  if(inp.showPicker){ try{ inp.showPicker(); return; }catch(_){} }
-  inp.focus(); inp.click();
 }
 function navDia(step){
   // ‹ › navega entre Total e os dias, em ordem
