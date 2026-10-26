@@ -96,10 +96,13 @@ button{font-family:inherit;cursor:pointer}
 .per{border:1px solid var(--line);background:#fff;color:var(--ink-2);font-weight:600;font-size:13px;padding:8px 14px;border-radius:9px}
 .per:hover{border-color:#d4d9e6}
 .per.on{background:var(--blue);border-color:var(--blue);color:#fff}
-.per.cal{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);cursor:pointer;padding:6px 11px}
-.per.cal input{border:0;background:transparent;font-family:inherit;font-size:13px;font-weight:600;color:inherit;padding:0;cursor:pointer;width:116px}
-.per.cal input:focus{outline:none}
-.per.cal.on,.per.cal.on input{background:var(--blue);border-color:var(--blue);color:#fff}
+.per-range{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.pr-lb{font-size:13px;font-weight:700;color:var(--ink-2)}
+.per-in{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 11px;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}
+.per-in:focus{outline:none;border-color:var(--blue)}
+.per-info{font-size:12.5px;color:var(--muted);margin-left:4px}
+.diag-warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:11px;padding:10px 14px;font-size:12.5px;margin:12px 0 2px;line-height:1.45}
+.diag-ok{color:var(--muted);font-size:12px;margin:8px 0 0}
 
 /* ---- kpi cards ---- */
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
@@ -278,6 +281,7 @@ button{font-family:inherit;cursor:pointer}
       <!-- ====== OPERAÇÃO ====== -->
       <section id="mode-op">
         <div class="period" id="period"></div>
+        <div id="diag"></div>
 
         <div class="kpis" id="kpis"></div>
 
@@ -513,18 +517,31 @@ function carregarReal(){
     MOV = (j.movimentos||[]).map(function(m){ return { data:isoAny(m.Data), prod:String(m.ProdID||''), tipo:String(m.Tipo||'').toUpperCase(), qtd:pnum(m.Qtd) }; });
     FIN = (j.financeiro||[]).map(function(f){ return { data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor) }; });
 
-    // Dias do evento = data do plano + dias com lançamento (+ hoje, se em andamento)
-    var set={}, start=brToIso(pl.Data_evento);
-    if(start) set[start]=1;
-    MOV.forEach(function(m){ if(m.data) set[m.data]=1; });
-    FIN.forEach(function(f){ if(f.data) set[f.data]=1; });
-    if(status==='andamento') set[iso(new Date())]=1;
-    var dias=Object.keys(set).sort().map(function(d){ return { d:d, lb:lblDia(d) }; });
-    if(!dias.length){ var hj=iso(new Date()); dias=[{d:hj,lb:lblDia(hj)}]; }
+    // Dias do evento = intervalo CONTÍNUO do 1º ao último dia conhecido
+    // (data do plano, dias com lançamento, e hoje se em andamento)
+    var datas=[]; var start=brToIso(pl.Data_evento);
+    if(start) datas.push(start);
+    MOV.forEach(function(m){ if(m.data) datas.push(m.data); });
+    FIN.forEach(function(f){ if(f.data) datas.push(f.data); });
+    if(status==='andamento') datas.push(iso(new Date()));
+    datas.sort();
+    var dias;
+    if(datas.length){ dias = diasEntre(datas[0], datas[datas.length-1]).map(function(d){ return {d:d, lb:lblDia(d)}; }); }
+    else { var hj=iso(new Date()); dias=[{d:hj,lb:lblDia(hj)}]; }
 
     EV = { id:EVENTO_ID, nome:pl.Evento_ref||pl.Evento||'Evento', empresa:pl.Empresa||'',
-           resp:pl.Responsavel||USUARIO, dias:dias, status:status };
+           resp:pl.Responsavel||USUARIO, dias:dias, status:status,
+           srv:{ np:(j.produtos||[]).length, nm:(j.movimentos||[]).length, nf:(j.financeiro||[]).length } };
   });
+}
+/* lista contínua de datas ISO entre duas (inclusive) */
+function diasEntre(deIso, ateIso){
+  var out=[]; if(!deIso||!ateIso) return out;
+  var a=deIso, b=ateIso; if(a>b){ var t=a; a=b; b=t; }
+  var p=a.split('-'), d=new Date(+p[0],+p[1]-1,+p[2]);
+  var pe=b.split('-'), e=new Date(+pe[0],+pe[1]-1,+pe[2]);
+  var g=0; while(d<=e && g<500){ out.push(iso(d)); d.setDate(d.getDate()+1); g++; }
+  return out;
 }
 function ensureDia(d){ for(var i=0;i<EV.dias.length;i++) if(EV.dias[i].d===d) return;
   EV.dias.push({d:d,lb:lblDia(d)}); EV.dias.sort(function(a,b){ return a.d<b.d?-1:1; }); }
@@ -578,10 +595,24 @@ function resumoPeriodo(dias){
   return {faturamento:faturamento, cmv:cmv, perdaR:perdaR, desp:desp, resultado:resultado, margem:margem, vendU:vendU, perdaU:perdaU};
 }
 
-/* ======================= ESTADO UI ======================= */
-var PERIODO = 'total';   // 'total' | data (ex '2026-10-24')
-function diasDoPeriodo(){ if(PERIODO==='total') return EV.dias.map(function(d){return d.d;}); return [PERIODO]; }
-function labelPeriodo(){ if(PERIODO==='total') return 'Evento inteiro'; var i=diaIdx(PERIODO); return EV.dias[i].lb; }
+/* ======================= ESTADO UI (período = intervalo De/Até) ======================= */
+var PER_DE='', PER_ATE='';
+function resetPeriodoPadrao(){ PER_DE=EV.dias[0].d; PER_ATE=EV.dias[EV.dias.length-1].d; }
+function diasDoPeriodo(){ return EV.dias.filter(function(x){ return x.d>=PER_DE && x.d<=PER_ATE; }).map(function(x){ return x.d; }); }
+function ehTotal(){ return PER_DE===EV.dias[0].d && PER_ATE===EV.dias[EV.dias.length-1].d; }
+function umDiaSo(){ return PER_DE===PER_ATE; }
+function labelPeriodo(){
+  if(ehTotal()) return 'Evento inteiro';
+  if(umDiaSo()) return lblDia(PER_DE);
+  return fmtBR(PER_DE)+' a '+fmtBR(PER_ATE);
+}
+function setRange(de, ate){
+  if(de!=null) PER_DE=de; if(ate!=null) PER_ATE=ate;
+  if(!PER_DE) PER_DE=PER_ATE; if(!PER_ATE) PER_ATE=PER_DE;
+  if(PER_DE>PER_ATE){ var t=PER_DE; PER_DE=PER_ATE; PER_ATE=t; }  // mantém De ≤ Até
+  renderOperacao();
+}
+function setRangeTotal(){ resetPeriodoPadrao(); renderOperacao(); }
 
 /* ======================= RENDER ======================= */
 function renderHead(){
@@ -604,33 +635,36 @@ function hojeData(){ var d=new Date(); var s=d.getFullYear()+'-'+String(d.getMon
   return DEMO ? '2026-10-24' : s; }
 
 function renderPeriodo(){
-  var el=document.getElementById('period'); var h='<button class="per-nav" onclick="navDia(-1)">‹</button>';
-  h+='<button class="per'+(PERIODO==='total'?' on':'')+'" onclick="setPeriodo(\'total\')">Total</button>';
-  var achouCustom=false;
-  EV.dias.forEach(function(d){
-    if(PERIODO===d.d) achouCustom=true;
-    h+='<button class="per'+(PERIODO===d.d?' on':'')+'" onclick="setPeriodo(\''+d.d+'\')">'+esc(d.lb)+'</button>';
-  });
-  // campo de data direto: clicar já abre o calendário; escolher um dia filtra o período
-  var custVal=(PERIODO!=='total' && !achouCustom)?PERIODO:'';
-  h+='<label class="per cal'+(custVal?' on':'')+'" title="Escolher um dia específico">📅 '+
-     '<input type="date" id="perCustom"'+(EV.dias.length?' min="'+EV.dias[0].d+'"':'')+(custVal?' value="'+custVal+'"':'')+' onchange="setPeriodo(this.value)"></label>';
-  el.innerHTML=h;
+  var min=EV.dias[0].d, max=EV.dias[EV.dias.length-1].d;
+  document.getElementById('period').innerHTML=
+    '<div class="per-range">'+
+      '<span class="pr-lb">De</span>'+
+      '<input type="date" class="per-in" id="perDe" value="'+PER_DE+'" onchange="setRange(this.value,null)">'+
+      '<span class="pr-lb">até</span>'+
+      '<input type="date" class="per-in" id="perAte" value="'+PER_ATE+'" onchange="setRange(null,this.value)">'+
+      '<button class="per'+(ehTotal()?' on':'')+'" onclick="setRangeTotal()">Evento inteiro</button>'+
+      '<span class="per-info">'+labelPeriodo()+'</span>'+
+    '</div>';
+  renderDiag();
 }
-function navDia(step){
-  // ‹ › navega entre Total e os dias, em ordem
-  var seq=['total'].concat(EV.dias.map(function(d){return d.d;}));
-  var i=seq.indexOf(PERIODO); if(i<0) i=0;
-  var n=i+step; if(n<0) n=0; if(n>seq.length-1) n=seq.length-1;
-  setPeriodo(seq[n]);
+/* aviso do que veio do servidor (só no modo real) */
+function renderDiag(){
+  var el=document.getElementById('diag'); if(!el) return;
+  if(DEMO || !EV.srv){ el.innerHTML=''; return; }
+  var s=EV.srv;
+  if(s.nm===0){
+    el.innerHTML='<div class="diag-warn">⚠️ O servidor devolveu <b>'+s.np+' produto(s)</b> e <b>0 movimento(s)</b> para este evento. '+
+      'Os números de venda ainda não foram gravados — confira se a migração rodou com <b>DRY_RUN = false</b> (ou lance pela tabela).</div>';
+  } else {
+    el.innerHTML='<div class="diag-ok">✓ Servidor: '+s.np+' produtos · '+s.nm+' movimentos · '+s.nf+' lançamentos financeiros.</div>';
+  }
 }
-function setPeriodo(p){ if(!p) return; PERIODO=p; renderOperacao(); }
 
 function renderKpis(){
   var dias=diasDoPeriodo(); var r=resumoPeriodo(dias);
   // delta vs dia anterior (só quando um dia específico está selecionado)
   var delta=null;
-  if(PERIODO!=='total'){ var i=diaIdx(PERIODO); if(i>0){ var ant=resumoPeriodo([EV.dias[i-1].d]);
+  if(umDiaSo()){ var i=diaIdx(PER_DE); if(i>0){ var ant=resumoPeriodo([EV.dias[i-1].d]);
     if(ant.faturamento>0) delta=(r.faturamento-ant.faturamento)/ant.faturamento*100; } }
   function dHtml(){ if(delta==null) return ''; var up=delta>=0;
     return '<div class="d '+(up?'up':'down')+'">'+(up?'↑':'↓')+' '+pct1(Math.abs(delta))+' <span>vs dia anterior</span></div>'; }
@@ -646,7 +680,7 @@ function renderKpis(){
 }
 
 function renderTabela(){
-  var dias=diasDoPeriodo(); var umDia=(PERIODO!=='total');
+  var dias=diasDoPeriodo(); var umDia=umDiaSo();
   document.getElementById('opTitulo').textContent = 'Produtos em operação · '+labelPeriodo();
   var rows=PRODS.map(function(p){
     var a=aggProduto(p.id,dias);
@@ -725,7 +759,7 @@ function abrirReg(ctx,prodId){
   regTipo(map[ctx]||'VENDA');
   // data default = dia selecionado ou hoje
   var inp=document.getElementById('regData');
-  inp.value = (PERIODO!=='total')?PERIODO:hojeData();
+  inp.value = umDiaSo()?PER_DE:hojeData();
   if(EV.dias.length){ inp.min=EV.dias[0].d; }
   document.getElementById('regProd').innerHTML=PRODS.map(function(p){return '<option value="'+p.id+'">'+esc(p.n)+'</option>';}).join('');
   if(prodId) document.getElementById('regProd').value=prodId;
@@ -795,7 +829,7 @@ function salvarReg(){
 function abrirGrid(){
   var inp=document.getElementById('gridData');
   if(EV.dias.length) inp.min=EV.dias[0].d;
-  inp.value=(PERIODO!=='total')?PERIODO:hojeData();
+  inp.value=umDiaSo()?PER_DE:hojeData();
   renderGridTab();
   abrir('ovGrid');
 }
@@ -867,6 +901,7 @@ function toast(msg){ var el=document.getElementById('toast'); el.textContent=msg
 
 /* ======================= BOOT ======================= */
 function boot(){
+  resetPeriodoPadrao();
   renderHead();
   setMode('op');
 }
