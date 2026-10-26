@@ -174,6 +174,22 @@ button{font-family:inherit;cursor:pointer}
 .ov{position:fixed;inset:0;background:rgba(18,26,46,.46);display:none;align-items:center;justify-content:center;z-index:50;padding:18px}
 .ov.on{display:flex}
 .modal{background:#fff;border-radius:18px;width:100%;max-width:460px;box-shadow:0 24px 60px rgba(0,0,0,.25);overflow:hidden;max-height:92vh;display:flex;flex-direction:column}
+.modal.modal-lg{max-width:680px}
+.grid-top{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:12px}
+.grid-top .fld{margin-bottom:0;min-width:160px}
+.grid-top .hint{flex:1;min-width:200px;margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+.gridtab{width:100%;border-collapse:collapse;font-size:13.5px}
+.gridtab th{position:sticky;top:0;background:var(--blue-soft);color:var(--blue-700);font-weight:700;font-size:12px;padding:9px 8px;text-align:center;white-space:nowrap;z-index:1}
+.gridtab th:first-child{text-align:left;border-top-left-radius:10px}
+.gridtab th:last-child{border-top-right-radius:10px}
+.gridtab td{padding:7px 8px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.gridtab tbody tr:nth-child(even){background:#fafbff}
+.gp-nome{font-weight:700;color:var(--ink);line-height:1.2}
+.gp-pr{display:block;font-weight:600;font-size:11px;color:var(--muted);margin-top:2px}
+.gin{width:72px;border:1px solid var(--line);border-radius:9px;padding:9px 8px;font-family:inherit;font-size:15px;text-align:center;background:#fff;color:var(--ink)}
+.gin:focus{outline:none;border-color:var(--blue);background:var(--blue-soft)}
+.gin.has{border-color:var(--blue);font-weight:700;color:var(--blue-700)}
+.grid-foot-info{font-size:12px;color:var(--muted);margin-right:auto;align-self:center}
 .modal-h{display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:1px solid var(--line-2)}
 .modal-h h3{margin:0;font-size:16px;font-weight:700}
 .modal-x{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
@@ -286,7 +302,7 @@ button{font-family:inherit;cursor:pointer}
           <div class="panel">
             <div class="panel-h">
               <h3 id="opTitulo">Produtos em operação</h3>
-              <button class="btn btn-prim" onclick="abrirReg('mov')">＋ Registrar movimentação</button>
+              <button class="btn btn-prim" onclick="abrirGrid()">📋 Lançar em tabela</button>
             </div>
             <div class="panel-b" style="overflow-x:auto">
               <table class="optab" id="opTab"></table>
@@ -296,7 +312,8 @@ button{font-family:inherit;cursor:pointer}
           <div class="panel">
             <div class="panel-h"><h3>Ações rápidas</h3></div>
             <div class="panel-b qa">
-              <button class="btn btn-prim qa-big" onclick="abrirReg('mov')">＋ Registrar venda/estoque</button>
+              <button class="btn btn-prim qa-big" onclick="abrirGrid()">📋 Lançar vendas (tabela)</button>
+              <button onclick="abrirReg('mov')"><span class="ic">🛒</span> Lançar 1 item (avulso)</button>
               <button onclick="abrirReg('desp')"><span class="ic">🧾</span> Registrar despesa</button>
               <button onclick="abrirReg('ocor')"><span class="ic">⚠️</span> Registrar ocorrência</button>
               <button onclick="setMode('res')"><span class="ic">📊</span> Ver resultado</button>
@@ -372,6 +389,27 @@ button{font-family:inherit;cursor:pointer}
     <div class="modal-f">
       <button class="btn" onclick="fechar('ovReg')">Cancelar</button>
       <button class="btn btn-prim" id="regSalvar" onclick="salvarReg()">Salvar lançamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL LANÇAR EM TABELA (lote) ===== -->
+<div class="ov" id="ovGrid" onclick="if(event.target===this)fechar('ovGrid')">
+  <div class="modal modal-lg">
+    <div class="modal-h"><h3>Lançar vendas do dia</h3><button class="modal-x" onclick="fechar('ovGrid')">×</button></div>
+    <div class="modal-b">
+      <div class="grid-top">
+        <div class="fld"><label>Dia</label><input id="gridData" type="date"></div>
+        <p class="hint">Digite a quantidade de cada produto e salve tudo de uma vez. Os valores <b>somam</b> ao que já foi lançado nesse dia (vá lançando ao longo do evento).</p>
+      </div>
+      <div style="overflow:auto;max-height:54vh;border:1px solid var(--line-2);border-radius:12px">
+        <table class="gridtab" id="gridTab"></table>
+      </div>
+    </div>
+    <div class="modal-f">
+      <span class="grid-foot-info" id="gridInfo">0 produtos preenchidos</span>
+      <button class="btn" onclick="fechar('ovGrid')">Cancelar</button>
+      <button class="btn btn-prim" id="gridSalvar" onclick="salvarGrid()">Salvar lançamentos</button>
     </div>
   </div>
 </div>
@@ -579,13 +617,34 @@ function hojeData(){ var d=new Date(); var s=d.getFullYear()+'-'+String(d.getMon
   return DEMO ? '2026-10-24' : s; }
 
 function renderPeriodo(){
-  var el=document.getElementById('period'); var h='<button class="per-nav">‹</button>';
+  var el=document.getElementById('period'); var h='<button class="per-nav" onclick="navDia(-1)">‹</button>';
   h+='<button class="per'+(PERIODO==='total'?' on':'')+'" onclick="setPeriodo(\'total\')">Total</button>';
-  EV.dias.forEach(function(d){ h+='<button class="per'+(PERIODO===d.d?' on':'')+'" onclick="setPeriodo(\''+d.d+'\')">'+esc(d.lb)+'</button>'; });
-  h+='<button class="per cal">📅 Personalizado</button>';
+  var achouCustom=false;
+  EV.dias.forEach(function(d){
+    if(PERIODO===d.d) achouCustom=true;
+    h+='<button class="per'+(PERIODO===d.d?' on':'')+'" onclick="setPeriodo(\''+d.d+'\')">'+esc(d.lb)+'</button>';
+  });
+  // dia personalizado (fora da lista de chips) vira um chip ativo próprio
+  var custOn=(PERIODO!=='total' && !achouCustom);
+  h+='<button class="per cal'+(custOn?' on':'')+'" onclick="abrirPeriodoCustom()">📅 '+(custOn?fmtBR(PERIODO):'Personalizado')+'</button>';
+  h+='<input type="date" id="perCustom" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="setPeriodo(this.value)">';
   el.innerHTML=h;
 }
-function setPeriodo(p){ PERIODO=p; renderOperacao(); }
+function abrirPeriodoCustom(){
+  var inp=document.getElementById('perCustom');
+  if(EV.dias.length){ inp.min=EV.dias[0].d; }
+  inp.value = (PERIODO!=='total')?PERIODO:hojeData();
+  if(inp.showPicker){ try{ inp.showPicker(); return; }catch(_){} }
+  inp.focus(); inp.click();
+}
+function navDia(step){
+  // ‹ › navega entre Total e os dias, em ordem
+  var seq=['total'].concat(EV.dias.map(function(d){return d.d;}));
+  var i=seq.indexOf(PERIODO); if(i<0) i=0;
+  var n=i+step; if(n<0) n=0; if(n>seq.length-1) n=seq.length-1;
+  setPeriodo(seq[n]);
+}
+function setPeriodo(p){ if(!p) return; PERIODO=p; renderOperacao(); }
 
 function renderKpis(){
   var dias=diasDoPeriodo(); var r=resumoPeriodo(dias);
@@ -749,6 +808,66 @@ function salvarReg(){
     toast('Erro ao salvar: '+(err&&err.message||err));
   }).then(function(){
     if(btn){ btn.disabled=false; btn.textContent='Salvar lançamento'; }
+  });
+}
+
+/* ======================= LANÇAMENTO EM TABELA (lote) ======================= */
+function abrirGrid(){
+  var inp=document.getElementById('gridData');
+  if(EV.dias.length) inp.min=EV.dias[0].d;
+  inp.value=(PERIODO!=='total')?PERIODO:hojeData();
+  renderGridTab();
+  abrir('ovGrid');
+}
+function renderGridTab(){
+  var h='<thead><tr><th>Produto</th><th>🛒 Vendido</th><th>➕ Reposição</th><th>🗑️ Perda</th></tr></thead><tbody>';
+  if(!PRODS.length){
+    h+='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:26px">Nenhum produto cadastrado neste evento ainda.</td></tr>';
+  }
+  PRODS.forEach(function(p){
+    h+='<tr><td class="gp-nome">'+esc(p.n)+'<span class="gp-pr">'+brl(p.preco)+' · un.</span></td>'+
+       '<td><input class="gin" data-p="'+esc(p.id)+'" data-t="VENDA"     type="number" inputmode="numeric" min="0" placeholder="0" oninput="gridMark()"></td>'+
+       '<td><input class="gin" data-p="'+esc(p.id)+'" data-t="REPOSICAO" type="number" inputmode="numeric" min="0" placeholder="0" oninput="gridMark()"></td>'+
+       '<td><input class="gin" data-p="'+esc(p.id)+'" data-t="PERDA"     type="number" inputmode="numeric" min="0" placeholder="0" oninput="gridMark()"></td></tr>';
+  });
+  h+='</tbody>';
+  document.getElementById('gridTab').innerHTML=h;
+  gridMark();
+}
+function gridMark(){
+  var linhas={}, tot=0;
+  document.querySelectorAll('#gridTab .gin').forEach(function(inp){
+    var v=pnum(inp.value), has=v>0;
+    inp.classList.toggle('has', has);
+    if(has) linhas[inp.dataset.p]=1;
+  });
+  tot=Object.keys(linhas).length;
+  document.getElementById('gridInfo').textContent=tot+(tot===1?' produto preenchido':' produtos preenchidos');
+}
+function salvarGrid(){
+  var data=document.getElementById('gridData').value;
+  if(!data){ toast('Escolha o dia.'); return; }
+  var movs=[];
+  document.querySelectorAll('#gridTab .gin').forEach(function(inp){
+    var q=pnum(inp.value); if(q>0) movs.push({prod:inp.dataset.p, tipo:inp.dataset.t, qtd:q});
+  });
+  if(!movs.length){ toast('Nada para lançar — preencha ao menos uma quantidade.'); return; }
+
+  function aplicar(){
+    movs.forEach(function(m){ MOV.push({data:data, prod:m.prod, tipo:m.tipo, qtd:m.qtd}); });
+    ensureDia(data); fechar('ovGrid'); renderOperacao();
+    if(resVisivel()) renderResultado();
+  }
+  if(DEMO){ aplicar(); toast(movs.length+' lançamento(s) salvos ✓ (demo)'); return; }
+
+  var btn=document.getElementById('gridSalvar'); if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  apiPost({ action:'evt_addMovBatch', eventoId:EVENTO_ID, data:data, usuario:USUARIO, movs:JSON.stringify(movs) }).then(function(j){
+    if(!j||!j.ok) throw new Error((j&&j.erro)||'falha ao salvar');
+    aplicar(); toast((j.n||movs.length)+' lançamento(s) salvos ✓');
+  }).catch(function(err){
+    toast('Erro ao salvar: '+(err&&err.message||err));
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent='Salvar lançamentos'; }
   });
 }
 
