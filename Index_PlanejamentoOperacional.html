@@ -2120,7 +2120,8 @@ function editarPlano(id){
 }
 function salvarPlano(){
   if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado. Publique o Code_PLANEJAMENTO.gs e cole a URL em WEBAPP_PLANEJAMENTO.'); return; }
-  var btn=document.getElementById('pf-salvar'); if(!btn){ alert('Botão de salvar não encontrado — recarregue a página (Ctrl+Shift+R).'); return; }
+  var btn=document.getElementById('pf-salvar'); if(!btn){ alert('Recarregue a página (Ctrl+Shift+R) e tente de novo.'); return; }
+  var eraNovo = !document.getElementById('pf-id').value;   // guarda se é CRIAÇÃO
   btn.disabled=true; btn.textContent='Salvando…';
   try{
     if(!SESSAO){ throw new Error('Sua sessão expirou. Saia e entre de novo.'); }
@@ -2142,8 +2143,16 @@ function salvarPlano(){
       usuario: (SESSAO && SESSAO.nome) || ''
     }).then(function(j){
       btn.disabled=false; btn.textContent='✅ Salvar';
-      if(j && j.ok){ fecharModal('modalPlano'); carregarPlanos(); }
-      else alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
+      if(j && j.ok){
+        fecharModal('modalPlano'); carregarPlanos();
+        if(eraNovo && j.modo==='editado'){
+          alert('⚠️ ATENÇÃO: isto deveria ser um plano NOVO, mas o sistema ATUALIZOU um plano existente (id '+j.id+'). Recarregue a página com Ctrl+Shift+R antes de criar novos planos.');
+        } else {
+          alert(j.modo==='criado' ? '✅ Plano criado com sucesso.' : '✏️ Plano atualizado.');
+        }
+      } else {
+        alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
+      }
     }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar'; alert('Falha no envio: '+e.message); });
   }catch(err){
     btn.disabled=false; btn.textContent='✅ Salvar';
