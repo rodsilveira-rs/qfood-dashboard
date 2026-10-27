@@ -198,6 +198,19 @@ button{font-family:inherit;cursor:pointer}
 .gin:focus{outline:none;border-color:var(--blue);background:var(--blue-soft)}
 .gin.has{border-color:var(--blue);font-weight:700;color:var(--blue-700)}
 .grid-foot-info{font-size:12px;color:var(--muted);margin-right:auto;align-self:center}
+.rec-tab{width:100%;border-collapse:collapse;font-size:13.5px}
+.rec-tab th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:8px 8px;border-bottom:1px solid var(--line-2)}
+.rec-tab td{padding:6px 8px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.rec-tab input{border:1px solid var(--line);border-radius:8px;padding:8px 9px;font-family:inherit;font-size:13.5px;background:#fff;color:var(--ink);width:100%}
+.rec-tab input:focus{outline:none;border-color:var(--blue)}
+.rec-tab .rec-num{width:92px}
+.rec-dif{font-weight:700;text-align:center;white-space:nowrap}
+.rec-dif.ok{color:var(--muted)} .rec-dif.neg{color:#dc2626}
+.rec-del{border:0;background:none;color:#dc2626;font-size:18px;cursor:pointer;line-height:1}
+.pp-list{display:flex;flex-direction:column;gap:2px}
+.pp-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid var(--line-2);font-size:13.5px}
+.pp-row:last-child{border-bottom:none}
+.pp-nm{font-weight:700;color:var(--ink)} .pp-meta{color:var(--muted);font-size:12.5px}
 .modal-h{display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:1px solid var(--line-2)}
 .modal-h h3{margin:0;font-size:16px;font-weight:700}
 .modal-x{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
@@ -338,14 +351,35 @@ button{font-family:inherit;cursor:pointer}
 
       <!-- ====== PLANEJAMENTO ====== -->
       <section id="mode-plan" class="hide">
-        <div class="plan-grid">
-          <div class="plan-card"><h4>✅ Tarefas</h4><p>Checklist pré-evento com responsáveis e prazos (vem do Playbook aplicado).</p></div>
-          <div class="plan-card"><h4>👥 Equipe</h4><p>Quem está escalado em cada dia e função.</p></div>
-          <div class="plan-card"><h4>📦 Recursos</h4><p>Fogão, botijão, utensílios — previsto · enviado · retornado.</p></div>
-          <div class="plan-card"><h4>🍙 Produtos previstos</h4><p>Cardápio do evento com preço e custo (ficha técnica) — definidos aqui, não na operação.</p></div>
-          <div class="plan-card"><h4>📊 Orçamento</h4><p>Previsto por categoria para comparar com o realizado no Resultado.</p></div>
+        <!-- 📦 RECURSOS (equipamentos a levar) -->
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-h">
+            <h3>📦 Recursos — equipamentos a levar</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn" onclick="recAdd()">＋ Novo item</button>
+              <button class="btn btn-prim" id="recSalvar" onclick="salvarRecursos()">💾 Salvar recursos</button>
+            </div>
+          </div>
+          <div class="panel-b" style="overflow-x:auto">
+            <table class="rec-tab" id="recTab"></table>
+            <p class="hint" style="margin:10px 2px 0">Liste cada equipamento com o <b>previsto</b> (quanto vai levar), e durante/depois do evento preencha <b>enviado</b> e <b>retornado</b>. A diferença mostra o que não voltou.</p>
+          </div>
         </div>
-        <p style="color:var(--muted);font-size:12.5px;margin-top:14px">O Planejamento reusa o que você já tem hoje (Tarefas/Recursos/Produtos/Orçamento). Nesta onda o foco foi a Operação; a migração completa do Planejamento vem junto da integração.</p>
+
+        <!-- 🍙 PRODUTOS PREVISTOS (= cardápio da Operação, fonte única) -->
+        <div class="panel" style="margin-bottom:16px">
+          <div class="panel-h">
+            <h3>🍙 Produtos previstos (cardápio)</h3>
+            <button class="btn btn-prim" onclick="abrirCadProd()">➕ Cadastrar produto</button>
+          </div>
+          <div class="panel-b"><div id="planProd"></div></div>
+        </div>
+
+        <!-- 👥 Equipe / 📊 Orçamento — próxima etapa -->
+        <div class="plan-grid">
+          <div class="plan-card"><h4>👥 Equipe &amp; Tarefas</h4><p>Por enquanto no Index (botão ✏ Editar do plano). Trago pra cá na próxima etapa.</p></div>
+          <div class="plan-card"><h4>📊 Orçamento</h4><p>Previsto × realizado por categoria. Próxima etapa — entra aqui junto da Equipe.</p></div>
+        </div>
       </section>
     </div>
   </div>
@@ -476,6 +510,8 @@ function pnum(x){ if(x==null)return 0; var s=String(x).replace(/[^\d.,-]/g,'').t
 
 /* ======================= DADOS ======================= */
 var EV, PRODS, MOV, FIN;
+var RECURSOS=[];                 // [{n, pv, en, rt}] — compatível com o modelo antigo (plano.Recursos)
+var PLANO_PROD_RAW='', PLANO_ORC_RAW='';  // preserva Produtos/Orçamento do plano ao salvar recursos
 
 function carregarDemo(){
   EV = { id:'EVT-ONIGIRI', nome:'ONIGIRI DAY', empresa:'Mercearia Liberdade', resp:'Bárbara',
@@ -521,6 +557,12 @@ function carregarDemo(){
     {data:'2026-10-25',classe:'CUSTO',cat:'Embalagens',valor:120},
     {data:'2026-10-25',classe:'CUSTO',cat:'Horas extras',valor:300}
   ];
+  RECURSOS=[
+    {n:'Fogão industrial 2 bocas', pv:'2', en:'2', rt:'2'},
+    {n:'Botijão de gás P13',        pv:'3', en:'3', rt:'2'},
+    {n:'Mesa dobrável',             pv:'4', en:'4', rt:'4'},
+    {n:'Prateleira / expositor',    pv:'2', en:'2', rt:'2'}
+  ];
 }
 
 /* ---- dados REAIS (via Web App) ---- */
@@ -538,6 +580,12 @@ function carregarReal(){
     }
     MOV = (j.movimentos||[]).map(function(m){ return { data:isoAny(m.Data), prod:String(m.ProdID||''), tipo:String(m.Tipo||'').toUpperCase(), qtd:pnum(m.Qtd) }; });
     FIN = (j.financeiro||[]).map(function(f){ return { data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor) }; });
+
+    // Planejamento (compatível com o modelo antigo): Recursos editável; Produtos/Orçamento preservados
+    PLANO_PROD_RAW = pl.Produtos || '';
+    PLANO_ORC_RAW  = pl.Orcamento || '';
+    RECURSOS = [];
+    try{ var rr=JSON.parse(pl.Recursos||'[]'); if(Array.isArray(rr)) RECURSOS=rr.map(function(x){ return {n:x.n||'', pv:x.pv||'', en:x.en||'', rt:x.rt||''}; }); }catch(_){}
 
     // Dias do evento = intervalo CONTÍNUO do 1º ao último dia conhecido
     // (data do plano, dias com lançamento, e hoje se em andamento)
@@ -774,6 +822,7 @@ function setMode(m){
   document.getElementById('mode-plan').classList.toggle('hide', m!=='plan');
   if(m==='op') renderOperacao();
   if(m==='res') renderResultado();
+  if(m==='plan') renderPlanejamento();
 }
 function toggleMenu(e){ e.stopPropagation(); document.getElementById('menuPop').classList.toggle('on'); }
 document.addEventListener('click',function(){ document.getElementById('menuPop').classList.remove('on'); });
@@ -961,6 +1010,58 @@ function salvarCadProd(){
   }).then(function(){
     if(btn){ btn.disabled=false; btn.textContent='Adicionar produto'; }
   });
+}
+
+/* ======================= PLANEJAMENTO (Recursos + Produtos previstos) ======================= */
+function renderPlanejamento(){ renderRecursos(); renderProdPrevistos(); }
+
+function renderRecursos(){
+  var h='<thead><tr><th>Item / equipamento</th><th>Previsto</th><th>Enviado</th><th>Retornado</th><th>Dif.</th><th></th></tr></thead><tbody>';
+  if(!RECURSOS.length){
+    h+='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:22px">Nenhum recurso ainda. Clique em <b>＋ Novo item</b> e liste o que vai levar (fogão, botijão, prateleiras…).</td></tr>';
+  }
+  RECURSOS.forEach(function(r,i){
+    var dif=pnum(r.rt)-pnum(r.en);
+    h+='<tr>'+
+      '<td><input value="'+esc(r.n)+'" placeholder="ex.: Fogão industrial" oninput="RECURSOS['+i+'].n=this.value"></td>'+
+      '<td><input class="rec-num" type="number" inputmode="numeric" value="'+esc(String(r.pv))+'" oninput="RECURSOS['+i+'].pv=this.value"></td>'+
+      '<td><input class="rec-num" type="number" inputmode="numeric" value="'+esc(String(r.en))+'" oninput="RECURSOS['+i+'].en=this.value;recDif('+i+')"></td>'+
+      '<td><input class="rec-num" type="number" inputmode="numeric" value="'+esc(String(r.rt))+'" oninput="RECURSOS['+i+'].rt=this.value;recDif('+i+')"></td>'+
+      '<td id="recdif'+i+'" class="rec-dif '+(dif<0?'neg':'ok')+'">'+(dif>0?'+':'')+dif+'</td>'+
+      '<td style="text-align:center"><button class="rec-del" title="remover" onclick="recDel('+i+')">×</button></td>'+
+    '</tr>';
+  });
+  h+='</tbody>';
+  document.getElementById('recTab').innerHTML=h;
+}
+function recDif(i){ var r=RECURSOS[i]; var d=pnum(r.rt)-pnum(r.en); var c=document.getElementById('recdif'+i);
+  if(c){ c.textContent=(d>0?'+':'')+d; c.className='rec-dif '+(d<0?'neg':'ok'); } }
+function recAdd(){ RECURSOS.push({n:'',pv:'',en:'',rt:''}); renderRecursos();
+  var inps=document.querySelectorAll('#recTab tbody tr:last-child input'); if(inps.length) inps[0].focus(); }
+function recDel(i){ RECURSOS.splice(i,1); renderRecursos(); }
+function salvarRecursos(){
+  // limpa itens totalmente vazios
+  RECURSOS=RECURSOS.filter(function(r){ return (r.n||'').trim() || pnum(r.pv) || pnum(r.en) || pnum(r.rt); });
+  if(DEMO){ renderRecursos(); toast('Recursos salvos ✓ (demo)'); return; }
+  var btn=document.getElementById('recSalvar'); if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  apiPost({ action:'saveExtras', id:EVENTO_ID, recursos:JSON.stringify(RECURSOS),
+            produtos:PLANO_PROD_RAW, orcamento:PLANO_ORC_RAW, usuario:USUARIO }).then(function(j){
+    if(!j || !j.ok) throw new Error((j&&j.erro)||'falha ao salvar');
+    renderRecursos(); toast('Recursos salvos ✓');
+  }).catch(function(err){
+    toast('Erro ao salvar: '+(err&&err.message||err));
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent='💾 Salvar recursos'; }
+  });
+}
+
+function renderProdPrevistos(){
+  var el=document.getElementById('planProd'); if(!el) return;
+  if(!PRODS.length){ el.innerHTML='<p class="hint" style="margin:0">Nenhum produto no cardápio. Clique em <b>➕ Cadastrar produto</b> acima.</p>'; return; }
+  el.innerHTML='<div class="pp-list">'+PRODS.map(function(p){
+    return '<div class="pp-row"><span class="pp-nm">'+esc(p.n)+'</span>'+
+           '<span class="pp-meta">venda '+brl(p.preco)+' · custo '+brl(p.custo)+'</span></div>';
+  }).join('')+'</div>';
 }
 
 /* ======================= UTIL UI ======================= */
