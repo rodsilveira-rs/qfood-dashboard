@@ -294,7 +294,10 @@ button{font-family:inherit;cursor:pointer}
           <div class="panel">
             <div class="panel-h">
               <h3 id="opTitulo">Produtos em operação</h3>
-              <button class="btn btn-prim" onclick="abrirGrid()">📋 Lançar em tabela</button>
+              <div style="display:flex;gap:8px">
+                <button class="btn" onclick="abrirCadProd()">➕ Cadastrar produto</button>
+                <button class="btn btn-prim" onclick="abrirGrid()">📋 Lançar em tabela</button>
+              </div>
             </div>
             <div class="panel-b" style="overflow-x:auto">
               <table class="optab" id="opTab"></table>
@@ -305,6 +308,7 @@ button{font-family:inherit;cursor:pointer}
             <div class="panel-h"><h3>Ações rápidas</h3></div>
             <div class="panel-b qa">
               <button class="btn btn-prim qa-big" onclick="abrirGrid()">📋 Lançar vendas (tabela)</button>
+              <button onclick="abrirCadProd()"><span class="ic">➕</span> Cadastrar produto (cardápio)</button>
               <button onclick="abrirReg('mov')"><span class="ic">🛒</span> Lançar 1 item (avulso)</button>
               <button onclick="abrirReg('desp')"><span class="ic">🧾</span> Registrar despesa</button>
               <button onclick="abrirReg('ocor')"><span class="ic">⚠️</span> Registrar ocorrência</button>
@@ -402,6 +406,24 @@ button{font-family:inherit;cursor:pointer}
       <span class="grid-foot-info" id="gridInfo">0 produtos preenchidos</span>
       <button class="btn" onclick="fechar('ovGrid')">Cancelar</button>
       <button class="btn btn-prim" id="gridSalvar" onclick="salvarGrid()">Salvar lançamentos</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL CADASTRAR PRODUTO (cardápio do evento) ===== -->
+<div class="ov" id="ovProd" onclick="if(event.target===this)fechar('ovProd')">
+  <div class="modal">
+    <div class="modal-h"><h3>Cadastrar produto</h3><button class="modal-x" onclick="fechar('ovProd')">×</button></div>
+    <div class="modal-b">
+      <p class="hint" style="margin-top:0">Monte o cardápio do evento (nome, preço e custo). Depois você lança as vendas pela tabela.</p>
+      <div class="fld"><label>Produto</label><input id="cpNome" type="text" placeholder="ex.: Combo BTS nº 1"></div>
+      <div class="fld"><label>Preço de venda (R$)</label><input id="cpPreco" inputmode="decimal" placeholder="R$ 0,00"></div>
+      <div class="fld"><label>Custo unitário (R$)</label><input id="cpCusto" inputmode="decimal" placeholder="R$ 0,00"></div>
+      <p class="hint" id="cpMsg"></p>
+    </div>
+    <div class="modal-f">
+      <button class="btn" onclick="fechar('ovProd')">Concluir</button>
+      <button class="btn btn-prim" id="cpSalvar" onclick="salvarCadProd()">Adicionar produto</button>
     </div>
   </div>
 </div>
@@ -698,6 +720,14 @@ function renderTabela(){
     '</tr>';
   }).join('');
   var hIni = umDia?'Inicial':'Entradas';
+  if(!PRODS.length){
+    document.getElementById('opTab').innerHTML=
+      '<tbody><tr><td style="text-align:center;color:var(--muted);padding:30px 14px">'+
+      'Nenhum produto cadastrado neste evento ainda.<br><br>'+
+      '<button class="btn btn-prim" onclick="abrirCadProd()">➕ Cadastrar o primeiro produto</button>'+
+      '</td></tr></tbody>';
+    return;
+  }
   document.getElementById('opTab').innerHTML=
     '<thead><tr><th>Produto</th><th>'+hIni+'</th><th>Reposição</th><th>Vendido</th><th>Perda</th><th>Final '+(umDia?'esperado':'')+'</th><th></th></tr></thead>'+
     '<tbody>'+rows+'</tbody>';
@@ -836,7 +866,7 @@ function abrirGrid(){
 function renderGridTab(){
   var h='<thead><tr><th>Produto</th><th>🛒 Vendido</th><th>➕ Reposição</th><th>🗑️ Perda</th></tr></thead><tbody>';
   if(!PRODS.length){
-    h+='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:26px">Nenhum produto cadastrado neste evento ainda.</td></tr>';
+    h+='<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:26px">Nenhum produto cadastrado ainda.<br><br><button class="btn btn-prim" onclick="fechar(\'ovGrid\');abrirCadProd()">➕ Cadastrar produto</button></td></tr>';
   }
   PRODS.forEach(function(p){
     h+='<tr><td class="gp-nome">'+esc(p.n)+'<span class="gp-pr">'+brl(p.preco)+' · un.</span></td>'+
@@ -891,6 +921,46 @@ function voltarPlanejamento(){
   // mesma aba: volta ao ponto exato de onde veio; sem histórico (aba nova/link direto): abre o index
   if(history.length>1 && document.referrer){ history.back(); }
   else { location.href = INDEX_URL; }
+}
+
+/* ======================= CADASTRO DE PRODUTO (cardápio) ======================= */
+function abrirCadProd(){
+  document.getElementById('cpNome').value='';
+  document.getElementById('cpPreco').value='';
+  document.getElementById('cpCusto').value='';
+  document.getElementById('cpMsg').textContent='';
+  abrir('ovProd');
+  setTimeout(function(){ var n=document.getElementById('cpNome'); if(n) n.focus(); },60);
+}
+function salvarCadProd(){
+  var nome=(document.getElementById('cpNome').value||'').trim();
+  var preco=pnum(document.getElementById('cpPreco').value);
+  var custo=pnum(document.getElementById('cpCusto').value);
+  if(!nome){ toast('Informe o nome do produto.'); return; }
+
+  function aplicar(id){
+    PRODS.push({ id:String(id), n:nome, custo:custo, preco:preco });
+    if(EV.srv){ EV.srv.np=(EV.srv.np||0)+1; }   // zera o aviso "0 produtos"
+    document.getElementById('cpMsg').innerHTML='✓ <b>'+esc(nome)+'</b> adicionado. Pode cadastrar o próximo ou clicar em Concluir.';
+    document.getElementById('cpNome').value='';
+    document.getElementById('cpPreco').value='';
+    document.getElementById('cpCusto').value='';
+    document.getElementById('cpNome').focus();
+    renderOperacao();
+  }
+
+  if(DEMO){ aplicar('P'+(PRODS.length+1)); toast('Produto adicionado ✓ (demo)'); return; }
+
+  var btn=document.getElementById('cpSalvar'); if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  apiPost({ action:'evt_addProd', eventoId:EVENTO_ID, produto:nome, preco:preco, custo:custo }).then(function(j){
+    if(!j || !j.ok) throw new Error((j&&j.erro)||'falha ao cadastrar');
+    aplicar(j.id || ('P'+(PRODS.length+1)));
+    toast('Produto adicionado ✓');
+  }).catch(function(err){
+    toast('Erro: '+(err&&err.message||err));
+  }).then(function(){
+    if(btn){ btn.disabled=false; btn.textContent='Adicionar produto'; }
+  });
 }
 
 /* ======================= UTIL UI ======================= */
