@@ -3900,23 +3900,34 @@ function repSalvarTudo(pid){
 }
 function repBlocoEmp(emp,iso,nomeResp){
   var L=[];
-    var c=vndCalc(emp,iso), pl=c.plano, k=VND_COR[c.cor];
+    var c=vndCalcOficial(emp,iso), pl=c.plano, k=VND_COR[c.cor];   /* report do CEO: sempre contra a meta oficial */
+    var nec=(pl.temMeta&&c.restantes>0&&c.falta>0)?c.falta/c.restantes:null;
     L.push(emp.emoji+' *'+emp.nome.toUpperCase()+' — '+vndDm(iso)+' ('+VND_SEM_LB[vndWd(iso)].toLowerCase()+')*');
     L.push('Responsável: '+nomeResp); L.push('');
-    L.push('💰 Venda do dia: *'+(c.vendaDia==null?'não lançada':recMoeda(c.vendaDia).replace(/,00$/,''))+'*'+(c.metaDia>0?' · meta '+vndK(c.metaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''):''));
+    L.push('💰 Venda do dia: *'+(c.vendaDia==null?'não lançada':recMoeda(c.vendaDia))+'*');
+    if(c.metaDia>0) L.push('🎯 Meta do dia: '+recMoeda(c.metaDia)+(c.pctDia!=null?' ('+vndPct(c.pctDia)+')':''));
     var aq=c.vendaDia==null?null:vndAlertaQueda(emp,iso,c.vendaDia);
-    if(aq) L.push('🔴 '+VND_SEM_NOME[vndWd(iso)]+' fora do padrão: −'+Math.round(aq.pct*100)+'% vs. média de '+vndK(aq.base));
+    if(aq) L.push('🔴 '+VND_SEM_NOME[vndWd(iso)]+' fora do padrão: −'+Math.round(aq.pct*100)+'% vs. média de '+recMoeda(aq.base));
+    L.push('');
     if(pl.temMeta){
-      L.push(k.ico+' Ritmo: '+vndPct(c.ritmo)+' da meta acumulada');
-      L.push('📊 Acumulado: '+vndK(c.acum)+' / meta '+vndK(pl.metaMes));
-      L.push('📈 Projeção: *'+vndK(c.projecao)+'* ('+vndSinal(c.desvioProj,vndK)+')');
-      if(c.mediaNec!=null&&c.falta>0) L.push('🎯 Precisa: '+vndK(c.mediaNec)+'/dia');
-    } else { L.push('📊 Acumulado: '+vndK(c.acum)+' · projeção '+vndK(c.projecao)+' (sem meta)'); }
+      L.push(k.ico+' *Ritmo: '+vndPct(c.ritmo)+' da meta acumulada*');
+      L.push('📊 Acumulado: *'+recMoeda(c.acum)+'*');
+      L.push('🏁 Meta do mês: '+recMoeda(pl.metaMes));
+      L.push('⏳ Falta: '+(c.falta>0?recMoeda(c.falta):'meta batida ✓'));
+      if(nec!=null) L.push('🎯 Média/dia necessária: '+recMoeda(nec));
+      L.push('📉 Média/dia atual: '+recMoeda(c.mediaAtual));
+      L.push('🔮 Projeção: '+recMoeda(c.projecao));
+      L.push('       ('+recMoeda(c.desvioProj)+(c.desvioProj<0?' abaixo da meta)':' acima da meta)'));
+    } else {
+      L.push('📊 Acumulado: *'+recMoeda(c.acum)+'*');
+      L.push('📉 Média/dia atual: '+recMoeda(c.mediaAtual));
+      L.push('🔮 Projeção: '+recMoeda(c.projecao)+' (sem meta definida)');
+    }
     var d=vndCanaisDia(emp,iso);
     if(d&&d.canais){ var tk=vndTicket(emp,d.canais,d.pedidos), cl=[];
-      (emp.canais||[]).forEach(function(id){ var p=tk.por[id]; if(!p||!(p.v>0)) return; cl.push(VND_CANAIS_DEF[id].nome+' '+vndK(p.v)+(p.n?' ('+p.n+' ped.)':'')); });
-      if(cl.length){ L.push(''); L.push('🧾 Canais: '+cl.join(' · ')); }
-      if(tk.pedidos) L.push('🛍️ Pedidos: '+tk.pedidos+' · ticket '+recMoeda(tk.ticket));
+      (emp.canais||[]).forEach(function(id){ var p=tk.por[id]; if(!p||!(p.v>0)) return; cl.push('• '+VND_CANAIS_DEF[id].nome+': '+recMoeda(p.v)+(p.n?' ('+p.n+' ped.)':'')); });
+      if(cl.length){ L.push(''); L.push('🧾 *Canais do dia*'); L=L.concat(cl); }
+      if(tk.pedidos) L.push('🛍️ Pedidos: '+tk.pedidos+' · ticket médio '+recMoeda(tk.ticket));
       if(d.ind){ var ii=d.ind, il=[];
         if(ii.pdv_ativos!=null) il.push('PDVs ativos '+ii.pdv_ativos);
         if(ii.pdv_positivados!=null) il.push('positivados '+ii.pdv_positivados+(ii.pdv_ativos?' ('+Math.round(ii.pdv_positivados/ii.pdv_ativos*100)+'%)':''));
@@ -3930,7 +3941,7 @@ function repBlocoEmp(emp,iso,nomeResp){
     var imp=String((el('vnd-imp-'+emp.id)||{}).value||'').trim(); imp=imp===''?(a0&&a0.impacto):recParseNum(imp);
     ac=ac||(a0&&a0.acao)||'';
     L.push('');
-    if(ac){ L.push('⚡ *PLANO PARA A META*'); L.push(ac); var meta=[resp?'👤 '+resp:'',prazo?'📅 '+vndDm(prazo):'',imp?'💵 +'+vndK(imp):''].filter(Boolean).join(' · '); if(meta) L.push(meta); }
+    if(ac){ L.push('⚡ *PLANO PARA A META*'); L.push(ac); var meta=[resp?'👤 '+resp:'',prazo?'📅 '+vndDm(prazo):'',imp?'💵 +'+recMoeda(imp):''].filter(Boolean).join(' · '); if(meta) L.push(meta); }
     else L.push((c.cor==='laranja'||c.cor==='vermelho')?'⚠ *SEM PLANO DE AÇÃO*':'⚡ Plano: manter o ritmo');
     L.push('');
   return L;
