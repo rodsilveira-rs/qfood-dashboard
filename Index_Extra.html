@@ -204,6 +204,38 @@ button.item:hover,.item.click:hover{border-color:#C9CCD1}
 .tl li.c:before{border-color:var(--amber)}
 .tl li small{display:block;color:var(--mute);font-size:12px}
 
+/* Indicadores */
+:root{--viz-1:#2a78d6}
+.kpi.stat{cursor:default}
+.ind-f select{flex:1 1 170px;max-width:240px}
+@media (max-width:600px){.ind-f select{flex:1 1 calc(50% - 8px);max-width:none;min-width:0;height:40px;font-size:13.5px}.kpi.stat b{font-size:21px;white-space:nowrap}}
+.ind-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+.ind-grid>.card{margin:0}
+@media (min-width:900px){.ind-grid{grid-template-columns:1fr 1fr}}
+.ind-b{min-width:0}
+.ind-bt{font-weight:700;font-size:15px;margin-bottom:12px;display:flex;flex-direction:column;gap:2px}
+.ind-bt small{font-weight:500;font-size:12px;color:var(--mute)}
+.hbars{display:flex;flex-direction:column;gap:10px}
+.hb{display:grid;grid-template-columns:minmax(90px,32%) 1fr minmax(90px,auto);gap:10px;align-items:center;font-size:13.5px}
+.hb[data-act]{cursor:pointer}
+.hb-l{line-height:1.25;overflow-wrap:anywhere}
+.hb-t{height:14px}
+.hb-t span{display:block;height:100%;background:var(--viz-1);border-radius:0 4px 4px 0}
+.hb-v{text-align:right;display:flex;flex-direction:column;line-height:1.25}
+.hb-v b{font-variant-numeric:tabular-nums}
+.hb-v small{color:var(--mute);font-size:11.5px;white-space:nowrap}
+@media (max-width:600px){.hb{grid-template-columns:1fr auto;row-gap:4px}.hb-l{grid-column:1/-1}}
+.cols{display:flex;gap:6px;height:190px}
+.col{flex:1;display:flex;flex-direction:column;min-width:0}
+.col-t{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.col-v{font-size:12px;font-weight:700;margin-bottom:4px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.col-b{display:block;width:100%;max-width:28px;background:var(--viz-1);border-radius:4px 4px 0 0}
+.col-l{font-size:12px;color:var(--mute);border-top:1px solid var(--line);text-align:center;padding-top:5px}
+.ind-alerta{margin-top:14px;border:1px solid var(--amber-line);background:var(--amber-soft);color:var(--amber-ink);border-radius:var(--r-lg);padding:12px 14px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+.ind-alerta.neutro{border-color:var(--line);background:var(--card);color:var(--text)}
+.ind-mini{display:flex;justify-content:space-around;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:12.5px;color:var(--mute);text-align:center}
+.ind-mini span{display:flex;flex-direction:column;gap:2px}
+.ind-mini b{color:var(--text);font-size:17px}
 .tbl{width:100%;border-collapse:collapse;font-size:13.5px;background:var(--card)}
 .tbl th{text-align:left;font-size:12px;color:var(--mute);font-weight:600;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}
 .tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
@@ -270,7 +302,7 @@ button.item:hover,.item.click:hover{border-color:#C9CCD1}
    guardados no aparelho.
    ════════════════════════════════════════════════════════════════ */
 const CFG = {
-  VERSAO: '2026.10.19-a',
+  VERSAO: '2026.10.28-a',
   GAS_URL: 'https://script.google.com/macros/s/AKfycbwBc-EXOlX-SpXNGfYc0g0JekacWor2ty7BHzQ3LJEzYTh6Pg7PALbe26TgjzJZ_-eY/exec',
   MENU_URL: 'https://rodsilveira-rs.github.io/qfood-dashboard/Index_Menu.html',
   SESSAO_H: 8,
@@ -321,7 +353,8 @@ const ICO = {
   baixar: '<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>',
   editar: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/>',
   anexo: '<path d="M21.4 11l-9.2 9.2a6 6 0 01-8.5-8.5l9.2-9.2a4 4 0 015.7 5.7l-9.2 9.2a2 2 0 01-2.8-2.8l8.5-8.5"/>',
-  busca: '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/>'
+  busca: '<circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/>',
+  grafico: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-6"/>'
 };
 const ic = (n, c) => '<svg class="ic' + (c ? ' ' + c : '') + '" viewBox="0 0 24 24" aria-hidden="true">' + (ICO[n] || '') + '</svg>';
 
@@ -546,7 +579,7 @@ function sair() {
 const S = {
   sessao: null, base: null, d: null, fila: [], enviando: false,
   view: 'inicio', sync: { estado: 'mute', hora: '' },
-  f: { solEscopo: 'abertas', solEmp: '', solBusca: '', banco: '', bancoFun: '', bancoSem: '', pagTab: 'apagar', valTab: 'pendentes' },
+  f: { solEscopo: 'abertas', solEmp: '', solBusca: '', banco: '', bancoFun: '', bancoSem: '', pagTab: 'apagar', valTab: 'pendentes', indAba: 'resumo', indPer: '30', indEmp: '', indUni: '', indSet: '', indCc: '', indFun: '', indVin: '' },
   sel: {}, modalCtx: null
 };
 const U = () => S.d.usuario;
@@ -841,6 +874,7 @@ function navItens(c) {
     { v: 'banco', t: 'Banco de extras', i: 'pessoas' },
     { v: 'pagamentos', t: 'Pagamentos', i: 'pagar', n: c.pagar.length, so: u.financeiro },
     { v: 'risco', t: 'Recorrência', i: 'risco', n: c.risco.filter(p => riscoHoje(p) === 'vermelho').length, so: u.admin || u.financeiro || u.gestor },
+    { v: 'indicadores', t: 'Indicadores', i: 'grafico', so: u.admin || u.financeiro || u.gestor },
     { v: 'config', t: 'Configurações', i: 'config', so: u.admin }
   ];
   return l.filter(x => x.so === undefined || x.so);
@@ -887,7 +921,7 @@ function render() {
   if (!S.d) return;
   const c = contar();
   renderMoldura(c);
-  const v = { inicio: vInicio, solicitacoes: vSolicitacoes, validacao: vValidacao, banco: vBanco, pagamentos: vPagamentos, risco: vRisco, config: vConfig }[S.view] || vInicio;
+  const v = { inicio: vInicio, solicitacoes: vSolicitacoes, validacao: vValidacao, banco: vBanco, pagamentos: vPagamentos, risco: vRisco, indicadores: vIndicadores, config: vConfig }[S.view] || vInicio;
   $('#view').innerHTML = v(c);
   pintarSync();
 }
@@ -898,11 +932,12 @@ function kpi(cor, icone, rotulo, valor, sub, act) {
   return '<button type="button" class="kpi k-' + cor + '"' + (act ? ' data-act="' + act + '"' : '') + '><span class="kic">' + ic(icone) + '</span><div><span>' + esc(rotulo) +
     '</span><b class="num">' + valor + '</b><small>' + sub + '</small></div></button>';
 }
-function gauge(pct, rotulo) {
+function gauge(pct, rotulo, inverso) {
   const p = Math.max(0, Math.min(100, pct));
   const ang = Math.PI * (1 - p / 100);
   const x = 130 + 100 * Math.cos(ang), y = 130 - 100 * Math.sin(ang);
-  const cor = p >= 90 ? 'var(--green)' : (p >= 60 ? '#E5A50A' : 'var(--red-q)');
+  /* inverso: quanto menor, melhor (ex.: taxa de falta) */
+  const cor = inverso ? (p <= 5 ? 'var(--green)' : (p <= 15 ? '#E5A50A' : 'var(--red-q)')) : (p >= 90 ? 'var(--green)' : (p >= 60 ? '#E5A50A' : 'var(--red-q)'));
   return '<div class="gauge"><svg viewBox="0 0 260 160" role="img" aria-label="' + Math.round(p) + '% ' + esc(rotulo) + '">' +
     '<path d="M30 130 A100 100 0 0 1 230 130" fill="none" stroke="#ECEDEF" stroke-width="22" stroke-linecap="round"/>' +
     (p > 0 ? '<path d="M30 130 A100 100 0 0 1 ' + x.toFixed(1) + ' ' + y.toFixed(1) + '" fill="none" stroke="' + cor + '" stroke-width="22" stroke-linecap="round"/>' : '') +
@@ -1024,6 +1059,304 @@ function vValidacao(c) {
   return ph('Validação', 'Sem validação o financeiro não paga. Valide logo depois do turno.') +
     '<div class="tabs"><button class="' + (tab === 'pendentes' ? 'on' : '') + '" data-act="f-val" data-v="pendentes">Para validar (' + c.validar.length + ')</button>' +
     '<button class="' + (tab === 'feitos' ? 'on' : '') + '" data-act="f-val" data-v="feitos">Validados recentes</button></div>' + corpo;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   INDICADORES — a camada de gestão. O Início continua operacional
+   (o que resolver agora); aqui ficam as perguntas de gestão: onde
+   gastamos, por quê, quantas horas, quem depende mais de extra.
+   Tudo calculado no aparelho com o que a carga já traz (120 dias).
+   ════════════════════════════════════════════════════════════════ */
+const IND_PER = [['mes', 'Este mês'], ['mesant', 'Mês passado'], ['30', 'Últimos 30 dias'], ['60', 'Últimos 60 dias'], ['90', 'Últimos 90 dias'], ['120', 'Últimos 120 dias']];
+const IND_ABAS = [['resumo', 'Resumo'], ['operacao', 'Operação'], ['custos', 'Custos'], ['pessoas', 'Pessoas']];
+const IND_FAIXAS = [['Madrugada', 0, 6], ['Manhã', 6, 11], ['Almoço', 11, 15], ['Tarde', 15, 18], ['Noite', 18, 24]];
+const IND_LONGA_H = 10;
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+function indPeriodo(k) {
+  const h = hojeStr(), ini1 = h.slice(0, 8) + '01';
+  if (k === 'mes') return { ini: ini1, fim: h, rot: 'neste mês' };
+  if (k === 'mesant') { const fim = addDias(ini1, -1); return { ini: fim.slice(0, 8) + '01', fim, rot: 'em ' + MESES[+fim.slice(5, 7) - 1] + '/' + fim.slice(0, 4) }; }
+  const n = Number(k) || 30;
+  return { ini: addDias(h, -(n - 1)), fim: h, rot: 'nos últimos ' + n + ' dias' };
+}
+const pctTxt = (a, b) => b ? (Math.round(a / b * 1000) / 10).toString().replace('.', ',') + '%' : '—';
+const minDe = dh => extMin_(String(dh).slice(0, 10), String(dh).slice(11, 16) || '00:00');
+function durTxt(m) {
+  if (m == null || !isFinite(m)) return '—';
+  m = Math.max(0, Math.round(m));
+  if (m < 60) return m + ' min';
+  if (m < 1440) return Math.floor(m / 60) + 'h' + pad(m % 60);
+  return Math.floor(m / 1440) + 'd ' + Math.round((m % 1440) / 60) + 'h';
+}
+const media = l => l.length ? l.reduce((t, x) => t + x, 0) / l.length : null;
+const vinculoDe = e => { const p = pessoaDe(e.pessoa_id); return p ? p.tipo_vinculo : ''; };
+const horasDe = e => num(e.horas) || horasTurno(e.data, e.hora_ini_real || e.hora_ini, e.hora_fim_real || e.hora_fim, e.intervalo_real_min);
+function agrupar(lista, chave, rotulo) {
+  const m = {};
+  lista.forEach(e => {
+    const k = chave(e); if (!k) return;
+    const g = m[k] || (m[k] = { k, rot: rotulo ? rotulo(e) : k, custo: 0, horas: 0, n: 0 });
+    g.custo += num(e.valor_final); g.horas += horasDe(e); g.n++;
+  });
+  return Object.keys(m).map(k => m[k]).sort((a, b) => b.custo - a.custo || b.n - a.n);
+}
+
+/* Junta tudo o que as abas usam, já filtrado */
+function indDados() {
+  const f = S.f, per = indPeriodo(f.indPer), am = agoraMin();
+  const okSol = s => (!f.indEmp || up(s.empresa) === f.indEmp) && (!f.indUni || s.unidade === f.indUni) && (!f.indSet || s.setor === f.indSet) &&
+    (!f.indCc || s.centro_custo === f.indCc) && (!f.indFun || s.funcao_id === f.indFun);
+  const okEsc = e => !f.indVin || vinculoDe(e) === f.indVin;
+  const todasSols = S.d.solicitacoes.filter(s => !s._pend && okSol(s));
+  const sols = todasSols.filter(s => s.data >= per.ini && s.data <= per.fim);
+  const ids = {}; sols.forEach(s => { ids[s.sol_id] = s; });
+  const esc = S.d.escalas.filter(e => ids[e.sol_id] && !e._pend && okEsc(e));
+  const val = esc.filter(e => e.status === 'VALIDADO');
+  const falt = esc.filter(e => e.status === 'FALTOU');
+  const custo = val.reduce((t, e) => t + num(e.valor_final), 0);
+  const horas = val.reduce((t, e) => t + horasDe(e), 0);
+
+  /* Vagas: só solicitações aprovadas com turno já começado */
+  const aprov = sols.filter(s => ['APROVADA', 'EM_ESCALA', 'COMPLETA', 'ENCERRADA'].indexOf(s.status) >= 0);
+  const comecadas = aprov.filter(s => turno(s).ini <= am);
+  let vagas = 0, preenchidas = 0, cheias = 0, parciais = 0, vazias = 0;
+  comecadas.forEach(s => {
+    const v = num(s.vagas), ocup = escDa(s).filter(e => ['VALIDADO', 'CONFIRMADO', 'CONVIDADO'].indexOf(e.status) >= 0).length;
+    vagas += v; preenchidas += Math.min(v, ocup);
+    if (ocup >= v) cheias++; else if (ocup > 0) parciais++; else vazias++;
+  });
+
+  /* Antecedência: do pedido ao início do turno */
+  const antec = sols.filter(s => s.criado_em && ['CANCELADA'].indexOf(s.status) < 0).map(s => turno(s).ini - minDe(s.criado_em));
+  const faixasAnt = [['72h ou mais', a => a >= 4320], ['24 a 72h', a => a >= 1440 && a < 4320], ['6 a 24h', a => a >= 360 && a < 1440], ['Menos de 6h', a => a >= 0 && a < 360], ['Lançado depois de começar', a => a < 0]]
+    .map(x => ({ rot: x[0], n: antec.filter(x[1]).length }));
+
+  /* Aprovação: só as que esperaram outra pessoa aprovar */
+  const decididas = sols.filter(s => s.decidido_em && s.criado_em && s.aprovador);
+  const auto = decididas.filter(s => low(s.aprovador) === low(s.solicitante));
+  const esperaram = decididas.filter(s => low(s.aprovador) !== low(s.solicitante));
+  const tAprov = esperaram.map(s => minDe(s.decidido_em) - minDe(s.criado_em)).filter(x => x >= 0);
+  const aprovPorUni = agruparTempo(esperaram, s => local(s), s => minDe(s.decidido_em) - minDe(s.criado_em));
+
+  /* Preencher: da aprovação até a última vaga ocupada, antes do turno */
+  const tPreench = [];
+  aprov.forEach(s => {
+    const v = num(s.vagas);
+    const l = escDa(s).filter(e => e.escalado_em && ['CANCELADO', 'RECUSOU'].indexOf(e.status) < 0).sort((a, b) => a.escalado_em.localeCompare(b.escalado_em));
+    if (l.length < v) return;
+    const fim = minDe(l[v - 1].escalado_em), ini = minDe(s.decidido_em || s.criado_em);
+    if (fim <= turno(s).ini && fim >= ini) tPreench.push(fim - ini);
+  });
+
+  /* Convites e faltas */
+  const resp = esc.filter(e => ['CONFIRMADO', 'VALIDADO', 'FALTOU', 'RECUSOU'].indexOf(e.status) >= 0);
+  const aceitos = resp.filter(e => e.status !== 'RECUSOU');
+
+  /* Previsto x realizado: turnos encerrados e sem validação pendente */
+  let previsto = 0, prevPreench = 0, realizado = 0, nPrev = 0, acima = 0, abaixo = 0;
+  aprov.filter(s => turno(s).fim <= am && !escDa(s).some(e => e.status === 'CONVIDADO' || e.status === 'CONFIRMADO')).forEach(s => {
+    const vp = num(s.valor_previsto), vs = escDa(s).filter(e => e.status === 'VALIDADO' && okEsc(e));
+    previsto += vp * num(s.vagas); prevPreench += vp * vs.length; realizado += vs.reduce((t, e) => t + num(e.valor_final), 0); nPrev++;
+    vs.forEach(e => { const d = num(e.valor_final) - vp; if (d > 0) acima += d; else abaixo -= d; });
+  });
+
+  return { per, sols, todasSols, esc, val, falt, custo, horas, vagas, preenchidas, cheias, parciais, vazias, comecadas, antec, faixasAnt,
+    decididas, auto, esperaram, tAprov, aprovPorUni, tPreench, resp, aceitos, previsto, prevPreench, realizado, nPrev, acima, abaixo, okEsc };
+}
+function agruparTempo(lista, chave, valor) {
+  const m = {};
+  lista.forEach(x => { const k = chave(x), v = valor(x); if (!k || !(v >= 0)) return; (m[k] = m[k] || []).push(v); });
+  return Object.keys(m).map(k => ({ rot: k, med: media(m[k]), n: m[k].length })).sort((a, b) => b.med - a.med);
+}
+
+/* ---------- Peças visuais ---------- */
+function stat(rotulo, valor, sub, cor) {
+  return '<div class="kpi k-' + (cor || 'slate') + ' stat"><div><span>' + esc(rotulo) + '</span><b class="num">' + valor + '</b><small>' + (sub || '') + '</small></div></div>';
+}
+/* Barras horizontais: uma cor, valor na ponta, detalhe embaixo */
+function barras(l, vazio) {
+  if (!l.length) return '<div class="empty">' + esc(vazio || 'Sem dados no período.') + '</div>';
+  const max = Math.max.apply(null, l.map(x => x.valor)) || 1;
+  return '<div class="hbars">' + l.map(x => '<div class="hb"' + (x.act ? ' role="button" tabindex="0" data-act="' + x.act + '" data-id="' + esc(x.id) + '"' : '') + ' title="' + esc(x.rot + ': ' + x.txt + (x.sub ? ' · ' + x.sub : '')) + '">' +
+    '<div class="hb-l">' + esc(x.rot) + '</div><div class="hb-t"><span style="width:' + (x.valor > 0 ? Math.max(1.5, x.valor / max * 100) : 0).toFixed(1) + '%"></span></div>' +
+    '<div class="hb-v"><b>' + x.txt + '</b>' + (x.sub ? '<small>' + x.sub + '</small>' : '') + '</div></div>').join('') + '</div>';
+}
+/* Colunas (tempo ou dia da semana) */
+function colunas(l) {
+  const max = Math.max.apply(null, l.map(x => x.valor)) || 1;
+  return '<div class="cols">' + l.map(x => '<div class="col" title="' + esc(x.rot + ': ' + x.txt + (x.sub ? ' · ' + x.sub : '')) + '">' +
+    '<div class="col-t"><span class="col-v">' + x.txt + '</span><span class="col-b" style="height:' + (x.valor > 0 ? Math.max(2, x.valor / max * 82) : 0).toFixed(1) + '%"></span></div><span class="col-l">' + esc(x.rot) + '</span></div>').join('') + '</div>';
+}
+function bloco(titulo, corpo, sub) {
+  return '<div class="card ind-b"><div class="ind-bt">' + esc(titulo) + (sub ? '<small>' + sub + '</small>' : '') + '</div>' + corpo + '</div>';
+}
+function tabela(cab, linhas, direita) {
+  if (!linhas.length) return '<div class="empty">Sem dados no período.</div>';
+  return '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cab.map((c, i) => '<th' + (direita.indexOf(i) >= 0 ? ' style="text-align:right"' : '') + '>' + esc(c) + '</th>').join('') + '</tr></thead><tbody>' +
+    linhas.map(r => '<tr' + (r.act ? ' data-act="' + r.act + '" data-id="' + esc(r.id) + '" style="cursor:pointer"' : '') + '>' + r.c.map((v, i) => '<td' + (direita.indexOf(i) >= 0 ? ' class="num" style="text-align:right"' : '') + '>' + v + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+}
+const linhaCusto = g => ({ rot: g.rot, valor: g.custo, txt: dinheiro(g.custo), sub: hFmt(g.horas) + ' · ' + plural(g.n, 'extra') });
+
+/* ---------- Tela ---------- */
+function vIndicadores(c) {
+  const f = S.f, d = S.d;
+  const empresas = []; d.estrutura.forEach(r => { if (!empresas.some(e => e[0] === r.empresa)) empresas.push([r.empresa, r.empresa_nome || r.empresa]); });
+  const est = d.estrutura.filter(r => !f.indEmp || r.empresa === f.indEmp);
+  const unis = Array.from(new Set(est.map(r => r.unidade)));
+  if (f.indUni && unis.indexOf(f.indUni) < 0) f.indUni = '';
+  const setores = Array.from(new Set(est.filter(r => !f.indUni || r.unidade === f.indUni).map(r => r.setor))).sort();
+  const ccs = Array.from(new Set(est.filter(r => (!f.indUni || r.unidade === f.indUni) && (!f.indSet || r.setor === f.indSet)).map(r => r.centro_custo).filter(Boolean))).sort();
+  const sel = (k, rot, ops) => '<select data-f="' + k + '" aria-label="' + rot + '"><option value="">' + rot + '</option>' + ops.map(o => '<option value="' + esc(o[0]) + '"' + (f[k] === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>').join('') + '</select>';
+  const filtros = '<div class="filtros ind-f">' +
+    '<select data-f="indPer" aria-label="Período">' + IND_PER.map(o => '<option value="' + o[0] + '"' + (f.indPer === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
+    sel('indEmp', 'Todas as empresas', empresas) + sel('indUni', 'Todas as unidades', unis.map(u => [u, u])) + sel('indSet', 'Todos os setores', setores.map(s => [s, s])) +
+    sel('indCc', 'Todos os centros de custo', ccs.map(s => [s, s])) + sel('indFun', 'Todas as funções', d.funcoes.map(x => [x.funcao_id, x.nome])) +
+    sel('indVin', 'Todos os vínculos', d.vinculos.map(v => [v, VINCULO[v] || v])) +
+    (f.indEmp || f.indUni || f.indSet || f.indCc || f.indFun || f.indVin ? '<button class="btn ghost sm" data-act="ind-limpar">Limpar filtros</button>' : '') + '</div>';
+  const x = indDados();
+  const abas = '<div class="tabs">' + IND_ABAS.map(a => '<button class="' + (f.indAba === a[0] ? 'on' : '') + '" data-act="f-ind" data-v="' + a[0] + '">' + a[1] + '</button>').join('') + '</div>';
+  const corpo = { resumo: indResumo, operacao: indOperacao, custos: indCustos, pessoas: indPessoas }[f.indAba] || indResumo;
+  return ph('Indicadores', 'Extras realizados ' + esc(x.per.rot) + ' (' + dataBr(x.per.ini) + ' a ' + dataBr(x.per.fim) + ') · conta só turnos validados',
+    '<button class="btn ghost" data-act="csv-ind">' + ic('baixar') + 'Baixar (Excel)</button>') + filtros + abas + corpo(x, c);
+}
+
+function indResumo(x) {
+  const k = [
+    stat('Custo com extras', dinheiro(x.custo), 'turnos validados', 'red'),
+    stat('Horas utilizadas', hFmt(x.horas), x.val.length ? 'média ' + hFmt(x.horas / x.val.length) + ' por extra' : '—', 'blue'),
+    stat('Extras realizados', String(x.val.length), plural(x.falt.length, 'falta'), 'purple'),
+    stat('Custo médio por hora', x.horas ? dinheiro(x.custo / x.horas) : '—', x.val.length ? dinheiro(x.custo / x.val.length) + ' por extra' : '', 'slate'),
+    stat('Antecedência média', durTxt(media(x.antec.filter(a => a >= 0))), pctTxt(x.faixasAnt[3].n + x.faixasAnt[4].n, x.antec.length) + ' de última hora (menos de 6h)', 'amber'),
+    stat('Tempo para preencher', durTxt(media(x.tPreench)), 'da aprovação até a última vaga', 'blue'),
+    stat('Taxa de falta', pctTxt(x.falt.length, x.falt.length + x.val.length), x.falt.length + ' de ' + (x.falt.length + x.val.length) + ' confirmados', 'red'),
+    stat('Tempo de aprovação', durTxt(media(x.tAprov)), pctTxt(x.auto.length, x.decididas.length) + ' aprovadas por quem pediu', 'green')
+  ];
+  const estrut = x.val.filter(e => { const s = solDe(e.sol_id); return s && s.motivo === 'Cobertura de vaga em aberto'; });
+  const faltaCol = x.val.filter(e => { const s = solDe(e.sol_id); return s && s.motivo === 'Falta de colaborador'; });
+  const custoDe = l => l.reduce((t, e) => t + num(e.valor_final), 0);
+  const alerta = (estrut.length || faltaCol.length) ? '<div class="ind-alerta">' +
+    (estrut.length ? '<div><b>' + dinheiro(custoDe(estrut)) + '</b> gastos ' + esc(x.per.rot) + ' com extras para <b>cobertura de vaga em aberto</b> (' + plural(estrut.length, 'extra') + ', ' + hFmt(estrut.reduce((t, e) => t + horasDe(e), 0)) + '). É posição que deveria estar coberta pelo quadro.</div>' : '') +
+    (faltaCol.length ? '<div><b>' + dinheiro(custoDe(faltaCol)) + '</b> com <b>falta de colaborador</b> (' + pctTxt(faltaCol.length, x.val.length) + ' dos extras). Vale olhar o absenteísmo.</div>' : '') + '</div>' : '';
+  return '<div class="kpis">' + k.join('') + '</div>' + alerta +
+    '<div class="ind-grid">' +
+    bloco('Vagas preenchidas', gauge(x.vagas ? x.preenchidas / x.vagas * 100 : 0, x.preenchidas + ' de ' + x.vagas + ' vagas') +
+      '<div class="ind-mini"><span>Completas <b>' + pctTxt(x.cheias, x.comecadas.length) + '</b></span><span>Parciais <b>' + pctTxt(x.parciais, x.comecadas.length) + '</b></span><span>Sem ninguém <b>' + pctTxt(x.vazias, x.comecadas.length) + '</b></span></div>', 'turnos que já começaram') +
+    bloco('Custo por unidade', barras(agrupar(x.val, e => local(solDe(e.sol_id))).map(linhaCusto))) +
+    bloco('Custo e horas por setor', barras(agrupar(x.val, e => solDe(e.sol_id).setor).map(linhaCusto))) +
+    bloco('Por que estamos usando extras?', indMotivos(x)) +
+    '</div>' + indMensal();
+}
+function indMotivos(x) {
+  const g = agrupar(x.val, e => solDe(e.sol_id).motivo);
+  const tot = x.val.length;
+  return barras(g.sort((a, b) => b.n - a.n).map(m => ({ rot: m.rot, valor: m.n, txt: pctTxt(m.n, tot), sub: plural(m.n, 'extra') + ' · ' + dinheiro(m.custo) })));
+}
+/* Evolução: últimos 4 meses, com os filtros (menos o período) */
+function indMensal() {
+  const f = S.f, h = hojeStr();
+  const okSol = s => (!f.indEmp || up(s.empresa) === f.indEmp) && (!f.indUni || s.unidade === f.indUni) && (!f.indSet || s.setor === f.indSet) &&
+    (!f.indCc || s.centro_custo === f.indCc) && (!f.indFun || s.funcao_id === f.indFun);
+  const meses = []; let ini = h.slice(0, 8) + '01';
+  for (let i = 0; i < 4; i++) { meses.unshift(ini.slice(0, 7)); ini = addDias(ini, -1).slice(0, 8) + '01'; }
+  const val = S.d.escalas.filter(e => e.status === 'VALIDADO' && solDe(e.sol_id) && okSol(solDe(e.sol_id)) && (!f.indVin || vinculoDe(e) === f.indVin));
+  const pm = meses.map(m => { const l = val.filter(e => e.data.slice(0, 7) === m); return { m, rot: MESES[+m.slice(5, 7) - 1], custo: l.reduce((t, e) => t + num(e.valor_final), 0), n: l.length, horas: l.reduce((t, e) => t + horasDe(e), 0) }; });
+  const parcial = '<small>' + MESES[+h.slice(5, 7) - 1] + ' até hoje · o aparelho guarda 120 dias, o 1º mês pode estar incompleto</small>';
+  return '<div class="ind-grid">' +
+    bloco('Custo por mês', colunas(pm.map(p => ({ rot: p.rot, valor: p.custo, txt: p.custo >= 1000 ? 'R$ ' + (p.custo / 1000).toFixed(1).replace('.', ',') + 'k' : dinheiro(p.custo), sub: plural(p.n, 'extra') + ' · ' + hFmt(p.horas) }))), parcial) +
+    bloco('Extras por mês', colunas(pm.map(p => ({ rot: p.rot, valor: p.n, txt: String(p.n), sub: dinheiro(p.custo) + ' · ' + hFmt(p.horas) }))), parcial) + '</div>';
+}
+
+function indOperacao(x) {
+  const ordem = [1, 2, 3, 4, 5, 6, 0], sem = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const porDia = ordem.map(w => { const l = x.val.filter(e => diaSemana(e.data) === w); return { rot: sem[w], valor: l.length, txt: pctTxt(l.length, x.val.length), sub: plural(l.length, 'extra') + ' · ' + dinheiro(l.reduce((t, e) => t + num(e.valor_final), 0)) }; });
+  const fds = x.val.filter(e => [5, 6, 0].indexOf(diaSemana(e.data)) >= 0).length;
+  const porFaixa = IND_FAIXAS.map(fx => { const l = x.val.filter(e => { const hh = +String(e.hora_ini_real || e.hora_ini).slice(0, 2); return hh >= fx[1] && hh < fx[2]; }); return { rot: fx[0], valor: l.length, txt: pctTxt(l.length, x.val.length), sub: plural(l.length, 'extra') }; });
+  const maior = x.val.slice().sort((a, b) => horasDe(b) - horasDe(a))[0];
+  const longos = x.val.filter(e => horasDe(e) > IND_LONGA_H);
+  const k = [
+    stat('Horas totais', hFmt(x.horas), plural(x.val.length, 'extra'), 'blue'),
+    stat('Média por extra', x.val.length ? hFmt(x.horas / x.val.length) : '—', '', 'slate'),
+    stat('Maior jornada', maior ? hFmt(horasDe(maior)) : '—', maior ? esc(maior.pessoa_nome) + ' · ' + esc(diaCurto(maior.data)) : '', 'amber'),
+    stat('Acima de ' + IND_LONGA_H + 'h', String(longos.length), pctTxt(longos.length, x.val.length) + ' dos extras', longos.length ? 'red' : 'green')
+  ];
+  const aceite = x.resp.length ? x.aceitos.length / x.resp.length * 100 : 0;
+  const totAnt = x.antec.length;
+  return '<div class="kpis">' + k.join('') + '</div>' +
+    '<div class="ind-grid">' +
+    bloco('Quando usamos mais extras?', colunas(porDia), pctTxt(fds, x.val.length) + ' entre sexta e domingo') +
+    bloco('Faixa de horário', barras(porFaixa), 'pela hora de entrada') +
+    bloco('Horas por setor', barras(agrupar(x.val, e => solDe(e.sol_id).setor).sort((a, b) => b.horas - a.horas).map(g => ({ rot: g.rot, valor: g.horas, txt: hFmt(g.horas), sub: plural(g.n, 'extra') + ' · ' + dinheiro(g.custo) })))) +
+    bloco('Antecedência do pedido', barras(x.faixasAnt.map(a => ({ rot: a.rot, valor: a.n, txt: pctTxt(a.n, totAnt), sub: plural(a.n, 'solicitação', 'solicitações') }))), 'média ' + durTxt(media(x.antec.filter(a => a >= 0))) + ' entre o pedido e o turno') +
+    bloco('Tempo de aprovação', (x.aprovPorUni.length ? barras(x.aprovPorUni.map(g => ({ rot: g.rot, valor: g.med, txt: durTxt(g.med), sub: plural(g.n, 'solicitação', 'solicitações') }))) : '<div class="empty">Nenhuma solicitação esperou aprovação no período.</div>'),
+      'média ' + durTxt(media(x.tAprov)) + ' · ' + pctTxt(x.auto.length, x.decididas.length) + ' aprovadas por quem pediu (não entram na média)') +
+    bloco('Preenchimento das vagas', '<div class="ind-mini col3"><span>Tempo médio<b>' + durTxt(media(x.tPreench)) + '</b></span><span>Completas<b>' + pctTxt(x.cheias, x.comecadas.length) + '</b></span><span>Parciais<b>' + pctTxt(x.parciais, x.comecadas.length) + '</b></span><span>Sem ninguém<b>' + pctTxt(x.vazias, x.comecadas.length) + '</b></span></div>',
+      'da aprovação até a última vaga ocupada') +
+    bloco('Taxa de aceite dos convites', gauge(aceite, x.aceitos.length + ' de ' + x.resp.length + ' responderam sim'), 'convidado que respondeu') +
+    bloco('Taxa de falta', gauge(x.val.length + x.falt.length ? x.falt.length / (x.val.length + x.falt.length) * 100 : 0, plural(x.falt.length, 'falta') + ' em ' + plural(x.val.length + x.falt.length, 'turno'), true) +
+      (x.falt.length ? barras(agrupar(x.falt.map(e => Object.assign({}, e, { valor_final: 0 })), e => local(solDe(e.sol_id))).sort((a, b) => b.n - a.n).map(g => ({ rot: g.rot, valor: g.n, txt: plural(g.n, 'falta') }))) : ''), 'depois de confirmado') +
+    '</div>';
+}
+
+function indCustos(x) {
+  const dif = x.realizado - x.previsto;
+  const k = [
+    stat('Custo total', dinheiro(x.custo), plural(x.val.length, 'extra') + ' · ' + hFmt(x.horas), 'red'),
+    stat('Previsto', dinheiro(x.previsto), plural(x.nPrev, 'solicitação encerrada', 'solicitações encerradas'), 'slate'),
+    stat('Realizado', dinheiro(x.realizado), 'das mesmas solicitações', 'blue'),
+    stat('Diferença', (dif > 0 ? '+' : '') + dinheiro(dif).replace('R$ -', '−R$ '), x.previsto ? ((dif > 0 ? '+' : '') + pctTxt(dif, x.previsto)) + ' sobre o previsto' : '', Math.abs(dif) < 0.01 ? 'green' : (dif > 0 ? 'red' : 'amber'))
+  ];
+  const vagasNao = x.previsto - x.prevPreench;
+  const porque = x.nPrev ? '<div class="ind-alerta neutro"><div><b>Por que mudou?</b></div>' +
+    '<div>Vagas que não foram preenchidas ou faltaram: <b>' + (vagasNao > 0.005 ? '−' : '') + dinheiro(vagasNao) + '</b></div>' +
+    '<div>Pago acima do previsto (horas a mais, fim de semana, nível da pessoa): <b>+' + dinheiro(x.acima) + '</b></div>' +
+    '<div>Pago abaixo do previsto: <b>' + (x.abaixo > 0.005 ? '−' : '') + dinheiro(x.abaixo) + '</b></div></div>' : '';
+  const cc = agrupar(x.val, e => solDe(e.sol_id).centro_custo || '—', e => { const s = solDe(e.sol_id); return s.centro_custo || '—'; });
+  const ccInfo = {}; x.val.forEach(e => { const s = solDe(e.sol_id); ccInfo[s.centro_custo || '—'] = local(s) + ' · ' + s.setor; });
+  return '<div class="kpis">' + k.join('') + '</div>' + porque +
+    '<div class="ind-grid">' +
+    bloco('Por empresa / unidade', barras(agrupar(x.val, e => local(solDe(e.sol_id))).map(linhaCusto))) +
+    bloco('Por função', barras(agrupar(x.val, e => solDe(e.sol_id).funcao_nome).map(g => Object.assign(linhaCusto(g), { sub: hFmt(g.horas) + ' · ' + plural(g.n, 'extra') + ' · média ' + dinheiro(g.custo / g.n) })))) +
+    '</div>' +
+    '<div class="sec"><div class="sec-t">Por setor</div>' + tabela(['Setor', 'Custo', 'Horas', 'Extras', '% do custo'],
+      agrupar(x.val, e => solDe(e.sol_id).setor).map(g => ({ c: [esc(g.rot), dinheiro(g.custo), hFmt(g.horas), String(g.n), pctTxt(g.custo, x.custo)] })), [1, 2, 3, 4]) + '</div>' +
+    '<div class="sec"><div class="sec-t">Por centro de custo</div>' + tabela(['Centro de custo', 'Onde', 'Custo', 'Horas', 'Extras', 'Custo médio'],
+      cc.map(g => ({ c: [esc(g.rot), esc(ccInfo[g.k] || ''), dinheiro(g.custo), hFmt(g.horas), String(g.n), dinheiro(g.custo / g.n)] })), [2, 3, 4, 5]) + '</div>' +
+    '<div class="sec"><div class="sec-t">Custo por motivo</div>' + tabela(['Motivo', 'Custo', 'Horas', 'Extras', '% dos extras'],
+      agrupar(x.val, e => solDe(e.sol_id).motivo).map(g => ({ c: [esc(g.rot), dinheiro(g.custo), hFmt(g.horas), String(g.n), pctTxt(g.n, x.val.length)] })), [1, 2, 3, 4]) + '</div>';
+}
+
+function indPessoas(x, c) {
+  const vin = agrupar(x.val, e => vinculoDe(e) || 'SEM', e => VINCULO[vinculoDe(e)] || 'Sem cadastro');
+  const top = agrupar(x.val, e => e.pessoa_id, e => e.pessoa_nome).sort((a, b) => b.n - a.n || b.custo - a.custo).slice(0, 10);
+  /* Aceite por pessoa: só quem recebeu 3 convites ou mais */
+  const porP = {};
+  x.resp.forEach(e => { const p = porP[e.pessoa_id] || (porP[e.pessoa_id] = { id: e.pessoa_id, nome: e.pessoa_nome, conv: 0, sim: 0, faltas: 0 }); p.conv++; if (e.status !== 'RECUSOU') p.sim++; if (e.status === 'FALTOU') p.faltas++; });
+  const aceiteTodos = Object.keys(porP).map(k => porP[k]).filter(p => p.conv >= 3).sort((a, b) => b.sim / b.conv - a.sim / a.conv || b.conv - a.conv);
+  const aceite = aceiteTodos.slice(0, 12);
+  const faltosos = Object.keys(porP).map(k => porP[k]).filter(p => p.faltas > 0).sort((a, b) => b.faltas - a.faltas);
+  const verm = c.risco.filter(p => riscoHoje(p) === 'vermelho').length, amar = c.risco.length - verm;
+  return '<div class="kpis">' + vin.slice(0, 4).map(g => stat(g.rot, dinheiro(g.custo), plural(g.n, 'extra') + ' · ' + hFmt(g.horas), g.k === 'CLT_GRUPO' ? 'blue' : 'purple')).join('') + '</div>' +
+    '<div class="ind-alerta neutro"><div>Recorrência hoje: <b>' + verm + ' em vermelho</b> e <b>' + amar + ' em amarelo</b>. <button type="button" class="btn ghost sm" data-act="ir" data-v="risco">Ver na Recorrência</button></div></div>' +
+    '<div class="sec"><div class="sec-t">Mais utilizados</div>' + tabela(['Pessoa', 'Vínculo', 'Extras', 'Horas', 'Valor'],
+      top.map(g => { const p = pessoaDe(g.k); return { act: 'pessoa', id: g.k, c: [esc(g.rot), esc(p ? (VINCULO[p.tipo_vinculo] || '') : ''), String(g.n), hFmt(g.horas), dinheiro(g.custo)] }; }), [2, 3, 4]) + '<div class="tiny mute" style="margin-top:6px">Toque na pessoa para ver o histórico.</div></div>' +
+    '<div class="sec"><div class="sec-t">Taxa de aceite por pessoa</div>' + (aceite.length ? tabela(['Pessoa', 'Convites', 'Aceitou', 'Taxa'],
+      aceite.map(p => ({ act: 'pessoa', id: p.id, c: [esc(p.nome), String(p.conv), String(p.sim), pctTxt(p.sim, p.conv)] })), [1, 2, 3]) : '<div class="empty">Ninguém com 3 convites ou mais no período.</div>') +
+      '<div class="tiny mute" style="margin-top:6px">' + (aceiteTodos.length > 12 ? 'Mostrando as 12 com mais aceite, de ' + aceiteTodos.length + ' pessoas. ' : '') + 'Serve para saber quem costuma ter disponibilidade, não para punir.</div></div>' +
+    '<div class="sec"><div class="sec-t">Faltas depois de confirmar</div>' + (faltosos.length ? tabela(['Pessoa', 'Faltas', 'Turnos confirmados'],
+      faltosos.map(p => ({ act: 'pessoa', id: p.id, c: [esc(p.nome), String(p.faltas), String(p.sim)] })), [1, 2]) : '<div class="empty">Nenhuma falta no período.</div>') + '</div>';
+}
+
+function csvIndicadores() {
+  const x = indDados();
+  baixarCsv('extras-indicadores-' + x.per.ini + '-a-' + x.per.fim + '.csv',
+    ['Data', 'Dia', 'Número', 'Empresa', 'Unidade', 'Setor', 'Centro de custo', 'Função', 'Motivo', 'Pessoa', 'Vínculo', 'Status', 'Entrada', 'Saída', 'Horas', 'Valor tabela', 'Valor pago', 'Antecedência do pedido (h)'],
+    x.esc.filter(e => e.status === 'VALIDADO' || e.status === 'FALTOU').map(e => {
+      const s = solDe(e.sol_id);
+      return [dataBr(e.data), DIAS[diaSemana(e.data)], e.numero, empNome(s.empresa), s.unidade, s.setor, s.centro_custo, s.funcao_nome, s.motivo, e.pessoa_nome,
+        VINCULO[vinculoDe(e)] || '', e.status === 'VALIDADO' ? 'Realizado' : 'Faltou', e.hora_ini_real || e.hora_ini, e.hora_fim_real || e.hora_fim,
+        e.status === 'VALIDADO' ? reais(horasDe(e)) : '', reais(e.valor_base), e.status === 'VALIDADO' ? reais(e.valor_final) : '0', s.criado_em ? reais((turno(s).ini - minDe(s.criado_em)) / 60) : ''];
+    }));
 }
 
 /* ---------- Banco de extras ---------- */
@@ -1788,6 +2121,9 @@ document.addEventListener('click', ev => {
     case 'pessoa-salvar': salvarPessoa(); break;
     case 'f-sol': S.f.solEscopo = el.dataset.v; render(); break;
     case 'f-val': S.f.valTab = el.dataset.v; render(); break;
+    case 'f-ind': S.f.indAba = el.dataset.v; render(); break;
+    case 'ind-limpar': ['indEmp', 'indUni', 'indSet', 'indCc', 'indFun', 'indVin'].forEach(k => { S.f[k] = ''; }); render(); break;
+    case 'csv-ind': csvIndicadores(); break;
     case 'f-pag': S.f.pagTab = el.dataset.v; S.sel = {}; render(); break;
     case 'pagar-sel': abrirPagar(); break;
     case 'pagar-enviar': enviarPagar(); break;
