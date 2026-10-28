@@ -733,6 +733,7 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .qf-conf{font-size:.8rem;background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:9px 12px;margin-bottom:10px}.qf-conf.qf-dif{border-color:var(--warn);color:#fbbf24}
 .rpu-aviso{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.35);border-radius:10px;padding:8px 12px;color:var(--tx)}
 @media(max-width:760px){.qf-res-g{grid-template-columns:1fr 1fr}}
+.vnd-cn-int{margin-top:6px;font-size:.78rem;color:var(--mu);background:rgba(124,58,237,.08);border:1px dashed rgba(124,58,237,.4);border-radius:8px;padding:6px 10px}
 /* ── Report único ao CEO ── */
 .rpu-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
 .rpu-btns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}.rpu-btns .btn-save{padding:7px 12px;font-size:.78rem;font-weight:600}
@@ -2238,7 +2239,7 @@ function consVendasLinhas(cs){
     if(e.indicadores) vndIndTexto(e,c.ref).split('\n').forEach(function(t){ B.push(t); });
     B.push('Semana '+vndDm(s.ini)+'–'+vndDm(s.fim)+': vendido '+vndR(s.venda)+' · projeção '+vndR(s.proj)+(s.pct!=null?' ('+vndPct(s.pct)+' da meta)':''));
     if(x.canais) x.canais.linhas.forEach(function(l){
-      B.push('   ↳ '+l.nome+' '+Math.round(l.share*100)+'% → mês '+vndR(l.projMes)+' · semana '+vndR(l.projSem));
+      B.push(l.interno?'   ↳ 🔁 '+l.nome+' (venda interna, fora do faturamento): mês '+recMoeda(l.mes):'   ↳ '+l.nome+' '+Math.round(l.share*100)+'% → mês '+vndR(l.projMes)+' · semana '+vndR(l.projSem));
       if(VND_CANAIS_DEF[l.id].interno) G.intMes+=l.mes||0;
       else if(VND_CANAIS_PADRAO.indexOf(l.id)>=0){ G.cn[l.id]=G.cn[l.id]||{ m:0, s:0 }; G.cn[l.id].m+=l.projMes; G.cn[l.id].s+=l.projSem; }
     });
@@ -2251,7 +2252,7 @@ function consVendasLinhas(cs){
   L.push((rit!=null?'Ritmo: '+vndPct(rit)+' '+VND_COR[cor].ico+' · ':'')+'Projeção: '+vndR(G.proj)+(G.meta>0?' ('+vndSinal(G.projM-G.meta,vndR)+' nas empresas com meta)':''));
   L.push('Semana: projeção '+vndR(G.semPM)+(G.semM>0?' ('+vndPct(G.semPM/G.semM)+' da meta)':''));
   if(semMeta.length) L.push('_Ritmo e metas sem '+semMeta.map(function(e){ return e.nome; }).join(', ')+' (sem meta: entram só no vendido e na projeção total)_');
-  if(G.intMes>0) L.push('_Inclui '+vndR(G.intMes)+' de vendas internas (Q Food → Mercearia/Sushi Trip)_');
+  if(G.intMes>0) L.push('_Não inclui '+recMoeda(G.intMes)+' de vendas internas (Q Food → Mercearia/Sushi Trip) — operação própria, fora do faturamento_');
   L.push('━━━━━━━━━━━━━━━');
   L.push('💰 *VENDAS POR EMPRESA* (ritmo · projeção do mês)');
   B.forEach(function(x){ L.push(x); });
@@ -2350,11 +2351,27 @@ function recKeyLocal(mes){ return 'qfood_chk_receita_'+mes; }
 function recLocal(mes){ try{ return JSON.parse(localStorage.getItem(recKeyLocal(mes))||'{}')||{}; }catch(e){ return {}; } }
 function recLocalSet(mes,empId,iso,valor){ var o=recLocal(mes); o[empId]=o[empId]||{}; o[empId][iso]=valor; try{ localStorage.setItem(recKeyLocal(mes),JSON.stringify(o)); }catch(e){} }
 
+/* Vendas internas (Q Food → Mercearia / Sushi Trip) não são faturamento: ficam fora do acumulado e da projeção.
+   Dias salvos antes desta regra guardavam o total com as internas; aqui elas são descontadas na leitura. */
+function vndEhInterno(id){ return !!(VND_CANAIS_DEF[id]&&VND_CANAIS_DEF[id].interno); }
+function vndInternoDia(emp,iso){
+  if(!emp||!emp.canais||typeof vndCanaisDia!=='function') return { interno:0, todos:0 };
+  var d=vndCanaisDia(emp,iso), r={ interno:0, todos:0 }; if(!d||!d.canais) return r;
+  Object.keys(d.canais).forEach(function(id){ var v=Number(d.canais[id])||0; r.todos+=v; if(vndEhInterno(id)) r.interno+=v; });
+  return r;
+}
+function recSemInterno(empId,iso,v){
+  if(v===''||v==null) return v;
+  var emp=(typeof vndEmp==='function')?vndEmp(empId):null; if(!emp||!emp.canais) return v;
+  var x=vndInternoDia(emp,iso); if(!(x.interno>0)) return v;
+  return Math.abs((Number(v)||0)-x.todos)<0.05?Math.round(((Number(v)||0)-x.interno)*100)/100:v;
+}
 function recSomaMes(empId,mes){
   var mapa={};
   if(RECEITA_CACHE && RECEITA_CACHE[empId]){ Object.keys(RECEITA_CACHE[empId]).forEach(function(k){ if(k.substring(0,7)===mes) mapa[k]=RECEITA_CACHE[empId][k]; }); }
   var loc=recLocal(mes)[empId]||{};
   Object.keys(loc).forEach(function(k){ mapa[k]=loc[k]; });
+  Object.keys(mapa).forEach(function(k){ mapa[k]=recSemInterno(empId,k,mapa[k]); });
   var t=0,n=0; Object.keys(mapa).forEach(function(k){ t+=Number(mapa[k])||0; if(Number(mapa[k])>0) n++; });
   return { total:t, lancamentos:n, mapa:mapa };
 }
@@ -2362,8 +2379,8 @@ function recSomaMes(empId,mes){
 function recValorDia(empId,iso){
   var mes=iso.substring(0,7);
   var loc=recLocal(mes)[empId]||{};
-  if(loc[iso]!=null) return loc[iso];
-  if(RECEITA_CACHE && RECEITA_CACHE[empId] && RECEITA_CACHE[empId][iso]!=null) return RECEITA_CACHE[empId][iso];
+  if(loc[iso]!=null) return recSemInterno(empId,iso,loc[iso]);
+  if(RECEITA_CACHE && RECEITA_CACHE[empId] && RECEITA_CACHE[empId][iso]!=null) return recSemInterno(empId,iso,RECEITA_CACHE[empId][iso]);
   return '';
 }
 
@@ -3161,9 +3178,10 @@ function vndTicket(emp,cn,pd){
   var r={ total:0, pedidos:0, ticket:null, valorComPed:0, por:{} };
   emp.canais.forEach(function(id){
     var v=cn&&cn[id]!=null?cn[id]:null, n=pd&&pd[id]!=null?pd[id]:null;
+    r.por[id]={ v:v, n:n, t:(v!=null&&n)?v/n:null };
+    if(vndEhInterno(id)){ if(v!=null) r.interno=(r.interno||0)+v; return; }
     if(v!=null) r.total+=v;
     if(n){ r.pedidos+=n; if(v!=null) r.valorComPed+=v; }
-    r.por[id]={ v:v, n:n, t:(v!=null&&n)?v/n:null };
   });
   r.ticket=r.pedidos?r.valorComPed/r.pedidos:null;
   return r;
@@ -3173,7 +3191,8 @@ function vndPintarTicket(emp){
   var k=vndTicket(emp,vndLerCanais(emp),vndLerPedidos(emp));
   emp.canais.forEach(function(id){ var b=el('vnd-tk-'+emp.id+'-'+id); if(b) b.textContent=k.por[id].t!=null?'ticket '+recMoeda(k.por[id].t):''; });
   var d=el('vnd-cn-dia-'+emp.id);
-  if(d) d.innerHTML=k.pedidos?'<b>'+k.pedidos+'</b> pedidos no dia · ticket médio <b>'+recMoeda(k.ticket)+'</b>':'';
+  if(d) d.innerHTML=(k.pedidos?'<b>'+k.pedidos+'</b> pedidos no dia · ticket médio <b>'+recMoeda(k.ticket)+'</b>':'')+
+    (k.interno>0?'<div class="vnd-cn-int">🔁 Vendas internas (Mercearia/Sushi Trip): <b>'+recMoeda(k.interno)+'</b> — operação própria, <b>não entram</b> no total do dia, no acumulado nem na projeção.</div>':'');
 }
 /* lê os canais digitados: null se nenhum foi preenchido */
 function vndLerCanais(emp){
@@ -3185,7 +3204,7 @@ function vndLerCanais(emp){
 function vndSomarCanais(empId){
   var emp=vndEmp(empId); if(!emp) return;
   var cn=vndLerCanais(emp), tot=el('vnd-val-'+empId); if(!tot) return;
-  if(cn){ var s=0; Object.keys(cn).forEach(function(k){ s+=cn[k]; }); tot.value=vndFmt(s); tot.readOnly=true; tot.classList.add('vnd-auto'); }
+  if(cn){ var s=0; Object.keys(cn).forEach(function(k){ if(!vndEhInterno(k)) s+=cn[k]; }); tot.value=vndFmt(s); tot.readOnly=true; tot.classList.add('vnd-auto'); }
   else { tot.readOnly=false; tot.classList.remove('vnd-auto'); }
   vndPintarTicket(emp);
   vndPrevia(empId);
@@ -3234,10 +3253,10 @@ function vndCanaisCalc(emp,ref){
     var d=vndCanaisDia(emp,iso), cn=(d&&d.canais)||null;
     if(cn&&Object.keys(cn).length){
       detalhados++;
-      emp.canais.forEach(function(id){ var x=cn[id]; if(x==null) return; var p=por[id]; p.total+=x; totalDet+=x; if(x>0) p.dias++; if(p.melhor==null||x>p.melhor){ p.melhor=x; p.melhorDia=iso; } });
+      emp.canais.forEach(function(id){ var x=cn[id]; if(x==null) return; var p=por[id]; p.total+=x; if(!vndEhInterno(id)) totalDet+=x; if(x>0) p.dias++; if(p.melhor==null||x>p.melhor){ p.melhor=x; p.melhorDia=iso; } });
     }
     var pd=(d&&d.pedidos)||null;
-    if(pd&&cn) emp.canais.forEach(function(id){ if(pd[id]&&cn[id]!=null){ por[id].ped+=pd[id]; por[id].valPed+=cn[id]; pedMes+=pd[id]; valPedMes+=cn[id]; } });
+    if(pd&&cn) emp.canais.forEach(function(id){ if(pd[id]&&cn[id]!=null){ por[id].ped+=pd[id]; por[id].valPed+=cn[id]; if(!vndEhInterno(id)){ pedMes+=pd[id]; valPedMes+=cn[id]; } } });
     linhas.push({ iso:iso, total:v, canais:cn, pedidos:pd });
   });
   /* semana atual (segunda até a referência) contra os mesmos dias da semana anterior */
@@ -3276,13 +3295,13 @@ function vndCanaisJanela(empId){
   var emp=vndEmp(empId); if(!emp||!emp.canais) return;
   var ref=(el('vnd-data-'+empId)||{}).value||vndRef(emp), k=vndCanaisCalc(emp,ref);
   var leg=emp.canais.map(function(id){ return '<span><i style="background:'+VND_CANAIS_DEF[id].cor+'"></i>'+VND_CANAIS_DEF[id].nome+'</span>'; }).join('')+'<span><i class="tr"></i>Sem detalhe</span>';
-  var barra=k.totalDet>0?emp.canais.map(function(id){ var p=k.por[id].total/k.totalDet; return p>0?'<i style="width:'+(p*100).toFixed(2)+'%;background:'+VND_CANAIS_DEF[id].cor+'" title="'+VND_CANAIS_DEF[id].nome+' '+vndPct(p)+'"></i>':''; }).join(''):'';
+  var barra=k.totalDet>0?emp.canais.map(function(id){ if(vndEhInterno(id)) return ''; var p=k.por[id].total/k.totalDet; return p>0?'<i style="width:'+(p*100).toFixed(2)+'%;background:'+VND_CANAIS_DEF[id].cor+'" title="'+VND_CANAIS_DEF[id].nome+' '+vndPct(p)+'"></i>':''; }).join(''):'';
   var cards=emp.canais.map(function(id){
-    var c=VND_CANAIS_DEF[id], p=k.por[id], sh=k.totalDet>0?p.total/k.totalDet:null;
+    var c=VND_CANAIS_DEF[id], p=k.por[id], sh=(k.totalDet>0&&!vndEhInterno(id))?p.total/k.totalDet:null;
     var vv=p.var==null?'<span class="soft">sem base de comparação</span>':'<b style="color:'+(p.var>=0?'var(--ok)':'var(--red)')+'">'+(p.var>=0?'▲ +':'▼ ')+Math.round(p.var*100)+'%</b> vs. semana anterior';
     return '<div class="vnd-cn-card" style="border-top-color:'+c.cor+'">'+
       '<div class="vnd-cn-n"><i style="background:'+c.cor+'"></i>'+c.nome+'</div>'+
-      '<div class="vnd-cn-pct">'+(sh==null?'—':Math.round(sh*100)+'%')+'</div><div class="vnd-cn-sub">do vendido detalhado</div>'+
+      '<div class="vnd-cn-pct">'+(vndEhInterno(id)?'🔁':(sh==null?'—':Math.round(sh*100)+'%'))+'</div><div class="vnd-cn-sub">'+(vndEhInterno(id)?'venda interna — fora do faturamento':'do vendido detalhado')+'</div>'+
       '<div class="vnd-cn-l"><span>No mês</span><b>'+recMoeda(p.total)+'</b></div>'+
       '<div class="vnd-cn-l"><span>Média por dia</span><b>'+(p.dias?recMoeda(p.total/p.dias):'—')+'</b></div>'+
       '<div class="vnd-cn-l"><span>Pedidos no mês</span><b>'+(p.ped||'—')+'</b></div>'+
@@ -3715,7 +3734,7 @@ function vndResumoDiaTexto(emp,iso){
   if(k.pedidos){ L.push('PEDIDOS TOTAIS: '+k.pedidos); L.push('TICKET MÉDIO: '+recMoeda(k.ticket)); }
   L.push(''); L.push('DISTRIBUIÇÃO POR CANAL:');
   emp.canais.forEach(function(id){ var p=k.por[id]; if(p.v==null&&!p.n) return;
-    L.push(VND_CANAIS_DEF[id].nome.toUpperCase()+' - '+(p.n?p.n+' pedidos - ':'')+recMoeda(p.v||0)+(p.t!=null?' (ticket '+recMoeda(p.t)+')':'')); });
+    L.push(VND_CANAIS_DEF[id].nome.toUpperCase()+(vndEhInterno(id)?' (VENDA INTERNA — fora do faturamento)':'')+' - '+(p.n?p.n+' pedidos - ':'')+recMoeda(p.v||0)+(p.t!=null?' (ticket '+recMoeda(p.t)+')':'')); });
   return L.join('\n');
 }
 function vndCopiarResumoDia(){
@@ -3925,9 +3944,11 @@ function repBlocoEmp(emp,iso,nomeResp){
     }
     var d=vndCanaisDia(emp,iso);
     if(d&&d.canais){ var tk=vndTicket(emp,d.canais,d.pedidos), cl=[];
-      (emp.canais||[]).forEach(function(id){ var p=tk.por[id]; if(!p||!(p.v>0)) return; cl.push('• '+VND_CANAIS_DEF[id].nome+': '+recMoeda(p.v)+(p.n?' ('+p.n+' ped.)':'')); });
+      var ci=[];
+      (emp.canais||[]).forEach(function(id){ var p=tk.por[id]; if(!p||!(p.v>0)) return; (vndEhInterno(id)?ci:cl).push('• '+VND_CANAIS_DEF[id].nome+': '+recMoeda(p.v)+(p.n?' ('+p.n+' ped.)':'')); });
       if(cl.length){ L.push(''); L.push('🧾 *Canais do dia*'); L=L.concat(cl); }
       if(tk.pedidos) L.push('🛍️ Pedidos: '+tk.pedidos+' · ticket médio '+recMoeda(tk.ticket));
+      if(ci.length){ L.push(''); L.push('🔁 *Vendas internas* _(operação própria — fora do faturamento, do acumulado e da projeção)_'); L=L.concat(ci); }
       if(d.ind){ var ii=d.ind, il=[];
         if(ii.pdv_ativos!=null) il.push('PDVs ativos '+ii.pdv_ativos);
         if(ii.pdv_positivados!=null) il.push('positivados '+ii.pdv_positivados+(ii.pdv_ativos?' ('+Math.round(ii.pdv_positivados/ii.pdv_ativos*100)+'%)':''));
@@ -4165,7 +4186,7 @@ function vndSalvarVenda(empId,modo){
   var acao=String((el('vnd-acao-'+empId)||{}).value||'').trim();
   var resp=String((el('vnd-resp-'+empId)||{}).value||'').trim(), prazo=(el('vnd-prazo-'+empId)||{}).value||'';
   var impB=String((el('vnd-imp-'+empId)||{}).value||'').trim();
-  var cn=vndLerCanais(emp), pd=vndLerPedidos(emp); if(cn){ var _s=0; Object.keys(cn).forEach(function(k){ _s+=cn[k]; }); bruto=vndFmt(_s); }
+  var cn=vndLerCanais(emp), pd=vndLerPedidos(emp); if(cn){ var _s=0; Object.keys(cn).forEach(function(k){ if(!vndEhInterno(k)) _s+=cn[k]; }); bruto=vndFmt(_s); }
   var m=el('vnd-msg-'+empId);
   function msg(t,c){ setTxt('vnd-msg-'+empId,t); if(m) m.style.color=c||''; return false; }
   if(!iso) return msg('⚠ Escolha o dia da venda.','#ffaa2b');
@@ -4437,9 +4458,9 @@ function vndExtras(c){
   var k=vndCanaisCalc(e,c.ref); if(!(k.totalDet>0)) return x;
   var d=vndCanaisDia(e,c.ref), tk=d?vndTicket(e,d.canais,d.pedidos):null, L=[];
   e.canais.forEach(function(id){
-    var sh=k.por[id].total/k.totalDet, vd=d&&d.canais&&d.canais[id]!=null?d.canais[id]:null;
-    if(!(sh>0) && !vd) return;
-    L.push({ id:id, nome:VND_CANAIS_DEF[id].nome, dia:vd, ped:d&&d.pedidos?d.pedidos[id]||null:null, mes:k.por[id].total, share:sh, projMes:c.projecao*sh, projSem:proj*sh });
+    var int=vndEhInterno(id), sh=int?0:k.por[id].total/k.totalDet, vd=d&&d.canais&&d.canais[id]!=null?d.canais[id]:null;
+    if(!(sh>0) && !vd && !(int&&k.por[id].total>0)) return;
+    L.push({ id:id, nome:VND_CANAIS_DEF[id].nome, interno:int, dia:vd, ped:d&&d.pedidos?d.pedidos[id]||null:null, mes:k.por[id].total, share:sh, projMes:int?k.por[id].total:c.projecao*sh, projSem:int?(k.por[id].semana||0):proj*sh });
   });
   x.canais={ linhas:L, pedidos:tk?tk.pedidos:0, ticket:tk?tk.ticket:null, diasDet:k.detalhados, dias:k.diasAte };
   return x;
@@ -4490,7 +4511,7 @@ function vndAdmExtras(c){
      '<div class="rec-l"><span>Projeção da semana</span><strong>'+recMoeda(s.proj)+(s.pct!=null?' <small style="color:'+vndCorPct(s.pct)+'">'+vndPct(s.pct)+' da meta</small>':'')+'</strong></div>';
   if(x.canais){
     h+='<div class="vnd-ac-s">Por canal · dia | projeção semana | mês</div>'+
-      x.canais.linhas.map(function(l){ return '<div class="vnd-ac-cn"><div><i style="background:'+VND_CANAIS_DEF[l.id].cor+'"></i>'+esc(l.nome)+' <small>'+Math.round(l.share*100)+'% do mês</small></div>'+
+      x.canais.linhas.map(function(l){ return '<div class="vnd-ac-cn"><div><i style="background:'+VND_CANAIS_DEF[l.id].cor+'"></i>'+esc(l.nome)+' <small>'+(l.interno?'🔁 interna — fora do faturamento':Math.round(l.share*100)+'% do mês')+'</small></div>'+
         '<div class="vnd-ac-cv"><span>'+(l.dia!=null?vndR(l.dia):'—')+(l.ped?' <small>('+l.ped+' ped.)</small>':'')+'</span><span>'+vndR(l.projSem)+'</span><span>'+vndR(l.projMes)+'</span></div></div>'; }).join('')+(x.canais.pedidos?'<div class="vnd-ac-tk">'+x.canais.pedidos+' pedidos no dia · ticket médio '+recMoeda(x.canais.ticket)+'</div>':'');
   }
   return h;
@@ -4528,9 +4549,9 @@ function vndTextoWhats(cs,ref){
     if(x.canais&&x.canais.linhas.length){
       L.push('• Projeção por canal (mês | semana):');
       x.canais.linhas.forEach(function(l){
+        if(l.interno){ L.push('   ↳ 🔁 '+l.nome+' (venda interna, fora do faturamento): dia '+recMoeda(l.dia||0)+' · mês '+recMoeda(l.mes)); G.intDia+=l.dia||0; G.intMes+=l.mes||0; return; }
         L.push('   ↳ '+l.nome+' '+Math.round(l.share*100)+'%: '+vndR(l.projMes)+' | '+vndR(l.projSem));
         G.cn[l.id]=G.cn[l.id]||{ m:0, s:0 }; G.cn[l.id].m+=l.projMes; G.cn[l.id].s+=l.projSem;
-        if(VND_CANAIS_DEF[l.id].interno){ G.intDia+=l.dia||0; G.intMes+=l.mes||0; }
       });
     }
     if(pl.temMeta) L.push('• Falta: '+recMoeda(c.falta)+' em '+c.restantes+(c.restantes===1?' dia útil':' dias úteis')+(c.prox?' · meta ajustada '+vndDm(c.prox.iso)+': '+recMoeda(c.prox.ajust):''));
