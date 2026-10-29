@@ -4141,6 +4141,8 @@ function qfEnviarWhats(empId){
   var b=el('rpu-wa-'+empId); if(b) b.classList.remove('rpu-pulse');
 }
 
+/* Q Food e Gogui: quem lança (Célio, Fernanda) não faz a etapa 3 — o plano é de quem envia (Rodrigo, Fabrícia) */
+function vndSemPlano(emp,rep,envio){ return !envio && !!emp.envioPor && !!rep && emp.envioPor!==rep.id; }
 function vndCardRep(emp,rep,ult,envio){
   var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono), iso0=ontem();
   var cons=(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+(pode?'<button class="btn-save vnd-b2" onclick="vndAcumIr(\''+emp.id+'\')">📥 Acumulado do mês</button>':'');
@@ -4153,6 +4155,7 @@ function vndCardRep(emp,rep,ult,envio){
         '<div class="vnd-prev" id="vnd-prev-'+emp.id+'"></div>'+
       '</div>'+vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+'</div>'+
       repOndeHTML(emp)+
+      (vndSemPlano(emp,rep,envio)?'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>':
       '<div class="rpu-st rpu-plano" id="rpu-plano-'+emp.id+'"><div class="rpu-h"><span class="rpu-n">3</span><b>O que vou fazer para chegar na meta</b> <span id="vnd-acao-obr-'+emp.id+'"></span></div>'+vndFixasHTML(emp,dis)+
         '<div class="vf-hoje">✍️ Ação de hoje <small>(o que for só deste dia)</small></div>'+
         '<textarea class="rpu-ta" id="vnd-acao-'+emp.id+'" rows="3" placeholder="Medida concreta para os próximos dias. Ex.: ação de rodízio na terça com divulgação no Instagram e lista de clientes; reforço de 2 garçons na sexta."'+dis+'></textarea>'+
@@ -4160,10 +4163,10 @@ function vndCardRep(emp,rep,ult,envio){
           '<div><label>Responsável</label><input type="text" id="vnd-resp-'+emp.id+'" placeholder="'+esc(p?p.nome:'')+'"'+dis+'></div>'+
           '<div><label>Prazo</label><input type="date" id="vnd-prazo-'+emp.id+'"'+dis+'></div>'+
           '<div><label>Impacto esperado (R$)</label><input type="text" inputmode="decimal" id="vnd-imp-'+emp.id+'" placeholder="0,00"'+dis+'></div>'+
-        '</div>'+(envio?'':'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>')+'</div>'+
+        '</div>'+(envio?'':'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>')+'</div>')+
       (envio?'<div class="rpu-foot"><button class="btn-save rpu-save" onclick="qfSalvarEnvio(\''+emp.id+'\')">💾 Salvar venda e plano</button><button class="btn-save rpu-wa" id="rpu-wa-'+emp.id+'" onclick="qfEnviarWhats(\''+emp.id+'\')" disabled>📲 Enviar '+esc(emp.nome)+' ao '+CEO_NOME+'</button><span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div><div class="rpu-nota">Você envia a venda da '+esc(emp.nome)+' (etapas 1 a 3). O report de 4 linhas é enviado pelo próprio responsável.</div>':'')+
-      (!envio&&emp.envioPor&&rep&&emp.envioPor!==rep.id?'<div class="rpu-nota rpu-aviso">ℹ️ A venda da '+esc(emp.nome)+' (etapas 1 a 3) é enviada ao '+CEO_NOME+' por '+esc(((findPessoa(emp.envioPor)||findLider(emp.envioPor)||{}).nome)||'Rodrigo')+'. Seu envio leva só o report de 4 linhas — mas lance a venda normalmente.</div>':'')+
-      (ult?'<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">4</span><b>Report diário — 4 linhas</b><span id="rep-'+rep.id+'-status"></span></div><input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+repCamposHTML(rep,iso0)+'</div>'+repRodapeHTML(rep):'')+
+      (!envio&&emp.envioPor&&rep&&emp.envioPor!==rep.id?'<div class="rpu-nota rpu-aviso">ℹ️ Você lança a venda da '+esc(emp.nome)+'. O plano para chegar na meta e o envio da venda ao '+CEO_NOME+' ficam com '+esc(((findPessoa(emp.envioPor)||findLider(emp.envioPor)||{}).nome)||'Rodrigo')+'. Seu envio leva só o report de 4 linhas.</div>':'')+
+      (ult?'<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">'+(vndSemPlano(emp,rep,envio)?'3':'4')+'</span><b>Report diário — 4 linhas</b><span id="rep-'+rep.id+'-status"></span></div><input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+repCamposHTML(rep,iso0)+'</div>'+repRodapeHTML(rep):'')+
       vndAcumHTML(emp,pode)+
       '<details class="vnd-det rpu-mais"'+(VND_MAIS[emp.id]?' open':'')+' ontoggle="VND_MAIS[\''+emp.id+'\']=this.open"><summary>📊 Ver painel completo do mês (semáforo, projeção, dia a dia)</summary><div id="vnd-corpo-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div></details>'+
     '</div>';
@@ -4368,7 +4371,7 @@ function vndSalvarVenda(empId,modo){
     ind=li.v;
   }
   var c=vndCalc(emp,iso,val);
-  if((c.cor==='laranja'||c.cor==='vermelho') && !acao && !vndFixasAtivas(empId).length){
+  if((c.cor==='laranja'||c.cor==='vermelho') && !acao && !vndFixasAtivas(empId).length && el('vnd-acao-'+empId)){
     var t=el('vnd-acao-'+empId); if(t) t.focus();
     return msg('⚠ Semáforo '+VND_COR[c.cor].t.toLowerCase()+': escreva o que vai fazer para chegar na meta antes de salvar.','#ffaa2b');
   }
