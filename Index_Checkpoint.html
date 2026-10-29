@@ -752,6 +752,9 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .vf-dias{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.vf-d input{display:none}.vf-d span{display:inline-block;padding:5px 10px;border:1px solid var(--b2);border-radius:999px;font-size:.76rem;cursor:pointer}
 .vf-d input:checked+span{background:var(--pur);border-color:var(--pur);color:#fff}
 .vf-at{display:flex;gap:8px;flex-wrap:wrap;margin-left:6px}.vf-at a{font-size:.72rem;color:var(--cyan);cursor:pointer;text-decoration:underline}
+.vf-per{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end}.vf-per small{display:block;font-size:.7rem;color:var(--mu);margin-bottom:3px}.vf-per small i{font-style:normal;color:var(--mu2)}
+.vf-per input{background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:6px 8px;color:var(--tx);font-family:inherit;color-scheme:dark}
+.vf-it.vf-ve{border-left-color:var(--red);opacity:.75}.vf-ve .vf-st{color:var(--red)}.vf-av{display:block;color:var(--warn)!important;margin-top:2px}
 .vf-dica{font-size:.72rem;color:var(--mu);margin-top:6px}
 .vf-hoje{font-size:.78rem;font-weight:700;margin:2px 0 6px}.vf-hoje small{font-weight:400;color:var(--mu)}
 .vf-cob{color:var(--ok);font-weight:600;font-size:.74rem}
@@ -1886,7 +1889,7 @@ var FOTOS = {
   rodrigo:'Rodrigo.jpg', gustavo:'Gustavo.jpg', barbara:'Barbara.jpg',
   celio:'Celio.jpg', cris:'Cris.jpg', 
   mariana:'Mariana.jpg', tulio:'Tulio.jpg', fabricia:'Fabricia.jpg',
-  leorick:'Leoryke.jpg', samara:'Samara.jpg'
+  leorick:'Leoryke.jpg', samara:'Samara.jpg', fernanda:'Fernanda.jpg'
 };
 function avatarErro(img, emoji, t){
   try{
@@ -2124,9 +2127,9 @@ function painelPessoa(p){
   el('painel').innerHTML=
     '<div class="card"><div class="hero">'+avatarHTML(p,56)+'<div style="flex:1;min-width:220px"><div class="ct" style="font-size:1.15rem;margin-bottom:2px">'+p.nome+badges+'</div><div style="font-size:.84rem;color:var(--mu)">'+p.funcao+'</div>'+(p.missao?'<div class="missao">"'+p.missao+'"</div>':'')+agfHeroHTML(p)+'</div><div style="text-align:right;display:flex;flex-direction:column;gap:8px;align-items:flex-end"><div><div class="org-lbl" style="margin:0 0 6px">Report do dia</div><span id="hero-status-'+p.id+'">'+(p.semReport?'<span class="chip-status" style="color:var(--mu)">● sem report diário</span>':statusInlineHTML(ent))+'</span></div><button class="btn-det" onclick="abrirDetalhe(\''+p.id+'\')">ℹ️ POP & Interfaces</button></div></div>'+
     (nota?'<div class="rota-nota">'+nota+(p.subordinados?'<br>'+p.subordinados:'')+'</div>':'')+'</div>'+
-    renderCobranca(p)+blocoVendas+((p.semReport||repUnico)?'':renderReportForm(p))+extra;
+    renderCobranca(p)+blocoVendas+vndCardsEnvio(p.id)+((p.semReport||repUnico)?'':renderReportForm(p))+extra;
   atualizarStatusInline(p.id,ontem());
-  vndIniciar(p.id);
+  vndIniciar(p.id); vndIniciarEnvio(p.id);
   AGF_EDITANDO=null; agfCarregar().then(function(){ agfPintar(p.id); });
   if(KPIS_AREA[p.id]){ recalcScore(p.id); if(!p.semPremio){ if(ehLoja) premBAtualizar(p.id); else premAtualizar(p.id); } }
 }
@@ -2821,7 +2824,7 @@ var VND_EMPRESAS = [
   { id:'emp_mercearia', nome:'Mercearia Liberdade · Vitória', emoji:'🛒', dono:'mariana',  abre:VND_TODOS,
     pesos:[16500,16500,16500,16500,30000,35000,20500], canais:VND_CANAIS_PADRAO,
     dica:'Distribuição da Mariana: segunda a quinta iguais, sexta, sábado e domingo mais fortes.' },
-  { id:'emp_gogui',     nome:'Gogui',                         emoji:'🍲', dono:'fernanda', abre:VND_TODOS,
+  { id:'emp_gogui',     nome:'Gogui',                         emoji:'🍲', dono:'fernanda', envioPor:'fabricia', abre:VND_TODOS,
     pesos:[100,100,100,107,205,214,174], escala:VND_GOGUI_ESCALA, canais:VND_CANAIS_PADRAO,
     dica:'Meta da escala do Adilson (R$ 400 mil em out/26 até R$ 700 mil em set/27). Distribuição: média da Mercearia e da Sushi Trip.' },
   { id:'emp_sushitrip', nome:'Sushi Trip',                    emoji:'🍣', dono:'samara',   abre:VND_TODOS,
@@ -4112,9 +4115,13 @@ function qfPuxarAgora(empId){
   });
 }
 /* card de envio da Q Food na tela do Rodrigo */
-function qfCardRodrigo(){
-  var emp=vndEmp('emp_qfood'); if(!emp) return '';
-  return vndCardRep(emp,null,false,'rodrigo');
+function qfCardRodrigo(){ return vndCardsEnvio('rodrigo'); }
+/* empresas que esta pessoa envia ao CEO sem ser a dona (Rodrigo → Q Food; Fabrícia → Gogui) */
+function vndEmpsEnvio(pid){ return VND_EMPRESAS.filter(function(e){ return e.envioPor===pid && e.dono!==pid; }); }
+function vndCardsEnvio(pid){ return vndEmpsEnvio(pid).map(function(emp){ return vndCardRep(emp,null,false,pid); }).join(''); }
+function vndIniciarEnvio(pid){
+  var L=vndEmpsEnvio(pid); if(!L.length) return;
+  vndCarregarTudo(false).then(function(){ L.forEach(function(q){ if(el('vnd-'+q.id)){ vndPreencherLanc(q); vndPintar(q.id); qfEnvioEstado(q.id); } }); });
 }
 function qfEnvioEstado(empId){
   var b=el('rpu-wa-'+empId); if(!b) return;
@@ -4128,7 +4135,7 @@ function qfSalvarEnvio(empId){
 function qfEnviarWhats(empId){
   var emp=vndEmp(empId), iso=(el('vnd-data-'+empId)||{}).value||vndRef(emp), v=recValorDia(empId,iso);
   if(v===''||v==null){ setTxt('vnd-msg-'+empId,'⚠ Salve a venda antes de enviar.'); return; }
-  var txt=CEO_NOME+', segue o report da '+emp.nome+' do dia 👇\n\n'+repBlocoEmp(emp,iso,'Rodrigo').join('\n');
+  var txt=CEO_NOME+', segue o report de vendas — '+emp.nome+' 👇\n\n'+repBlocoEmp(emp,iso,((findPessoa(emp.envioPor)||findLider(emp.envioPor)||{}).nome)||'Rodrigo').join('\n');
   var url='https://wa.me/'+CEO_WHATS+'?text='+encodeURIComponent(txt);
   var w=window.open(url,'_blank'); if(!w) location.href=url;
   var b=el('rpu-wa-'+empId); if(b) b.classList.remove('rpu-pulse');
@@ -4155,7 +4162,7 @@ function vndCardRep(emp,rep,ult,envio){
           '<div><label>Impacto esperado (R$)</label><input type="text" inputmode="decimal" id="vnd-imp-'+emp.id+'" placeholder="0,00"'+dis+'></div>'+
         '</div>'+(envio?'':'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>')+'</div>'+
       (envio?'<div class="rpu-foot"><button class="btn-save rpu-save" onclick="qfSalvarEnvio(\''+emp.id+'\')">💾 Salvar venda e plano</button><button class="btn-save rpu-wa" id="rpu-wa-'+emp.id+'" onclick="qfEnviarWhats(\''+emp.id+'\')" disabled>📲 Enviar '+esc(emp.nome)+' ao '+CEO_NOME+'</button><span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div><div class="rpu-nota">Você envia a venda da '+esc(emp.nome)+' (etapas 1 a 3). O report de 4 linhas é enviado pelo próprio responsável.</div>':'')+
-      (!envio&&emp.envioPor&&rep&&emp.envioPor!==rep.id?'<div class="rpu-nota rpu-aviso">ℹ️ A venda da '+esc(emp.nome)+' (etapas 1 a 3) é enviada ao '+CEO_NOME+' pelo Rodrigo. Seu envio leva só o report de 4 linhas — mas lance a venda normalmente.</div>':'')+
+      (!envio&&emp.envioPor&&rep&&emp.envioPor!==rep.id?'<div class="rpu-nota rpu-aviso">ℹ️ A venda da '+esc(emp.nome)+' (etapas 1 a 3) é enviada ao '+CEO_NOME+' por '+esc(((findPessoa(emp.envioPor)||findLider(emp.envioPor)||{}).nome)||'Rodrigo')+'. Seu envio leva só o report de 4 linhas — mas lance a venda normalmente.</div>':'')+
       (ult?'<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">4</span><b>Report diário — 4 linhas</b><span id="rep-'+rep.id+'-status"></span></div><input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+repCamposHTML(rep,iso0)+'</div>'+repRodapeHTML(rep):'')+
       vndAcumHTML(emp,pode)+
       '<details class="vnd-det rpu-mais"'+(VND_MAIS[emp.id]?' open':'')+' ontoggle="VND_MAIS[\''+emp.id+'\']=this.open"><summary>📊 Ver painel completo do mês (semáforo, projeção, dia a dia)</summary><div id="vnd-corpo-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div></details>'+
@@ -4212,7 +4219,10 @@ function vndFixasReg(empId){
   return b;
 }
 function vndFixas(empId){ var r=vndFixasReg(empId); return (r&&Array.isArray(r.lista))?r.lista:[]; }
-function vndFixasAtivas(empId){ return vndFixas(empId).filter(function(a){ return a.status==='ativa'; }); }
+function vndFixaFase(a,iso){ iso=iso||hoje(); if(a.status!=='ativa') return a.status; if(a.ini&&iso<a.ini) return 'agendada'; if(a.fim&&iso>a.fim) return 'vencida'; return 'ativa'; }
+/* só as que estão valendo hoje vão para o Adilson */
+function vndFixasAtivas(empId,iso){ return vndFixas(empId).filter(function(a){ return vndFixaFase(a,iso)==='ativa'; }); }
+function vndFixaPeriodo(a){ return a.fim?(a.ini&&a.ini>hoje()?'de '+vndDm(a.ini)+' ':'')+'até '+isoBR(a.fim):(a.ini&&a.ini>hoje()?'a partir de '+isoBR(a.ini):'sem prazo'); }
 function vndFixasRec(a){
   var d=(a.dias||[]).slice().sort(), s=d.join(',');
   if(!d.length||d.length===7) return 'todos os dias';
@@ -4223,7 +4233,7 @@ function vndFixasRec(a){
   if(d.length===1) return (d[0]>=5?'todo ':'toda ')+VND_FX_DIA_L[d[0]];
   return d.map(function(i){ return VND_FX_DIA[i].toLowerCase(); }).join(', ');
 }
-function vndFixasLinha(a){ return a.texto+' — '+vndFixasRec(a)+(a.resp?' · 👤 '+a.resp:'')+(a.impacto?' · 💵 +'+recMoeda(a.impacto):''); }
+function vndFixasLinha(a){ return a.texto+' — '+vndFixasRec(a)+(a.fim?' · até '+isoBR(a.fim):'')+(a.resp?' · 👤 '+a.resp:'')+(a.impacto?' · 💵 +'+recMoeda(a.impacto):''); }
 function vndFixasGravar(empId,lista,msg){
   var emp=vndEmp(empId); if(!emp) return;
   var agora=new Date().toISOString(), editor=((window.CURRENT_USER||{}).email||'').toLowerCase().trim(), reg={ lista:lista, salvo_em:agora };
@@ -4242,16 +4252,17 @@ function vndFixasPintar(empId){
   var box=el('vf-'+empId); if(!box) return;
   var dis=box.getAttribute('data-dis')==='1', L=vndFixas(empId), ed=VND_FIXAS_EDIT[empId];
   var vis=L.filter(function(a){ return a.status!=='encerrada'; }), enc=L.filter(function(a){ return a.status==='encerrada'; });
-  var st={ ativa:['● Ativa','vf-on'], pausada:['❚❚ Pausada','vf-pa'], encerrada:['✓ Encerrada','vf-en'] };
-  function item(a){
+  var st={ ativa:['● Ativa','vf-on'], pausada:['❚❚ Pausada','vf-pa'], encerrada:['✓ Encerrada','vf-en'], agendada:['⏳ Agendada','vf-pa'], vencida:['⌛ Prazo vencido','vf-ve'] };
+  function item(a){ var fs=vndFixaFase(a);
     if(ed===a.id) return vndFixasForm(empId,a);
     var b=dis?'':(a.status==='ativa'?'<button onclick="vndFixaStatus(\''+empId+'\',\''+a.id+'\',\'pausada\')">⏸ Pausar</button>':'')+
       (a.status!=='ativa'?'<button onclick="vndFixaStatus(\''+empId+'\',\''+a.id+'\',\'ativa\')">▶ Ativar</button>':'')+
       (a.status!=='encerrada'?'<button onclick="vndFixaEditar(\''+empId+'\',\''+a.id+'\')">✏️ Editar</button><button class="vf-x" onclick="vndFixaStatus(\''+empId+'\',\''+a.id+'\',\'encerrada\')">✓ Encerrar</button>':'');
-    return '<div class="vf-it '+st[a.status][1]+'"><div class="vf-t"><b>'+esc(a.texto)+'</b><small>🔁 '+vndFixasRec(a)+(a.resp?' · 👤 '+esc(a.resp):'')+(a.impacto?' · 💵 +'+recMoeda(a.impacto):'')+'</small></div>'+
-      '<span class="vf-st">'+st[a.status][0]+'</span><div class="vf-bt">'+b+'</div></div>';
+    return '<div class="vf-it '+st[fs][1]+'"><div class="vf-t"><b>'+esc(a.texto)+'</b><small>🔁 '+vndFixasRec(a)+' · 📅 '+vndFixaPeriodo(a)+(a.resp?' · 👤 '+esc(a.resp):'')+(a.impacto?' · 💵 +'+recMoeda(a.impacto):'')+'</small>'+
+      (fs==='vencida'?'<small class="vf-av">Terminou em '+isoBR(a.fim)+' e não vai mais no report. Edite o prazo para renovar ou encerre.</small>':(fs==='agendada'?'<small class="vf-av">Começa a ir no report em '+isoBR(a.ini)+'.</small>':''))+'</div>'+
+      '<span class="vf-st">'+st[fs][0]+'</span><div class="vf-bt">'+b+'</div></div>';
   }
-  var nAt=vis.filter(function(a){ return a.status==='ativa'; }).length;
+  var nAt=vis.filter(function(a){ return vndFixaFase(a)==='ativa'; }).length;
   box.innerHTML='<div class="vf-h"><b>🔁 Ações contínuas</b><span>'+(nAt?nAt+' ativa(s) — vão no report do Adilson todo dia até você pausar ou encerrar':'Ações que se repetem (ex.: toda segunda, fins de semana). Cadastre uma vez e elas aparecem todo dia.')+'</span></div>'+
     vis.map(item).join('')+
     (ed==='nova'?vndFixasForm(empId,null):(dis?'':'<button class="btn-save vnd-b2 vf-add" onclick="vndFixaEditar(\''+empId+'\',\'nova\')">＋ Nova ação contínua</button>'))+
@@ -4259,15 +4270,22 @@ function vndFixasPintar(empId){
     '<span class="rep-msg" id="vf-msg-'+empId+'"></span>';
 }
 function vndFixasForm(empId,a){
-  a=a||{ texto:'', resp:'', dias:[], impacto:null };
+  a=a||{ texto:'', resp:'', dias:[], impacto:null, ini:hoje(), fim:'' };
   var p=findPessoa((vndEmp(empId)||{}).dono), dias=a.dias||[];
   return '<div class="vf-form"><label>Ação</label><textarea id="vf-txt-'+empId+'" rows="2" placeholder="Ex.: Rodízio especial com divulgação no Instagram e disparo para a lista de clientes">'+esc(a.texto)+'</textarea>'+
     '<label>Quando se repete</label><div class="vf-dias">'+VND_FX_DIA.map(function(n,i){ return '<label class="vf-d"><input type="checkbox" id="vf-d-'+empId+'-'+i+'"'+(dias.indexOf(i)>=0?' checked':'')+'><span>'+n+'</span></label>'; }).join('')+
     '<span class="vf-at"><a onclick="vndFixaDias(\''+empId+'\',[])">todos os dias</a><a onclick="vndFixaDias(\''+empId+'\',[0,1,2,3,4])">seg a sex</a><a onclick="vndFixaDias(\''+empId+'\',[4,5,6])">sex a dom</a><a onclick="vndFixaDias(\''+empId+'\',[5,6])">fins de semana</a></span></div>'+
+    '<label>Período</label><div class="vf-per"><div><small>Início</small><input type="date" id="vf-ini-'+empId+'" value="'+(a.ini||hoje())+'"></div><div><small>Término <i>(vazio = sem prazo)</i></small><input type="date" id="vf-fim-'+empId+'" value="'+(a.fim||'')+'"></div>'+
+      '<span class="vf-at"><a onclick="vndFixaPrazo(\''+empId+'\',1)">1 mês</a><a onclick="vndFixaPrazo(\''+empId+'\',2)">2 meses</a><a onclick="vndFixaPrazo(\''+empId+'\',3)">3 meses</a><a onclick="vndFixaPrazo(\''+empId+'\',6)">6 meses</a><a onclick="vndFixaPrazo(\''+empId+'\',0)">sem prazo</a></span></div>'+
     '<div class="vnd-acao-l"><div><label>Responsável</label><input type="text" id="vf-resp-'+empId+'" value="'+esc(a.resp||'')+'" placeholder="'+esc(p?p.nome:'')+'"></div>'+
     '<div><label>Impacto esperado por mês (R$) <small>opcional</small></label><input type="text" inputmode="decimal" id="vf-imp-'+empId+'" value="'+(a.impacto?String(a.impacto).replace('.',','):'')+'" placeholder="0,00"></div></div>'+
     '<div class="rep-actions" style="margin-top:8px"><button class="btn-save" onclick="vndFixaSalvarForm(\''+empId+'\',\''+(a.id||'')+'\')">💾 Salvar ação contínua</button><button class="btn-save vnd-b2" onclick="VND_FIXAS_EDIT[\''+empId+'\']=null;vndFixasPintar(\''+empId+'\')">Cancelar</button></div>'+
-    '<div class="vf-dica">Sem dia marcado = todos os dias. Ela fica ativa e vai no report até você pausar ou encerrar.</div></div>';
+    '<div class="vf-dica">Sem dia marcado = todos os dias. Ela vai no report do Adilson dentro do período (ou até você pausar ou encerrar). Depois do término, para de ir sozinha.</div></div>';
+}
+function vndFixaPrazo(empId,meses){
+  var i=el('vf-ini-'+empId), f=el('vf-fim-'+empId); if(!f) return;
+  if(!meses){ f.value=''; return; }
+  var x=vndIsoDate((i&&i.value)||hoje()); x.setMonth(x.getMonth()+meses); x.setDate(x.getDate()-1); f.value=vndDateIso(x);
 }
 function vndFixaDias(empId,d){ for(var i=0;i<7;i++){ var c=el('vf-d-'+empId+'-'+i); if(c) c.checked=d.indexOf(i)>=0; } }
 function vndFixaEditar(empId,id){ VND_FIXAS_EDIT[empId]=id; vndFixasPintar(empId); var t=el('vf-txt-'+empId); if(t) t.focus(); }
@@ -4278,9 +4296,11 @@ function vndFixaSalvarForm(empId,id){
   if(dias.length===7) dias=[];
   var p=findPessoa((vndEmp(empId)||{}).dono), resp=String((el('vf-resp-'+empId)||{}).value||'').trim()||(p?p.nome:'');
   var ib=String((el('vf-imp-'+empId)||{}).value||'').trim(), imp=ib===''?null:recParseNum(ib), agora=new Date().toISOString();
+  var ini=(el('vf-ini-'+empId)||{}).value||hoje(), fim=(el('vf-fim-'+empId)||{}).value||'';
+  if(fim&&fim<ini){ if(m){ m.textContent='⚠ O término não pode ser antes do início.'; m.style.color='#ffaa2b'; } return; }
   var L=vndFixas(empId).map(function(a){ var o={}; Object.keys(a).forEach(function(k){ o[k]=a[k]; }); return o; });
-  if(id){ L.forEach(function(a){ if(a.id===id){ a.texto=txt; a.dias=dias; a.resp=resp; a.impacto=imp; a.atualizado=agora; } }); }
-  else L.push({ id:'fx'+Date.now().toString(36), texto:txt, dias:dias, resp:resp, impacto:imp, status:'ativa', criado:agora, atualizado:agora });
+  if(id){ L.forEach(function(a){ if(a.id===id){ a.texto=txt; a.dias=dias; a.resp=resp; a.impacto=imp; a.ini=ini; a.fim=fim; a.atualizado=agora; } }); }
+  else L.push({ id:'fx'+Date.now().toString(36), texto:txt, dias:dias, resp:resp, impacto:imp, ini:ini, fim:fim, status:'ativa', criado:agora, atualizado:agora });
   VND_FIXAS_EDIT[empId]=null;
   vndFixasGravar(empId,L,id?'ação atualizada':'ação contínua criada e ativa');
 }
