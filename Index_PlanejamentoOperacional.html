@@ -694,9 +694,12 @@
       <select class="cal-sel" id="calEmpresa">
         <option value="Todas">Todas as empresas</option>
         <option value="Q Food">Q Food</option>
+        <option value="Mercearia Liberdade VIX">Mercearia Liberdade VIX</option>
+        <option value="Mercearia Liberdade VV">Mercearia Liberdade VV</option>
+        <option value="Gogui">Gogui</option>
+        <option value="Q Nutri Alimentos">Q Nutri Alimentos</option>
         <option value="Sushi Trip">Sushi Trip</option>
-        <option value="Mercearia">Mercearia Liberdade</option>
-        <option value="Ecommerce">Ecommerce</option>
+        <option value="Prime Sushi">Prime Sushi</option>
       </select>
       <button class="cal-refresh" id="calRefresh">↻ Atualizar</button>
     </div>
@@ -895,10 +898,12 @@
           <label>Empresa</label>
           <select id="pf-empresa">
             <option value="Q Food">Q Food</option>
+            <option value="Mercearia Liberdade VIX">Mercearia Liberdade VIX</option>
+            <option value="Mercearia Liberdade VV">Mercearia Liberdade VV</option>
+            <option value="Gogui">Gogui</option>
+            <option value="Q Nutri Alimentos">Q Nutri Alimentos</option>
             <option value="Sushi Trip">Sushi Trip</option>
-            <option value="Mercearia">Mercearia Liberdade</option>
-            <option value="Ecommerce">Ecommerce</option>
-            <option value="Grupo">Grupo (todas)</option>
+            <option value="Prime Sushi">Prime Sushi</option>
           </select>
         </div>
         <div class="campo">
@@ -1205,7 +1210,7 @@ function csvParaObjetos(texto){
     var o={}; cab.forEach(function(h,idx){ o[h]=(l[idx]||'').trim(); }); return o;
   });
 }
-function esc(s){ return (s||'').replace(/[&<>"]/g,function(c){
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
 /* ============================================================
@@ -1855,10 +1860,11 @@ function classeStatus(s){
 function carregarPlanos(){
   var el=document.getElementById('planoConteudo');
   el.innerHTML='<div class="cal-estado"><div class="spin"></div><div>Carregando planos…</div></div>';
-  return fetch(CSV_URLS.plano + '&_=' + Date.now())
-    .then(function(r){ return r.text(); })
-    .then(function(txt){
-      PLANOS = csvParaObjetos(txt).map(function(o){
+  return fetch(WEBAPP_PLANEJAMENTO + '?modulo=planejamento&action=planos&_=' + Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var linhas = (j && j.ok && j.planos) ? j.planos : [];
+      PLANOS = linhas.map(function(o){
         return { id:o.ID||'', evento:o.Evento_ref||'', data:cleanData(o.Data_evento||''), empresa:o.Empresa||'',
                  objetivo:o.Objetivo||'', responsaveis:o.Responsavel||'', status:o.Status||'Planejado',
                  meta:o.KPI_meta||'', real:o.KPI_real||'', itens:o.Itens||'', obs:o.Observacoes||'',
@@ -2060,7 +2066,7 @@ function cardPlano(p){
       '</div>'+
     '</div>'+
     '<div class="plano-acoes">'+
-      '<button class="lnk" style="color:#0f766e;font-weight:800" onclick="abrirDetalhe(\''+esc(p.id)+'\')">🎛️ Gerenciar</button>'+
+      '<button class="lnk" style="color:#0f766e;font-weight:800" onclick="abrirEvento(\''+esc(p.id)+'\')">🎛️ Gerenciar</button>'+
       '<button class="lnk mapa-lnk" onclick="abrirMapa(\''+esc(p.id)+'\')">🧠 Ver mapa</button>'+
       '<button class="lnk" onclick="editarPlano(\''+esc(p.id)+'\')">✏ Editar</button>'+
       '<button class="lnk del" onclick="excluirPlano(\''+esc(p.id)+'\')">🗑 Excluir</button>'+
@@ -2114,28 +2120,44 @@ function editarPlano(id){
 }
 function salvarPlano(){
   if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado. Publique o Code_PLANEJAMENTO.gs e cole a URL em WEBAPP_PLANEJAMENTO.'); return; }
-  var btn=document.getElementById('pf-salvar'); btn.disabled=true; btn.textContent='Salvando…';
-  var atrib = getAtribuicoes();
-  apiPlanejamento({
-    action:'savePlano',
-    id: document.getElementById('pf-id').value,
-    evento: document.getElementById('pf-evento').value,
-    tipo: document.getElementById('pf-tipo').value,
-    empresa: document.getElementById('pf-empresa').value,
-    objetivo: document.getElementById('pf-objetivo').value,
-    status: document.getElementById('pf-status').value,
-    meta: document.getElementById('pf-meta').value,
-    real: document.getElementById('pf-real').value,
-    responsaveis: atrib.map(function(a){return a.n;}).join(', '),
-    atribuicoes: JSON.stringify(atrib),
-    itens: JSON.stringify(planoItens),
-    obs: document.getElementById('pf-obs').value,
-    usuario: (SESSAO && SESSAO.nome) || ''
-  }).then(function(j){
+  var btn=document.getElementById('pf-salvar'); if(!btn){ alert('Recarregue a página (Ctrl+Shift+R) e tente de novo.'); return; }
+  var eraNovo = !document.getElementById('pf-id').value;   // guarda se é CRIAÇÃO
+  btn.disabled=true; btn.textContent='Salvando…';
+  try{
+    if(!SESSAO){ throw new Error('Sua sessão expirou. Saia e entre de novo.'); }
+    var atrib = getAtribuicoes();
+    apiPlanejamento({
+      action:'savePlano',
+      id: document.getElementById('pf-id').value,
+      evento: document.getElementById('pf-evento').value,
+      tipo: document.getElementById('pf-tipo').value,
+      empresa: document.getElementById('pf-empresa').value,
+      objetivo: document.getElementById('pf-objetivo').value,
+      status: document.getElementById('pf-status').value,
+      meta: document.getElementById('pf-meta').value,
+      real: document.getElementById('pf-real').value,
+      responsaveis: atrib.map(function(a){return a.n;}).join(', '),
+      atribuicoes: JSON.stringify(atrib),
+      itens: JSON.stringify(planoItens),
+      obs: document.getElementById('pf-obs').value,
+      usuario: (SESSAO && SESSAO.nome) || ''
+    }).then(function(j){
+      btn.disabled=false; btn.textContent='✅ Salvar';
+      if(j && j.ok){
+        fecharModal('modalPlano'); carregarPlanos();
+        if(eraNovo && j.modo==='editado'){
+          alert('⚠️ ATENÇÃO: isto deveria ser um plano NOVO, mas o sistema ATUALIZOU um plano existente (id '+j.id+'). Recarregue a página com Ctrl+Shift+R antes de criar novos planos.');
+        } else {
+          alert(j.modo==='criado' ? '✅ Plano criado com sucesso.' : '✏️ Plano atualizado.');
+        }
+      } else {
+        alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
+      }
+    }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar'; alert('Falha no envio: '+e.message); });
+  }catch(err){
     btn.disabled=false; btn.textContent='✅ Salvar';
-    if(j && j.ok){ fecharModal('modalPlano'); carregarPlanos(); }
-    else alert('Erro ao salvar: '+((j&&j.erro)||'desconhecido'));
-  }).catch(function(e){ btn.disabled=false; btn.textContent='✅ Salvar'; alert('Falha: '+e.message); });
+    alert('Não consegui preparar o envio: '+err.message);
+  }
 }
 function excluirPlano(id){
   if(!WEBAPP_PLANEJAMENTO){ alert('Backend não configurado.'); return; }
@@ -2337,8 +2359,12 @@ function corDoNome(nome){
 // Logos reais do repositório (pasta assets/ no GitHub Pages). Chave = nome normalizado.
 var LOGO_ASSET = {
   'mercearia liberdade':'assets/Logo_Mercearia_Liberdade.png',
+  'mercearia liberdade vix':'assets/Logo_Mercearia_Liberdade.png',
+  'mercearia liberdade vv':'assets/Logo_Mercearia_Liberdade.png',
   'mercearia':'assets/Logo_Mercearia_Liberdade.png',
   'gogui':'assets/gogui-logo.jpg',
+  'q nutri alimentos':'assets/Logo_Cozinha_de_producao.jpg',
+  'q nutri':'assets/Logo_Cozinha_de_producao.jpg',
   'prime sushi':'assets/Prime_sushi.jpg',
   'prime fish':'assets/Prime_Fish.jpg'
 };
@@ -2602,6 +2628,10 @@ var DET_ID=null, DET_REC=[], DET_PROD=[], DET_ORC=[], DET_TAB='visao', DET_FILTR
 var ORC_CATS=['Produtos (CMV)','Bebidas','Embalagens','Pessoal','Horas extras','Transporte / logística','Aluguel equip./utensílios','Taxas de canal (iFood/cartão)','Mídia paga / anúncios (tráfego)','Marketing / divulgação','Gás / insumos','Outros'];
 var SC_ABAS=[['visao','Visão Geral'],['tarefas','Tarefas'],['recursos','Recursos'],['produtos','Produtos'],['financeiro','Financeiro'],['resultados','Resultados'],['historico','Histórico']];
 function detPlano(){ return PLANOS.filter(function(x){return x.id===DET_ID;})[0]; }
+function abrirEvento(id){
+  // Abre a página de Operação do evento (modelo novo, por data/lançamentos)
+  location.href = 'evento.html?id=' + encodeURIComponent(id);
+}
 function abrirDetalhe(id){
   var p=PLANOS.filter(function(x){return x.id===id;})[0]; if(!p) return;
   DET_ID=id; DET_REC=parseJSONArr(p.recursos); DET_PROD=parseJSONArr(p.produtos); DET_ORC=parseJSONArr(p.orcamento); DET_TAB='visao'; DET_FILTRO='todas';
