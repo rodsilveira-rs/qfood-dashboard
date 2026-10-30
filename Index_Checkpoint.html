@@ -5226,6 +5226,7 @@ function reuRenderFichaCorpo(box){
         '<div style="margin-top:6px"><span class="reu-id">'+esc(reuIdTxt(r.reuniao_id))+'</span> '+(r.__pendente?'<span class="reu-pend-s">⏳ mudanças neste aparelho, ainda não sincronizadas</span> ':'')+(real?'<span class="reu-st re">Realizada</span>':'<span class="reu-st ag">Agendada</span>')+(ativa?'':' <span class="chip-status chip-na">desativada</span>')+'</div></div>'+
       '<div class="reu-fh-a">'+
         '<button class="btn-sec" onclick="reuCopiarAta(\''+rid+'\')">📋 Copiar resumo</button>'+
+        '<button class="btn-sec" onclick="reuGerarPDF(\''+rid+'\')">📄 Gerar PDF</button>'+
         (ed?'<button class="btn-sec" onclick="reuEditar(\''+rid+'\')">✏️ Editar</button>'+
             '<button class="btn-sec'+(ativa?' perigo':'')+'" onclick="reuAlternarAtiva(\''+rid+'\')">'+(ativa?'Desativar':'Reativar')+'</button>':'')+
       '</div></div><span class="rep-msg" id="reu-ficha-msg"></span>';
@@ -5698,6 +5699,54 @@ function reuTextoAta(r){
   L.push('━━━━━━━━━━━━━━━');
   L.push('_Uma decisão • Um responsável • Um prazo • Uma meta • Uma evidência_');
   return L.join('\n');
+}
+/* ── PDF da reunião (ata organizada para imprimir ou salvar em PDF) ── */
+function reuHtmlPDF(r){
+  var comp=tarDaReuniao(r.reuniao_id), c=reuContagem(comp), logo=new URL('assets/qfood-logo.png',location.href).href;
+  function lin(t){ return esc(String(t||'').trim()).replace(/\n/g,'<br>'); }
+  function lista(t){ var L=String(t||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean); if(!L.length) return '<p class="vz">—</p>';
+    return '<ol>'+L.map(function(x){ return '<li>'+esc(x.replace(/^\d+[\.\)]\s*/,''))+'</li>'; }).join('')+'</ol>'; }
+  var crit={ critica:'Crítica', importante:'Importante' };
+  var linhas=comp.map(function(t,i){ var f=reuFarol(t);
+    return '<tr><td class="n">'+(i+1)+'</td><td><b>'+esc(t.acao||'')+'</b>'+(crit[t.criticidade]?'<span class="cr '+t.criticidade+'">'+crit[t.criticidade]+'</span>':'')+'</td>'+
+      '<td>'+esc(t.donoNome||t.dono||'')+'</td><td class="nw">'+(reuDataBR(t.prazo)||'—')+'</td><td>'+esc(t.meta||'—')+'</td><td>'+esc(t.evidenciaEsperada||'—')+'</td>'+
+      '<td class="nw"><span class="st '+f.c+'">'+f.txt+'</span></td></tr>'; }).join('');
+  var meta=[['Data',reuDataBR(r.data_iso)+(r.hora?' · '+esc(r.hora):'')],['Empresa',esc(r.empresa||'—')],['Tipo',esc(r.tipo||'—')],['Área',esc(r.area||'—')],['Status',reuRealizada(r)?'Realizada':'Agendada'],['Código',esc(r.reuniao_id||'')]];
+  return '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>'+esc((r.reuniao_id||'Reunião')+' — '+(r.assunto||''))+'</title><style>'+
+    '@page{size:A4;margin:14mm 12mm 16mm}*{box-sizing:border-box}body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#1d2333;font-size:10.5pt;line-height:1.45;margin:0}'+
+    '.top{display:flex;align-items:center;gap:14px;border-bottom:3px solid #6d3fd8;padding-bottom:10px;margin-bottom:14px}.top img{height:44px}.top .t{flex:1}.top small{display:block;font-size:8pt;letter-spacing:1.5px;color:#6d3fd8;font-weight:700;text-transform:uppercase}'+
+    '.top h1{font-size:16pt;margin:2px 0 0;line-height:1.2}.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:12px}.grid div{background:#f4f1fb;border-radius:6px;padding:6px 8px}.grid span{display:block;font-size:7.5pt;color:#6b7180;text-transform:uppercase;letter-spacing:.5px}.grid b{font-size:9.5pt}'+
+    'h2{font-size:11pt;color:#6d3fd8;text-transform:uppercase;letter-spacing:.6px;border-bottom:1px solid #e3def2;padding-bottom:3px;margin:16px 0 6px;page-break-after:avoid}'+
+    'p{margin:4px 0}ol{margin:4px 0 0 18px;padding:0}li{margin:3px 0}.vz{color:#8a90a0}.part{display:flex;flex-wrap:wrap;gap:6px}.part span{border:1px solid #d9d3ee;border-radius:12px;padding:2px 10px;font-size:9pt}'+
+    '.kp{display:flex;gap:8px;margin:4px 0 8px}.kp div{flex:1;border:1px solid #e3def2;border-radius:6px;padding:5px 8px;font-size:8.5pt}.kp b{display:block;font-size:13pt}'+
+    'table{width:100%;border-collapse:collapse;font-size:8.8pt}th{background:#6d3fd8;color:#fff;text-align:left;padding:5px 6px;font-weight:600}td{border-bottom:1px solid #e6e3ee;padding:5px 6px;vertical-align:top}tr{page-break-inside:avoid}td.n{color:#8a90a0;width:18px}.nw{white-space:nowrap}'+
+    '.cr{display:inline-block;margin-left:6px;font-size:7.5pt;font-weight:700;border-radius:8px;padding:0 6px}.cr.critica{background:#fde2e2;color:#b42318}.cr.importante{background:#fff1d6;color:#a15c00}'+
+    '.st{font-size:8pt;font-weight:700;border-radius:8px;padding:1px 7px}.st.verde{background:#dcf5e6;color:#11753e}.st.amarelo{background:#fff1d6;color:#a15c00}.st.vermelho{background:#fde2e2;color:#b42318}.st.neutro{background:#eceaf3;color:#4b5161}.st.cinza{background:#eee;color:#777}'+
+    '.res{white-space:normal;text-align:justify}.foot{margin-top:18px;border-top:1px solid #e3def2;padding-top:6px;font-size:8pt;color:#8a90a0;display:flex;justify-content:space-between}'+
+    '</style></head><body>'+
+    '<div class="top"><img src="'+logo+'" onerror="this.style.display=\'none\'"><div class="t"><small>Q Food Group · Ata de reunião</small><h1>'+esc(r.assunto||'(sem assunto)')+'</h1></div></div>'+
+    '<div class="grid">'+meta.map(function(m){ return '<div><span>'+m[0]+'</span><b>'+m[1]+'</b></div>'; }).join('')+'</div>'+
+    '<h2>👥 Participantes</h2><div class="part">'+(reuLista(r.participantes_nomes).map(function(n){ return '<span>'+esc(n)+'</span>'; }).join('')||'<span class="vz">—</span>')+'</div>'+
+    (r.objetivo?'<h2>🎯 Objetivo</h2><p>'+lin(r.objetivo)+'</p>':'')+
+    (String(r.pauta||'').trim()?'<h2>🗂 Pauta</h2>'+lista(r.pauta):'')+
+    '<h2>✔ Decisões</h2>'+lista(r.decisoes)+
+    '<h2>✅ Quadro de compromissos ('+comp.length+')</h2>'+
+    (comp.length?'<div class="kp"><div><b>'+c.verde+'</b>concluídos</div><div><b>'+c.neutro+'</b>no prazo</div><div><b>'+c.amarelo+'</b>em risco</div><div><b>'+c.vermelho+'</b>atrasados</div></div>'+
+      '<table><thead><tr><th>#</th><th>O que será feito</th><th>Responsável</th><th>Prazo</th><th>Meta / indicador</th><th>Evidência esperada</th><th>Status</th></tr></thead><tbody>'+linhas+'</tbody></table>':'<p class="vz">Nenhum compromisso registrado.</p>')+
+    (String(r.resumo||'').trim()?'<h2>📝 Resumo</h2><div class="res">'+String(r.resumo).trim().split(/\n\s*\n/).map(function(p){ return '<p>'+lin(p)+'</p>'; }).join('')+'</div>':'')+
+    (r.tags?'<p style="margin-top:10px;color:#6b7180;font-size:9pt">'+esc(r.tags)+'</p>':'')+
+    '<div class="foot"><span>Uma decisão · Um responsável · Um prazo · Uma meta · Uma evidência</span><span>Gerado em '+isoBR(hoje())+' por '+esc(reuNomeUsuario())+'</span></div>'+
+    '</body></html>';
+}
+function reuGerarPDF(id){
+  var r=reuAchar(id); if(!r) return;
+  var old=el('reu-pdf-frame'); if(old) old.remove();
+  var f=document.createElement('iframe'); f.id='reu-pdf-frame';
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  document.body.appendChild(f);
+  var d=f.contentWindow.document; d.open(); d.write(reuHtmlPDF(r)); d.close();
+  reuMsg('reu-ficha-msg','🖨️ Na janela que abriu, escolha "Salvar como PDF" no destino.');
+  setTimeout(function(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ reuMsg('reu-ficha-msg','✗ Não consegui abrir a impressão neste aparelho.','#e63329'); } },600);
 }
 function reuCopiarAta(id){
   var r=reuAchar(id); if(!r) return;
