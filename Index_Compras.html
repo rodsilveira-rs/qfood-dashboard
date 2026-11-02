@@ -2074,6 +2074,27 @@ body.pode-agente .qf-nav a.so-agente{display:flex;}
     <div id="cmp-loading" class="spin-wrap" style="display:none"><div class="spin"></div>Carregando produtos...</div>
     <div id="cmp-error" style="display:none;color:var(--red);padding:12px;background:var(--s2);border-radius:8px;margin-bottom:12px"></div>
     <div id="cmp-step1-content" style="display:none">
+      <style>
+        .agc-card{display:none;background:var(--sf);border:1px solid rgba(160,124,246,.35);border-radius:12px;padding:16px 20px;margin-bottom:20px}
+        body.pode-agente .agc-card{display:block}
+        .agc-linha{display:grid;grid-template-columns:40px 1fr 60px 80px 130px 160px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--br);font-size:.82rem}
+        .agc-cab{font-size:.65rem;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+        .agc-num{font-weight:800;color:#a07cf6;font-size:.95rem}
+        .agc-btn{padding:6px 12px;background:#a07cf6;border:none;border-radius:7px;color:#fff;font-weight:700;font-size:.75rem;cursor:pointer;white-space:nowrap}
+        .agc-btn:hover{filter:brightness(1.1)}
+        .cmp-qty.agc-sugerido{outline:2px solid #a07cf6;background:rgba(160,124,246,.12)}
+      </style>
+      <div class="agc-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+          <div>
+            <div style="font-weight:700;font-size:.95rem">&#129302; Pedidos sugeridos pelo Agente de Compras</div>
+            <div style="font-size:.72rem;color:var(--mu)">Fornecedores em ordem de prioridade. "Montar cotação" escolhe o fornecedor e preenche as quantidades — revise antes de enviar. <span id="agc-gerado"></span></div>
+          </div>
+          <button onclick="agcCarregar(true)" style="padding:5px 12px;background:var(--s2);border:1px solid var(--br);border-radius:7px;color:var(--mu);font-size:.75rem;cursor:pointer">&#128260; Atualizar</button>
+        </div>
+        <div id="agc-msg" style="display:none;font-size:.8rem;padding:8px 12px;margin:8px 0;background:rgba(54,207,160,.08);border:1px solid rgba(54,207,160,.3);border-radius:8px"></div>
+        <div id="agc-lista" style="max-height:320px;overflow:auto"></div>
+      </div>
       <div style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:20px 24px;margin-bottom:20px">
         <div style="font-size:.7rem;color:var(--mu);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Selecione o Fornecedor</div>
         <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
@@ -10138,6 +10159,148 @@ function chegCopiarWhats() {
     return r;
   };
 })();
+
+// ════════════════════════════════════════════════════════════════
+// 🛒 AGENTE DE COMPRAS — pedidos sugeridos dentro da Cotação
+// Lê a aba AGC_RADAR (?tipo=agc_radar). "Montar cotação" escolhe o
+// fornecedor e preenche a Qtd. Solicitar com a sugestão do agente.
+// A Cris revisa/edita e segue o fluxo normal (link → fornecedor preenche).
+// Visível só para AGV_LOGINS (valores a preço de custo).
+// ════════════════════════════════════════════════════════════════
+var AGC = { carregado: false, carregando: false, itens: [], gerado: "", forns: [] };
+var AGC_STATUS_PEDIDO = ["Ruptura", "Ruptura — pedido a caminho", "Comprar hoje", "Comprar", "Aproveitar no pedido"];
+
+async function agcCarregar(forcar) {
+  var box = document.getElementById("agc-lista");
+  if (!box || AGC.carregando) return;
+  if (AGC.carregado && !forcar) { agcRender(); return; }
+  AGC.carregando = true;
+  box.innerHTML = '<div style="font-size:.8rem;color:var(--mu);padding:8px 0">Carregando sugestões do agente…</div>';
+  try {
+    var url = VALIDADES_SYNC_URL + "?tipo=agc_radar&token=" + encodeURIComponent(VALIDADES_SYNC_TOKEN) + "&_=" + Date.now();
+    var j = await (await fetch(url)).json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || "resposta inválida");
+    AGC.itens = (j.itens || []).filter(function (it) {
+      return AGC_STATUS_PEDIDO.indexOf(String(it.Status)) >= 0 && Number(it.Sugestao_Qtde) > 0;
+    });
+    AGC.gerado = j.gerado_em || "";
+    var porF = {};
+    AGC.itens.forEach(function (it) {
+      var f = porF[it.Fornecedor] = porF[it.Fornecedor] ||
+        { nome: it.Fornecedor, prior: Number(it.Prior_Fornecedor) || 9999, itens: [], valor: 0, rupt: 0, urg: 9999 };
+      f.itens.push(it);
+      f.valor += Number(it.Valor_Sugestao_Custo) || 0;
+      if (String(it.Status).indexOf("Ruptura") === 0) f.rupt++;
+      f.urg = Math.min(f.urg, Number(it.Urgencia_Geral) || 9999);
+    });
+    AGC.forns = Object.keys(porF).map(function (k) { return porF[k]; })
+      .sort(function (a, b) { return a.prior - b.prior; });
+    AGC.carregado = true;
+    agcRender();
+  } catch (e) {
+    box.innerHTML = '<div style="font-size:.8rem;color:#ff7875;padding:8px 0">Não foi possível carregar as sugestões (' +
+      agvEsc(e.message) + '). Confira se a rota agc_radar foi publicada como Nova versão no Validades Sync.</div>';
+  } finally {
+    AGC.carregando = false;
+  }
+}
+
+function agcRender() {
+  var box = document.getElementById("agc-lista");
+  if (!box) return;
+  var ger = document.getElementById("agc-gerado");
+  if (ger) ger.textContent = AGC.gerado ? "Calculado em " + AGC.gerado : "";
+  if (!AGC.forns.length) {
+    box.innerHTML = '<div style="font-size:.8rem;color:var(--mu);padding:8px 0">Nenhum fornecedor precisa de pedido hoje.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="agc-linha agc-cab"><span>#</span><span>Fornecedor</span><span>Itens</span>' +
+    '<span>Rupturas</span><span>Valor (custo)</span><span></span></div>' +
+    AGC.forns.map(function (f, i) {
+      return '<div class="agc-linha">' +
+        '<span class="agc-num">' + f.prior + '</span>' +
+        '<span><b>' + agvEsc(f.nome) + '</b><br><span style="font-size:.68rem;color:var(--mu)">item mais urgente: #' + f.urg + ' da lista geral</span></span>' +
+        '<span>' + f.itens.length + '</span>' +
+        '<span>' + (f.rupt ? '<b style="color:#ff4d4f">' + f.rupt + '</b>' : '<span style="color:var(--mu2)">—</span>') + '</span>' +
+        '<span>' + agvMoeda(f.valor) + '</span>' +
+        '<span><button class="agc-btn" onclick="agcMontar(' + i + ')">Montar cotação →</button></span>' +
+        '</div>';
+    }).join("");
+}
+
+/* Escolhe o fornecedor na cotação, põe os itens sugeridos no topo (em ordem de
+   urgência) e preenche a Qtd. Solicitar. Nada é enviado: a Cris revisa e segue. */
+async function agcMontar(iOuNome) {
+  var f = typeof iOuNome === "number" ? AGC.forns[iOuNome]
+        : AGC.forns.filter(function (x) { return x.nome === iOuNome; })[0];
+  if (!f) { alert("Fornecedor sem sugestão de pedido hoje."); return; }
+  if (!cmpLoaded) await cmpLoad(false);
+
+  var sel = document.getElementById("cmp-fornecedor");
+  var existe = Array.prototype.some.call(sel.options, function (o) { return o.value === f.nome; });
+  if (!existe) { alert("Fornecedor \"" + f.nome + "\" não encontrado na base da cotação. Clique em Recarregar base."); return; }
+  sel.value = f.nome;
+  cmpSelectFornecedor();
+
+  // Sugestões por código, em ordem de urgência
+  var sug = {}, ordem = {};
+  f.itens.slice().sort(function (a, b) { return (Number(a.Urgencia_Geral) || 9999) - (Number(b.Urgencia_Geral) || 9999); })
+    .forEach(function (it, k) { var c = String(it.Codigo).trim(); sug[c] = it; ordem[c] = k; });
+
+  // Itens sugeridos primeiro, o resto do mix depois (como estava)
+  cmpProdutos.sort(function (a, b) {
+    var oa = ordem[String(a.cod).trim()], ob = ordem[String(b.cod).trim()];
+    if (oa !== undefined && ob !== undefined) return oa - ob;
+    if (oa !== undefined) return -1;
+    if (ob !== undefined) return 1;
+    return b.giro - a.giro;
+  });
+  cmpRenderProdutos();
+
+  var preenchidos = 0, faltando = [];
+  Object.keys(sug).forEach(function (c) { faltando.push(c); });
+  cmpProdutos.forEach(function (p, i) {
+    var it = sug[String(p.cod).trim()];
+    if (!it) return;
+    var inp = document.querySelector('.cmp-qty[data-idx="' + i + '"]');
+    if (!inp) return;
+    inp.value = Math.ceil(Number(it.Sugestao_Qtde) || 0);
+    inp.classList.add("agc-sugerido");
+    inp.title = "Sugestão do agente: " + it.Status + " · urgência #" + it.Urgencia_Geral +
+                " · estoque " + it.Estoque + " + " + it.A_Caminho + " a caminho · dura " + it.Dura_Dias + " dias";
+    preenchidos++;
+    faltando.splice(faltando.indexOf(String(p.cod).trim()), 1);
+  });
+  cmpUpdateCount();
+
+  var msg = document.getElementById("agc-msg");
+  if (msg) {
+    msg.innerHTML = "✅ <b>" + agvEsc(f.nome) + "</b>: " + preenchidos + " item(ns) preenchido(s) com a sugestão do agente, no topo da lista em ordem de urgência. " +
+      "<b>Revise e ajuste as quantidades</b> antes de clicar em Próximo." +
+      (faltando.length ? ' <span style="color:#ffaa2b">Não achei na base da cotação: ' + faltando.join(", ") + ".</span>" : "");
+    msg.style.display = "block";
+  }
+  var wrap = document.getElementById("cmp-produtos-wrap");
+  if (wrap) wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* Link do e-mail: Index_Compras.html?agc=NOME DO FORNECEDOR
+   abre a Cotação já montada para esse fornecedor. */
+async function agcDeepLink() {
+  var forn = new URLSearchParams(location.search).get("agc");
+  if (!forn || !agvPode()) return;
+  qfIr("cotacao");
+  for (var t = 0; t < 60 && !cmpLoaded; t++) await new Promise(function (r) { setTimeout(r, 500); });
+  await agcCarregar(true);
+  agcMontar(forn);
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+  setTimeout(function () {
+    if (agvPode()) agcCarregar(false);
+    agcDeepLink();
+  }, 3000);
+});
 
 // ════════════════════════════════════════════════════════════════
 // 🤖 AGENTE — radar de validade (seção "Agente")
