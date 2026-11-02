@@ -1022,6 +1022,8 @@ body.is-aprovador .so-aprov-btn{display:flex !important}
       <svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6v3H9zM9 11h6M9 15h4"/></svg>Operacional<span class="qf-badge" id="qf-badge-op"></span></a>
     <a data-sec="cotacao" onclick="qfIr('cotacao')" tabindex="0">
       <svg viewBox="0 0 24 24"><path d="M20.5 12.5 12 21l-9-9V3.5h8.5z"/><circle cx="7.5" cy="7.5" r="1.4"/></svg>Cotações</a>
+    <a data-sec="agente" class="so-agente" onclick="qfIr('agente')" tabindex="0">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><path d="M12 12l5.5-5.5"/><circle cx="12" cy="12" r="1"/></svg>Agente<span class="qf-badge" id="qf-badge-agv"></span></a>
     <a data-sec="validades" onclick="qfIr('validades')" tabindex="0">
       <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13.5v3l2 1.2"/></svg>Validades<span class="qf-badge" id="qf-badge-val"></span></a>
     <a data-sec="chegando" onclick="qfIr('chegando')" tabindex="0">
@@ -1763,6 +1765,79 @@ body.is-aprovador .so-aprov-btn{display:flex !important}
 
 </div>
 </div><!-- /painel-chegando -->
+
+<!-- ═══════════════════════════════════════════════════════════════
+     🤖 AGENTE — radar de validade (só leitura)
+     Lê a aba AGV_RADAR via ?tipo=agv_radar. Quem decide registra
+     no card Alertas de Validade (seção Validades).
+     ═══════════════════════════════════════════════════════════════ -->
+<style>
+.qf-nav a.so-agente{display:none;}
+body.pode-agente .qf-nav a.so-agente{display:flex;}
+.agv-topo{display:grid;grid-template-columns:300px 1fr;gap:16px;margin-bottom:16px}
+@media (max-width:900px){.agv-topo{grid-template-columns:1fr}}
+.agv-gauge-card{background:var(--sf);border:1px solid var(--br);border-radius:14px;padding:16px 18px 12px;text-align:center}
+.agv-gauge-tit{font-size:.74rem;color:var(--mu);text-transform:uppercase;letter-spacing:.6px;font-weight:700}
+.agv-gauge-pct{font-size:2.6rem;font-weight:800;line-height:1;margin-top:-58px;letter-spacing:-1px}
+.agv-gauge-sub{font-size:.74rem;color:var(--mu);margin-top:8px}
+.agv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-content:start}
+.agv-kpi{background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:12px 14px;cursor:pointer;transition:border-color .15s,transform .15s}
+.agv-kpi:hover{transform:translateY(-2px);border-color:var(--b2)}
+.agv-kpi.on{border-color:var(--c,#4d8ef5);box-shadow:inset 0 0 0 1px var(--c,#4d8ef5)}
+.agv-kpi-n{font-size:1.45rem;font-weight:800;color:var(--c,#eef1f8)}
+.agv-kpi-v{font-size:.76rem;color:var(--tx);font-weight:600;margin-top:2px}
+.agv-kpi-l{font-size:.7rem;color:var(--mu);margin-top:4px}
+.agv-barra{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.agv-barra input{flex:1;min-width:220px;background:var(--s2);border:1px solid var(--br);border-radius:8px;padding:8px 12px;color:var(--tx);font-size:.8rem}
+.agv-btn{background:var(--s2);border:1px solid var(--br);color:var(--tx);padding:8px 12px;border-radius:8px;font-size:.76rem;font-weight:600;cursor:pointer;white-space:nowrap}
+.agv-btn:hover{border-color:var(--b2)}
+.agv-tab{width:100%;border-collapse:collapse;font-size:.78rem}
+.agv-tab th{text-align:left !important;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);padding:8px 10px;border-bottom:1px solid var(--br);position:sticky;top:0;background:var(--sf)}
+.agv-tab td{padding:9px 10px;border-bottom:1px solid var(--br);vertical-align:top;text-align:left !important}
+.agv-tab tr:hover td{background:rgba(255,255,255,.025)}
+.agv-wrap{background:var(--sf);border:1px solid var(--br);border-radius:14px;overflow:auto;max-height:68vh}
+.agv-pos{font-size:1rem;font-weight:800}
+.agv-pri{font-size:.68rem;white-space:nowrap;margin-top:2px}
+.agv-mut{color:var(--mu);font-size:.7rem}
+.agv-selo{font-size:.66rem;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:3px}
+.agv-selo.ok{background:rgba(54,207,160,.12);color:#36cfa0}
+.agv-selo.est{background:rgba(255,170,43,.12);color:#ffaa2b}
+.agv-motivo{display:inline-block;margin-top:4px;font-size:.66rem;font-weight:700;background:rgba(255,170,43,.14);color:#ffcf85;padding:1px 6px;border-radius:4px}
+.agv-dec{margin-top:4px;font-size:.68rem;color:#36cfa0}
+.agv-sem{margin-top:4px;font-size:.68rem;color:#ff4d4f;font-weight:700}
+.agv-rodape{font-size:.7rem;color:var(--mu2);margin-top:12px;line-height:1.6}
+</style>
+
+<div class="aba-painel" id="painel-agente">
+<div class="qf-pagina">
+
+  <div class="agv-topo">
+    <div class="agv-gauge-card">
+      <div class="agv-gauge-tit">Urgentes com decisão registrada</div>
+      <svg viewBox="0 0 200 118" style="width:100%;max-width:250px;display:block;margin:6px auto 0">
+        <path d="M20 105 A80 80 0 0 1 180 105" fill="none" stroke="rgba(255,255,255,.08)" stroke-width="16" stroke-linecap="round"/>
+        <path id="agv-gauge-arc" d="M20 105 A80 80 0 0 1 180 105" fill="none" stroke="#ff4d4f" stroke-width="16"
+              stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3" style="transition:stroke-dashoffset .8s ease,stroke .4s"/>
+      </svg>
+      <div class="agv-gauge-pct" id="agv-gauge-pct">—</div>
+      <div class="agv-gauge-sub" id="agv-gauge-sub">carregando…</div>
+    </div>
+    <div class="agv-kpis" id="agv-kpis"></div>
+  </div>
+
+  <div class="agv-barra">
+    <input type="search" id="agv-busca" placeholder="Buscar produto, código ou fornecedor..." oninput="agvRender()">
+    <button class="agv-btn" onclick="agvCarregar(true)">↻ Atualizar</button>
+    <button class="agv-btn" onclick="agvExportar()">⬇ Planilha (CSV)</button>
+    <button class="agv-btn" onclick="qfIr('validades')">✍ Registrar decisão em Validades</button>
+  </div>
+
+  <div class="agv-wrap"><div id="agv-lista"><div class="qf-vazio">Carregando…</div></div></div>
+
+  <div class="agv-rodape" id="agv-rodape"></div>
+
+</div>
+</div><!-- /painel-agente -->
 
 <div class="aba-painel" id="painel-validades">
 <div class="qf-pagina">
@@ -9227,6 +9302,7 @@ var QF = {
     visao:           ['Compras & Suprimentos', 'Central de Cotações'],
     operacional:     ['Operacional', 'Aprovações, cotações enviadas e pedidos em andamento'],
     cotacao:         ['Nova cotação', 'Monte o pedido por fornecedor e envie o link de cotação'],
+    agente:          ['Agente de Validades', 'O que vence sem vender a tempo — as bombas na frente'],
     validades:       ['Validades', 'Conferência de entrada e alertas de vencimento'],
     chegando:        ['Chegando', 'Produtos comprados que ainda não chegaram — indústria, quantidade e previsão'],
     fornecedores:    ['Fornecedores', 'Histórico de cotações, preços por SKU e indicadores'],
@@ -9234,7 +9310,7 @@ var QF = {
     indicadores:     ['Indicadores', 'Volume, ticket médio e fase do mês']
   },
   // seção → painel que ela mostra
-  paineis: ['visao', 'operacional', 'cotacao', 'validades', 'chegando', 'fornecedores', 'transportadoras', 'indicadores']
+  paineis: ['visao', 'operacional', 'cotacao', 'agente', 'validades', 'chegando', 'fornecedores', 'transportadoras', 'indicadores']
 };
 
 // A navegação antiga chamava v3TrocarAba('consulta'). Tudo passa por aqui agora.
@@ -9246,6 +9322,7 @@ function v3TrocarAba(nome) {
 function qfIr(nome) {
   if (QF.paineis.indexOf(nome) < 0) nome = 'visao';
   if (nome === 'operacional' && !v3EhAprovador()) nome = 'visao';
+  if (nome === 'agente' && !agvPode()) nome = 'visao';
 
   QF.paineis.forEach(function (n) {
     var p = document.getElementById('painel-' + n);
@@ -9273,6 +9350,7 @@ function qfIr(nome) {
   if (nome === 'validades' && typeof VALAL !== 'undefined' && !VALAL.aberto) toggleValAlertaPainel();
   if (nome === 'validades' && typeof VALDISP !== 'undefined' && !VALDISP.carregado) valdispCarregar();
   if (nome === 'chegando')        chegRender();
+  if (nome === 'agente')          agvCarregar(false);
   if (nome === 'visao') qfRenderVisao();
 
   qfMenu(false);
@@ -10056,10 +10134,188 @@ function chegCopiarWhats() {
   };
 })();
 
+// ════════════════════════════════════════════════════════════════
+// 🤖 AGENTE — radar de validade (seção "Agente")
+// Só lê a aba AGV_RADAR (gerada todo dia às 9h pelo Agente_Validades).
+// Valores a preço de custo → visível só para quem decide (AGV_LOGINS).
+// ════════════════════════════════════════════════════════════════
+var AGV_LOGINS = ["rodrigo", "celio", "adm", "compras", "adilson"];
+
+var AGV = { carregado: false, carregando: false, itens: [], contagem: {}, gerado: "", cat: "Urgente" };
+
+var AGV_CATS = [
+  { id: "Urgente",                 rot: "Urgentes",        cor: "#ff4d4f", dica: "vencem em até 90 dias e não vendem a tempo" },
+  { id: "Atenção",                 rot: "Atenção",         cor: "#ffaa2b", dica: "sobra pequena prevista" },
+  { id: "Excesso de compra",       rot: "Excesso",         cor: "#a07cf6", dica: "estoque acima do giro, vence depois de 90 dias" },
+  { id: "Sem histórico — validar", rot: "Sem histórico",   cor: "#4d8ef5", dica: "produto que ainda não vendeu" },
+  { id: "Baixa sugerida",          rot: "Baixa sugerida",  cor: "#8fa0c0", dica: "ERP sem estoque para o lote" }
+];
+
+function agvPode() {
+  var email = (typeof valalLoginUsuario === "function") ? valalLoginUsuario() : "";
+  return AGV_LOGINS.indexOf(String(email).split("@")[0]) >= 0;
+}
+
+function agvAplicarPermissao() {
+  document.body.classList.toggle("pode-agente", agvPode());
+}
+
+function agvMoeda(v) {
+  return "R$ " + Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function agvNum(v, d) {
+  return Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 });
+}
+function agvEsc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+async function agvCarregar(forcar) {
+  if (AGV.carregando) return;
+  if (AGV.carregado && !forcar) { agvRender(); return; }
+  AGV.carregando = true;
+  document.getElementById("agv-lista").innerHTML = '<div class="qf-vazio">Carregando o radar do agente…</div>';
+  try {
+    var url = VALIDADES_SYNC_URL + "?tipo=agv_radar&token=" + encodeURIComponent(VALIDADES_SYNC_TOKEN) + "&_=" + Date.now();
+    var r = await fetch(url);
+    var j = await r.json();
+    if (!j || !j.ok) throw new Error((j && j.erro) || "resposta inválida");
+    AGV.itens = j.itens || [];
+    AGV.contagem = j.contagem || {};
+    AGV.gerado = j.gerado_em || "";
+    AGV.carregado = true;
+    agvRender();
+  } catch (e) {
+    document.getElementById("agv-lista").innerHTML =
+      '<div class="qf-vazio">Não foi possível carregar o radar (' + agvEsc(e.message) + ').<br>' +
+      'Confira se a rota agv_radar foi publicada como Nova versão no projeto Validades Sync.</div>';
+  } finally {
+    AGV.carregando = false;
+  }
+}
+
+function agvDaCat(cat) {
+  return AGV.itens.filter(function (it) { return it.Categoria === cat; });
+}
+function agvSoma(lista) {
+  return lista.reduce(function (s, it) { return s + (Number(it.Valor_Estimado_Risco_Custo) || 0); }, 0);
+}
+
+function agvGauge(pct, sub) {
+  var arc = document.getElementById("agv-gauge-arc");
+  var cor = pct === null ? "#5e718e" : (pct < 40 ? "#ff4d4f" : (pct < 70 ? "#ffaa2b" : "#36cfa0"));
+  var total = 251.3;
+  arc.style.stroke = cor;
+  arc.style.strokeDashoffset = pct === null ? total : total * (1 - Math.max(0, Math.min(100, pct)) / 100);
+  var el = document.getElementById("agv-gauge-pct");
+  el.textContent = pct === null ? "—" : Math.round(pct) + "%";
+  el.style.color = cor;
+  document.getElementById("agv-gauge-sub").textContent = sub;
+}
+
+function agvRender() {
+  if (!AGV.carregado) return;
+
+  // ── Velocímetro: quantos urgentes já têm decisão registrada ──
+  var urg = agvDaCat("Urgente");
+  var comDecisao = urg.filter(function (it) { return String(it.Decisao_Registrada || "").trim(); }).length;
+  agvGauge(urg.length ? (comDecisao / urg.length) * 100 : null,
+           urg.length ? comDecisao + " de " + urg.length + " urgentes já têm decisão" : "nenhum lote urgente hoje 🎉");
+
+  // ── KPIs (clicáveis = filtro) ──
+  var k = "";
+  AGV_CATS.forEach(function (c) {
+    var lista = agvDaCat(c.id);
+    var n = AGV.contagem[c.id] || lista.length;
+    var valor = c.id === "Baixa sugerida" ? "" : agvMoeda(agvSoma(lista));
+    k += '<div class="agv-kpi' + (AGV.cat === c.id ? " on" : "") + '" style="--c:' + c.cor + '" ' +
+         'onclick="agvFiltrar(\'' + c.id.replace(/'/g, "\\'") + '\')" title="' + agvEsc(c.dica) + '">' +
+         '<div class="agv-kpi-n">' + n + "</div>" +
+         (valor ? '<div class="agv-kpi-v">' + valor + "</div>" : "") +
+         '<div class="agv-kpi-l">' + agvEsc(c.rot) + "</div></div>";
+  });
+  document.getElementById("agv-kpis").innerHTML = k;
+
+  // ── Tabela: já vem ordenada por prioridade (as bombas na frente) ──
+  var q = (document.getElementById("agv-busca").value || "").trim().toLowerCase();
+  var lista = agvDaCat(AGV.cat).filter(function (it) {
+    if (!q) return true;
+    return (String(it.Codigo) + " " + it.Descricao + " " + it.Fornecedor).toLowerCase().indexOf(q) >= 0;
+  }).sort(function (a, b) { return (Number(a.Posicao) || 9999) - (Number(b.Posicao) || 9999); });
+
+  var cor = (AGV_CATS.filter(function (c) { return c.id === AGV.cat; })[0] || {}).cor || "#eef1f8";
+
+  if (!lista.length) {
+    document.getElementById("agv-lista").innerHTML = '<div class="qf-vazio">Nada nesta categoria' + (q ? " para essa busca" : "") + ".</div>";
+  } else {
+    var h = '<table class="agv-tab"><thead><tr><th>#</th><th>Produto</th><th>Vence</th><th>Saldo</th>' +
+            '<th>Vende/dia</th><th>Sobra est.</th><th>Valor est.</th><th>Ação sugerida</th></tr></thead><tbody>';
+    lista.forEach(function (it) {
+      var tipo = String(it.Tipo_Saldo || "");
+      var seloOk = tipo.indexOf("Contado") === 0 && tipo.indexOf(" há ") < 0;
+      var extra = "";
+      if (it.Motivo_Aviso) extra += '<div><span class="agv-motivo">★ ' + agvEsc(it.Motivo_Aviso) + "</span></div>";
+      if (String(it.Decisao_Registrada || "").trim()) extra += '<div class="agv-dec">✔ ' + agvEsc(it.Decisao_Registrada) + "</div>";
+      else if (it.Dias_Sem_Decisao !== "" && it.Dias_Sem_Decisao != null) {
+        extra += '<div class="agv-sem">Contado há ' + agvEsc(it.Dias_Sem_Decisao) + " dia(s) e sem decisão</div>";
+      }
+      var ids = String(it.IDs_Entrada || "").split(",").filter(String).length;
+
+      h += "<tr>";
+      h += '<td><div class="agv-pos">' + agvEsc(it.Posicao) + '</div><div class="agv-pri">' + agvEsc(it.Prioridade) + "</div></td>";
+      h += "<td><b>" + agvEsc(it.Codigo) + "</b> — " + agvEsc(it.Descricao) +
+           '<div class="agv-mut">' + agvEsc(it.Fornecedor) + (ids > 1 ? " · " + ids + " entradas do mesmo lote" : "") + "</div></td>";
+      h += '<td><b style="color:' + cor + '">' + agvEsc(it.Dias) + 'd</b><div class="agv-mut">' + agvEsc(it.Validade) + "</div></td>";
+      h += "<td>" + agvNum(it.Saldo_Estimado) + " " + agvEsc(it.Un) +
+           '<div><span class="agv-selo ' + (seloOk ? "ok" : "est") + '">' + agvEsc(tipo) + "</span></div></td>";
+      h += "<td>" + (Number(it.Venda_Dia) > 0 ? agvNum(it.Venda_Dia, 1) : '<span class="agv-mut">sem venda</span>') + "</td>";
+      h += '<td><b style="color:' + cor + '">' + agvNum(it.Sobra_Estimada) + "</b>" +
+           '<div class="agv-mut">' + agvNum(it.Pct_Sobra) + "% do saldo</div></td>";
+      h += "<td><b>" + agvMoeda(it.Valor_Estimado_Risco_Custo) + "</b></td>";
+      h += "<td>" + agvEsc(it.Acao_Sugerida) + extra + "</td>";
+      h += "</tr>";
+    });
+    document.getElementById("agv-lista").innerHTML = h + "</tbody></table>";
+  }
+
+  document.getElementById("agv-rodape").innerHTML =
+    "Radar gerado pelo agente em <b>" + agvEsc(AGV.gerado || "—") + "</b> (roda todo dia às 9h). " +
+    "Sobra e valor são <b>estimativas a preço de custo</b>, não perda confirmada: lote com contagem antiga " +
+    "ou saldo estimado pelo ERP (selo amarelo) merece reconferência antes de ação forte. " +
+    "As decisões são registradas no card <b>Alertas de Validade</b>.";
+}
+
+function agvFiltrar(cat) {
+  AGV.cat = cat;
+  agvRender();
+}
+
+function agvExportar() {
+  var lista = agvDaCat(AGV.cat);
+  if (!lista.length) { alert("Nada para exportar nesta categoria."); return; }
+  var cols = ["Posicao", "Prioridade", "Categoria", "Codigo", "Descricao", "Fornecedor", "Validade", "Dias",
+              "Saldo_Estimado", "Un", "Tipo_Saldo", "Venda_Dia", "Sobra_Estimada", "Pct_Sobra",
+              "Valor_Estimado_Risco_Custo", "Acao_Sugerida", "Decisao_Registrada", "Dias_Sem_Decisao"];
+  var cel = function (v) {
+    if (typeof v === "number" && !Number.isInteger(v)) v = v.toLocaleString("pt-BR");
+    return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+  };
+  var linhas = [cols.map(cel).join(";")].concat(lista.map(function (it) {
+    return cols.map(function (c) { return cel(it[c]); }).join(";");
+  }));
+  var blob = new Blob(["﻿" + linhas.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "Agente_" + AGV.cat.split(" ")[0] + "_" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   qfPreencherUsuario();
+  agvAplicarPermissao();
   // USR_ATUAL chega depois (UUSR é assíncrono) — repinta o perfil quando estiver pronto
   setTimeout(qfPreencherUsuario, 2500);
+  setTimeout(agvAplicarPermissao, 2500);
 });
 
 </script>
