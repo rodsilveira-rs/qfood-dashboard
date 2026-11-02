@@ -1793,6 +1793,11 @@ body.pode-agente .qf-nav a.so-agente{display:flex;}
 .agv-btn:hover{border-color:var(--b2)}
 .agv-tab{width:100%;border-collapse:collapse;font-size:.78rem}
 .agv-tab th{text-align:left !important;font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--mu);padding:8px 10px;border-bottom:1px solid var(--br);position:sticky;top:0;background:var(--sf)}
+.agv-th{cursor:pointer;user-select:none;white-space:nowrap;transition:color .15s}
+.agv-th:hover{color:var(--tx)}
+.agv-th.on{color:var(--tx)}
+.agv-seta{font-size:.62rem;opacity:.45;margin-left:2px}
+.agv-th.on .agv-seta{opacity:1;color:#ff4d4f}
 .agv-tab td{padding:9px 10px;border-bottom:1px solid var(--br);vertical-align:top;text-align:left !important}
 .agv-tab tr:hover td{background:rgba(255,255,255,.025)}
 .agv-wrap{background:var(--sf);border:1px solid var(--br);border-radius:14px;overflow:auto;max-height:68vh}
@@ -9302,7 +9307,7 @@ var QF = {
     visao:           ['Compras & Suprimentos', 'Central de Cotações'],
     operacional:     ['Operacional', 'Aprovações, cotações enviadas e pedidos em andamento'],
     cotacao:         ['Nova cotação', 'Monte o pedido por fornecedor e envie o link de cotação'],
-    agente:          ['Agente de Validades', 'O que vence sem vender a tempo — as bombas na frente'],
+    agente:          ['Agente de Validades', 'Lotes com risco de vencimento, priorizados por impacto financeiro e prazo'],
     validades:       ['Validades', 'Conferência de entrada e alertas de vencimento'],
     chegando:        ['Chegando', 'Produtos comprados que ainda não chegaram — indústria, quantidade e previsão'],
     fornecedores:    ['Fornecedores', 'Histórico de cotações, preços por SKU e indicadores'],
@@ -10141,7 +10146,8 @@ function chegCopiarWhats() {
 // ════════════════════════════════════════════════════════════════
 var AGV_LOGINS = ["rodrigo", "celio", "adm", "compras", "adilson"];
 
-var AGV = { carregado: false, carregando: false, itens: [], contagem: {}, gerado: "", cat: "Urgente" };
+var AGV = { carregado: false, carregando: false, itens: [], contagem: {}, gerado: "", cat: "Urgente",
+            ord: { k: "Posicao", dir: "asc" } };
 
 var AGV_CATS = [
   { id: "Urgente",                 rot: "Urgentes",        cor: "#ff4d4f", dica: "vencem em até 90 dias e não vendem a tempo" },
@@ -10213,6 +10219,69 @@ function agvGauge(pct, sub) {
   document.getElementById("agv-gauge-sub").textContent = sub;
 }
 
+// ── Ordenação da tabela (clique no título da coluna) ──
+// Padrão: prioridade do agente (#1 primeiro). Clicar de novo inverte.
+var AGV_COLS = [
+  { k: "Posicao",                    rot: "#",            tipo: "prio", dirIni: "asc"  },
+  { k: "Descricao",                  rot: "Produto",      tipo: "txt",  dirIni: "asc"  },
+  { k: "Dias",                       rot: "Vence",        tipo: "num",  dirIni: "asc"  },
+  { k: "Saldo_Estimado",             rot: "Saldo",        tipo: "num",  dirIni: "desc" },
+  { k: "Venda_Dia",                  rot: "Vende/dia",    tipo: "num",  dirIni: "desc" },
+  { k: "Sobra_Estimada",             rot: "Sobra est.",   tipo: "num",  dirIni: "desc" },
+  { k: "Valor_Estimado_Risco_Custo", rot: "Valor est.",   tipo: "num",  dirIni: "desc" },
+  { k: "Dias_Sem_Decisao",           rot: "Ação sugerida", tipo: "num", dirIni: "desc",
+    dica: "Ordena por dias sem decisão registrada" }
+];
+
+function agvOrdenarPor(k) {
+  var col = AGV_COLS.filter(function (c) { return c.k === k; })[0];
+  if (!col) return;
+  if (AGV.ord.k === k) AGV.ord.dir = AGV.ord.dir === "asc" ? "desc" : "asc";
+  else AGV.ord = { k: k, dir: col.dirIni };
+  agvRender();
+}
+
+/* Valor usado na ordenação. Prioridade: posição do agente; se a aba ainda
+   não tiver posição (radar antigo), cai na pontuação e depois no valor. */
+function agvValorOrdem(it, col) {
+  if (col.tipo === "prio") {
+    var p = Number(it.Posicao);
+    if (p > 0) return p;
+    var sc = Number(it.Pontuacao) || Number(it.Valor_Estimado_Risco_Custo) || 0;
+    return 1e9 - sc;
+  }
+  if (col.tipo === "txt") return String(it[col.k] || "").toLowerCase();
+  var v = it[col.k];
+  return (v === "" || v === null || v === undefined) ? null : Number(v);
+}
+
+function agvOrdenar(lista) {
+  var col = AGV_COLS.filter(function (c) { return c.k === AGV.ord.k; })[0] || AGV_COLS[0];
+  var sinal = AGV.ord.dir === "asc" ? 1 : -1;
+  return lista.slice().sort(function (a, b) {
+    var va = agvValorOrdem(a, col), vb = agvValorOrdem(b, col);
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;          // vazios sempre no fim
+    if (vb === null) return -1;
+    if (va < vb) return -1 * sinal;
+    if (va > vb) return 1 * sinal;
+    // desempate: prioridade do agente
+    return agvValorOrdem(a, AGV_COLS[0]) - agvValorOrdem(b, AGV_COLS[0]);
+  });
+}
+
+function agvCabecalho() {
+  var h = "<thead><tr>";
+  AGV_COLS.forEach(function (c) {
+    var ativo = AGV.ord.k === c.k;
+    var seta = ativo ? (AGV.ord.dir === "asc" ? "▲" : "▼") : "↕";
+    h += '<th class="agv-th' + (ativo ? " on" : "") + '" onclick="agvOrdenarPor(\'' + c.k + '\')" title="' +
+         agvEsc(c.dica || "Clique para ordenar; clique de novo para inverter") + '">' +
+         agvEsc(c.rot) + ' <span class="agv-seta">' + seta + "</span></th>";
+  });
+  return h + "</tr></thead>";
+}
+
 function agvRender() {
   if (!AGV.carregado) return;
 
@@ -10220,7 +10289,7 @@ function agvRender() {
   var urg = agvDaCat("Urgente");
   var comDecisao = urg.filter(function (it) { return String(it.Decisao_Registrada || "").trim(); }).length;
   agvGauge(urg.length ? (comDecisao / urg.length) * 100 : null,
-           urg.length ? comDecisao + " de " + urg.length + " urgentes já têm decisão" : "nenhum lote urgente hoje 🎉");
+           urg.length ? comDecisao + " de " + urg.length + " urgentes já têm decisão" : "nenhum lote urgente hoje");
 
   // ── KPIs (clicáveis = filtro) ──
   var k = "";
@@ -10236,20 +10305,25 @@ function agvRender() {
   });
   document.getElementById("agv-kpis").innerHTML = k;
 
-  // ── Tabela: já vem ordenada por prioridade (as bombas na frente) ──
+  // ── Tabela ──
   var q = (document.getElementById("agv-busca").value || "").trim().toLowerCase();
-  var lista = agvDaCat(AGV.cat).filter(function (it) {
+  var lista = agvOrdenar(agvDaCat(AGV.cat).filter(function (it) {
     if (!q) return true;
     return (String(it.Codigo) + " " + it.Descricao + " " + it.Fornecedor).toLowerCase().indexOf(q) >= 0;
-  }).sort(function (a, b) { return (Number(a.Posicao) || 9999) - (Number(b.Posicao) || 9999); });
+  }));
 
   var cor = (AGV_CATS.filter(function (c) { return c.id === AGV.cat; })[0] || {}).cor || "#eef1f8";
+
+  // Posição de prioridade fixa (não muda quando o usuário reordena por outra coluna)
+  var rankPrio = {};
+  agvDaCat(AGV.cat).slice().sort(function (x, y) {
+    return agvValorOrdem(x, AGV_COLS[0]) - agvValorOrdem(y, AGV_COLS[0]);
+  }).forEach(function (it, n) { rankPrio[it.IDs_Entrada + "|" + it.Validade] = n + 1; });
 
   if (!lista.length) {
     document.getElementById("agv-lista").innerHTML = '<div class="qf-vazio">Nada nesta categoria' + (q ? " para essa busca" : "") + ".</div>";
   } else {
-    var h = '<table class="agv-tab"><thead><tr><th>#</th><th>Produto</th><th>Vence</th><th>Saldo</th>' +
-            '<th>Vende/dia</th><th>Sobra est.</th><th>Valor est.</th><th>Ação sugerida</th></tr></thead><tbody>';
+    var h = '<table class="agv-tab">' + agvCabecalho() + "<tbody>";
     lista.forEach(function (it) {
       var tipo = String(it.Tipo_Saldo || "");
       var seloOk = tipo.indexOf("Contado") === 0 && tipo.indexOf(" há ") < 0;
@@ -10260,9 +10334,10 @@ function agvRender() {
         extra += '<div class="agv-sem">Contado há ' + agvEsc(it.Dias_Sem_Decisao) + " dia(s) e sem decisão</div>";
       }
       var ids = String(it.IDs_Entrada || "").split(",").filter(String).length;
+      var pos = Number(it.Posicao) > 0 ? it.Posicao : (rankPrio[it.IDs_Entrada + "|" + it.Validade] || "");
 
       h += "<tr>";
-      h += '<td><div class="agv-pos">' + agvEsc(it.Posicao) + '</div><div class="agv-pri">' + agvEsc(it.Prioridade) + "</div></td>";
+      h += '<td><div class="agv-pos">' + agvEsc(pos) + '</div><div class="agv-pri">' + agvEsc(it.Prioridade || "") + "</div></td>";
       h += "<td><b>" + agvEsc(it.Codigo) + "</b> — " + agvEsc(it.Descricao) +
            '<div class="agv-mut">' + agvEsc(it.Fornecedor) + (ids > 1 ? " · " + ids + " entradas do mesmo lote" : "") + "</div></td>";
       h += '<td><b style="color:' + cor + '">' + agvEsc(it.Dias) + 'd</b><div class="agv-mut">' + agvEsc(it.Validade) + "</div></td>";
@@ -10271,7 +10346,7 @@ function agvRender() {
       h += "<td>" + (Number(it.Venda_Dia) > 0 ? agvNum(it.Venda_Dia, 1) : '<span class="agv-mut">sem venda</span>') + "</td>";
       h += '<td><b style="color:' + cor + '">' + agvNum(it.Sobra_Estimada) + "</b>" +
            '<div class="agv-mut">' + agvNum(it.Pct_Sobra) + "% do saldo</div></td>";
-      h += "<td><b>" + agvMoeda(it.Valor_Estimado_Risco_Custo) + "</b></td>";
+      h += '<td style="white-space:nowrap"><b>' + agvMoeda(it.Valor_Estimado_Risco_Custo) + "</b></td>";
       h += "<td>" + agvEsc(it.Acao_Sugerida) + extra + "</td>";
       h += "</tr>";
     });
@@ -10279,9 +10354,9 @@ function agvRender() {
   }
 
   document.getElementById("agv-rodape").innerHTML =
-    "Radar gerado pelo agente em <b>" + agvEsc(AGV.gerado || "—") + "</b> (roda todo dia às 9h). " +
-    "Sobra e valor são <b>estimativas a preço de custo</b>, não perda confirmada: lote com contagem antiga " +
-    "ou saldo estimado pelo ERP (selo amarelo) merece reconferência antes de ação forte. " +
+    "Radar gerado pelo agente em <b>" + agvEsc(AGV.gerado || "—") + "</b> (atualização diária às 9h). " +
+    "Sobra e valor são <b>estimativas a preço de custo</b>, não perda confirmada: lotes com contagem antiga " +
+    "ou saldo estimado pelo ERP (selo amarelo) devem ser reconferidos antes de ação comercial. " +
     "As decisões são registradas no card <b>Alertas de Validade</b>.";
 }
 
