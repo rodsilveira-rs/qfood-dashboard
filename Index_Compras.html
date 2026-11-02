@@ -10285,21 +10285,46 @@ async function agcMontar(iOuNome) {
 }
 
 /* Link do e-mail: Index_Compras.html?agc=NOME DO FORNECEDOR
-   abre a Cotação já montada para esse fornecedor. */
+   abre a Cotação já montada para esse fornecedor.
+   Espera o login (UUSR), a tela inicial (v3Init) e a base da cotação
+   ficarem prontos — senão o v3Init joga a tela de volta para a Visão Geral. */
+function agcEsperar(cond, maxSeg) {
+  return new Promise(function (ok) {
+    var t = 0;
+    (function tenta() {
+      if (cond()) return ok(true);
+      if (++t > maxSeg * 2) return ok(false);
+      setTimeout(tenta, 500);
+    })();
+  });
+}
+
 async function agcDeepLink() {
   var forn = new URLSearchParams(location.search).get("agc");
-  if (!forn || !agvPode()) return;
+  if (!forn) return;
+
+  var logado = await agcEsperar(function () { return agvPode(); }, 30);
+  if (!logado) return;   // sem permissão de agente: fica na tela normal
+
+  await agcEsperar(function () {
+    return typeof V3 !== "undefined" && V3._state && V3._state.operacionalCarregado;
+  }, 30);                // v3Init já rodou (não volta mais para a Visão Geral)
+  await agcEsperar(function () { return cmpLoaded; }, 30);
+
   qfIr("cotacao");
-  for (var t = 0; t < 60 && !cmpLoaded; t++) await new Promise(function (r) { setTimeout(r, 500); });
   await agcCarregar(true);
-  agcMontar(forn);
+  await agcMontar(forn);
+
+  // Tira o ?agc= da URL: um F5 não remonta a cotação por cima das edições da Cris
+  try { history.replaceState(null, "", location.pathname); } catch (e) {}
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  setTimeout(function () {
-    if (agvPode()) agcCarregar(false);
-    agcDeepLink();
-  }, 3000);
+  // Card de sugestões: carrega assim que o login for confirmado
+  agcEsperar(function () { return agvPode(); }, 30).then(function (ok) {
+    if (ok) agcCarregar(false);
+  });
+  agcDeepLink();
 });
 
 // ════════════════════════════════════════════════════════════════
