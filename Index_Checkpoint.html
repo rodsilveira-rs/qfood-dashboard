@@ -4584,7 +4584,7 @@ function vndPintar(empId){
 function vndEdToggle(empId){
   var d=el('vnd-ed-'+empId); if(!d) return;
   if(d.open){
-    if(!VND_EDIT[empId]){ var emp=vndEmp(empId), mes=vndRef(emp).substring(0,7); VND_EDIT[empId]={ mes:mes, cfg:vndCfg(emp,mes), aberto:true }; }
+    if(!VND_EDIT[empId]){ var emp=vndEmp(empId), mes=vndRef(emp).substring(0,7); VND_EDIT[empId]={ mes:mes, cfg:vndPesosNormalizar(emp,mes,vndCfg(emp,mes)), aberto:true }; }
     VND_EDIT[empId].aberto=true; vndEdPintar(empId);
   } else if(VND_EDIT[empId]) VND_EDIT[empId].aberto=false;
 }
@@ -4602,7 +4602,7 @@ function vndEdPintar(empId){
           :'<div><label>Meta do mês (diretoria)</label><div class="vnd-ro">'+(pl.estipulada>0?recMoeda(pl.estipulada):'sem meta')+'</div></div>')+
       '<div class="vnd-ed-h">Vale sempre a <b>maior</b> entre a meta cadastrada'+(piso?' e '+piso:'')+'. A meta do mês nunca fica abaixo disso — só pode ficar acima, se as metas digitadas por dia somarem mais.'+(adm?'':' Só a diretoria altera a meta do mês.')+'</div></div>'+
     '<div class="vnd-ed-s">Dias de operação</div><div class="vnd-cks">'+abre+'</div>'+
-    '<div class="vnd-ed-s">Peso de cada dia da semana <span>(vale a proporção: pode digitar em R$, como a Mariana, ou em %)</span></div><div class="vnd-sem7">'+pesos+'</div>'+
+    '<div class="vnd-ed-s">Peso de cada dia da semana <span>(digite em R$ ou em %: o sistema ajusta sozinho, na proporção, para fechar a meta do mês — embaixo de cada dia aparece a meta real em R$)</span></div><div class="vnd-sem7">'+pesos+'</div>'+
     '<div class="vnd-ed-s">Calendário de '+vndMesNome(mes)+' <span>toque no dia para marcar fechado/feriado · digite a meta de um dia com evento ou feriado: abaixo do plano, a diferença vai para os outros dias; acima, o mês sobe'+(adm?'':' · dias que já passaram ficam travados')+'</span></div>'+
     '<div id="vnd-cal-'+empId+'"></div>'+
     '<div class="rep-actions"><button class="btn-save" onclick="vndEdSalvar(\''+empId+'\')">💾 Salvar metas de '+vndMesNome(mes)+'</button>'+
@@ -4618,7 +4618,8 @@ function vndEdCal(empId){
   var emp=vndEmp(empId), ed=VND_EDIT[empId], box=el('vnd-cal-'+empId); if(!emp||!ed||!box) return;
   var pl=vndPlano(emp,ed.mes,ed.cfg), pad=pl.dias.length?pl.dias[0].wd:0;
   var somaP=0; ed.cfg.pesos.forEach(function(v,i){ if(ed.cfg.abre[i]) somaP+=Number(v)||0; });
-  ed.cfg.pesos.forEach(function(v,i){ setTxt('vnd-ps-'+empId+'-'+i, (ed.cfg.abre[i]&&somaP>0)?((Number(v)||0)/somaP*100).toFixed(1).replace('.',',')+'%':'—'); });
+  var rs=vndPesosReais(emp,ed.mes,ed.cfg);
+  ed.cfg.pesos.forEach(function(v,i){ setTxt('vnd-ps-'+empId+'-'+i, (ed.cfg.abre[i]&&somaP>0)?((Number(v)||0)/somaP*100).toFixed(1).replace('.',',')+'%'+(rs&&rs[i]!=null?' · '+vndR0(rs[i]):''):'—'); });
   var h='<div class="vnd-cal">'+VND_SEM_LB.map(function(s){ return '<div class="vnd-cal-h">'+s+'</div>'; }).join('');
   for(var i=0;i<pad;i++) h+='<div></div>';
   pl.dias.forEach(function(d){
@@ -4631,6 +4632,21 @@ function vndEdCal(empId){
   h+='</div><div class="vnd-cal-tot">'+pl.abertos+' dias de operação · meta do mês: <b>'+(pl.temMeta?recMoeda(pl.metaMes):'sem meta')+'</b>'+
     (pl.acima?' <span style="color:var(--ok)">(acima da estipulada de '+vndR0(pl.estipulada)+' por causa das metas digitadas)</span>':'')+'</div>';
   box.innerHTML=h;
+}
+/* Pesos da semana → meta real em R$ de cada dia da semana no mês (mesma proporção).
+   Ex.: Sushi Trip 6.000/7.000/14.000… somam R$ 298 mil em outubro; para fechar R$ 300 mil,
+   todos sobem na mesma proporção. Sem meta no mês, os pesos ficam como estão. */
+function vndPesosReais(emp,mes,cfg){
+  var pl=vndPlano(emp,mes,cfg), M=pl.estipulada, somaP=0;
+  pl.dias.forEach(function(d){ if(d.aberto) somaP+=d.peso; });
+  if(!(M>0)||!(somaP>0)) return null;
+  return cfg.pesos.map(function(v,i){ return cfg.abre[i]?Math.round(M*(Number(v)||0)/somaP*100)/100:null; });
+}
+function vndPesosNormalizar(emp,mes,cfg){
+  cfg=JSON.parse(JSON.stringify(cfg));
+  var r=vndPesosReais(emp,mes,cfg); if(!r) return cfg;
+  var sobra=cfg; r.forEach(function(v,i){ if(v!=null) sobra.pesos[i]=v; });
+  return sobra;
 }
 function vndEdLer(empId){
   var ed=VND_EDIT[empId]; if(!ed) return; var cfg=ed.cfg;
@@ -4684,6 +4700,7 @@ function vndEdSalvar(empId){
   if(!editor && !window.__DEVMODE) return msg('⚠ Sem sessão ativa — não é possível gravar metas.','#ffaa2b');
   var cfg=ed.cfg, agora=new Date().toISOString();
   if(!cfg.pesos.some(function(v,i){ return cfg.abre[i]&&v>0; })) return msg('⚠ Pelo menos um dia de operação precisa ter peso maior que zero.','#ffaa2b');
+  cfg.pesos=vndPesosNormalizar(emp,ed.mes,cfg).pesos;   /* grava o peso já como a meta real de cada dia da semana */
   var dado={ gestor_id:empId, gestor_nome:emp.nome, empresa:emp.nome, mes:ed.mes,
              meta_mes:cfg.meta_mes==null?'':cfg.meta_mes, feriados:cfg.feriados.join(','), dias_json:JSON.stringify(vndDiasJson(cfg)),
              editado_por:editor||'dev', salvo_em:agora };
@@ -7679,7 +7696,7 @@ function planPersonalizar(empId){
   var mes=(el('plan-mes')||{}).value||vndRef(emp).substring(0,7);
   vndCanaisFechar();
   var card=el('vnd-'+empId), mais=card&&card.querySelector('details.rpu-mais'); if(mais&&!mais.open) mais.open=true;
-  VND_EDIT[empId]={ mes:mes, cfg:vndCfg(emp,mes), aberto:true };
+  VND_EDIT[empId]={ mes:mes, cfg:vndPesosNormalizar(emp,mes,vndCfg(emp,mes)), aberto:true };
   var d=el('vnd-ed-'+empId);
   if(!d){ setTimeout(function(){ planPersonalizar2(empId); },400); return; }
   planPersonalizar2(empId);
