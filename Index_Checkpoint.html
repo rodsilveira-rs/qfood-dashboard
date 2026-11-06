@@ -697,7 +697,7 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .uni-tg button{all:unset;cursor:pointer;padding:7px 14px;border-radius:7px;font-size:.82rem;font-weight:600;color:var(--mu)}
 .uni-tg button.on{background:var(--cyan);color:#06121a}
 .uni-w{overflow-x:auto;border:1px solid var(--b2);border-radius:10px;margin-bottom:6px;-webkit-overflow-scrolling:touch}
-.uni{width:100%;border-collapse:collapse;font-size:.8rem;min-width:1180px}
+.uni{width:100%;border-collapse:collapse;font-size:.8rem;min-width:1360px}
 .uni thead th{background:#111;color:#fff;font-size:.7rem;text-transform:uppercase;letter-spacing:.03em;font-weight:700;padding:10px 9px;text-align:right;white-space:nowrap;border-right:1px solid #2a2a2a}
 .uni thead th:first-child{text-align:left;position:sticky;left:0;z-index:2}
 .uni thead th small{display:block;font-size:.62rem;font-weight:500;text-transform:none;color:#aaa;letter-spacing:0}
@@ -708,7 +708,7 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .uni small{font-size:.7rem}.uni .uni-s{display:block;color:var(--mu);font-size:.68rem}
 .uni-n{color:var(--mu2)}
 .uni-emp{display:flex;align-items:center;gap:8px;min-width:190px}.uni-emp i{width:4px;align-self:stretch;border-radius:3px;flex:0 0 4px}
-.uni-emp b{display:block;font-size:.84rem}.uni-emp small{display:block;color:var(--mu);font-size:.68rem}
+.uni-emp b{display:block;font-size:1rem;letter-spacing:.01em}.uni-emp small{display:block;color:var(--mu);font-size:.68rem}
 .uni-chev{margin-left:auto;color:var(--cyan);font-size:.8rem}
 .uni-f{display:inline-block;border:1px solid;border-radius:20px;padding:2px 9px;font-weight:700;font-size:.74rem}
 .uni tfoot td,.uni tfoot th{background:var(--s2);font-weight:700;border-top:2px solid var(--b2)}
@@ -717,7 +717,7 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .uni-cnw table{border-collapse:collapse;font-size:.78rem;width:100%}
 .uni .uni-cnw th{position:static;background:none;border-top:1px solid rgba(255,255,255,.05)}
 .uni .uni-cnw thead th{border-top:0;background:none;color:var(--mu)}
-@media (max-width:640px){.uni-emp{min-width:140px}.uni-emp b{font-size:.78rem;white-space:normal}.uni{font-size:.76rem}.uni-cnw{padding:8px 10px;max-width:340px}}
+@media (max-width:640px){.uni-emp{min-width:140px}.uni-emp b{font-size:.9rem;white-space:normal}.uni{font-size:.76rem}.uni-cnw{padding:8px 10px;max-width:340px}}
 .uni-cnw th,.uni-cnw td{padding:5px 8px;border-top:1px solid rgba(255,255,255,.05);text-align:right;white-space:nowrap}
 .uni-cnw thead th{color:var(--mu);font-size:.68rem;text-transform:uppercase;font-weight:600;border-top:0}
 .uni-cnw th:first-child{text-align:left}.uni-cnw tbody th i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
@@ -3369,6 +3369,7 @@ function vndPreencherCanais(emp,iso){
   var tot=el('vnd-val-'+emp.id);
   if(tot){ var tem=!!(d&&d.canais&&Object.keys(d.canais).length); tot.readOnly=tem; tot.classList.toggle('vnd-auto',tem); }
   vndPintarTicket(emp);
+  vndPreencherCustos(emp,d);
   if(emp.indicadores){
     VND_IND_DEF.forEach(function(f){ var e=el('vnd-ind-'+emp.id+'-'+f.id); if(e) e.value=(d&&d.ind&&d.ind[f.id]!=null)?(f.tipo==='int'?String(d.ind[f.id]):vndFmt(d.ind[f.id])):''; });
     vndIndPintar(emp.id);
@@ -3384,7 +3385,9 @@ function vndEnviarCanais(emp,iso,cn,total,editor,agora,pd,ind){
              pedidos_total:k.pedidos||'', ticket_medio:k.ticket==null?'':Math.round(k.ticket*100)/100, editado_por:editor||'sem-sessao', salvo_em:agora };
   Object.keys(VND_CANAIS_DEF).forEach(function(id){ dado['canal_'+id]=cn[id]==null?'':cn[id]; dado['pedidos_'+id]=pd[id]==null?'':pd[id]; });
   if(ind){ var ki=vndIndCalc(ind); VND_IND_DEF.forEach(function(f){ dado[f.id]=ind[f.id]==null?'':ind[f.id]; });
-    dado.pct_positivacao=ki.pctPos==null?'':Math.round(ki.pctPos*1000)/10; dado.pct_novos_pdv=ki.pctNovos==null?'':Math.round(ki.pctNovos*1000)/10; }
+    dado.pct_positivacao=ki.pctPos==null?'':Math.round(ki.pctPos*1000)/10; dado.pct_novos_pdv=ki.pctNovos==null?'':Math.round(ki.pctNovos*1000)/10;
+    if(ind.cmv!=null||ind.cmo!=null){ dado.cmv=ind.cmv==null?'':ind.cmv; dado.cmo=ind.cmo==null?'':ind.cmo;
+      dado.pct_cmv=(ind.cmv!=null&&total>0)?Math.round(ind.cmv/total*1000)/10:''; dado.pct_cmo=(ind.cmo!=null&&total>0)?Math.round(ind.cmo/total*1000)/10:''; } }
   return enviarSheet('VENDAS_CANAIS',dado).then(function(r){
     if(r&&r.ok){ VND_CANAIS=VND_CANAIS||{}; VND_CANAIS[emp.id]=VND_CANAIS[emp.id]||{}; VND_CANAIS[emp.id][iso]=reg; }
     return r;
@@ -4269,7 +4272,7 @@ function vndCardRep(emp,rep,ult,envio){
         '<div><label>Dia da venda</label><input type="date" id="vnd-data-'+emp.id+'" onchange="vndTrocarData(\''+emp.id+'\')"></div>'+
         '<div><label>'+(emp.canais?'Total do dia (R$)':'Venda do dia (R$)')+'</label><input type="text" inputmode="decimal" id="vnd-val-'+emp.id+'" placeholder="0,00" oninput="vndPrevia(\''+emp.id+'\')"'+dis+'></div>'+
         '<div class="vnd-prev" id="vnd-prev-'+emp.id+'"></div>'+
-      '</div>'+vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+'</div>'+
+      '</div>'+vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+vndCustosHTML(emp,dis)+'</div>'+
       repOndeHTML(emp)+
       (vndSemPlano(emp,rep,envio)?'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>':
       '<div class="rpu-st rpu-plano" id="rpu-plano-'+emp.id+'"><div class="rpu-h"><span class="rpu-n">3</span><b>O que vou fazer para chegar na meta</b> <span id="vnd-acao-obr-'+emp.id+'"></span></div>'+vndFixasHTML(emp,dis)+
@@ -4303,7 +4306,7 @@ function vndBloco(gid,rep){
         '<div><label>'+(emp.canais?'Total do dia (R$)':'Venda do dia (R$)')+'</label><input type="text" inputmode="decimal" id="vnd-val-'+emp.id+'" placeholder="0,00" oninput="vndPrevia(\''+emp.id+'\')"'+dis+'></div>'+
         '<div class="vnd-prev" id="vnd-prev-'+emp.id+'"></div>'+
       '</div>'+
-      vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+
+      vndCanaisHTML(emp,dis)+vndIndHTML(emp,dis)+vndCustosHTML(emp,dis)+
       '<div class="vnd-acao-f">'+
         '<label>🎯 O que vou fazer para chegar na meta <span id="vnd-acao-obr-'+emp.id+'"></span></label>'+
         '<textarea id="vnd-acao-'+emp.id+'" rows="3" placeholder="Medida concreta para os próximos dias. Ex.: ação de rodízio na terça com divulgação no Instagram e lista de clientes; reforço de 2 garçons na sexta."'+dis+'></textarea>'+
@@ -4452,7 +4455,7 @@ function vndTrocarData(empId){
   repSincData(emp.dono); qfEnvioEstado(empId);
 }
 /* Mostra, enquanto digita, como fica o semáforo com o valor digitado */
-function vndPrevia(empId){
+function vndPrevia(empId){ if(typeof vndCustosPintar==='function') vndCustosPintar(empId);
   var emp=vndEmp(empId), box=el('vnd-prev-'+empId); if(!emp||!box) return;
   var iso=(el('vnd-data-'+empId)||{}).value, bruto=String((el('vnd-val-'+empId)||{}).value||'').trim();
   if(!iso){ box.innerHTML=''; return; }
@@ -4488,6 +4491,12 @@ function vndSalvarVenda(empId,modo){
     if(li.v.pdv_positivados>li.v.pdv_ativos) return msg('⚠ PDVs positivados não pode ser maior que PDVs ativos.','#ffaa2b');
     if(li.v.pdv_novos>li.v.pdv_ativos) return msg('⚠ Novos PDVs não pode ser maior que PDVs ativos.','#ffaa2b');
     ind=li.v;
+  }
+  if(vndTemCustos(emp) && val!=null){
+    var lc=vndLerCustos(emp);
+    if(lc.falta.length){ var c0=el('vnd-cu-'+empId+'-'+lc.falta[0].id); if(c0) c0.focus();
+      return msg('⚠ Preencha os custos do dia (em R$): '+lc.falta.map(function(f){ return f.nome; }).join(' e ')+'.','#ffaa2b'); }
+    ind=ind||{}; ind.cmv=lc.v.cmv; ind.cmo=lc.v.cmo;
   }
   var c=vndCalc(emp,iso,val);
   if((c.cor==='laranja'||c.cor==='vermelho') && !acao && !vndFixasAtivas(empId).length && el('vnd-acao-'+empId)){
@@ -7739,6 +7748,7 @@ function planPersonalizar2(empId){
   if(!d.open) d.open=true; else vndEdPintar(empId);
   setTimeout(function(){ d.scrollIntoView({ behavior:'smooth', block:'start' }); },120);
 }
+
 /* quem aparece como responsável da empresa nos painéis (Q Food: Rodrigo, que envia ao Adilson) */
 function vndRespPainel(e){ var id=e.id==='emp_qfood'?'rodrigo':e.dono; return findPessoa(id)||findLider(id); }
 /* ══════════════════════════════════════════════════════════════
@@ -7753,13 +7763,14 @@ function uniPct(r,cor){ return r==null||!isFinite(r)?'':' <small style="color:'+
 function uniTabela(cs,ref){
   var G={ dia:0, diaM:0, metaDia:0, acum:0, metaAcum:0, proj:0, meta:0, desvio:0, falta:0, semV:0, semP:0, semM:0, temMeta:false };
   var linhas=cs.map(function(c){
-    var e=c.emp, k=VND_COR[c.cor], pl=c.plano, x=vndExtras(c), s=x.sem, ab=!!UNI_ABERTO[e.id], p=vndRespPainel(e);
+    var e=c.emp, k=VND_COR[c.cor], pl=c.plano, x=vndExtras(c), s=x.sem, ab=!!UNI_ABERTO[e.id], p=vndRespPainel(e), ip=vndIndPainel(c);
     G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.semV+=s.venda; G.semP+=s.proj;
     if(pl.temMeta){ G.temMeta=true; G.metaDia+=c.metaDia||0; G.diaM+=c.vendaDia||0; G.metaAcum+=c.metaAcum; G.meta+=pl.metaMes; G.desvio+=c.desvioProj; G.falta+=c.falta; G.semM+=s.meta||0; }
     var td=function(v){ return '<td>'+v+'</td>'; }, nada='<span class="uni-n">—</span>';
     var tr='<tr class="uni-l'+(ab?' on':'')+'"'+(x.canais?' onclick="uniAbrir(\''+e.id+'\')" title="ver por canal"':'')+'>'+
-      '<th><div class="uni-emp"><i style="background:'+k.c+'"></i><div><b>'+e.emoji+' '+esc(e.nome)+'</b><small>'+(p?esc(p.nome)+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':'')+'</small></div>'+(x.canais?'<span class="uni-chev">'+(ab?'▾':'▸')+'</span>':'')+'</div></th>'+
+      '<th><div class="uni-emp"><i style="background:'+k.c+'"></i><div><b>'+esc(e.nome)+'</b><small>'+(p?esc(p.nome)+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':'')+'</small></div>'+(x.canais?'<span class="uni-chev">'+(ab?'▾':'▸')+'</span>':'')+'</div></th>'+
       td('<span class="uni-f" style="color:'+k.c+';border-color:'+k.c+'">'+k.ico+' '+(pl.temMeta?vndPct(c.ritmo):'—')+'</span>')+
+      td(uniIndCel(ip,'a'))+td(uniIndCel(ip,'b'))+
       td(c.vendaDia==null?'<span style="color:var(--warn)">não lançada</span>':recMoeda(c.vendaDia)+uniPct(c.pctDia))+
       td(c.metaDia>0?recMoeda(c.metaDia):nada)+
       td(recMoeda(c.acum))+
@@ -7772,7 +7783,7 @@ function uniTabela(cs,ref){
       td(recMoeda(s.proj)+uniPct(s.pct))+
     '</tr>';
     if(ab&&x.canais){
-      tr+='<tr class="uni-cn"><td colspan="12"><div class="uni-cnw"><table><thead><tr><th>Canal</th><th>Dia</th><th>Projeção semana</th><th>Mês (projeção)</th><th>% do mês</th></tr></thead><tbody>'+
+      tr+='<tr class="uni-cn"><td colspan="14"><div class="uni-cnw"><table><thead><tr><th>Canal</th><th>Dia</th><th>Projeção semana</th><th>Mês (projeção)</th><th>% do mês</th></tr></thead><tbody>'+
         x.canais.linhas.map(function(l){ return '<tr'+(l.interno?' class="uni-int"':'')+'><th><i style="background:'+VND_CANAIS_DEF[l.id].cor+'"></i>'+esc(l.nome)+(l.interno?' <small>🔁 interna — fora do faturamento</small>':'')+'</th>'+
           '<td>'+(l.dia!=null?recMoeda(l.dia):'—')+(l.ped?' <small>('+l.ped+' ped.)</small>':'')+'</td><td>'+recMoeda(l.projSem)+'</td><td>'+recMoeda(l.projMes)+'</td><td>'+(l.interno?'—':Math.round(l.share*100)+'%')+'</td></tr>'; }).join('')+
         '</tbody></table>'+(x.canais.pedidos?'<div class="uni-tk">'+x.canais.pedidos+' pedidos no dia · ticket médio '+recMoeda(x.canais.ticket)+'</div>':'')+'</div></td></tr>';
@@ -7780,15 +7791,21 @@ function uniTabela(cs,ref){
     return tr;
   }).join('');
   var gr=G.metaAcum>0?G.acum/G.metaAcum:null, gs=G.semM>0?G.semP/G.semM:null, gc=gr==null?'cinza':((gr>=VND_VERDE||G.proj>=G.meta)?'verde':(gr>=VND_LARANJA?'laranja':'vermelho')), gk=VND_COR[gc]||VND_COR.cinza;
-  var tot='<tr class="uni-tot"><th><div class="uni-emp"><i style="background:'+gk.c+'"></i><div><b>🏢 Grupo</b><small>soma das empresas</small></div></div></th>'+
+  var tot='<tr class="uni-tot"><th><div class="uni-emp"><i style="background:'+gk.c+'"></i><div><b>Grupo</b><small>soma das empresas</small></div></div></th>'+
     '<td><span class="uni-f" style="color:'+gk.c+';border-color:'+gk.c+'">'+gk.ico+' '+vndPct(gr)+'</span></td>'+
+    '<td><span class="uni-n">—</span></td><td><span class="uni-n">—</span></td>'+
     '<td>'+recMoeda(G.dia)+uniPct(G.metaDia>0?G.diaM/G.metaDia:null)+'</td><td>'+(G.metaDia>0?recMoeda(G.metaDia):'—')+'</td><td>'+recMoeda(G.acum)+'</td>'+
     '<td>'+(G.temMeta?recMoeda(G.metaAcum)+uniPct(gr):'—')+'</td><td>'+recMoeda(G.proj)+(G.meta>0?'<small class="uni-s">de '+vndR0(G.meta)+'</small>':'')+'</td>'+
     '<td>'+(G.temMeta?'<span style="color:'+(G.desvio>=0?'var(--ok)':'var(--red)')+'">'+vndSinal(G.desvio,recMoeda)+'</span>':'—')+'</td><td><span class="uni-n">—</span></td>'+
     '<td>'+(G.temMeta?recMoeda(G.falta):'—')+'</td><td>'+recMoeda(G.semV)+'</td><td>'+recMoeda(G.semP)+uniPct(gs)+'</td></tr>';
-  return '<div class="uni-w"><table class="uni"><thead><tr><th>Unidade</th><th>Farol<small>ritmo do mês</small></th><th>Venda do dia</th><th>Meta do dia</th><th>Acumulado</th><th>Meta acumulada</th><th>Projeção</th><th>Desvio da projeção</th><th>Meta ajustada<small>próximo dia</small></th><th>Falta no mês</th><th>Vendido na semana</th><th>Projeção da semana</th></tr></thead>'+
+  return '<div class="uni-w"><table class="uni"><thead><tr><th>Unidade</th><th>Farol<small>ritmo do mês</small></th><th>Margem / CMV<small>do dia</small></th><th>Markup / CMO<small>do dia</small></th><th>Venda do dia</th><th>Meta do dia</th><th>Acumulado</th><th>Meta acumulada</th><th>Projeção</th><th>Desvio da projeção</th><th>Meta ajustada<small>próximo dia</small></th><th>Falta no mês</th><th>Vendido na semana</th><th>Projeção da semana</th></tr></thead>'+
     '<tbody>'+linhas+'</tbody><tfoot>'+tot+'</tfoot></table></div>'+
     '<div class="uni-dica">Toque no nome da empresa para ver <b>por canal · dia | projeção semana | mês</b>. Desvio e falta do grupo somam só as empresas com meta.</div>';
+}
+function uniIndCel(ip,q){
+  if(!ip) return '<span class="uni-n">—</span>';
+  var x=ip[q]; if(x.p==null) return '<span style="color:var(--warn)">não informado</span><small class="uni-s">'+x.rot+'</small>';
+  return '<b>'+vndNumBR(x.p)+'</b><small class="uni-s">'+x.rot+(x.rs!=null?' · '+vndR0(x.rs):'')+'</small>';
 }
 function uniAbrir(id){ UNI_ABERTO[id]=!UNI_ABERTO[id]; vndAdmPintar(); }
 
@@ -7796,7 +7813,7 @@ function uniAbrir(id){ UNI_ABERTO[id]=!UNI_ABERTO[id]; vndAdmPintar(); }
 var UNI_HEX = { verde:'#1e9e5a', laranja:'#e07b00', vermelho:'#d32f2f', cinza:'#8a8f98', inicio:'#8a8f98' };
 function uniPctHex(r){ return r==null?'#666':(r>=VND_VERDE?UNI_HEX.verde:(r>=VND_LARANJA?UNI_HEX.laranja:UNI_HEX.vermelho)); }
 function uniDesenhar(cs,ref){
-  var col=[{t:'UNIDADE',w:250,a:'left'},{t:'FAROL',s:'ritmo do mês',w:96},{t:'VENDA DO DIA',w:170},{t:'META DO DIA',w:128},{t:'ACUMULADO',w:140},{t:'META ACUMULADA',w:170},
+  var col=[{t:'UNIDADE',w:250,a:'left'},{t:'FAROL',s:'ritmo do mês',w:96},{t:'MARGEM / CMV',s:'do dia',w:118},{t:'MARKUP / CMO',s:'do dia',w:118},{t:'VENDA DO DIA',w:170},{t:'META DO DIA',w:128},{t:'ACUMULADO',w:140},{t:'META ACUMULADA',w:170},
     {t:'PROJEÇÃO',w:150},{t:'DESVIO DA PROJEÇÃO',w:150},{t:'META AJUSTADA',s:'próximo dia',w:128},{t:'FALTA NO MÊS',w:150},{t:'VENDIDO NA SEMANA',w:150},{t:'PROJEÇÃO DA SEMANA',w:170}];
   var W=col.reduce(function(s,c){ return s+c.w; },0), RH=50, HH=46, TT=70, FT=34, n=cs.length+1, H=TT+HH+RH*n+FT, S=2;
   var cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S; var g=cv.getContext('2d'); g.scale(S,S);
@@ -7826,10 +7843,11 @@ function uniDesenhar(cs,ref){
     var e=c.emp, pl=c.plano, x2=vndExtras(c), s=x2.sem, p=vndRespPainel(e), hx=UNI_HEX[c.cor]||'#8a8f98';
     G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.semV+=s.venda; G.semP+=s.proj;
     if(pl.temMeta){ G.temMeta=true; G.metaDia+=c.metaDia||0; G.diaM+=c.vendaDia||0; G.metaAcum+=c.metaAcum; G.meta+=pl.metaMes; G.desvio+=c.desvioProj; G.falta+=c.falta; G.semM+=s.meta||0; }
-    var pc=function(r){ return r==null?'':vndPct(r); };
+    var pc=function(r){ return r==null?'':vndPct(r); }, ip=vndIndPainel(c);
+    var ic=function(q){ if(!ip) return { v:'—', c:'#aaa' }; var z=ip[q]; return z.p==null?{ v:'não informado', c:UNI_HEX.laranja, b:1, s:12.5, sub:z.rot }:{ v:vndNumBR(z.p), b:1, sub:z.rot+(z.rs!=null?' · '+vndR0(z.rs):'') }; };
     linha([
-      { v:e.nome, b:1, sub:(p?p.nome+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':''), lat:hx },
-      { pill:pl.temMeta?vndPct(c.ritmo):'—', cor:hx },
+      { v:e.nome, b:1, s:16.5, sub:(p?p.nome+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':''), lat:hx },
+      { pill:pl.temMeta?vndPct(c.ritmo):'—', cor:hx }, ic('a'), ic('b'),
       c.vendaDia==null?{ v:'não lançada', c:UNI_HEX.laranja, b:1 }:{ v:recMoeda(c.vendaDia), sub:c.pctDia!=null?pc(c.pctDia)+' da meta do dia':'', subc:uniPctHex(c.pctDia), subb:1 },
       { v:c.metaDia>0?recMoeda(c.metaDia):'—', c:c.metaDia>0?'#111':'#aaa' },
       { v:recMoeda(c.acum) },
@@ -7844,8 +7862,8 @@ function uniDesenhar(cs,ref){
   });
   var gr=G.metaAcum>0?G.acum/G.metaAcum:null, gc=gr==null?'cinza':((gr>=VND_VERDE||G.proj>=G.meta)?'verde':(gr>=VND_LARANJA?'laranja':'vermelho')), gs=G.semM>0?G.semP/G.semM:null;
   linha([
-    { v:'GRUPO', b:1, sub:'soma das empresas', lat:UNI_HEX[gc] },
-    { pill:vndPct(gr), cor:UNI_HEX[gc] },
+    { v:'GRUPO', b:1, s:16.5, sub:'soma das empresas', lat:UNI_HEX[gc] },
+    { pill:vndPct(gr), cor:UNI_HEX[gc] }, { v:'—', c:'#aaa' }, { v:'—', c:'#aaa' },
     { v:recMoeda(G.dia), sub:G.metaDia>0?vndPct(G.diaM/G.metaDia)+' da meta do dia':'', subc:uniPctHex(G.metaDia>0?G.diaM/G.metaDia:null), subb:1 },
     { v:G.metaDia>0?recMoeda(G.metaDia):'—' }, { v:recMoeda(G.acum) },
     G.temMeta?{ v:recMoeda(G.metaAcum), sub:vndPct(gr)+' atingido', subc:uniPctHex(gr), subb:1 }:{ v:'—' },
@@ -7877,6 +7895,51 @@ function uniPDF(){
   var im=d.querySelector('img');
   function go(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} setTimeout(function(){ f.remove(); },60000); }
   if(im.complete) setTimeout(go,150); else im.onload=function(){ setTimeout(go,150); };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CMV e CMO do dia — restaurantes (obrigatórios ao lançar a venda)
+   A pessoa digita em R$; o sistema calcula o % sobre a venda do dia.
+   Gravado junto com os canais (aba VENDAS_CANAIS, dentro de canais_json → _ind).
+   ══════════════════════════════════════════════════════════════ */
+var VND_CUSTOS_EMP = { emp_mercearia:1, emp_gogui:1, emp_sushitrip:1 };
+var VND_CUSTOS_DEF = [
+  { id:'cmv', nome:'CMV do dia', dica:'custo da mercadoria vendida no dia, em R$' },
+  { id:'cmo', nome:'CMO do dia', dica:'custo da mão de obra do dia, em R$' }
+];
+function vndTemCustos(emp){ return !!(emp&&VND_CUSTOS_EMP[emp.id]); }
+function vndCustosHTML(emp,dis){
+  if(!vndTemCustos(emp)) return '';
+  return '<div class="vnd-canais vnd-ind"><div class="vnd-canais-t">Custos do dia <span>— obrigatórios para salvar a venda · digite em R$, o % sai sozinho</span></div><div class="vnd-canais-l">'+
+    VND_CUSTOS_DEF.map(function(f){ return '<div><label>'+f.nome+' (R$) <b style="color:var(--red)">*</b></label><input type="text" inputmode="decimal" id="vnd-cu-'+emp.id+'-'+f.id+'" placeholder="R$ 0,00" title="'+f.dica+'" oninput="vndCustosPintar(\''+emp.id+'\')"'+dis+'><div class="vnd-cn-tk" id="vnd-cup-'+emp.id+'-'+f.id+'"></div></div>'; }).join('')+
+    '</div></div>';
+}
+function vndLerCustos(emp){
+  var o={}, falta=[];
+  VND_CUSTOS_DEF.forEach(function(f){ var e=el('vnd-cu-'+emp.id+'-'+f.id), t=e?String(e.value||'').trim():'';
+    if(t===''){ falta.push(f); return; } var n=recParseNum(t); if(n==null||isNaN(n)||n<0) falta.push(f); else o[f.id]=n; });
+  return { v:o, falta:falta };
+}
+function vndCustosPintar(empId){
+  var emp=vndEmp(empId); if(!vndTemCustos(emp)) return;
+  var vt=String((el('vnd-val-'+empId)||{}).value||'').trim(), venda=vt===''?null:recParseNum(vt);
+  VND_CUSTOS_DEF.forEach(function(f){ var e=el('vnd-cu-'+empId+'-'+f.id), t=e?String(e.value||'').trim():'', n=t===''?null:recParseNum(t);
+    setTxt('vnd-cup-'+empId+'-'+f.id,(n!=null&&venda>0)?vndPctBR(n/venda)+' da venda do dia':''); });
+}
+function vndPreencherCustos(emp,d){
+  if(!vndTemCustos(emp)) return;
+  VND_CUSTOS_DEF.forEach(function(f){ var e=el('vnd-cu-'+emp.id+'-'+f.id); if(e) e.value=(d&&d.ind&&d.ind[f.id]!=null)?vndFmt(d.ind[f.id]):''; });
+  vndCustosPintar(emp.id);
+}
+/* para os painéis: Margem/Markup (Q Food) ou CMV/CMO % (restaurantes) do dia */
+function vndIndPainel(c){
+  var e=c.emp, d=vndCanaisDia(e,c.ref), v=d&&d.ind;
+  if(e.indicadores) return { tipo:'qf', a:{ rot:'margem', p:v&&v.margem!=null?v.margem:null }, b:{ rot:'markup', p:v&&v.markup!=null?v.markup:null } };
+  if(vndTemCustos(e)){
+    var vd=c.vendaDia, f=function(k){ return (v&&v[k]!=null&&vd>0)?v[k]/vd*100:null; };
+    return { tipo:'cu', a:{ rot:'CMV', p:f('cmv'), rs:v&&v.cmv }, b:{ rot:'CMO', p:f('cmo'), rs:v&&v.cmo } };
+  }
+  return null;
 }
 
 try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
