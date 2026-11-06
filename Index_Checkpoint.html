@@ -697,7 +697,7 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .uni-tg button{all:unset;cursor:pointer;padding:7px 14px;border-radius:7px;font-size:.82rem;font-weight:600;color:var(--mu)}
 .uni-tg button.on{background:var(--cyan);color:#06121a}
 .uni-w{overflow-x:auto;border:1px solid var(--b2);border-radius:10px;margin-bottom:6px;-webkit-overflow-scrolling:touch}
-.uni{width:100%;border-collapse:collapse;font-size:.8rem;min-width:1360px}
+.uni{width:100%;border-collapse:collapse;font-size:.8rem;min-width:1480px}
 .uni thead th{background:#111;color:#fff;font-size:.7rem;text-transform:uppercase;letter-spacing:.03em;font-weight:700;padding:10px 9px;text-align:right;white-space:nowrap;border-right:1px solid #2a2a2a}
 .uni thead th:first-child{text-align:left;position:sticky;left:0;z-index:2}
 .uni thead th small{display:block;font-size:.62rem;font-weight:500;text-transform:none;color:#aaa;letter-spacing:0}
@@ -3126,6 +3126,8 @@ function vndPlano(emp,mes,cfg){
    a meta dela fica guardada em plano.metaGestor e o ritmo/projeção são recalculados pela oficial. */
 function vndCalcOficial(emp,ref,vendaSimulada){
   var c=vndCalc(emp,ref,vendaSimulada), pl=c.plano;
+  /* meta cadastrada no quadro ⚙️ Metas e dias de operação: vale ela (com a distribuição por dia e semana do quadro) */
+  var cfgM=vndCfg(emp,c.mes); if(cfgM&&cfgM.meta_mes!=null&&cfgM.meta_mes>0) return c;
   var of=VND_META_OFICIAL[emp.id]&&VND_META_OFICIAL[emp.id][c.mes];
   var est=of>0?of:((emp.escala&&emp.escala[c.mes])?emp.escala[c.mes]:pl.estipulada);   /* a oficial manda no report do CEO */
   if(!pl.temMeta||!(pl.metaMes>0)||!(est>0)) return c;
@@ -7782,6 +7784,7 @@ function uniTabela(cs,ref){
       '<th><div class="uni-emp"><i style="background:'+k.c+'"></i><div><b>'+esc(e.nome)+'</b><small>'+(p?esc(p.nome)+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':'')+'</small></div>'+(x.canais?'<span class="uni-chev">'+(ab?'▾':'▸')+'</span>':'')+'</div></th>'+
       td('<span class="uni-f" style="color:'+k.c+';border-color:'+k.c+'">'+k.ico+' '+(pl.temMeta?vndPct(c.ritmo):'—')+'</span>')+
       td(uniIndCel(ip,'a'))+td(uniIndCel(ip,'b'))+
+      td(pl.temMeta?'<b>'+recMoeda(pl.metaMes)+'</b><small class="uni-s">'+vndMesNome(c.ref.substring(0,7))+'</small>':'<span style="color:var(--warn)">sem meta</span>')+
       td(c.vendaDia==null?'<span style="color:var(--warn)">não lançada</span>':recMoeda(c.vendaDia)+uniPct(c.pctDia))+
       td(c.metaDia>0?recMoeda(c.metaDia):nada)+
       td(recMoeda(c.acum))+
@@ -7794,7 +7797,7 @@ function uniTabela(cs,ref){
       td(recMoeda(s.proj)+uniPct(s.pct))+
     '</tr>';
     if(ab&&x.canais){
-      tr+='<tr class="uni-cn"><td colspan="14"><div class="uni-cnw"><table><thead><tr><th>Canal</th><th>Dia</th><th>Projeção semana</th><th>Mês (projeção)</th><th>% do mês</th></tr></thead><tbody>'+
+      tr+='<tr class="uni-cn"><td colspan="15"><div class="uni-cnw"><table><thead><tr><th>Canal</th><th>Dia</th><th>Projeção semana</th><th>Mês (projeção)</th><th>% do mês</th></tr></thead><tbody>'+
         x.canais.linhas.map(function(l){ return '<tr'+(l.interno?' class="uni-int"':'')+'><th><i style="background:'+VND_CANAIS_DEF[l.id].cor+'"></i>'+esc(l.nome)+(l.interno?' <small>🔁 interna — fora do faturamento</small>':'')+'</th>'+
           '<td>'+(l.dia!=null?recMoeda(l.dia):'—')+(l.ped?' <small>('+l.ped+' ped.)</small>':'')+'</td><td>'+recMoeda(l.projSem)+'</td><td>'+recMoeda(l.projMes)+'</td><td>'+(l.interno?'—':Math.round(l.share*100)+'%')+'</td></tr>'; }).join('')+
         '</tbody></table>'+(x.canais.pedidos?'<div class="uni-tk">'+x.canais.pedidos+' pedidos no dia · ticket médio '+recMoeda(x.canais.ticket)+'</div>':'')+'</div></td></tr>';
@@ -7805,11 +7808,12 @@ function uniTabela(cs,ref){
   var tot='<tr class="uni-tot"><th><div class="uni-emp"><i style="background:'+gk.c+'"></i><div><b>Grupo</b><small>soma das empresas</small></div></div></th>'+
     '<td><span class="uni-f" style="color:'+gk.c+';border-color:'+gk.c+'">'+gk.ico+' '+vndPct(gr)+'</span></td>'+
     '<td><span class="uni-n">—</span></td><td><span class="uni-n">—</span></td>'+
+    '<td>'+(G.meta>0?recMoeda(G.meta):'—')+'</td>'+
     '<td>'+recMoeda(G.dia)+uniPct(G.metaDia>0?G.diaM/G.metaDia:null)+'</td><td>'+(G.metaDia>0?recMoeda(G.metaDia):'—')+'</td><td>'+recMoeda(G.acum)+'</td>'+
     '<td>'+(G.temMeta?recMoeda(G.metaAcum)+uniPct(gr):'—')+'</td><td>'+recMoeda(G.proj)+(G.meta>0?'<small class="uni-s">de '+vndR0(G.meta)+'</small>':'')+'</td>'+
     '<td>'+(G.temMeta?'<span style="color:'+(G.desvio>=0?'var(--ok)':'var(--red)')+'">'+vndSinal(G.desvio,recMoeda)+'</span>':'—')+'</td><td><span class="uni-n">—</span></td>'+
     '<td>'+(G.temMeta?recMoeda(G.falta):'—')+'</td><td>'+recMoeda(G.semV)+'</td><td>'+recMoeda(G.semP)+uniPct(gs)+'</td></tr>';
-  return '<div class="uni-w"><table class="uni"><thead><tr><th>Unidade</th><th>Farol<small>ritmo do mês</small></th><th>Margem / CMV<small>do dia</small></th><th>Markup / CMO<small>do dia</small></th><th>Venda do dia</th><th>Meta do dia</th><th>Acumulado</th><th>Meta acumulada</th><th>Projeção</th><th>Desvio da projeção</th><th>Meta ajustada<small>próximo dia</small></th><th>Falta no mês</th><th>Vendido na semana</th><th>Projeção da semana</th></tr></thead>'+
+  return '<div class="uni-w"><table class="uni"><thead><tr><th>Unidade</th><th>Farol<small>ritmo do mês</small></th><th>Margem / CMV<small>do dia</small></th><th>Markup / CMO<small>do dia</small></th><th>Meta do mês</th><th>Venda do dia</th><th>Meta do dia</th><th>Acumulado</th><th>Meta acumulada</th><th>Projeção</th><th>Desvio da projeção</th><th>Meta ajustada<small>próximo dia</small></th><th>Falta no mês</th><th>Vendido na semana</th><th>Projeção da semana</th></tr></thead>'+
     '<tbody>'+linhas+'</tbody><tfoot>'+tot+'</tfoot></table></div>'+
     '<div class="uni-dica">Toque no nome da empresa para ver <b>por canal · dia | projeção semana | mês</b>. Desvio e falta do grupo somam só as empresas com meta.</div>';
 }
@@ -7824,7 +7828,7 @@ function uniAbrir(id){ UNI_ABERTO[id]=!UNI_ABERTO[id]; vndAdmPintar(); }
 var UNI_HEX = { verde:'#1e9e5a', laranja:'#e07b00', vermelho:'#d32f2f', cinza:'#8a8f98', inicio:'#8a8f98' };
 function uniPctHex(r){ return r==null?'#666':(r>=VND_VERDE?UNI_HEX.verde:(r>=VND_LARANJA?UNI_HEX.laranja:UNI_HEX.vermelho)); }
 function uniDesenhar(cs,ref){
-  var col=[{t:'UNIDADE',w:250,a:'left'},{t:'FAROL',s:'ritmo do mês',w:96},{t:'MARGEM / CMV',s:'do dia',w:118},{t:'MARKUP / CMO',s:'do dia',w:118},{t:'VENDA DO DIA',w:170},{t:'META DO DIA',w:128},{t:'ACUMULADO',w:140},{t:'META ACUMULADA',w:170},
+  var col=[{t:'UNIDADE',w:250,a:'left'},{t:'FAROL',s:'ritmo do mês',w:96},{t:'MARGEM / CMV',s:'do dia',w:118},{t:'MARKUP / CMO',s:'do dia',w:118},{t:'META DO MÊS',w:160},{t:'VENDA DO DIA',w:170},{t:'META DO DIA',w:128},{t:'ACUMULADO',w:140},{t:'META ACUMULADA',w:170},
     {t:'PROJEÇÃO',w:150},{t:'DESVIO DA PROJEÇÃO',w:150},{t:'META AJUSTADA',s:'próximo dia',w:128},{t:'FALTA NO MÊS',w:150},{t:'VENDIDO NA SEMANA',w:150},{t:'PROJEÇÃO DA SEMANA',w:170}];
   var W=col.reduce(function(s,c){ return s+c.w; },0), RH=50, HH=46, TT=70, FT=34, n=cs.length+1, H=TT+HH+RH*n+FT, S=2;
   var cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S; var g=cv.getContext('2d'); g.scale(S,S);
@@ -7859,6 +7863,7 @@ function uniDesenhar(cs,ref){
     linha([
       { v:e.nome, b:1, s:16.5, sub:(p?p.nome+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':''), lat:hx },
       { pill:pl.temMeta?vndPct(c.ritmo):'—', cor:hx }, ic('a'), ic('b'),
+      pl.temMeta?{ v:recMoeda(pl.metaMes), b:1, sub:vndMesNome(c.ref.substring(0,7)) }:{ v:'sem meta', c:UNI_HEX.laranja, b:1 },
       c.vendaDia==null?{ v:'não lançada', c:UNI_HEX.laranja, b:1 }:{ v:recMoeda(c.vendaDia), sub:c.pctDia!=null?pc(c.pctDia)+' da meta do dia':'', subc:uniPctHex(c.pctDia), subb:1 },
       { v:c.metaDia>0?recMoeda(c.metaDia):'—', c:c.metaDia>0?'#111':'#aaa' },
       { v:recMoeda(c.acum) },
@@ -7875,6 +7880,7 @@ function uniDesenhar(cs,ref){
   linha([
     { v:'GRUPO', b:1, s:16.5, sub:'soma das empresas', lat:UNI_HEX[gc] },
     { pill:vndPct(gr), cor:UNI_HEX[gc] }, { v:'—', c:'#aaa' }, { v:'—', c:'#aaa' },
+    { v:G.meta>0?recMoeda(G.meta):'—', sub:G.meta>0?'empresas com meta':'' },
     { v:recMoeda(G.dia), sub:G.metaDia>0?vndPct(G.diaM/G.metaDia)+' da meta do dia':'', subc:uniPctHex(G.metaDia>0?G.diaM/G.metaDia:null), subb:1 },
     { v:G.metaDia>0?recMoeda(G.metaDia):'—' }, { v:recMoeda(G.acum) },
     G.temMeta?{ v:recMoeda(G.metaAcum), sub:vndPct(gr)+' atingido', subc:uniPctHex(gr), subb:1 }:{ v:'—' },
