@@ -4789,7 +4789,7 @@ function vndAdmRecarregar(){
   vndCarregarTudo(true).then(function(){ vndAdmPintar(); setTxt('vnd-whats-msg','✓ atualizado'); });
 }
 function vndAdmCard(c){
-  var e=c.emp, k=VND_COR[c.cor], pl=c.plano, p=findPessoa(e.dono), ac=c.acao;
+  var e=c.emp, k=VND_COR[c.cor], pl=c.plano, p=vndRespPainel(e), ac=c.acao;
   var semAcao=!ac&&(c.cor==='laranja'||c.cor==='vermelho');
   return '<div class="vnd-ac" style="border-top-color:'+k.c+'">'+
     '<div class="vnd-ac-h"><span>'+e.emoji+' <b>'+esc(e.nome)+'</b></span><span class="faixa" style="color:'+k.c+';border-color:'+k.c+'">'+k.ico+' '+k.t+'</span></div>'+
@@ -7739,7 +7739,8 @@ function planPersonalizar2(empId){
   if(!d.open) d.open=true; else vndEdPintar(empId);
   setTimeout(function(){ d.scrollIntoView({ behavior:'smooth', block:'start' }); },120);
 }
-
+/* quem aparece como responsável da empresa nos painéis (Q Food: Rodrigo, que envia ao Adilson) */
+function vndRespPainel(e){ var id=e.id==='emp_qfood'?'rodrigo':e.dono; return findPessoa(id)||findLider(id); }
 /* ══════════════════════════════════════════════════════════════
    PAINEL ÚNICO — todas as empresas numa tabela só (Gestão → Vendas do dia)
    Mesmos números dos cartões (vndCalcOficial + vndExtras). Clique na empresa
@@ -7752,7 +7753,7 @@ function uniPct(r,cor){ return r==null||!isFinite(r)?'':' <small style="color:'+
 function uniTabela(cs,ref){
   var G={ dia:0, diaM:0, metaDia:0, acum:0, metaAcum:0, proj:0, meta:0, desvio:0, falta:0, semV:0, semP:0, semM:0, temMeta:false };
   var linhas=cs.map(function(c){
-    var e=c.emp, k=VND_COR[c.cor], pl=c.plano, x=vndExtras(c), s=x.sem, ab=!!UNI_ABERTO[e.id], p=findPessoa(e.dono);
+    var e=c.emp, k=VND_COR[c.cor], pl=c.plano, x=vndExtras(c), s=x.sem, ab=!!UNI_ABERTO[e.id], p=vndRespPainel(e);
     G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.semV+=s.venda; G.semP+=s.proj;
     if(pl.temMeta){ G.temMeta=true; G.metaDia+=c.metaDia||0; G.diaM+=c.vendaDia||0; G.metaAcum+=c.metaAcum; G.meta+=pl.metaMes; G.desvio+=c.desvioProj; G.falta+=c.falta; G.semM+=s.meta||0; }
     var td=function(v){ return '<td>'+v+'</td>'; }, nada='<span class="uni-n">—</span>';
@@ -7822,7 +7823,7 @@ function uniDesenhar(cs,ref){
     y+=RH;
   }
   cs.forEach(function(c,i){
-    var e=c.emp, pl=c.plano, x2=vndExtras(c), s=x2.sem, p=findPessoa(e.dono), hx=UNI_HEX[c.cor]||'#8a8f98';
+    var e=c.emp, pl=c.plano, x2=vndExtras(c), s=x2.sem, p=vndRespPainel(e), hx=UNI_HEX[c.cor]||'#8a8f98';
     G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.semV+=s.venda; G.semP+=s.proj;
     if(pl.temMeta){ G.temMeta=true; G.metaDia+=c.metaDia||0; G.diaM+=c.vendaDia||0; G.metaAcum+=c.metaAcum; G.meta+=pl.metaMes; G.desvio+=c.desvioProj; G.falta+=c.falta; G.semM+=s.meta||0; }
     var pc=function(r){ return r==null?'':vndPct(r); };
