@@ -3386,8 +3386,7 @@ function vndEnviarCanais(emp,iso,cn,total,editor,agora,pd,ind){
   Object.keys(VND_CANAIS_DEF).forEach(function(id){ dado['canal_'+id]=cn[id]==null?'':cn[id]; dado['pedidos_'+id]=pd[id]==null?'':pd[id]; });
   if(ind){ var ki=vndIndCalc(ind); VND_IND_DEF.forEach(function(f){ dado[f.id]=ind[f.id]==null?'':ind[f.id]; });
     dado.pct_positivacao=ki.pctPos==null?'':Math.round(ki.pctPos*1000)/10; dado.pct_novos_pdv=ki.pctNovos==null?'':Math.round(ki.pctNovos*1000)/10;
-    if(ind.cmv!=null||ind.cmo!=null){ dado.cmv=ind.cmv==null?'':ind.cmv; dado.cmo=ind.cmo==null?'':ind.cmo;
-      dado.pct_cmv=(ind.cmv!=null&&total>0)?Math.round(ind.cmv/total*1000)/10:''; dado.pct_cmo=(ind.cmo!=null&&total>0)?Math.round(ind.cmo/total*1000)/10:''; } }
+    if(ind.cmv!=null||ind.cmo!=null){ dado.pct_cmv=ind.cmv==null?'':ind.cmv; dado.pct_cmo=ind.cmo==null?'':ind.cmo; } }
   return enviarSheet('VENDAS_CANAIS',dado).then(function(r){
     if(r&&r.ok){ VND_CANAIS=VND_CANAIS||{}; VND_CANAIS[emp.id]=VND_CANAIS[emp.id]||{}; VND_CANAIS[emp.id][iso]=reg; }
     return r;
@@ -4439,7 +4438,7 @@ function vndPreencherLanc(emp){
   if(d) d.value=ref;
   vndFixasPintar(emp.id);
   if(v){ var x=recValorDia(emp.id,ref); v.value=(x===''||x==null)?'':String(x).replace('.',','); }
-  vndPreencherCanais(emp,ref);
+  vndPreencherCanais(emp,ref); if(!emp.canais) vndPreencherCustos(emp,vndCanaisDia(emp,ref));
   var a=vndAcao(emp,ref), pr=(a&&a.origem==='painel')?a:null;
   var t=el('vnd-acao-'+emp.id); if(t) t.value=pr?pr.acao:'';
   var r=el('vnd-resp-'+emp.id); if(r) r.value=pr?pr.responsavel:'';
@@ -4495,7 +4494,7 @@ function vndSalvarVenda(empId,modo){
   if(vndTemCustos(emp) && val!=null){
     var lc=vndLerCustos(emp);
     if(lc.falta.length){ var c0=el('vnd-cu-'+empId+'-'+lc.falta[0].id); if(c0) c0.focus();
-      return msg('⚠ Preencha os custos do dia (em R$): '+lc.falta.map(function(f){ return f.nome; }).join(' e ')+'.','#ffaa2b'); }
+      return msg('⚠ Preencha os custos do dia (em %, de 0 a 100): '+lc.falta.map(function(f){ return f.nome; }).join(' e ')+'.','#ffaa2b'); }
     ind=ind||{}; ind.cmv=lc.v.cmv; ind.cmo=lc.v.cmo;
   }
   var c=vndCalc(emp,iso,val);
@@ -7899,32 +7898,31 @@ function uniPDF(){
 
 /* ══════════════════════════════════════════════════════════════
    CMV e CMO do dia — restaurantes (obrigatórios ao lançar a venda)
-   A pessoa digita em R$; o sistema calcula o % sobre a venda do dia.
+   A pessoa digita direto o % (como margem e markup da Q Food).
    Gravado junto com os canais (aba VENDAS_CANAIS, dentro de canais_json → _ind).
    ══════════════════════════════════════════════════════════════ */
-var VND_CUSTOS_EMP = { emp_mercearia:1, emp_gogui:1, emp_sushitrip:1 };
+var VND_CUSTOS_EMP = { emp_mercearia:1, emp_gogui:1, emp_sushitrip:1, emp_primefish:1 };
 var VND_CUSTOS_DEF = [
-  { id:'cmv', nome:'CMV do dia', dica:'custo da mercadoria vendida no dia, em R$' },
-  { id:'cmo', nome:'CMO do dia', dica:'custo da mão de obra do dia, em R$' }
+  { id:'cmv', nome:'CMV do dia', dica:'custo da mercadoria vendida no dia, em % da venda' },
+  { id:'cmo', nome:'CMO do dia', dica:'custo da mão de obra do dia, em % da venda' }
 ];
 function vndTemCustos(emp){ return !!(emp&&VND_CUSTOS_EMP[emp.id]); }
 function vndCustosHTML(emp,dis){
   if(!vndTemCustos(emp)) return '';
-  return '<div class="vnd-canais vnd-ind"><div class="vnd-canais-t">Custos do dia <span>— obrigatórios para salvar a venda · digite em R$, o % sai sozinho</span></div><div class="vnd-canais-l">'+
-    VND_CUSTOS_DEF.map(function(f){ return '<div><label>'+f.nome+' (R$) <b style="color:var(--red)">*</b></label><input type="text" inputmode="decimal" id="vnd-cu-'+emp.id+'-'+f.id+'" placeholder="R$ 0,00" title="'+f.dica+'" oninput="vndCustosPintar(\''+emp.id+'\')"'+dis+'><div class="vnd-cn-tk" id="vnd-cup-'+emp.id+'-'+f.id+'"></div></div>'; }).join('')+
+  return '<div class="vnd-canais vnd-ind"><div class="vnd-canais-t">Custos do dia <span>— obrigatórios para salvar a venda · digite o % (ex.: 32,5)</span></div><div class="vnd-canais-l">'+
+    VND_CUSTOS_DEF.map(function(f){ return '<div><label>'+f.nome+' (%) <b style="color:var(--red)">*</b></label><input type="text" inputmode="decimal" id="vnd-cu-'+emp.id+'-'+f.id+'" placeholder="0,0" title="'+f.dica+'" oninput="vndCustosPintar(\''+emp.id+'\')"'+dis+'><div class="vnd-cn-tk" id="vnd-cup-'+emp.id+'-'+f.id+'"></div></div>'; }).join('')+
     '</div></div>';
 }
 function vndLerCustos(emp){
   var o={}, falta=[];
   VND_CUSTOS_DEF.forEach(function(f){ var e=el('vnd-cu-'+emp.id+'-'+f.id), t=e?String(e.value||'').trim():'';
-    if(t===''){ falta.push(f); return; } var n=recParseNum(t); if(n==null||isNaN(n)||n<0) falta.push(f); else o[f.id]=n; });
+    if(t===''){ falta.push(f); return; } var n=recParseNum(t.replace('%','')); if(n==null||isNaN(n)||n<0||n>100) falta.push(f); else o[f.id]=n; });
   return { v:o, falta:falta };
 }
 function vndCustosPintar(empId){
   var emp=vndEmp(empId); if(!vndTemCustos(emp)) return;
-  var vt=String((el('vnd-val-'+empId)||{}).value||'').trim(), venda=vt===''?null:recParseNum(vt);
-  VND_CUSTOS_DEF.forEach(function(f){ var e=el('vnd-cu-'+empId+'-'+f.id), t=e?String(e.value||'').trim():'', n=t===''?null:recParseNum(t);
-    setTxt('vnd-cup-'+empId+'-'+f.id,(n!=null&&venda>0)?vndPctBR(n/venda)+' da venda do dia':''); });
+  VND_CUSTOS_DEF.forEach(function(f){ var e=el('vnd-cu-'+empId+'-'+f.id), t=e?String(e.value||'').trim().replace('%',''):'', n=t===''?null:recParseNum(t);
+    setTxt('vnd-cup-'+empId+'-'+f.id,(n!=null&&!isNaN(n)&&(n<0||n>100))?'⚠ digite um % entre 0 e 100':''); });
 }
 function vndPreencherCustos(emp,d){
   if(!vndTemCustos(emp)) return;
@@ -7936,8 +7934,8 @@ function vndIndPainel(c){
   var e=c.emp, d=vndCanaisDia(e,c.ref), v=d&&d.ind;
   if(e.indicadores) return { tipo:'qf', a:{ rot:'margem', p:v&&v.margem!=null?v.margem:null }, b:{ rot:'markup', p:v&&v.markup!=null?v.markup:null } };
   if(vndTemCustos(e)){
-    var vd=c.vendaDia, f=function(k){ return (v&&v[k]!=null&&vd>0)?v[k]/vd*100:null; };
-    return { tipo:'cu', a:{ rot:'CMV', p:f('cmv'), rs:v&&v.cmv }, b:{ rot:'CMO', p:f('cmo'), rs:v&&v.cmo } };
+    var f=function(k){ return (v&&v[k]!=null)?v[k]:null; };
+    return { tipo:'cu', a:{ rot:'CMV', p:f('cmv') }, b:{ rot:'CMO', p:f('cmo') } };
   }
   return null;
 }
