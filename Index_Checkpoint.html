@@ -692,6 +692,7 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .btn-save.vnd-b2{background:var(--s2);color:var(--tx);border:1px solid var(--b2)}
 .vnd-leg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.76rem;color:var(--mu);margin:2px 0 14px}
 .vnd-leg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.uni-exp{display:inline-flex;gap:6px;margin:0 0 12px 10px;vertical-align:top;flex-wrap:wrap}.uni-exp .btn-save{margin:0}
 .uni-tg{display:inline-flex;gap:4px;background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:4px;margin:0 0 12px}
 .uni-tg button{all:unset;cursor:pointer;padding:7px 14px;border-radius:7px;font-size:.82rem;font-weight:600;color:var(--mu)}
 .uni-tg button.on{background:var(--cyan);color:#06121a}
@@ -4824,6 +4825,7 @@ function vndAdmPintar(){
   var ref=(el('vnd-adm-ref')||{}).value||ontem();
   var cs=VND_EMPRESAS.map(function(e){ return vndCalcOficial(e,vndRefEmp(e,ref)); });
   box.innerHTML='<div class="uni-tg"><button class="'+(VND_VISTA==='tabela'?'on':'')+'" onclick="vndVista(\'tabela\')">📋 Painel único</button><button class="'+(VND_VISTA!=='tabela'?'on':'')+'" onclick="vndVista(\'cartoes\')">🗂 Cartões por empresa</button></div>'+
+    '<div class="uni-exp"><button class="btn-save" onclick="uniBaixar()">📥 Baixar imagem do painel</button><button class="btn-save vnd-b2" onclick="uniPDF()">🖨️ PDF</button></div>'+
     (VND_VISTA==='tabela'?uniTabela(cs,ref):'<div class="vnd-adm">'+cs.map(vndAdmCard).join('')+'</div>');
   var t=el('vnd-whats'); if(t) t.value=vndPainelAdilson(cs,ref);
   var td=el('vnd-whats-det'); if(td) td.value=vndTextoWhats(cs,ref);
@@ -7788,6 +7790,93 @@ function uniTabela(cs,ref){
     '<div class="uni-dica">Toque no nome da empresa para ver <b>por canal · dia | projeção semana | mês</b>. Desvio e falta do grupo somam só as empresas com meta.</div>';
 }
 function uniAbrir(id){ UNI_ABERTO[id]=!UNI_ABERTO[id]; vndAdmPintar(); }
+
+/* ── imagem / PDF do painel único (para mandar ao Adilson) ── */
+var UNI_HEX = { verde:'#1e9e5a', laranja:'#e07b00', vermelho:'#d32f2f', cinza:'#8a8f98', inicio:'#8a8f98' };
+function uniPctHex(r){ return r==null?'#666':(r>=VND_VERDE?UNI_HEX.verde:(r>=VND_LARANJA?UNI_HEX.laranja:UNI_HEX.vermelho)); }
+function uniDesenhar(cs,ref){
+  var col=[{t:'UNIDADE',w:250,a:'left'},{t:'FAROL',s:'ritmo do mês',w:96},{t:'VENDA DO DIA',w:170},{t:'META DO DIA',w:128},{t:'ACUMULADO',w:140},{t:'META ACUMULADA',w:170},
+    {t:'PROJEÇÃO',w:150},{t:'DESVIO DA PROJEÇÃO',w:150},{t:'META AJUSTADA',s:'próximo dia',w:128},{t:'FALTA NO MÊS',w:150},{t:'VENDIDO NA SEMANA',w:150},{t:'PROJEÇÃO DA SEMANA',w:170}];
+  var W=col.reduce(function(s,c){ return s+c.w; },0), RH=50, HH=46, TT=70, FT=34, n=cs.length+1, H=TT+HH+RH*n+FT, S=2;
+  var cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S; var g=cv.getContext('2d'); g.scale(S,S);
+  var F='"Segoe UI", Calibri, Arial, sans-serif';
+  function t(x,y,s,o){ o=o||{}; g.font=(o.b?'bold ':'')+(o.s||14)+'px '+F; g.fillStyle=o.c||'#111'; g.textAlign=o.a||'right'; g.textBaseline='middle'; g.fillText(s,x,y); }
+  g.fillStyle='#fff'; g.fillRect(0,0,W,H);
+  g.fillStyle='#000'; g.fillRect(0,0,W,TT);
+  t(18,TT/2-9,'PAINEL DIÁRIO DE VENDAS — Q FOOD GROUP',{a:'left',c:'#fff',b:1,s:24});
+  t(18,TT/2+16,'Referência: '+VND_SEM_LB[vndWd(ref)].toLowerCase()+' '+isoBR(ref)+'  ·  farol: verde ≥ 95% do ritmo · laranja 70% a 95% · vermelho abaixo de 70%',{a:'left',c:'#bbb',s:13});
+  var y=TT, x=0;
+  g.fillStyle='#262626'; g.fillRect(0,y,W,HH);
+  col.forEach(function(c){ var tx=c.a==='left'?x+14:x+c.w-10; t(tx,y+(c.s?HH/2-7:HH/2),c.t,{a:c.a||'right',c:'#fff',b:1,s:11.5}); if(c.s) t(tx,y+HH/2+9,c.s,{a:c.a||'right',c:'#aaa',s:10.5}); x+=c.w; });
+  y+=HH;
+  var G={ dia:0, diaM:0, metaDia:0, acum:0, metaAcum:0, proj:0, meta:0, desvio:0, falta:0, semV:0, semP:0, semM:0, temMeta:false };
+  function linha(cells,fundo,neg){
+    g.fillStyle=fundo; g.fillRect(0,y,W,RH); g.fillStyle='#d9d9d9'; g.fillRect(0,y+RH-1,W,1);
+    var xx=0; cells.forEach(function(cl,i){ var c=col[i];
+      if(cl&&cl.pill){ var pw=78; g.fillStyle=cl.cor; g.beginPath(); if(g.roundRect) g.roundRect(xx+c.w-10-pw,y+RH/2-12,pw,24,12); else g.rect(xx+c.w-10-pw,y+RH/2-12,pw,24); g.fill(); t(xx+c.w-10-pw/2,y+RH/2+1,cl.pill,{a:'center',c:'#fff',b:1,s:13}); }
+      else if(cl){ var tx=c.a==='left'?xx+14:xx+c.w-10;
+        if(cl.lat){ g.fillStyle=cl.lat; g.fillRect(xx,y+6,5,RH-12); }
+        t(tx,y+(cl.sub?RH/2-8:RH/2),cl.v,{a:c.a||'right',c:cl.c||'#111',b:neg||cl.b,s:cl.s||14});
+        if(cl.sub) t(tx,y+RH/2+11,cl.sub,{a:c.a||'right',c:cl.subc||'#777',s:11,b:cl.subb}); }
+      xx+=c.w; });
+    y+=RH;
+  }
+  cs.forEach(function(c,i){
+    var e=c.emp, pl=c.plano, x2=vndExtras(c), s=x2.sem, p=findPessoa(e.dono), hx=UNI_HEX[c.cor]||'#8a8f98';
+    G.dia+=c.vendaDia||0; G.acum+=c.acum; G.proj+=c.projecao; G.semV+=s.venda; G.semP+=s.proj;
+    if(pl.temMeta){ G.temMeta=true; G.metaDia+=c.metaDia||0; G.diaM+=c.vendaDia||0; G.metaAcum+=c.metaAcum; G.meta+=pl.metaMes; G.desvio+=c.desvioProj; G.falta+=c.falta; G.semM+=s.meta||0; }
+    var pc=function(r){ return r==null?'':vndPct(r); };
+    linha([
+      { v:e.nome, b:1, sub:(p?p.nome+' · ':'')+VND_SEM_LB[vndWd(c.ref)]+' '+vndDm(c.ref)+(c.ref!==ref?' (dia útil)':''), lat:hx },
+      { pill:pl.temMeta?vndPct(c.ritmo):'—', cor:hx },
+      c.vendaDia==null?{ v:'não lançada', c:UNI_HEX.laranja, b:1 }:{ v:recMoeda(c.vendaDia), sub:c.pctDia!=null?pc(c.pctDia)+' da meta do dia':'', subc:uniPctHex(c.pctDia), subb:1 },
+      { v:c.metaDia>0?recMoeda(c.metaDia):'—', c:c.metaDia>0?'#111':'#aaa' },
+      { v:recMoeda(c.acum) },
+      pl.temMeta?{ v:recMoeda(c.metaAcum), sub:pc(c.ritmo)+' atingido', subc:uniPctHex(c.ritmo), subb:1 }:{ v:'—', c:'#aaa' },
+      { v:recMoeda(c.projecao), sub:pl.temMeta?'de '+vndR0(pl.metaMes):'sem meta' },
+      pl.temMeta?{ v:vndSinal(c.desvioProj,recMoeda), c:c.desvioProj>=0?UNI_HEX.verde:UNI_HEX.vermelho, b:1 }:{ v:'—', c:'#aaa' },
+      pl.temMeta&&c.prox?{ v:recMoeda(c.prox.ajust), sub:vndDm(c.prox.iso) }:{ v:'—', c:'#aaa' },
+      pl.temMeta?{ v:recMoeda(c.falta), sub:c.restantes+' dias' }:{ v:'—', c:'#aaa' },
+      { v:recMoeda(s.venda), sub:vndDm(s.ini)+' a '+vndDm(s.fim) },
+      { v:recMoeda(s.proj), sub:s.pct!=null?pc(s.pct)+' da meta':'', subc:uniPctHex(s.pct), subb:1 }
+    ], i%2?'#f4f4f4':'#fff');
+  });
+  var gr=G.metaAcum>0?G.acum/G.metaAcum:null, gc=gr==null?'cinza':((gr>=VND_VERDE||G.proj>=G.meta)?'verde':(gr>=VND_LARANJA?'laranja':'vermelho')), gs=G.semM>0?G.semP/G.semM:null;
+  linha([
+    { v:'GRUPO', b:1, sub:'soma das empresas', lat:UNI_HEX[gc] },
+    { pill:vndPct(gr), cor:UNI_HEX[gc] },
+    { v:recMoeda(G.dia), sub:G.metaDia>0?vndPct(G.diaM/G.metaDia)+' da meta do dia':'', subc:uniPctHex(G.metaDia>0?G.diaM/G.metaDia:null), subb:1 },
+    { v:G.metaDia>0?recMoeda(G.metaDia):'—' }, { v:recMoeda(G.acum) },
+    G.temMeta?{ v:recMoeda(G.metaAcum), sub:vndPct(gr)+' atingido', subc:uniPctHex(gr), subb:1 }:{ v:'—' },
+    { v:recMoeda(G.proj), sub:G.meta>0?'de '+vndR0(G.meta):'' },
+    G.temMeta?{ v:vndSinal(G.desvio,recMoeda), c:G.desvio>=0?UNI_HEX.verde:UNI_HEX.vermelho }:{ v:'—' },
+    { v:'—', c:'#aaa' }, G.temMeta?{ v:recMoeda(G.falta) }:{ v:'—' }, { v:recMoeda(G.semV) },
+    { v:recMoeda(G.semP), sub:gs!=null?vndPct(gs)+' da meta':'', subc:uniPctHex(gs), subb:1 }
+  ],'#e9e9e9',true);
+  var u=window.CURRENT_USER||{}, ag=new Date();
+  g.fillStyle='#f2f2f2'; g.fillRect(0,y,W,FT);
+  t(14,y+FT/2,'Gerado por '+(u.email||u.nome||'—')+' · '+String(ag.getDate()).padStart(2,'0')+'/'+String(ag.getMonth()+1).padStart(2,'0')+'/'+ag.getFullYear()+' às '+agoraHora(),{a:'left',c:'#555',s:12});
+  t(W-14,y+FT/2,'Meta, desvio e falta do grupo somam só as empresas com meta · vendas internas fora',{c:'#888',s:11.5});
+  return cv;
+}
+function uniGerar(){
+  var ref=(el('vnd-adm-ref')||{}).value||ontem();
+  return { cv:uniDesenhar(VND_EMPRESAS.map(function(e){ return vndCalcOficial(e,vndRefEmp(e,ref)); }),ref), nome:'Painel_Vendas_'+ref };
+}
+function uniBaixar(){
+  var r=uniGerar();
+  r.cv.toBlob(function(b){ if(!b) return; var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=r.nome+'.png'; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500); },'image/png');
+}
+function uniPDF(){
+  var r=uniGerar(), src=r.cv.toDataURL('image/png');
+  var f=document.createElement('iframe'); f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0'; document.body.appendChild(f);
+  var d=f.contentWindow.document;
+  d.open(); d.write('<!doctype html><html><head><meta charset="utf-8"><title>'+r.nome+'</title><style>@page{size:A4 landscape;margin:8mm}html,body{margin:0}img{display:block;width:100%;height:auto}</style></head><body><img src="'+src+'"></body></html>'); d.close();
+  var im=d.querySelector('img');
+  function go(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){} setTimeout(function(){ f.remove(); },60000); }
+  if(im.complete) setTimeout(go,150); else im.onload=function(){ setTimeout(go,150); };
+}
 
 try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
 (function init(){
