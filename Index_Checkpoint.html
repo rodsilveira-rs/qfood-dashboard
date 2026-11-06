@@ -1220,16 +1220,20 @@ var ORG_C = {
 /* semReport: por enquanto não fazem report diário (Jonathas, Gean Acylino e Matheus) — não aparecem como pendentes */
 function pessoasParteB(){ return [].concat(COMITE_EXTRA, ORG_B.supervisao, [ORG_B.gerenteUnidade, ORG_B.gerenteGogui], ORG_B.tecnicas); }
 function pessoasParteC(){ return [ORG_C.gerenteLoja]; }
-function todasPessoas(){ return [].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC()); }
+/* Fora do organograma: só lançam a venda do dia (não têm função descrita) */
+var PESSOAS_EXTRA = [
+  { id:'dayane', nome:'Dayane', funcao:'Venda do dia · Mercearia Liberdade Glória', emoji:'🛒', frente:'B', semPremio:true }
+];
+function todasPessoas(){ return [].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC(), PESSOAS_EXTRA); }
 /* Quem faz report diário e entra no checkpoint do Adilson (Rodrigo primeiro, depois restaurantes, depois Q Food) */
-var CONS_ORDEM = ['rodrigo','mariana','fernanda','fabricia','samara','gustavo','tulio','barbara','cris','celio','leorick'];
+var CONS_ORDEM = ['rodrigo','mariana','dayane','fernanda','fabricia','samara','gustavo','tulio','barbara','cris','celio','leorick'];
 function consPessoas(){
   var t=[GERENTE].concat(todasPessoas()).filter(function(p){ return !p.semReport; });
   t.sort(function(a,b){ var ia=CONS_ORDEM.indexOf(a.id), ib=CONS_ORDEM.indexOf(b.id); return (ia<0?99:ia)-(ib<0?99:ib); });
   return t;
 }
 function findPessoa(id){ return todasPessoas().filter(function(p){ return p.id===id; })[0]; }
-function todosLideres(){ return [CEO, GERENTE].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC()); }
+function todosLideres(){ return [CEO, GERENTE].concat(ORG_A.responsaveis, ORG_A.linhaFrente, pessoasParteB(), pessoasParteC(), PESSOAS_EXTRA); }
 function findLider(id){ return todosLideres().filter(function(p){ return p.id===id; })[0]; }
 
 var SYNC_IDS = { gustavo:1, celio:1, cris:1, tulio:1, barbara:1 };
@@ -1578,7 +1582,7 @@ function esc(s){ return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</
 
 function reportKey(id,iso){ return 'qfood_chk_'+id+'_report_'+iso; }
 function loadReport(id,iso){ try{ return JSON.parse(localStorage.getItem(reportKey(id,iso))||'null'); }catch(e){ return null; } }
-function reportEntregue(id,iso){ var d=loadReport(id,iso); if(d&&(d.rep_result||d.rep_plano||d.rep_risco||d.rep_acao)) return true; if(typeof kdEntregue==='function'&&kdEntregue(id,iso)) return true; return id===ECOM_REPORT_GESTOR&&typeof ecomReport==='function'&&!!ecomReport(iso); }
+function reportEntregue(id,iso){ var d=loadReport(id,iso); if(d&&(d.rep_result||d.rep_plano||d.rep_risco||d.rep_acao)) return true; if(typeof kdEntregue==='function'&&kdEntregue(id,iso)) return true; if(typeof vndSoVendasEntregue==='function'&&vndSoVendasEntregue(id,iso)) return true; return id===ECOM_REPORT_GESTOR&&typeof ecomReport==='function'&&!!ecomReport(iso); }
 function scoreKey(id,mes){ return 'qfood_chk_'+id+'_qdace_'+mes; }
 function loadScore(id,mes){ try{ return JSON.parse(localStorage.getItem(scoreKey(id,mes))||'null'); }catch(e){ return null; } }
 var CKP_SYNC_URL   = 'https://script.google.com/macros/s/AKfycbwf1CiH6UJfSu2__BgpIz3apWfM8UeNSRniWW4b-Zb4KUUdQBHeQhedUZddr29zDXMeqw/exec';
@@ -1771,7 +1775,8 @@ var CHK_EMAIL_TO_GESTOR = {
   'fernanda@mercearialiberdade.com.br':'fernanda',   /* CONFIRMAR o e-mail de login da Fernanda */
   'matheus@mercearialiberdade.com.br':'matheus',
   'jonathas@qfoodcompany.com.br':'jhonatan',
-  'samara@sushitrip.com.br':'samara'
+  'samara@sushitrip.com.br':'samara',
+  'dayane@qfoodcompany.com.br':'dayane'
   /* Eduardo sem login no UUSR — só tulio/admin veem. Se ganhar login: 'email':'eduardo' */
 };
 var SUPERVISAO = {
@@ -2153,7 +2158,7 @@ function renderPainel(view){
   if(view==='reunioes') return painelReunioes();
   if(view==='compromissos') return painelCompromissos();
   if(view==='alertas') return painelAlertas();
-  if(view==='vendas'){ if(adm) return painelVendas(); view=perm[0]; }
+  if(view==='vendas'){ if(adm||vndPodePainel()) return painelVendas(); view=perm[0]; }
   if(view==='metas'){ if(!adm) view=perm[0]; }
   else if(view==='ceo'||view==='rodrigo'){ if(!adm) view=perm[0]; }
   else if(!podeVer(view)){ view = adm?'ceo':perm[0]; }
@@ -2458,6 +2463,7 @@ function lojaSalvar(){ var fat=parseFloat((el('loja-fat').value||'0').replace(/\
 var RECEITA_EMPRESAS = [
   { id:'emp_qfood',     nome:'Q Food',              emoji:'📦' },
   { id:'emp_mercearia', nome:'Mercearia Liberdade', emoji:'🛒' },
+  { id:'emp_merc_gloria', nome:'Mercearia Liberdade · Glória', emoji:'🛒' },
   { id:'emp_gogui',     nome:'Gogui',               emoji:'🍲' },
   { id:'emp_sushitrip', nome:'Sushi Trip',          emoji:'🍣' },
   { id:'emp_prime',     nome:'Prime Sushi',         emoji:'🍱' },
@@ -2927,6 +2933,9 @@ var VND_EMPRESAS = [
   { id:'emp_mercearia', nome:'Mercearia Liberdade · Vitória', emoji:'🛒', dono:'mariana',  abre:VND_TODOS,
     pesos:[16500,16500,16500,16500,30000,35000,20500], canais:VND_CANAIS_PADRAO,
     dica:'Distribuição da Mariana: segunda a quinta iguais, sexta, sábado e domingo mais fortes.' },
+  { id:'emp_merc_gloria', nome:'Mercearia Liberdade · Glória', emoji:'🛒', dono:'dayane', abre:VND_TODOS, soVendas:true,
+    pesos:[1,1,1,1,1,1,1], canais:VND_CANAIS_PADRAO,
+    dica:'Dayane lança só a venda do dia e por canal. Cadastre a meta do mês aqui para o farol funcionar.' },
   { id:'emp_gogui',     nome:'Gogui',                         emoji:'🍲', dono:'fernanda', envioPor:'fabricia', abre:VND_TODOS,
     pesos:[100,100,100,107,205,214,174], escala:VND_GOGUI_ESCALA, canais:VND_CANAIS_PADRAO,
     dica:'Meta da escala do Adilson (R$ 400 mil em out/26 até R$ 700 mil em set/27). Distribuição: média da Mercearia e da Sushi Trip.' },
@@ -4057,15 +4066,15 @@ function repSalvarTudo(pid){
     return String((el('vnd-val-'+e.id)||{}).value||'').trim()!==''||String((el('vnd-acao-'+e.id)||{}).value||'').trim()!=='';
   });
   for(var i=0;i<emps.length;i++){ if(vndSalvarVenda(emps[i].id,'validar')!==true) return msg('⚠ Confira a venda e o plano acima (mensagem em laranja).','#ffaa2b'); }
-  var kd=kdTem(pid), tem4=REPORT_CAMPOS.some(function(c){ return String((el('rep-'+pid+'-'+c.id)||{}).value||'').trim(); });
-  var falta=kd?[]:REPORT_CAMPOS.filter(function(c){ var e=el('rep-'+pid+'-'+c.id); return !e||!String(e.value||'').trim(); });
+  var kd=kdTem(pid), soV=vndSoVendas(pid), tem4=REPORT_CAMPOS.some(function(c){ return String((el('rep-'+pid+'-'+c.id)||{}).value||'').trim(); });
+  var falta=(kd||soV)?[]:REPORT_CAMPOS.filter(function(c){ var e=el('rep-'+pid+'-'+c.id); return !e||!String(e.value||'').trim(); });
   if(falta.length){ var f=el('rep-'+pid+'-'+falta[0].id); if(f) f.focus(); return msg('⚠ Preencha o report diário: '+falta.map(function(c){ return c.label.replace(/^\d\.\s*/,''); }).join(', ')+'.','#ffaa2b'); }
   var h=el('rep-'+pid+'-data'); if(h) h.value=repDataRef(pid);
   if(kd){ kdPintar(pid); var kv=kdValidar(pid); if(kv!==true) return msg(kv,'#ffaa2b'); }
   msg('⏳ salvando venda, plano e report...','var(--mu)');
   var envios=emps.map(function(e){ return vndSalvarVenda(e.id); });
   if(kd) envios.push(kdSalvar(pid,h?h.value:repDataRef(pid)));
-  if(!kd||tem4) envios.push(salvarReport(pid,true));
+  if((!kd&&!soV)||tem4) envios.push(salvarReport(pid,true));
   Promise.all(envios).then(function(res){
     var falha=res.filter(function(x){ return x&&x.ok===false&&!x.enfileirado; })[0], fila=res.some(function(x){ return x&&x.enfileirado; });
     if(falha) msg('✗ Não foi salvo na base de dados — '+(falha.erro||'erro')+'. Ficou só neste aparelho; clique em Salvar novamente.','#e63329');
@@ -4133,6 +4142,7 @@ function repTextoCEO(pid,iso){
   emps.forEach(function(emp){ L=L.concat(repBlocoEmp(emp,iso,r.nome)); });
   var rp=loadReport(pid,iso)||{};
   var kd=kdTem(pid), linhas=REPORT_CAMPOS.map(function(c){ return String(rp['rep_'+c.id]||(el('rep-'+pid+'-'+c.id)||{}).value||'').trim(); });
+  if(vndSoVendas(pid)) return L.join('\n').replace(/\n+$/,'');
   if(kd){
     if(!emps.length){ L.push('📌 *'+r.nome.toUpperCase()+' · '+vndDm(iso)+'*'); L.push(''); }
     L=L.concat(kdTextoCEO(pid,iso,emps.some(function(e){ return (kdDefs(pid)||[]).some(function(d){ return d.emp===e.id; }); })));
@@ -4260,7 +4270,7 @@ function qfEnviarWhats(empId){
 }
 
 /* Q Food e Gogui: quem lança (Célio, Fernanda) não faz a etapa 3 — o plano é de quem envia (Rodrigo, Fabrícia) */
-function vndSemPlano(emp,rep,envio){ return !envio && !!emp.envioPor && !!rep && emp.envioPor!==rep.id; }
+function vndSemPlano(emp,rep,envio){ if(emp.soVendas) return true; return !envio && !!emp.envioPor && !!rep && emp.envioPor!==rep.id; }
 function vndCardRep(emp,rep,ult,envio){
   var pode=vndPodeEditar(emp), dis=pode?'':' disabled', p=findPessoa(emp.dono), iso0=ontem();
   var cons=(emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+(pode?'<button class="btn-save vnd-b2" onclick="vndAcumIr(\''+emp.id+'\')">📥 Acumulado do mês</button>':'');
@@ -4284,7 +4294,7 @@ function vndCardRep(emp,rep,ult,envio){
         '</div>'+(envio?'':'<span id="vnd-msg-'+emp.id+'" class="rep-msg"></span>')+'</div>')+
       (envio?'<div class="rpu-foot"><button class="btn-save rpu-save" onclick="qfSalvarEnvio(\''+emp.id+'\')">💾 Salvar venda e plano</button><button class="btn-save rpu-wa" id="rpu-wa-'+emp.id+'" onclick="qfEnviarWhats(\''+emp.id+'\')" disabled>📲 Enviar '+esc(emp.nome)+' ao '+CEO_NOME+'</button><span id="vnd-msg-'+emp.id+'" class="rep-msg"></span></div><div class="rpu-nota">Você envia a venda da '+esc(emp.nome)+' (etapas 1 a 3). O report de 4 linhas é enviado pelo próprio responsável.</div>':'')+
       (!envio&&emp.envioPor&&rep&&emp.envioPor!==rep.id?'<div class="rpu-nota rpu-aviso">ℹ️ Você lança a venda da '+esc(emp.nome)+'. O plano para chegar na meta e o envio da venda ao '+CEO_NOME+' ficam com '+esc(((findPessoa(emp.envioPor)||findLider(emp.envioPor)||{}).nome)||'Rodrigo')+'. Seu envio leva só o report de 4 linhas.</div>':'')+
-      (ult?(kdTem(rep.id)?
+      (ult?(emp.soVendas?'<input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'"><span id="rep-'+rep.id+'-status" style="display:none"></span>'+repRodapeHTML(rep):kdTem(rep.id)?
         '<input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+kdCartaoHTML(rep.id,(vndSemPlano(emp,rep,envio)?'3':'4'))+
         kdObsAbre(rep.id,'<div class="rpu-h" style="margin-top:4px"><span id="rep-'+rep.id+'-status"></span></div>'+repCamposHTML(rep,iso0))+repRodapeHTML(rep):
         '<div class="rpu-st"><div class="rpu-h"><span class="rpu-n">'+(vndSemPlano(emp,rep,envio)?'3':'4')+'</span><b>Report diário — 4 linhas</b><span id="rep-'+rep.id+'-status"></span></div><input type="hidden" id="rep-'+rep.id+'-data" value="'+iso0+'">'+repCamposHTML(rep,iso0)+'</div>'+repRodapeHTML(rep)):'')+
@@ -4833,7 +4843,7 @@ function vndAdmPintar(){
   var ref=(el('vnd-adm-ref')||{}).value||ontem();
   var cs=VND_EMPRESAS.map(function(e){ return vndCalcOficial(e,vndRefEmp(e,ref)); });
   box.innerHTML='<div class="uni-tg"><button class="'+(VND_VISTA==='tabela'?'on':'')+'" onclick="vndVista(\'tabela\')">📋 Painel único</button><button class="'+(VND_VISTA!=='tabela'?'on':'')+'" onclick="vndVista(\'cartoes\')">🗂 Cartões por empresa</button></div>'+
-    '<div class="uni-exp"><button class="btn-save" onclick="uniBaixar()">📥 Baixar imagem do painel</button><button class="btn-save vnd-b2" onclick="uniPDF()">🖨️ PDF</button></div>'+
+    '<div class="uni-exp"><button class="btn-save" onclick="uniEnviarAdilson()">📲 Enviar ao Adilson</button><button class="btn-save vnd-b2" onclick="uniBaixar()">📥 Baixar imagem</button><button class="btn-save vnd-b2" onclick="uniPDF()">🖨️ PDF</button></div>'+
     (VND_VISTA==='tabela'?uniTabela(cs,ref):'<div class="vnd-adm">'+cs.map(vndAdmCard).join('')+'</div>');
   var t=el('vnd-whats'); if(t) t.value=vndPainelAdilson(cs,ref);
   var td=el('vnd-whats-det'); if(td) td.value=vndTextoWhats(cs,ref);
@@ -6522,11 +6532,12 @@ function shellRenderNav(){
   if(adm){
     h+=shellIt('ceo','👑','Painel do CEO')+shellIt('rodrigo','🧭','Consolidação')+shellIt('vendas','📊','Vendas do dia')+shellIt('reports','📝','Reports diários')+shellIt('metas','🎯','Metas');
   }
+  if(!adm&&vndPodePainel()) h+=shellIt('vendas','📊','Vendas do dia');
   h+=shellIt('org','🏢','Organograma');
   h+='<div class="sb-lbl">Execução</div>';
   h+=shellIt('reunioes','📅','Reuniões')+shellIt('compromissos','✅','Compromissos','<span class="sb-n red" id="sb-n-comp" style="display:none"></span>')+shellIt('alertas','✈️','Alertas Telegram');
   var qf=ORG_A.responsaveis.concat(ORG_A.linhaFrente).filter(podeP);
-  var bp=pessoasParteB().filter(podeP);
+  var bp=pessoasParteB().concat(PESSOAS_EXTRA).filter(podeP);
   var cp=pessoasParteC().filter(podeP);
   if(qf.length||bp.length||cp.length){
     h+='<div class="sb-lbl">Equipes</div>'+shellGrupo('qf','Q','Q Food','pur',qf)+shellGrupo('mg','🛒','Mercearia · Gogui','teal',bp)+shellGrupo('st','🍣','Sushi Trip','sushi',cp);
@@ -7606,6 +7617,7 @@ function kdPainelPintar(){
 var PLAN_TEMA = {
   emp_sushitrip: { cor:'#C55A11', titulo:'SUSHI TRIP PRAIA' },   /* terracota */
   emp_mercearia: { cor:'#B3261E' },                              /* vermelho Mercearia */
+  emp_merc_gloria: { cor:'#8E2C48' },                            /* vinho — Mercearia Glória */
   emp_gogui:     { cor:'#A8873A' },                              /* dourado — premium */
   emp_qfood:     { cor:'#5B3FB0' },
   emp_primefish: { cor:'#1D5FA8' }
@@ -7938,6 +7950,35 @@ function vndIndPainel(c){
     return { tipo:'cu', a:{ rot:'CMV', p:f('cmv') }, b:{ rot:'CMO', p:f('cmo') } };
   }
   return null;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MERCEARIA LIBERDADE · GLÓRIA (Dayane) — só venda do dia e por canal
+   Sem plano, sem 4 linhas e sem cartão de indicadores: lançou a venda, o report está entregue.
+   ══════════════════════════════════════════════════════════════ */
+function vndSoVendas(gid){ return vndEmpDoDono(gid).some(function(e){ return e.soVendas; }); }
+function vndSoVendasEntregue(gid,iso){
+  return vndEmpDoDono(gid).some(function(e){ if(!e.soVendas) return false; var v=recValorDia(e.id,iso); return v!==''&&v!=null; });
+}
+/* ── quem pode ver e enviar o painel de vendas ao Adilson além dos admins ── */
+var VND_PAINEL_EXTRA = ['gustavo@qfoodcompany.com.br'];
+function vndPodePainel(){ if(ehAdmin()) return true; var e=((window.CURRENT_USER||{}).email||'').toLowerCase().trim(); return VND_PAINEL_EXTRA.indexOf(e)>=0; }
+/* envia a imagem do painel ao Adilson: no celular abre o compartilhar (escolha o WhatsApp);
+   no computador baixa a imagem e abre a conversa do Adilson para anexar */
+function uniEnviarAdilson(){
+  var r=uniGerar(), ref=(el('vnd-adm-ref')||{}).value||ontem();
+  var txt=CEO_NOME+', segue o painel de vendas do dia '+vndDm(ref)+' 👇';
+  r.cv.toBlob(function(b){
+    if(!b) return;
+    var f=null; try{ f=new File([b],r.nome+'.png',{ type:'image/png' }); }catch(e){}
+    if(f&&navigator.canShare&&navigator.canShare({ files:[f] })){
+      navigator.share({ files:[f], text:txt, title:'Painel de vendas' }).catch(function(){});
+      return;
+    }
+    var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=r.nome+'.png'; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1500);
+    setTimeout(function(){ window.open('https://wa.me/'+CEO_WHATS+'?text='+encodeURIComponent(txt+'\n(imagem baixada no seu computador — é só anexar)'),'_blank'); },400);
+  },'image/png');
 }
 
 try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
