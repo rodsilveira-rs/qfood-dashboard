@@ -2496,7 +2496,23 @@ function recNivelAtingido(empId,periodo){
 }
 
 function recMoeda(v){ return 'R$ ' + (Number(v)||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function recParseNum(s){ if(s==null||s==='') return 0; var t=String(s).trim().replace(/[R$\s]/g,''); if(t.indexOf(',')>=0){ t=t.replace(/\./g,'').replace(',','.'); } var n=parseFloat(t); return isFinite(n)?n:0; }
+function recParseNum(s){
+  if(s==null||s==='') return 0;
+  if(typeof s==='number') return isFinite(s)?s:0;
+  var t=String(s).trim().replace(/[R$\s%]/g,''), neg=/^-/.test(t); t=t.replace(/^-/,'');
+  var ic=t.lastIndexOf(','), ip=t.lastIndexOf('.');
+  if(ic>=0&&ip>=0){                       /* tem vírgula e ponto: o último que aparece é o decimal */
+    var dec=ic>ip?',':'.', mil=dec===','?'.':',';
+    t=t.split(mil).join(''); var k=t.lastIndexOf(dec); t=t.slice(0,k).split(dec).join('')+'.'+t.slice(k+1);
+  } else if(ic>=0){                        /* só vírgula: a última é o decimal; as outras são milhar (ex.: 1,336,77) */
+    var pc=t.split(','), ult=pc.pop();
+    t=(pc.length>1&&ult.length===3)?pc.join('')+ult:pc.join('')+'.'+ult;
+  } else if(ip>=0){                        /* só ponto: 1.336 e 1.336.000 = milhar; 12.5 = decimal */
+    var pp=t.split('.'), ul=pp[pp.length-1];
+    t=(ul.length===3)?pp.join(''):(pp.length>2?pp.slice(0,-1).join('')+'.'+ul:t);
+  }
+  var n=parseFloat(t); if(!isFinite(n)) return 0; return neg?-n:n;
+}
 function recMesRef(){ var e=el('rec-mes'); return (e&&e.value)||mesAtual(); }
 function recDiasNoMes(mes){ var p=mes.split('-'); return new Date(parseInt(p[0],10), parseInt(p[1],10), 0).getDate(); }
 function recDiaCorrente(mes){ var h=hoje(); if(h.substring(0,7)===mes) return parseInt(h.substring(8,10),10); if(h.substring(0,7)>mes) return recDiasNoMes(mes); return 0; }
