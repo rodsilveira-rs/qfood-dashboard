@@ -216,6 +216,7 @@ button{font-family:inherit;cursor:pointer}
 .fin-val{font-weight:700;text-align:right;white-space:nowrap}
 .fin-val.cus{color:#dc2626} .fin-val.rec{color:#059669}
 .fin-del{border:0;background:none;color:#dc2626;font-size:17px;cursor:pointer}
+.fin-obs{font-size:12px;color:var(--muted);margin-top:2px;font-style:italic}
 .fin-tot{display:flex;gap:18px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px;font-size:13px;font-weight:700}
 .fin-tot .lb{color:var(--muted);font-weight:600;margin-right:6px}
 .pp-list{display:flex;flex-direction:column;gap:2px}
@@ -424,6 +425,7 @@ button{font-family:inherit;cursor:pointer}
       <div id="regFinBox" class="hide">
         <div class="fld"><label>Categoria</label><select id="regCat"></select></div>
         <div class="fld"><label>Valor (R$)</label><input id="regVal" inputmode="decimal" placeholder="R$ 0,00"></div>
+        <div class="fld"><label>Observação / justificativa <span style="color:var(--muted);font-weight:500">(opcional)</span></label><input id="regObs" type="text" placeholder="ex.: recarga de 2 botijões P13 para a fritadeira"></div>
       </div>
 
       <p class="hint" id="regHint"></p>
@@ -609,7 +611,7 @@ function carregarReal(){
         PRODS=arr.map(function(x,i){ return { id:'P'+(i+1), n:x.n||'', custo:pnum(x.cu), preco:pnum(x.pr) }; }); }catch(_){}
     }
     MOV = (j.movimentos||[]).map(function(m){ return { data:isoAny(m.Data), prod:String(m.ProdID||''), tipo:String(m.Tipo||'').toUpperCase(), qtd:pnum(m.Qtd) }; });
-    FIN = (j.financeiro||[]).map(function(f){ return { id:String(f.ID||''), data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor) }; });
+    FIN = (j.financeiro||[]).map(function(f){ return { id:String(f.ID||''), data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor), obs:f.Obs||'' }; });
 
     // Planejamento (compatível com o modelo antigo): Recursos editável; Produtos/Orçamento preservados
     PLANO_PROD_RAW = pl.Produtos || '';
@@ -880,6 +882,7 @@ function abrirReg(ctx,prodId){
   document.getElementById('regProd').innerHTML=PRODS.map(function(p){return '<option value="'+p.id+'">'+esc(p.n)+'</option>';}).join('');
   if(prodId) document.getElementById('regProd').value=prodId;
   document.getElementById('regQtd').value=''; document.getElementById('regVal').value='';
+  document.getElementById('regObs').value='';
   abrir('ovReg');
 }
 function regTipo(t){
@@ -909,9 +912,10 @@ function salvarReg(){
     var val=pnum(document.getElementById('regVal').value);
     if(!val){ toast('Informe o valor.'); return; }
     var cat=document.getElementById('regCat').value;
+    var obs=(document.getElementById('regObs').value||'').trim();
     var classe=(REG_TIPO==='DESPESA'?'CUSTO':'RECEITA');
-    reg={data:data, classe:classe, cat:cat, valor:val};
-    envio={action:'evt_addFin', eventoId:EVENTO_ID, data:data, classe:classe, categoria:cat, valor:val, usuario:USUARIO};
+    reg={data:data, classe:classe, cat:cat, valor:val, obs:obs};
+    envio={action:'evt_addFin', eventoId:EVENTO_ID, data:data, classe:classe, categoria:cat, valor:val, obs:obs, usuario:USUARIO};
   } else {
     var prod=document.getElementById('regProd').value;
     var qtd=pnum(document.getElementById('regQtd').value);
@@ -1111,10 +1115,11 @@ function renderFinList(){
   }
   itens.forEach(function(f){
     var cus=(f.classe==='CUSTO');
+    var obs=f.obs?('<div class="fin-obs">'+esc(f.obs)+'</div>'):'';
     h+='<tr>'+
       '<td>'+esc(fmtBR(f.data))+'</td>'+
       '<td><span class="fin-badge '+(cus?'cus':'rec')+'">'+(cus?'Despesa':'Receita')+'</span></td>'+
-      '<td>'+esc(f.cat||'—')+'</td>'+
+      '<td>'+esc(f.cat||'—')+obs+'</td>'+
       '<td class="fin-val '+(cus?'cus':'rec')+'">'+(cus?'− ':'+ ')+brl(f.valor)+'</td>'+
       '<td style="text-align:center">'+(f.id?'<button class="fin-del" title="apagar" onclick="delFin(\''+esc(f.id)+'\')">🗑</button>':'')+'</td>'+
     '</tr>';
