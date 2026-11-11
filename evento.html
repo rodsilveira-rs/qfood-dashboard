@@ -549,7 +549,9 @@ var PLANO_PROD_RAW='', PLANO_ORC_RAW='';  // preserva Produtos/Orçamento do pla
 function carregarDemo(){
   EV = { id:'EVT-ONIGIRI', nome:'ONIGIRI DAY', empresa:'Mercearia Liberdade', resp:'Bárbara',
     dias:[ {d:'2026-10-23',lb:'Sex 23'}, {d:'2026-10-24',lb:'Sáb 24'}, {d:'2026-10-25',lb:'Dom 25'} ],
-    status:'andamento' };
+    status:'andamento',
+    objetivo:'Fortalecer o posicionamento da Mercearia Liberdade como referência em gastronomia asiática no Espírito Santo.',
+    obs:'Evento no Shopping, sexta das 17h às 23h e fim de semana das 11h às 23h.' };
   PRODS = [
     {id:'P1', n:'Bag Onigiri c/ 5',             custo:30,   preco:84.90},
     {id:'P2', n:'Salmão c/ Cream Cheese',       custo:7.5,  preco:19.90},
@@ -634,6 +636,7 @@ function carregarReal(){
 
     EV = { id:EVENTO_ID, nome:pl.Evento_ref||pl.Evento||'Evento', empresa:pl.Empresa||'',
            resp:pl.Responsavel||USUARIO, dias:dias, status:status,
+           objetivo:pl.Objetivo||'', obs:pl.Observacoes||'',
            srv:{ np:(j.produtos||[]).length, nm:(j.movimentos||[]).length, nf:(j.financeiro||[]).length } };
   });
 }
@@ -1154,6 +1157,18 @@ function gerarPDF(){
   infoLinha('Responsável', EV.resp);
   infoLinha('Emitido em', hoje());
   y+=8; doc.setDrawColor(LINHA[0],LINHA[1],LINHA[2]); doc.line(MX,y,X1,y); y+=22;
+
+  // ---- objetivo / observações ----
+  function blocoTexto(titulo, texto){
+    if(!texto || !String(texto).trim()) return;
+    espaco(30); font(11,true); set(TINTA); doc.text(titulo, MX, y); y+=14;
+    font(9.5,false); set([60,66,80]);
+    var lin=doc.splitTextToSize(String(texto).trim(), CW);
+    for(var i=0;i<lin.length;i++){ espaco(13); doc.text(lin[i], MX, y); y+=12.5; }
+    y+=10;
+  }
+  blocoTexto('Objetivo do evento', EV.objetivo);
+  blocoTexto('Descrição / observações', EV.obs);
 
   // ---- quadro resumo ----
   font(12,true); set(TINTA); doc.text('Resumo financeiro', MX, y); y+=14;
