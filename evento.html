@@ -265,6 +265,7 @@ button{font-family:inherit;cursor:pointer}
   .optab tfoot{display:none}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div class="app">
@@ -286,7 +287,7 @@ button{font-family:inherit;cursor:pointer}
         </div>
         <div class="ev-acts">
           <button class="btn">✏️ Editar evento</button>
-          <button class="btn" onclick="toast('PDF do resultado — chega na próxima onda 😉')">📄 Gerar PDF</button>
+          <button class="btn" onclick="gerarPDF()">📄 Prestação de contas (PDF)</button>
           <div class="menu-wrap">
             <button class="btn btn-ghost" onclick="toggleMenu(event)">⋮</button>
             <div class="menu-pop" id="menuPop">
@@ -1103,6 +1104,121 @@ function renderProdPrevistos(){
     return '<div class="pp-row"><span class="pp-nm">'+esc(p.n)+'</span>'+
            '<span class="pp-meta">venda '+brl(p.preco)+' · custo '+brl(p.custo)+'</span></div>';
   }).join('')+'</div>';
+}
+
+/* ======================= PRESTAÇÃO DE CONTAS (PDF) ======================= */
+function gerarPDF(){
+  if(!(window.jspdf && window.jspdf.jsPDF)){ toast('Gerador de PDF ainda carregando — tente de novo em 2s.'); return; }
+  var JSP = window.jspdf.jsPDF;
+  var doc = new JSP({unit:'pt', format:'a4'});
+  var PW=doc.internal.pageSize.getWidth(), PH=doc.internal.pageSize.getHeight();
+  var MX=40, X1=PW-40, CW=X1-MX;
+  var AZUL=[47,85,234], TINTA=[17,24,39], CINZA=[110,118,135], LINHA=[226,232,240], VERDE=[5,150,105], VERM=[220,38,38];
+
+  // ---- dados do período atual ----
+  var dias=diasDoPeriodo();
+  var fatProd=0,cmv=0,perdaR=0,vendU=0;
+  PRODS.forEach(function(p){ var a=aggProduto(p.id,dias); fatProd+=a.vend*p.preco; cmv+=a.vend*p.custo; perdaR+=a.perda*p.custo; vendU+=a.vend; });
+  var despesas=FIN.filter(function(f){ return f.classe==='CUSTO' && dias.indexOf(f.data)>=0; });
+  var receitas=FIN.filter(function(f){ return f.classe==='RECEITA' && dias.indexOf(f.data)>=0; });
+  despesas.sort(function(a,b){return a.data<b.data?-1:1;}); receitas.sort(function(a,b){return a.data<b.data?-1:1;});
+  var despTot=despesas.reduce(function(s,f){return s+pnum(f.valor);},0);
+  var recTot =receitas.reduce(function(s,f){return s+pnum(f.valor);},0);
+  var receitaTotal=fatProd+recTot;
+  var resultado=receitaTotal-cmv-perdaR-despTot;
+  var margem=receitaTotal>0?resultado/receitaTotal*100:0;
+
+  // ---- helpers de layout ----
+  var y=0;
+  function hoje(){ var d=new Date(); function z(n){return String(n).padStart(2,'0');} return z(d.getDate())+'/'+z(d.getMonth()+1)+'/'+d.getFullYear()+' '+z(d.getHours())+':'+z(d.getMinutes()); }
+  function dataLonga(iso){ var p=String(iso).split('-'); return p.length>=3?(p[2]+'/'+p[1]+'/'+p[0]):iso; }
+  function set(c){ doc.setTextColor(c[0],c[1],c[2]); }
+  function font(sz,b){ doc.setFont('helvetica',b?'bold':'normal'); doc.setFontSize(sz); }
+  function espaco(h){ if(y+h>PH-56){ rodape(); doc.addPage(); y=48; } }
+  function rodape(){ font(8,false); set(CINZA);
+    doc.text('Gerado pelo sistema Q Food · '+hoje(), MX, PH-28);
+    doc.text('Página '+doc.internal.getNumberOfPages(), X1, PH-28, {align:'right'}); }
+
+  // ---- cabeçalho ----
+  doc.setFillColor(AZUL[0],AZUL[1],AZUL[2]); doc.rect(0,0,PW,8,'F');
+  y=52; font(17,true); set(TINTA); doc.text('PRESTAÇÃO DE CONTAS', MX, y);
+  font(12,true); set(AZUL); y+=22; doc.text(String(EV.nome||'Evento'), MX, y);
+  font(10,false); set(CINZA); y+=16;
+  var sub=[]; if(EV.empresa) sub.push(EV.empresa); sub.push('Período: '+labelPeriodo()); if(EV.resp) sub.push('Responsável: '+EV.resp);
+  doc.text(sub.join('   ·   '), MX, y);
+  y+=10; doc.setDrawColor(LINHA[0],LINHA[1],LINHA[2]); doc.line(MX,y,X1,y); y+=22;
+
+  // ---- quadro resumo ----
+  font(12,true); set(TINTA); doc.text('Resumo financeiro', MX, y); y+=14;
+  function linhaVal(label,val,opt){ opt=opt||{};
+    espaco(18);
+    font(opt.bold?11:10, !!opt.bold); set(opt.cor||TINTA);
+    doc.text(label, MX+(opt.indent?16:0), y);
+    doc.text((opt.neg?'- ':'')+brl(Math.abs(val)), X1, y, {align:'right'});
+    y+=opt.bold?17:15;
+    if(opt.linha){ doc.setDrawColor(LINHA[0],LINHA[1],LINHA[2]); doc.line(MX,y-7,X1,y-7); }
+  }
+  linhaVal('Vendas de produtos', fatProd);
+  if(recTot>0) linhaVal('Receitas de canal (iFood, caixa, etc.)', recTot);
+  linhaVal('Receita total', receitaTotal, {bold:true, linha:true});
+  linhaVal('(-) CMV — custo dos produtos vendidos', cmv, {neg:true, cor:CINZA, indent:true});
+  linhaVal('(-) Perdas', perdaR, {neg:true, cor:CINZA, indent:true});
+  linhaVal('(-) Despesas do evento', despTot, {neg:true, cor:CINZA, indent:true, linha:true});
+  linhaVal('RESULTADO '+(resultado<0?'(prejuízo)':''), resultado, {bold:true, cor:resultado<0?VERM:VERDE});
+  font(9,false); set(CINZA); espaco(14);
+  doc.text('Margem: '+margem.toFixed(1).replace('.',',')+'%     ·     Unidades vendidas: '+vendU, MX, y); y+=20;
+
+  // ---- tabela de despesas ----
+  function cabTabela(titulo, cValor){
+    espaco(40); font(12,true); set(TINTA); doc.text(titulo, MX, y); y+=14;
+    doc.setFillColor(238,242,255); doc.rect(MX,y-10,CW,18,'F');
+    font(8,true); set(AZUL);
+    doc.text('DATA', MX+6, y+2); doc.text('CATEGORIA', MX+70, y+2);
+    doc.text('JUSTIFICATIVA', MX+200, y+2); doc.text(cValor, X1-6, y+2, {align:'right'});
+    y+=18;
+  }
+  function linhaTabela(f){
+    var just=f.obs?String(f.obs):'';
+    var jl=just?doc.splitTextToSize(just, 185):[];
+    var rowH=Math.max(16, 6+Math.max(1,jl.length)*10);
+    espaco(rowH);
+    font(9,false); set(TINTA);
+    doc.text(dataLonga(f.data), MX+6, y+4);
+    var cat=doc.splitTextToSize(String(f.cat||'—'), 122);
+    doc.text(cat, MX+70, y+4);
+    if(jl.length){ font(8.5,false); set(CINZA); doc.text(jl, MX+200, y+4); font(9,false); }
+    set(TINTA); doc.text(brl(pnum(f.valor)), X1-6, y+4, {align:'right'});
+    y+=rowH; doc.setDrawColor(LINHA[0],LINHA[1],LINHA[2]); doc.line(MX,y-4,X1,y-4);
+  }
+  if(despesas.length){
+    cabTabela('Despesas ('+despesas.length+')', 'VALOR');
+    despesas.forEach(linhaTabela);
+    espaco(18); font(10,true); set(TINTA);
+    doc.text('Total de despesas', MX+6, y+6); doc.text(brl(despTot), X1-6, y+6, {align:'right'}); y+=22;
+  }
+  if(receitas.length){
+    cabTabela('Receitas lançadas ('+receitas.length+')', 'VALOR');
+    receitas.forEach(linhaTabela);
+    espaco(18); font(10,true); set(TINTA);
+    doc.text('Total de receitas', MX+6, y+6); doc.text(brl(recTot), X1-6, y+6, {align:'right'}); y+=22;
+  }
+
+  // ---- assinaturas ----
+  espaco(96); y+=24;
+  font(12,true); set(TINTA); doc.text('Conferência e aprovação', MX, y); y+=42;
+  var colW=(CW-30)/2, lx1=MX, lx2=MX+colW+30;
+  doc.setDrawColor(TINTA[0],TINTA[1],TINTA[2]);
+  doc.line(lx1,y,lx1+colW,y); doc.line(lx2,y,lx2+colW,y);
+  font(9,false); set(CINZA); y+=13;
+  doc.text('Responsável pelo evento', lx1, y); doc.text('Gestor / Conferido por', lx2, y);
+  if(EV.resp){ font(9,true); set(TINTA); doc.text(String(EV.resp), lx1, y-26, {align:'left'}); }
+  y+=26; font(9,false); set(CINZA);
+  doc.text('Data: ____/____/________', lx1, y); doc.text('Data: ____/____/________', lx2, y);
+
+  rodape();
+  var nome=('Prestacao_'+String(EV.nome||'evento')).replace(/[^\w\-]+/g,'_')+'.pdf';
+  doc.save(nome);
+  toast('PDF gerado ✓');
 }
 
 /* ======================= VER / APAGAR FINANCEIRO ======================= */
