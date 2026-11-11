@@ -1142,11 +1142,18 @@ function gerarPDF(){
   // ---- cabeçalho ----
   doc.setFillColor(AZUL[0],AZUL[1],AZUL[2]); doc.rect(0,0,PW,8,'F');
   y=52; font(17,true); set(TINTA); doc.text('PRESTAÇÃO DE CONTAS', MX, y);
-  font(12,true); set(AZUL); y+=22; doc.text(String(EV.nome||'Evento'), MX, y);
-  font(10,false); set(CINZA); y+=16;
-  var sub=[]; if(EV.empresa) sub.push(EV.empresa); sub.push('Período: '+labelPeriodo()); if(EV.resp) sub.push('Responsável: '+EV.resp);
-  doc.text(sub.join('   ·   '), MX, y);
-  y+=10; doc.setDrawColor(LINHA[0],LINHA[1],LINHA[2]); doc.line(MX,y,X1,y); y+=22;
+  font(14,true); set(AZUL); y+=24; doc.text(String(EV.nome||'Evento'), MX, y);
+  // período em datas reais (não "Evento inteiro")
+  var perTxt;
+  if(PER_DE && PER_ATE){ perTxt = (PER_DE===PER_ATE) ? dataLonga(PER_DE) : (dataLonga(PER_DE)+' a '+dataLonga(PER_ATE)); }
+  else { perTxt = labelPeriodo(); }
+  y+=20;
+  function infoLinha(lb,val){ espaco(15); font(9,true); set(CINZA); doc.text(lb, MX, y); font(10,false); set(TINTA); doc.text(String(val||'—'), MX+92, y); y+=15; }
+  infoLinha('Empresa', EV.empresa);
+  infoLinha('Período', perTxt);
+  infoLinha('Responsável', EV.resp);
+  infoLinha('Emitido em', hoje());
+  y+=8; doc.setDrawColor(LINHA[0],LINHA[1],LINHA[2]); doc.line(MX,y,X1,y); y+=22;
 
   // ---- quadro resumo ----
   font(12,true); set(TINTA); doc.text('Resumo financeiro', MX, y); y+=14;
