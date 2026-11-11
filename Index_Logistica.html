@@ -3012,8 +3012,20 @@ function supInit(){
       return;
     }
     window.CURRENT_USER = s;
+    // Popula o header antigo
     var un = document.getElementById("user-name");
     if(un) un.textContent = s.nome || "";
+    // Popula IMEDIATAMENTE a sidebar e header v2 — evita flash de "Rodrigo" hardcoded
+    var nomeReal = (s.nome || (s.email ? String(s.email).split('@')[0].split('.')[0].replace(/^./, function(c){return c.toUpperCase();}) : 'Usuário'));
+    var inicial  = nomeReal.charAt(0).toUpperCase();
+    var role     = (s.role === 'admin') ? 'Administrador' : (s.role || 'Operações');
+    var setTxt = function(id, v){ var el = document.getElementById(id); if(el) el.textContent = v; };
+    setTxt('v2-side-name',    nomeReal);
+    setTxt('v2-user-name',    nomeReal);
+    setTxt('v2-side-role',    role);
+    setTxt('v2-side-avatar',  inicial);
+    setTxt('v2-avatar-letter',inicial);
+    setTxt('v2-greeting-title', 'Bem-vindo, ' + nomeReal);
   } catch(e){
     localStorage.removeItem("qfood_session");
     window.location.href = "Index_Menu.html";
@@ -5770,7 +5782,7 @@ function v2AnalisesComposicao(luiz){
 }
 
 function v2Saudacao(){ var h=new Date().getHours(); return h<12?'Bom dia':(h<18?'Boa tarde':'Boa noite'); }
-function v2FirstName(email){ if(!email) return 'Rodrigo'; var local=String(email).split('@')[0]; var nome=local.split('.')[0]; return nome.charAt(0).toUpperCase()+nome.slice(1); }
+function v2FirstName(email){ if(!email) return 'Usuário'; var local=String(email).split('@')[0]; var nome=local.split('.')[0]; return nome.charAt(0).toUpperCase()+nome.slice(1); }
 function v2DataExtenso(){
   var dias=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
   var meses=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -5822,7 +5834,12 @@ function v2UltimoDiaComDados(rows){
 
 function v2InitHome(){
   V2_STATE.initedHome = true;
-  var user; try{ user=JSON.parse(sessionStorage.getItem('current_user')||localStorage.getItem('current_user')||'{}'); }catch(e){ user={}; }
+  // Fonte de verdade: window.CURRENT_USER (populado pelo guard a partir de qfood_session).
+  // Fallback: tenta ler qfood_session direto, caso o guard tenha falhado por timing.
+  var user = window.CURRENT_USER || {};
+  if(!user.email){
+    try{ user = JSON.parse(localStorage.getItem('qfood_session') || '{}'); }catch(e){ user = {}; }
+  }
   var nome = user.nome || v2FirstName(user.email);
   var role = (user.role==='admin')?'Administrador':(user.role||'Operações');
   var setTxt = function(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; };
