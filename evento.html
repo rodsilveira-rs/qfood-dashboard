@@ -223,6 +223,12 @@ button{font-family:inherit;cursor:pointer}
 .pp-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 4px;border-bottom:1px solid var(--line-2);font-size:13.5px}
 .pp-row:last-child{border-bottom:none}
 .pp-nm{font-weight:700;color:var(--ink)} .pp-meta{color:var(--muted);font-size:12.5px}
+.pp-info{display:flex;flex-direction:column;gap:1px}
+.pp-acts{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.pp-ficha{color:var(--blue-700);font-weight:700;font-size:12.5px;text-decoration:none}
+.pp-ficha:hover{text-decoration:underline}
+.pp-anexar{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer}
+.pp-anexar:hover{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-700)}
 .modal-h{display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:1px solid var(--line-2)}
 .modal-h h3{margin:0;font-size:16px;font-weight:700}
 .modal-x{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
@@ -608,7 +614,7 @@ function carregarReal(){
     var status = (String(pl.Status||'').toLowerCase().indexOf('conclu')>=0) ? 'concluido' : 'andamento';
 
     // Produtos: do EVENTO_PRODUTOS; se vazio, cai no cardápio planejado (coluna Produtos da PLANO_ACOES)
-    PRODS = (j.produtos||[]).map(function(p){ return { id:String(p.ProdID||''), n:p.Produto||'', custo:pnum(p.Custo), preco:pnum(p.Preco) }; });
+    PRODS = (j.produtos||[]).map(function(p){ return { id:String(p.ProdID||''), n:p.Produto||'', custo:pnum(p.Custo), preco:pnum(p.Preco), ficha:p.Ficha||'' }; });
     if(!PRODS.length && pl.Produtos){
       try{ var arr=JSON.parse(pl.Produtos); if(Array.isArray(arr))
         PRODS=arr.map(function(x,i){ return { id:'P'+(i+1), n:x.n||'', custo:pnum(x.cu), preco:pnum(x.pr) }; }); }catch(_){}
@@ -1104,9 +1110,38 @@ function renderProdPrevistos(){
   var el=document.getElementById('planProd'); if(!el) return;
   if(!PRODS.length){ el.innerHTML='<p class="hint" style="margin:0">Nenhum produto no cardápio. Clique em <b>➕ Cadastrar produto</b> acima.</p>'; return; }
   el.innerHTML='<div class="pp-list">'+PRODS.map(function(p){
-    return '<div class="pp-row"><span class="pp-nm">'+esc(p.n)+'</span>'+
-           '<span class="pp-meta">venda '+brl(p.preco)+' · custo '+brl(p.custo)+'</span></div>';
+    var ficha = p.ficha
+      ? '<a class="pp-ficha" href="'+esc(p.ficha)+'" target="_blank" rel="noopener">📄 ver ficha</a> <button class="pp-anexar" onclick="anexarFicha(\''+esc(p.id)+'\')">trocar</button>'
+      : '<button class="pp-anexar" onclick="anexarFicha(\''+esc(p.id)+'\')">📎 anexar ficha</button>';
+    return '<div class="pp-row">'+
+           '<div class="pp-info"><span class="pp-nm">'+esc(p.n)+'</span>'+
+           '<span class="pp-meta">venda '+brl(p.preco)+' · custo '+brl(p.custo)+'</span></div>'+
+           '<div class="pp-acts">'+ficha+'</div></div>';
   }).join('')+'</div>';
+}
+/* anexar ficha técnica (PDF/imagem) ao produto — sobe pro Drive */
+function anexarFicha(prodId){
+  if(DEMO){ toast('Anexar ficha funciona no evento real (com ?id=).'); return; }
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='.pdf,image/*';
+  inp.onchange=function(){
+    var f=inp.files && inp.files[0]; if(!f) return;
+    if(f.size>10*1024*1024){ toast('Arquivo muito grande (máx. 10 MB).'); return; }
+    var fr=new FileReader();
+    fr.onload=function(){
+      var res=String(fr.result||''); var b64=res.substring(res.indexOf(',')+1);
+      toast('Enviando ficha…');
+      apiPost({ action:'evt_uploadFicha', eventoId:EVENTO_ID, prodId:prodId, nome:f.name, mime:f.type||'application/octet-stream', dados:b64 })
+        .then(function(j){
+          if(!j || !j.ok) throw new Error((j&&j.erro)||'falha ao enviar');
+          var p=null; for(var i=0;i<PRODS.length;i++){ if(PRODS[i].id===prodId){ p=PRODS[i]; break; } }
+          if(p) p.ficha=j.url;
+          renderProdPrevistos(); toast('Ficha anexada ✓');
+        })
+        .catch(function(err){ toast('Erro ao anexar: '+(err&&err.message||err)); });
+    };
+    fr.readAsDataURL(f);
+  };
+  inp.click();
 }
 
 /* ======================= PRESTAÇÃO DE CONTAS (PDF) ======================= */
