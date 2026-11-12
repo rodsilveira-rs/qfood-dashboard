@@ -229,6 +229,13 @@ button{font-family:inherit;cursor:pointer}
 .pp-ficha:hover{text-decoration:underline}
 .pp-anexar{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 10px;font-family:inherit;font-size:12px;font-weight:600;color:var(--ink-2);cursor:pointer}
 .pp-anexar:hover{background:var(--blue-soft);border-color:var(--blue);color:var(--blue-700)}
+.fotos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.foto-item{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line-2);background:#f3f4f6;aspect-ratio:1/1}
+.foto-item a{display:block;width:100%;height:100%}
+.foto-item img{width:100%;height:100%;object-fit:cover;display:block}
+.foto-del{position:absolute;top:6px;right:6px;border:0;background:rgba(17,24,39,.72);color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;line-height:1}
+.foto-del:hover{background:#dc2626}
+.fotos-vazio{text-align:center;color:var(--muted);padding:34px 14px}
 .modal-h{display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:1px solid var(--line-2)}
 .modal-h h3{margin:0;font-size:16px;font-weight:700}
 .modal-x{border:0;background:none;font-size:22px;color:var(--muted);line-height:1}
@@ -344,6 +351,7 @@ button{font-family:inherit;cursor:pointer}
               <button onclick="abrirReg('mov')"><span class="ic">🛒</span> Lançar 1 item (avulso)</button>
               <button onclick="abrirReg('desp')"><span class="ic">🧾</span> Registrar despesa</button>
               <button onclick="abrirFin()"><span class="ic">📒</span> Ver / apagar despesas e receitas</button>
+              <button onclick="abrirFotos()"><span class="ic">📸</span> Fotos do evento</button>
               <button onclick="abrirReg('ocor')"><span class="ic">⚠️</span> Registrar ocorrência</button>
               <button onclick="setMode('res')"><span class="ic">📊</span> Ver resultado</button>
               <div class="qa-sep">Outras ações</div>
@@ -433,6 +441,10 @@ button{font-family:inherit;cursor:pointer}
         <div class="fld"><label>Categoria</label><select id="regCat"></select></div>
         <div class="fld"><label>Valor (R$)</label><input id="regVal" inputmode="decimal" placeholder="R$ 0,00"></div>
         <div class="fld"><label>Observação / justificativa <span style="color:var(--muted);font-weight:500">(opcional)</span></label><input id="regObs" type="text" placeholder="ex.: recarga de 2 botijões P13 para a fritadeira"></div>
+        <div class="fld"><label>Comprovante — foto ou PDF <span style="color:var(--muted);font-weight:500">(opcional)</span></label>
+          <input id="regComprov" type="file" accept=".pdf,image/*" style="font-size:13px">
+          <span class="hint" style="display:block;margin-top:4px">Pedágio, estacionamento, nota… tire a foto na hora e anexe aqui.</span>
+        </div>
       </div>
 
       <p class="hint" id="regHint"></p>
@@ -501,6 +513,22 @@ button{font-family:inherit;cursor:pointer}
   </div>
 </div>
 
+<!-- ===== MODAL GALERIA DE FOTOS ===== -->
+<div class="ov" id="ovFotos" onclick="if(event.target===this)fechar('ovFotos')">
+  <div class="modal modal-lg">
+    <div class="modal-h"><h3>📸 Fotos do evento</h3><button class="modal-x" onclick="fechar('ovFotos')">×</button></div>
+    <div class="modal-b">
+      <p class="hint" style="margin-top:0">Registre o evento em fotos para consulta futura (montagem, estande, fila, equipe…). Clique numa foto para abrir em tamanho grande.</p>
+      <div id="fotosGrid"></div>
+    </div>
+    <div class="modal-f">
+      <span class="grid-foot-info" id="fotosInfo"></span>
+      <button class="btn" onclick="fechar('ovFotos')">Fechar</button>
+      <button class="btn btn-prim" id="fotosAdd" onclick="addFotos()">➕ Adicionar fotos</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -549,6 +577,7 @@ function pnum(x){ if(x==null)return 0; var s=String(x).replace(/[^\d.,-]/g,'').t
 
 /* ======================= DADOS ======================= */
 var EV, PRODS, MOV, FIN;
+var FOTOS=[];                    // [{id, url, nome, user}] — galeria de fotos do evento
 var RECURSOS=[];                 // [{n, pv, en, rt}] — compatível com o modelo antigo (plano.Recursos)
 var PLANO_PROD_RAW='', PLANO_ORC_RAW='';  // preserva Produtos/Orçamento do plano ao salvar recursos
 
@@ -604,6 +633,7 @@ function carregarDemo(){
     {n:'Mesa dobrável',             pv:'4', en:'4', rt:'4'},
     {n:'Prateleira / expositor',    pv:'2', en:'2', rt:'2'}
   ];
+  FOTOS=[];
 }
 
 /* ---- dados REAIS (via Web App) ---- */
@@ -620,7 +650,8 @@ function carregarReal(){
         PRODS=arr.map(function(x,i){ return { id:'P'+(i+1), n:x.n||'', custo:pnum(x.cu), preco:pnum(x.pr) }; }); }catch(_){}
     }
     MOV = (j.movimentos||[]).map(function(m){ return { data:isoAny(m.Data), prod:String(m.ProdID||''), tipo:String(m.Tipo||'').toUpperCase(), qtd:pnum(m.Qtd) }; });
-    FIN = (j.financeiro||[]).map(function(f){ return { id:String(f.ID||''), data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor), obs:f.Obs||'' }; });
+    FOTOS = (j.fotos||[]).map(function(f){ return { id:String(f.ID||''), url:f.URL||'', nome:f.Nome||'', user:f.Usuario||'' }; });
+    FIN = (j.financeiro||[]).map(function(f){ return { id:String(f.ID||''), data:isoAny(f.Data), classe:String(f.Classe||'').toUpperCase(), cat:f.Categoria||'', valor:pnum(f.Valor), obs:f.Obs||'', comprov:f.Comprovante||'' }; });
 
     // Planejamento (compatível com o modelo antigo): Recursos editável; Produtos/Orçamento preservados
     PLANO_PROD_RAW = pl.Produtos || '';
@@ -893,6 +924,7 @@ function abrirReg(ctx,prodId){
   if(prodId) document.getElementById('regProd').value=prodId;
   document.getElementById('regQtd').value=''; document.getElementById('regVal').value='';
   document.getElementById('regObs').value='';
+  var rc=document.getElementById('regComprov'); if(rc) rc.value='';
   abrir('ovReg');
 }
 function regTipo(t){
@@ -924,7 +956,7 @@ function salvarReg(){
     var cat=document.getElementById('regCat').value;
     var obs=(document.getElementById('regObs').value||'').trim();
     var classe=(REG_TIPO==='DESPESA'?'CUSTO':'RECEITA');
-    reg={data:data, classe:classe, cat:cat, valor:val, obs:obs};
+    reg={data:data, classe:classe, cat:cat, valor:val, obs:obs, comprov:''};
     envio={action:'evt_addFin', eventoId:EVENTO_ID, data:data, classe:classe, categoria:cat, valor:val, obs:obs, usuario:USUARIO};
   } else {
     var prod=document.getElementById('regProd').value;
@@ -934,25 +966,115 @@ function salvarReg(){
     envio={action:'evt_addMov', eventoId:EVENTO_ID, data:data, prodId:prod, tipo:REG_TIPO, qtd:qtd, usuario:USUARIO};
   }
 
-  function aplicar(){
-    if(fin) FIN.push(reg); else MOV.push(reg);
+  // comprovante (só despesa/receita): guarda o arquivo escolhido, se houver
+  var compFile = fin ? ((document.getElementById('regComprov')||{}).files||[])[0] : null;
+
+  function aplicar(id){
+    if(fin){ reg.id=id||''; FIN.push(reg); } else MOV.push(reg);
     ensureDia(data);
     fechar('ovReg'); renderOperacao();
     if(resVisivel()) renderResultado();
   }
 
-  if(DEMO){ aplicar(); toast('Lançamento registrado ✓ (demo)'); return; }
+  if(DEMO){ aplicar('FN'+Date.now()); toast('Lançamento registrado ✓ (demo)'+(compFile?' — comprovante ignorado no demo':'')); return; }
 
   // real: grava no Apps Script e só então atualiza a tela
   var btn=document.getElementById('regSalvar'); if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
   apiPost(envio).then(function(j){
     if(!j || !j.ok) throw new Error((j&&j.erro)||'falha ao salvar');
-    aplicar(); toast('Lançamento registrado ✓');
+    aplicar(j.id);
+    if(compFile){ subirComprov(j.id, compFile, reg); toast('Lançamento salvo ✓ — enviando comprovante…'); }
+    else toast('Lançamento registrado ✓');
   }).catch(function(err){
     toast('Erro ao salvar: '+(err&&err.message||err));
   }).then(function(){
     if(btn){ btn.disabled=false; btn.textContent='Salvar lançamento'; }
   });
+}
+/* lê um arquivo e sobe como comprovante de um lançamento financeiro */
+function subirComprov(id, file, regObj){
+  if(!file) return;
+  if(file.size>10*1024*1024){ toast('Comprovante muito grande (máx. 10 MB).'); return; }
+  var fr=new FileReader();
+  fr.onload=function(){
+    var res=String(fr.result||''); var b64=res.substring(res.indexOf(',')+1);
+    apiPost({ action:'evt_uploadComprov', eventoId:EVENTO_ID, id:id, nome:file.name, mime:file.type||'application/octet-stream', dados:b64 })
+      .then(function(j){
+        if(!j || !j.ok) throw new Error((j&&j.erro)||'falha');
+        if(regObj) regObj.comprov=j.url;
+        var it=null; for(var i=0;i<FIN.length;i++){ if(FIN[i].id===id){ it=FIN[i]; break; } } if(it) it.comprov=j.url;
+        if(document.getElementById('ovFin') && !document.getElementById('ovFin').classList.contains('hide')) renderFinList();
+        toast('Comprovante anexado ✓');
+      })
+      .catch(function(err){ toast('Erro no comprovante: '+(err&&err.message||err)); });
+  };
+  fr.readAsDataURL(file);
+}
+/* anexar/trocar comprovante a partir da lista (lançamento já existente) */
+function anexarComprov(id){
+  if(DEMO){ toast('Comprovante funciona no evento real.'); return; }
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='.pdf,image/*';
+  inp.onchange=function(){ var f=inp.files && inp.files[0]; if(!f) return; toast('Enviando comprovante…'); subirComprov(id, f, null); };
+  inp.click();
+}
+
+/* ======================= FOTOS DO EVENTO (galeria) ======================= */
+function driveThumb(url){
+  // transforma o link do Drive numa URL de miniatura exibível em <img>
+  var m=String(url||'').match(/[-\w]{25,}/);
+  return m ? ('https://drive.google.com/thumbnail?id='+m[0]+'&sz=w400') : url;
+}
+function abrirFotos(){ renderFotos(); abrir('ovFotos'); }
+function renderFotos(){
+  var el=document.getElementById('fotosGrid');
+  if(!FOTOS.length){
+    el.innerHTML='<div class="fotos-vazio">Nenhuma foto ainda.<br><br><button class="btn btn-prim" onclick="addFotos()">➕ Adicionar fotos</button></div>';
+  } else {
+    el.innerHTML='<div class="fotos-grid">'+FOTOS.map(function(f){
+      return '<div class="foto-item">'+
+        '<a href="'+esc(f.url)+'" target="_blank" rel="noopener" title="'+esc(f.nome||'foto')+'"><img loading="lazy" src="'+esc(driveThumb(f.url))+'" alt="'+esc(f.nome||'foto')+'"></a>'+
+        (f.id?'<button class="foto-del" title="apagar" onclick="delFoto(\''+esc(f.id)+'\')">🗑</button>':'')+
+      '</div>';
+    }).join('')+'</div>';
+  }
+  document.getElementById('fotosInfo').textContent=FOTOS.length+(FOTOS.length===1?' foto':' fotos');
+}
+function addFotos(){
+  if(DEMO){ toast('Fotos funcionam no evento real (com ?id=).'); return; }
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.multiple=true;
+  inp.onchange=function(){
+    var files=inp.files; if(!files||!files.length) return;
+    var arr=[]; for(var i=0;i<files.length;i++) arr.push(files[i]);
+    toast('Enviando '+arr.length+' foto(s)…');
+    subirFotosSeq(arr, 0, 0);
+  };
+  inp.click();
+}
+/* sobe as fotos uma a uma (evita payload gigante) */
+function subirFotosSeq(arr, i, ok){
+  if(i>=arr.length){ toast(ok+' de '+arr.length+' foto(s) enviada(s) ✓'); return; }
+  var f=arr[i];
+  if(f.size>10*1024*1024){ toast('"'+f.name+'" > 10 MB — pulada.'); subirFotosSeq(arr, i+1, ok); return; }
+  var fr=new FileReader();
+  fr.onload=function(){
+    var res=String(fr.result||''); var b64=res.substring(res.indexOf(',')+1);
+    apiPost({ action:'evt_uploadFoto', eventoId:EVENTO_ID, nome:f.name, mime:f.type||'image/jpeg', dados:b64, usuario:USUARIO })
+      .then(function(j){
+        if(j && j.ok){ FOTOS.push({id:String(j.id||''), url:j.url, nome:f.name, user:USUARIO}); renderFotos(); ok++; }
+        subirFotosSeq(arr, i+1, ok);
+      })
+      .catch(function(){ subirFotosSeq(arr, i+1, ok); });
+  };
+  fr.readAsDataURL(f);
+}
+function delFoto(id){
+  if(!confirm('Apagar esta foto? Não dá pra desfazer.')) return;
+  function aplicar(){ FOTOS=FOTOS.filter(function(x){ return x.id!==id; }); renderFotos(); }
+  if(DEMO){ aplicar(); toast('Foto apagada ✓ (demo)'); return; }
+  apiPost({ action:'evt_delFoto', eventoId:EVENTO_ID, id:id, usuario:USUARIO }).then(function(j){
+    if(!j||!j.ok) throw new Error((j&&j.erro)||'falha ao apagar');
+    aplicar(); toast('Foto apagada ✓');
+  }).catch(function(err){ toast('Erro ao apagar: '+(err&&err.message||err)); });
 }
 
 /* ======================= LANÇAMENTO EM TABELA (lote) ======================= */
@@ -1282,18 +1404,22 @@ function gerarPDF(){
 function abrirFin(){ renderFinList(); abrir('ovFin'); }
 function renderFinList(){
   var itens=FIN.slice().sort(function(a,b){ return (a.data<b.data?-1:1); });
-  var h='<thead><tr><th>Dia</th><th>Tipo</th><th>Categoria</th><th style="text-align:right">Valor</th><th></th></tr></thead><tbody>';
+  var h='<thead><tr><th>Dia</th><th>Tipo</th><th>Categoria</th><th style="text-align:right">Valor</th><th>Comprovante</th><th></th></tr></thead><tbody>';
   if(!itens.length){
-    h+='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:26px">Nenhuma despesa ou receita lançada neste evento.</td></tr>';
+    h+='<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:26px">Nenhuma despesa ou receita lançada neste evento.</td></tr>';
   }
   itens.forEach(function(f){
     var cus=(f.classe==='CUSTO');
     var obs=f.obs?('<div class="fin-obs">'+esc(f.obs)+'</div>'):'';
+    var comp = f.comprov
+      ? '<a class="pp-ficha" href="'+esc(f.comprov)+'" target="_blank" rel="noopener">📄 ver</a> '+(f.id?'<button class="pp-anexar" onclick="anexarComprov(\''+esc(f.id)+'\')">trocar</button>':'')
+      : (f.id?'<button class="pp-anexar" onclick="anexarComprov(\''+esc(f.id)+'\')">📎 anexar</button>':'—');
     h+='<tr>'+
       '<td>'+esc(fmtBR(f.data))+'</td>'+
       '<td><span class="fin-badge '+(cus?'cus':'rec')+'">'+(cus?'Despesa':'Receita')+'</span></td>'+
       '<td>'+esc(f.cat||'—')+obs+'</td>'+
       '<td class="fin-val '+(cus?'cus':'rec')+'">'+(cus?'− ':'+ ')+brl(f.valor)+'</td>'+
+      '<td>'+comp+'</td>'+
       '<td style="text-align:center">'+(f.id?'<button class="fin-del" title="apagar" onclick="delFin(\''+esc(f.id)+'\')">🗑</button>':'')+'</td>'+
     '</tr>';
   });
