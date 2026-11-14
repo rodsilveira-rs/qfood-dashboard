@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <style>
+    :root { --navy:#17365d; --blue:#2563eb; --green:#15803d; --red:#b91c1c; --bg:#f3f6fa; --line:#dbe3ec; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Arial,sans-serif; background:var(--bg); color:#1f2937; }
+    header { background:var(--navy); color:white; padding:18px 16px; position:sticky; top:0; z-index:4; }
+    header h1 { margin:0; font-size:20px; }
+    header p { margin:5px 0 0; opacity:.85; font-size:13px; }
+    main { max-width:640px; margin:auto; padding:16px; }
+    .card { background:white; border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 3px 12px rgba(23,54,93,.06); }
+    label { display:block; font-size:13px; font-weight:bold; margin:14px 0 6px; }
+    select,input,textarea { width:100%; min-height:48px; border:1px solid #b9c6d4; border-radius:10px; padding:11px 12px; font-size:17px; background:white; }
+    input[type=number] { font-size:22px; font-weight:bold; }
+    button { border:0; border-radius:11px; min-height:48px; padding:11px 16px; font-weight:bold; font-size:15px; cursor:pointer; }
+    .primary { background:var(--blue); color:white; width:100%; margin-top:14px; }
+    .save { background:var(--green); color:white; width:100%; margin-top:16px; }
+    .choice { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .choice button { background:#eef2f7; color:#334155; border:2px solid transparent; }
+    .choice button.active { background:#dbeafe; color:#1d4ed8; border-color:#3b82f6; }
+    .choice button.no.active { background:#fee2e2; color:#b91c1c; border-color:#ef4444; }
+    .topline { display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+    .topline select { flex:1; }
+    .progress { height:12px; background:#dbe3ec; border-radius:20px; overflow:hidden; margin:12px 0 6px; }
+    .progress span { display:block; height:100%; background:var(--green); width:0; transition:.2s; }
+    .stats { display:flex; justify-content:space-between; font-size:13px; color:#52606d; }
+    .product { margin-top:14px; }
+    .product h2 { margin:0 0 5px; font-size:19px; line-height:1.25; }
+    .meta { font-size:12px; color:#64748b; }
+    .hidden { display:none !important; }
+    .nav { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px; }
+    .nav button { background:#e7edf4; color:#334155; }
+    .status { padding:11px; border-radius:10px; margin-bottom:12px; font-size:14px; }
+    .ok { background:#dcfce7; color:#166534; }
+    .error { background:#fee2e2; color:#991b1b; }
+    .empty { text-align:center; padding:28px 10px; color:#52606d; }
+    .spinner { text-align:center; padding:24px; color:#52606d; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pesquisa de Preços</h1>
+    <p id="userName"><?= initialUser || 'Acesso não identificado' ?></p>
+  </header>
+  <main>
+    <div id="message" class="status hidden"></div>
+    <section id="start" class="card">
+      <label for="network">Rede de supermercados</label>
+      <select id="network"><option value="">Carregando...</option></select>
+      <button class="primary" onclick="loadResearch()">Abrir pesquisa</button>
+    </section>
+
+    <section id="research" class="hidden">
+      <div class="card">
+        <div class="topline">
+          <select id="filter" onchange="applyFilter()">
+            <option value="pending">Mostrar pendentes</option>
+            <option value="all">Mostrar todos</option>
+            <option value="done">Mostrar concluídos</option>
+          </select>
+        </div>
+        <div class="progress"><span id="progressBar"></span></div>
+        <div class="stats"><span id="progressText"></span><span id="counter"></span></div>
+      </div>
+
+      <div id="productCard" class="card product hidden">
+        <h2 id="productName"></h2>
+        <div class="meta"><span id="productCode"></span> · <span id="productEan"></span></div>
+        <div class="meta" id="supplier"></div>
+
+        <label>Produto encontrado?</label>
+        <div class="choice">
+          <button id="foundYes" onclick="choose('encontrado','SIM')">SIM</button>
+          <button id="foundNo" class="no" onclick="choose('encontrado','NAO')">NÃO</button>
+        </div>
+
+        <div id="priceBlock">
+          <label for="normalPrice">Preço na prateleira</label>
+          <input id="normalPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="R$ 0,00">
+
+          <label>Está em promoção?</label>
+          <div class="choice">
+            <button id="promoYes" onclick="choose('emPromocao','SIM')">SIM</button>
+            <button id="promoNo" class="no" onclick="choose('emPromocao','NAO')">NÃO</button>
+          </div>
+          <div id="promoBlock" class="hidden">
+            <label for="promoPrice">Preço promocional</label>
+            <input id="promoPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="R$ 0,00">
+          </div>
+        </div>
+
+        <label>Encontrou produto concorrente?</label>
+        <div class="choice">
+          <button id="competitorYes" onclick="choose('temConcorrente','SIM')">SIM</button>
+          <button id="competitorNo" class="no" onclick="choose('temConcorrente','NAO')">NÃO</button>
+        </div>
+        <div id="competitorBlock" class="hidden">
+          <label for="competitorName">Qual concorrente? <span style="font-weight:normal">(opcional)</span></label>
+          <input id="competitorName" type="text" placeholder="Marca ou produto">
+          <label for="competitorPrice">Preço do concorrente</label>
+          <input id="competitorPrice" type="number" inputmode="decimal" min="0" step="0.01" placeholder="R$ 0,00">
+        </div>
+
+        <button class="save" onclick="saveCurrent()">Salvar e ir para o próximo</button>
+        <div class="nav">
+          <button onclick="move(-1)">Anterior</button>
+          <button onclick="move(1)">Próximo</button>
+        </div>
+      </div>
+      <div id="empty" class="card empty hidden"></div>
+    </section>
+    <div id="loading" class="spinner hidden">Carregando...</div>
+  </main>
+
+  <script>
+    const TOKEN = <?!= JSON.stringify(initialToken) ?>;
+    let research = null;
+    let visibleItems = [];
+    let currentIndex = 0;
+    let form = { encontrado:'SIM', emPromocao:'NAO', temConcorrente:'NAO' };
+
+    document.addEventListener('DOMContentLoaded', bootstrap);
+
+    function bootstrap() {
+      setLoading(true);
+      google.script.run.withSuccessHandler(data => {
+        document.getElementById('userName').textContent = data.usuario;
+        const select = document.getElementById('network');
+        select.innerHTML = '<option value="">Selecione a rede</option>' +
+          data.redes.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+        setLoading(false);
+      }).withFailureHandler(showError).getBootstrap(TOKEN);
+    }
+
+    function loadResearch() {
+      const network = document.getElementById('network').value;
+      if (!network) return notify('Selecione uma rede.', false);
+      setLoading(true);
+      google.script.run.withSuccessHandler(data => {
+        research = data;
+        document.getElementById('start').classList.add('hidden');
+        document.getElementById('research').classList.remove('hidden');
+        document.getElementById('filter').value = data.pendentes ? 'pending' : 'all';
+        currentIndex = 0;
+        applyFilter();
+        setLoading(false);
+      }).withFailureHandler(showError).getPesquisa(TOKEN, network);
+    }
+
+    function applyFilter() {
+      const mode = document.getElementById('filter').value;
+      visibleItems = research.itens.filter(i => mode === 'all' || (mode === 'done' ? i.concluido : !i.concluido));
+      currentIndex = Math.min(currentIndex, Math.max(0, visibleItems.length - 1));
+      updateProgress();
+      renderCurrent();
+    }
+
+    function renderCurrent() {
+      const card = document.getElementById('productCard');
+      const empty = document.getElementById('empty');
+      if (!visibleItems.length) {
+        card.classList.add('hidden');
+        empty.classList.remove('hidden');
+        empty.textContent = document.getElementById('filter').value === 'pending'
+          ? 'Pesquisa concluída. Não há produtos pendentes nesta rede.'
+          : 'Nenhum produto encontrado neste filtro.';
+        return;
+      }
+      empty.classList.add('hidden');
+      card.classList.remove('hidden');
+      const item = visibleItems[currentIndex];
+      document.getElementById('productName').textContent = item.produto;
+      document.getElementById('productCode').textContent = `Código ${item.codigo}`;
+      document.getElementById('productEan').textContent = item.ean ? `EAN ${item.ean}` : 'EAN não informado';
+      document.getElementById('supplier').textContent = item.fornecedor || 'Fornecedor não informado';
+      form = {
+        encontrado: item.encontrado || 'SIM',
+        emPromocao: item.emPromocao || 'NAO',
+        temConcorrente: item.temConcorrente || 'NAO'
+      };
+      document.getElementById('normalPrice').value = item.precoNormal || '';
+      document.getElementById('promoPrice').value = item.precoPromocional || '';
+      document.getElementById('competitorName').value = item.concorrente || '';
+      document.getElementById('competitorPrice').value = item.precoConcorrente || '';
+      refreshChoices();
+      document.getElementById('counter').textContent = `${currentIndex + 1} de ${visibleItems.length}`;
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function choose(field, value) {
+      form[field] = value;
+      refreshChoices();
+    }
+
+    function refreshChoices() {
+      togglePair('found', form.encontrado);
+      togglePair('promo', form.emPromocao);
+      togglePair('competitor', form.temConcorrente);
+      document.getElementById('priceBlock').classList.toggle('hidden', form.encontrado === 'NAO');
+      document.getElementById('promoBlock').classList.toggle('hidden', form.emPromocao !== 'SIM' || form.encontrado === 'NAO');
+      document.getElementById('competitorBlock').classList.toggle('hidden', form.temConcorrente !== 'SIM');
+    }
+
+    function togglePair(prefix, value) {
+      document.getElementById(prefix + 'Yes').classList.toggle('active', value === 'SIM');
+      document.getElementById(prefix + 'No').classList.toggle('active', value === 'NAO');
+    }
+
+    function saveCurrent() {
+      const item = visibleItems[currentIndex];
+      const payload = {
+        rede: research.rede,
+        codigo: item.codigo,
+        encontrado: form.encontrado,
+        precoNormal: document.getElementById('normalPrice').value,
+        emPromocao: form.emPromocao,
+        precoPromocional: document.getElementById('promoPrice').value,
+        temConcorrente: form.temConcorrente,
+        concorrente: document.getElementById('competitorName').value,
+        precoConcorrente: document.getElementById('competitorPrice').value,
+        observacao: ''
+      };
+      setLoading(true);
+      google.script.run.withSuccessHandler(() => {
+        item.concluido = true;
+        Object.assign(item, payload);
+        research.concluidos = research.itens.filter(i => i.concluido).length;
+        research.pendentes = research.total - research.concluidos;
+        notify('Preço salvo.', true);
+        if (document.getElementById('filter').value === 'pending') applyFilter();
+        else { move(1); updateProgress(); }
+        setLoading(false);
+      }).withFailureHandler(showError).salvarPreco(TOKEN, payload);
+    }
+
+    function move(step) {
+      if (!visibleItems.length) return;
+      currentIndex = Math.max(0, Math.min(visibleItems.length - 1, currentIndex + step));
+      renderCurrent();
+    }
+
+    function updateProgress() {
+      const pct = research.total ? Math.round((research.concluidos / research.total) * 100) : 0;
+      document.getElementById('progressBar').style.width = `${pct}%`;
+      document.getElementById('progressText').textContent = `${research.concluidos} concluídos · ${research.pendentes} pendentes · ${pct}%`;
+    }
+
+    function setLoading(show) { document.getElementById('loading').classList.toggle('hidden', !show); }
+    function showError(error) { setLoading(false); notify(error.message || String(error), false); }
+    function notify(text, success) {
+      const box = document.getElementById('message');
+      box.textContent = text;
+      box.className = `status ${success ? 'ok' : 'error'}`;
+      box.classList.remove('hidden');
+      setTimeout(() => box.classList.add('hidden'), 3500);
+    }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+    }
+  </script>
+</body>
+</html>
