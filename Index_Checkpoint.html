@@ -725,6 +725,8 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .uni-dica{font-size:.74rem;color:var(--mu);margin:0 0 14px}
 .vnd-adm{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:14px}
 .vnd-adm.cons-um{grid-template-columns:minmax(0,560px)}
+.mkt-fr{display:block;width:100%;height:calc(100vh - 150px);min-height:640px;border:1px solid var(--br);border-radius:12px;background:#f3f6fc}
+@media (max-width:760px){.mkt-fr{height:calc(100vh - 170px);min-height:560px}}
 body.ckp-leitor .hd-busca,body.ckp-leitor .hd-bell,body.ckp-leitor .hd-so-m,body.ckp-leitor #mnav button[data-v=reunioes],body.ckp-leitor #mnav button[data-v=compromissos],body.ckp-leitor #org-card,body.ckp-leitor #fluxo-bar{display:none!important}
 .vnd-ac{background:var(--s2);border:1px solid var(--b2);border-top:4px solid;border-radius:10px;padding:12px 14px;min-width:0}
 .vnd-ac-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:.95rem}
@@ -1664,7 +1666,7 @@ function ckpFilaIniciar(){
   setInterval(function(){ ckpFilaProcessar(false); }, 60000);
   window.addEventListener('online', function(){ ckpFilaProcessar(false); });
 }
-function enviarSheet(aba, dado, semFila){ if(chkLeitor()) return chkLeitorBloqueio(); return qsEnviarCkp(aba, dado, semFila); }
+function enviarSheet(aba, dado, semFila){ if(chkLeitorBloqueia(aba,dado)) return chkLeitorBloqueio(); return qsEnviarCkp(aba, dado, semFila); }
 function travaKey(ano,tri){ return 'qfood_chk_trava_'+ano+'_'+tri; }
 function loadTrava(ano,tri){ try{ return JSON.parse(localStorage.getItem(travaKey(ano,tri))||'null'); }catch(e){ return null; } }
 function travaLiberada(t){ if(!t) return false; return TRAVA_METAS.every(function(m){ return !!t[m[0]]; }); }
@@ -1795,7 +1797,7 @@ function gestoresPermitidos(){
   return [meu].concat(SUPERVISAO[meu]||[]);
 }
 function podeVer(id){ var p=gestoresPermitidos(); return p===null || p.indexOf(id)>=0; }
-function primeiraView(){ if(chkLeitor()) return 'consulta'; if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
+function primeiraView(){ if(chkLeitor()) return chkLeitor().mkt?'mkt':'consulta'; if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
 /* ── Justificativa de N/A — chave: gestorId|mes|kpiId ────────── */
 var NA_MOTIVOS = {};
 function naKey(gid,mes,kpiId){ return gid+'|'+mes+'|'+kpiId; }
@@ -2154,6 +2156,7 @@ function placeholder(tag,titulo,txt){ return '<div style="border:1px dashed var(
 
 /* ── Painéis ── */
 function renderPainel(view){
+  if(view==='mkt'&&mktPodeVer()) return painelMkt();   /* Equipes → Marketing */
   if(chkLeitor()) return painelConsulta();   /* perfil somente consulta: só a tela de consulta */
   var perm=gestoresPermitidos(); var adm=ehAdmin();
   if(!adm && (!perm || perm.length===0)){ el('painel').innerHTML='<div class="card"><div class="ct">Sem acesso</div><p style="color:var(--mu)">Seu usuário não está vinculado a nenhum painel do Checkpoint. Fale com o administrador.</p></div>'; return; }
@@ -6231,7 +6234,7 @@ function qsPendentesDe(aba){ return qsFila().filter(function(i){ return aba==='t
 
 /* ── POSTs crus ── */
 function qsPostCkp(aba,dado){
-  if(chkLeitor()) return chkLeitorBloqueio();
+  if(chkLeitorBloqueia(aba,dado)) return chkLeitorBloqueio();
   return fetch(qsUrl(),{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({ token:CKP_SYNC_TOKEN, aba:aba, dado:dado }) })
     .then(function(r){ return r.json(); })
     .then(function(resp){
@@ -6552,8 +6555,8 @@ function shellGrupoToggle(id){
 }
 function shellRenderNav(){
   if(chkLeitor()){
-    el('nav').innerHTML='<div class="sb-lbl">Consulta</div>'+shellIt('consulta','🍣','Sushi Trip');
-    Array.prototype.forEach.call(el('nav').querySelectorAll('[data-view]'),function(x){ x.addEventListener('click',function(){ irPara('consulta',true); shellMenu(false); }); });
+    el('nav').innerHTML='<div class="sb-lbl">Consulta</div>'+shellIt('consulta','🍣','Sushi Trip')+(mktPodeVer()?'<div class="sb-lbl">Equipes</div>'+mktNavGrupo():'');
+    Array.prototype.forEach.call(el('nav').querySelectorAll('[data-view]'),function(x){ x.addEventListener('click',function(){ irPara(x.getAttribute('data-view'),true); shellMenu(false); }); });
     shellUsuario(); return;
   }
   var perm=gestoresPermitidos(), adm=ehAdmin();
@@ -6572,8 +6575,8 @@ function shellRenderNav(){
   var bp=pessoasParteB().concat(PESSOAS_EXTRA).filter(podeP);
   var cp=pessoasParteC().filter(podeP);
   if(qf.length||bp.length||cp.length){
-    h+='<div class="sb-lbl">Equipes</div>'+shellGrupo('qf','Q','Q Food','pur',qf)+shellGrupo('mg','🛒','Mercearia · Gogui','teal',bp)+shellGrupo('st','🍣','Sushi Trip','sushi',cp);
-  }
+    h+='<div class="sb-lbl">Equipes</div>'+shellGrupo('qf','Q','Q Food','pur',qf)+shellGrupo('mg','🛒','Mercearia · Gogui','teal',bp)+shellGrupo('st','🍣','Sushi Trip','sushi',cp)+mktNavGrupo();
+  } else if(mktPodeVer()){ h+='<div class="sb-lbl">Equipes</div>'+mktNavGrupo(); }
   el('nav').innerHTML=h;
   Array.prototype.forEach.call(el('nav').querySelectorAll('[data-view]'),function(x){
     x.addEventListener('click',function(){ irPara(x.getAttribute('data-view'),true); shellMenu(false); });
@@ -8025,7 +8028,7 @@ function uniEnviarAdilson(){
    e marque o X dela na aba USRR.
    ══════════════════════════════════════════════════════════════ */
 var CHK_LEITORES = {
-  'barbara.drumond@qfoodgroup.com.br': { emps:['emp_sushitrip'] }
+  'barbara.drumond@qfoodgroup.com.br': { emps:['emp_sushitrip'], mkt:true }   /* mkt: abre e alimenta o painel de Marketing */
 };
 function chkLeitor(){
   if(window.__DEVMODE||window.__NOSESS) return null;
@@ -8058,8 +8061,22 @@ function consPintar(empId){
   var c=vndCalcOficial(emp,vndRefEmp(emp,ref));
   box.innerHTML='<div class="vnd-adm cons-um">'+vndAdmCard(c).replace(/<button class="vnd-ac-b"[^>]*>[^<]*<\/button>/,'')+'</div>';
 }
-/* trava de segurança: este acesso nunca grava na base de dados */
+/* trava de segurança: este acesso só grava o painel de Marketing (quando liberado) */
+function chkLeitorBloqueia(aba,dado){ var L=chkLeitor(); if(!L) return false; return !(L.mkt && aba==='KPI_DIARIO' && dado && dado.gestor_id==='mkt'); }
 function chkLeitorBloqueio(){ return Promise.resolve({ ok:false, recusado:true, erro:'acesso somente consulta — nada foi gravado' }); }
+
+/* ══════════════════════════════════════════════════════════════
+   MARKETING — painel da Bárbara Drumond (Mar Criativa), em Equipes → Marketing
+   Arquivo Index_Marketing.html na mesma pasta. Dados na aba KPI_DIARIO (gestor_id "mkt").
+   Veem e gravam: diretoria (admin) e quem tiver mkt:true em CHK_LEITORES.
+   ══════════════════════════════════════════════════════════════ */
+var MKT_VERSAO = '20261116';
+function mktPodeVer(){ if(window.__NOSESS&&!window.__DEVMODE) return false; if(ehAdmin()) return true; var L=chkLeitor(); return !!(L&&L.mkt); }
+function mktPodeGravar(){ return mktPodeVer(); }
+function mktNavGrupo(){ return mktPodeVer()?shellGrupo('mk','📣','Marketing','pur',[{id:'mkt',emoji:'📣',nome:'Bárbara Drumond'}]):''; }
+function painelMkt(){
+  el('painel').innerHTML='<iframe class="mkt-fr" id="mkt-frame" src="Index_Marketing.html?v='+MKT_VERSAO+'" title="Marketing — resultados das empresas" allow="clipboard-write"></iframe>';
+}
 
 try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
 (function init(){
