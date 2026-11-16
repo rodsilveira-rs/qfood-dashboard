@@ -2525,7 +2525,19 @@ function recDiasNoMes(mes){ var p=mes.split('-'); return new Date(parseInt(p[0],
 function recDiaCorrente(mes){ var h=hoje(); if(h.substring(0,7)===mes) return parseInt(h.substring(8,10),10); if(h.substring(0,7)>mes) return recDiasNoMes(mes); return 0; }
 function recKeyLocal(mes){ return 'qfood_chk_receita_'+mes; }
 function recLocal(mes){ try{ return JSON.parse(localStorage.getItem(recKeyLocal(mes))||'{}')||{}; }catch(e){ return {}; } }
-function recLocalSet(mes,empId,iso,valor){ var o=recLocal(mes); o[empId]=o[empId]||{}; o[empId][iso]=valor; try{ localStorage.setItem(recKeyLocal(mes),JSON.stringify(o)); }catch(e){} }
+function recLocalSet(mes,empId,iso,valor){ var o=recLocal(mes); o[empId]=o[empId]||{}; o[empId][iso]=valor; try{ localStorage.setItem(recKeyLocal(mes),JSON.stringify(o)); }catch(e){}
+  if(RECEITA_CACHE){ RECEITA_CACHE[empId]=RECEITA_CACHE[empId]||{}; RECEITA_CACHE[empId][iso]=Number(valor)||0; } }
+/* o valor deste aparelho ainda está esperando para subir para a base de dados? */
+function recPendente(empId,iso){
+  try{ return qsFila().some(function(it){ return it&&it.aba==='RECEITA_DIARIA'&&it.dado&&it.dado.gestor_id===empId&&String(it.dado.data_iso||'').substring(0,10)===iso; }); }catch(e){ return false; }
+}
+/* valores guardados no aparelho que ainda valem: só os que a base não tem ou que ainda não subiram.
+   Se a base já tem o dia (lançado aqui ou em outro aparelho), vale sempre a base. */
+function recLocalVivo(mes,empId){
+  var loc=recLocal(mes)[empId]||{}, base=(RECEITA_CACHE&&RECEITA_CACHE[empId])||null, out={};
+  Object.keys(loc).forEach(function(k){ if(!base||base[k]==null||recPendente(empId,k)) out[k]=loc[k]; });
+  return out;
+}
 
 /* Vendas internas (Q Food → Mercearia / Sushi Trip) não são faturamento: ficam fora do acumulado e da projeção.
    Dias salvos antes desta regra guardavam o total com as internas; aqui elas são descontadas na leitura. */
@@ -2545,7 +2557,7 @@ function recSemInterno(empId,iso,v){
 function recSomaMes(empId,mes){
   var mapa={};
   if(RECEITA_CACHE && RECEITA_CACHE[empId]){ Object.keys(RECEITA_CACHE[empId]).forEach(function(k){ if(k.substring(0,7)===mes) mapa[k]=RECEITA_CACHE[empId][k]; }); }
-  var loc=recLocal(mes)[empId]||{};
+  var loc=recLocalVivo(mes,empId);
   Object.keys(loc).forEach(function(k){ mapa[k]=loc[k]; });
   Object.keys(mapa).forEach(function(k){ mapa[k]=recSemInterno(empId,k,mapa[k]); });
   var t=0,n=0; Object.keys(mapa).forEach(function(k){ t+=Number(mapa[k])||0; if(Number(mapa[k])>0) n++; });
@@ -2554,7 +2566,7 @@ function recSomaMes(empId,mes){
 
 function recValorDia(empId,iso){
   var mes=iso.substring(0,7);
-  var loc=recLocal(mes)[empId]||{};
+  var loc=recLocalVivo(mes,empId);
   if(loc[iso]!=null) return recSemInterno(empId,iso,loc[iso]);
   if(RECEITA_CACHE && RECEITA_CACHE[empId] && RECEITA_CACHE[empId][iso]!=null) return recSemInterno(empId,iso,RECEITA_CACHE[empId][iso]);
   return '';
