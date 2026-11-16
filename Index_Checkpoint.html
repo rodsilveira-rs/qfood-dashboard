@@ -724,6 +724,8 @@ input[type=date],input[type=time],input[type=datetime-local]{color-scheme:dark}
 .uni-cnw tr.uni-int{opacity:.6}.uni-tk{font-size:.74rem;color:var(--mu);margin-top:6px}
 .uni-dica{font-size:.74rem;color:var(--mu);margin:0 0 14px}
 .vnd-adm{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;margin-bottom:14px}
+.vnd-adm.cons-um{grid-template-columns:minmax(0,560px)}
+body.ckp-leitor .hd-busca,body.ckp-leitor .hd-bell,body.ckp-leitor .hd-so-m,body.ckp-leitor #mnav button[data-v=reunioes],body.ckp-leitor #mnav button[data-v=compromissos],body.ckp-leitor #org-card,body.ckp-leitor #fluxo-bar{display:none!important}
 .vnd-ac{background:var(--s2);border:1px solid var(--b2);border-top:4px solid;border-radius:10px;padding:12px 14px;min-width:0}
 .vnd-ac-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:.95rem}
 .vnd-ac-r{font-size:.74rem;color:var(--mu2);margin:3px 0 8px}
@@ -1662,7 +1664,7 @@ function ckpFilaIniciar(){
   setInterval(function(){ ckpFilaProcessar(false); }, 60000);
   window.addEventListener('online', function(){ ckpFilaProcessar(false); });
 }
-function enviarSheet(aba, dado, semFila){ return qsEnviarCkp(aba, dado, semFila); }
+function enviarSheet(aba, dado, semFila){ if(chkLeitor()) return chkLeitorBloqueio(); return qsEnviarCkp(aba, dado, semFila); }
 function travaKey(ano,tri){ return 'qfood_chk_trava_'+ano+'_'+tri; }
 function loadTrava(ano,tri){ try{ return JSON.parse(localStorage.getItem(travaKey(ano,tri))||'null'); }catch(e){ return null; } }
 function travaLiberada(t){ if(!t) return false; return TRAVA_METAS.every(function(m){ return !!t[m[0]]; }); }
@@ -1703,7 +1705,7 @@ function temAcesso(){
   if(window.__NOSESS) return false;
   if(ehAdmin()) return true;
   var email=((window.CURRENT_USER||{}).email||'').toLowerCase();
-  return !!CHK_EMAIL_TO_GESTOR[email];
+  return !!CHK_EMAIL_TO_GESTOR[email] || !!chkLeitor();
 }
 function telaBloqueio(titulo, texto, mostrarEmail){
   var email=((window.CURRENT_USER||{}).email||'');
@@ -1793,7 +1795,7 @@ function gestoresPermitidos(){
   return [meu].concat(SUPERVISAO[meu]||[]);
 }
 function podeVer(id){ var p=gestoresPermitidos(); return p===null || p.indexOf(id)>=0; }
-function primeiraView(){ if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
+function primeiraView(){ if(chkLeitor()) return 'consulta'; if(ehAdmin()) return 'ceo'; var p=gestoresPermitidos(); return (p&&p.length)?p[0]:'ceo'; }
 /* ── Justificativa de N/A — chave: gestorId|mes|kpiId ────────── */
 var NA_MOTIVOS = {};
 function naKey(gid,mes,kpiId){ return gid+'|'+mes+'|'+kpiId; }
@@ -2152,6 +2154,7 @@ function placeholder(tag,titulo,txt){ return '<div style="border:1px dashed var(
 
 /* ── Painéis ── */
 function renderPainel(view){
+  if(chkLeitor()) return painelConsulta();   /* perfil somente consulta: só a tela de consulta */
   var perm=gestoresPermitidos(); var adm=ehAdmin();
   if(!adm && (!perm || perm.length===0)){ el('painel').innerHTML='<div class="card"><div class="ct">Sem acesso</div><p style="color:var(--mu)">Seu usuário não está vinculado a nenhum painel do Checkpoint. Fale com o administrador.</p></div>'; return; }
   if(view==='org') return painelOrg();
@@ -6228,6 +6231,7 @@ function qsPendentesDe(aba){ return qsFila().filter(function(i){ return aba==='t
 
 /* ── POSTs crus ── */
 function qsPostCkp(aba,dado){
+  if(chkLeitor()) return chkLeitorBloqueio();
   return fetch(qsUrl(),{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({ token:CKP_SYNC_TOKEN, aba:aba, dado:dado }) })
     .then(function(r){ return r.json(); })
     .then(function(resp){
@@ -6237,6 +6241,7 @@ function qsPostCkp(aba,dado){
     .catch(function(){ return { ok:false, rede:true, erro:'Sem conexão com a base de dados' }; });
 }
 function qsPostTarefa(t){
+  if(chkLeitor()) return chkLeitorBloqueio();
   return fetch(qsUrl(),{ method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({ action:'save', payload:t }) })
     .then(function(r){ return r.json(); })
     .then(function(resp){
@@ -6546,6 +6551,11 @@ function shellGrupoToggle(id){
   var on=!g.classList.contains('on'); g.classList.toggle('on',on); SHELL_GRUPOS_ABERTOS[id]=on;
 }
 function shellRenderNav(){
+  if(chkLeitor()){
+    el('nav').innerHTML='<div class="sb-lbl">Consulta</div>'+shellIt('consulta','🍣','Sushi Trip');
+    Array.prototype.forEach.call(el('nav').querySelectorAll('[data-view]'),function(x){ x.addEventListener('click',function(){ irPara('consulta',true); shellMenu(false); }); });
+    shellUsuario(); return;
+  }
   var perm=gestoresPermitidos(), adm=ehAdmin();
   function podeP(p){ return perm===null || perm.indexOf(p.id)>=0; }
   var h='';
@@ -6607,9 +6617,10 @@ function shellAtualizarSino(){
   ['hd-bell-n','hd-bell-n2'].forEach(function(id){ var b=el(id); if(b){ b.textContent=n>99?'99+':n; b.style.display=n?'':'none'; } });
   var s=el('sb-n-comp'); if(s){ s.textContent=n; s.style.display=n?'':'none'; }
 }
-function shellSino(){ cenIr(reuPodeEditar()?'atrasados':'meus'); }
+function shellSino(){ if(chkLeitor()) return; cenIr(reuPodeEditar()?'atrasados':'meus'); }
 /* busca global: pessoa → abre o painel; senão procura nas reuniões e compromissos */
 function shellBuscar(q){
+  if(chkLeitor()) return;
   q=String(q==null?((el('hd-q')||{}).value||''):q).trim();
   if(!q) return;
   var nq=reuNorm(q);
@@ -6641,6 +6652,7 @@ function shellData(){
 
 /* link vindo do Telegram: #ver=compromissos | #reu=REU-2026-0001 (sobrevive ao login) */
 function shellLinkPendente(){
+  if(chkLeitor()){ try{ localStorage.removeItem('chk_link_pendente'); if(location.hash) history.replaceState(null,'',location.pathname+location.search); }catch(e){} return; }
   var h='';
   try{ h=location.hash||localStorage.getItem('chk_link_pendente')||''; localStorage.removeItem('chk_link_pendente'); }catch(e){ h=location.hash||''; }
   if(location.hash){ try{ history.replaceState(null,'',location.pathname+location.search); }catch(e){} }
@@ -8007,6 +8019,48 @@ function uniEnviarAdilson(){
   },'image/png');
 }
 
+/* ══════════════════════════════════════════════════════════════
+   PERFIL SOMENTE CONSULTA — vê só as empresas da lista, não edita nada
+   Para liberar outra pessoa: acrescente o e-mail de login (minúsculo) aqui
+   e marque o X dela na aba USRR.
+   ══════════════════════════════════════════════════════════════ */
+var CHK_LEITORES = {
+  'barbara.drumond@qfoodgroup.com.br': { emps:['emp_sushitrip'] }
+};
+function chkLeitor(){
+  if(window.__DEVMODE||window.__NOSESS) return null;
+  var e=((window.CURRENT_USER||{}).email||'').toLowerCase().trim();
+  return (typeof CHK_LEITORES!=='undefined'&&CHK_LEITORES||{})[e]||null;
+}
+var CONS_REF = {};
+function painelConsulta(){
+  var L=chkLeitor(); if(!L) return;
+  var emps=L.emps.map(vndEmp).filter(Boolean);
+  el('painel').innerHTML=
+    '<div class="card cons-topo"><div class="sec" style="margin:0">👀 Somente consulta</div>'+
+    '<div style="font-size:.84rem;color:var(--mu);margin-top:6px">Você acompanha os números de '+emps.map(function(e){ return '<b>'+esc(e.nome)+'</b>'; }).join(', ')+'. Nada pode ser alterado por este acesso.</div></div>'+
+    emps.map(function(emp){
+      return '<div class="card vnd" id="vnd-'+emp.id+'">'+
+        '<div class="rpu-top"><div class="sec" style="margin:0">📊 '+emp.emoji+' '+esc(emp.nome)+'</div><div class="rpu-btns">'+
+          (emp.canais?'<button class="btn-save vnd-b2" onclick="vndCanaisJanela(\''+emp.id+'\')">📈 Canais e indicadores</button><button class="btn-save vnd-b2" onclick="vndPanorama(\''+emp.id+'\')">📅 Panorama de vendas</button>':'')+
+        '</div></div>'+
+        '<div class="rep-head"><label>Dia</label><input type="date" id="cons-ref-'+emp.id+'" value="'+(CONS_REF[emp.id]||'')+'" max="'+hoje()+'" onchange="CONS_REF[\''+emp.id+'\']=this.value;consPintar(\''+emp.id+'\')"><span style="font-size:.76rem;color:var(--mu2)">troque a data para ver outro dia</span></div>'+
+        '<div id="cons-res-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div>'+
+        '<details class="vnd-det rpu-mais"><summary>📊 Ver painel completo do mês (semáforo, projeção, dia a dia)</summary><div id="vnd-corpo-'+emp.id+'"><div style="color:var(--mu);font-size:.84rem;padding:8px 0">⏳ lendo a base de dados...</div></div></details>'+
+      '</div>';
+    }).join('');
+  vndCarregarTudo(false).then(function(){ emps.forEach(function(emp){ consPintar(emp.id); vndPintar(emp.id); }); });
+}
+function consPintar(empId){
+  var emp=vndEmp(empId), box=el('cons-res-'+empId); if(!emp||!box) return;
+  var inp=el('cons-ref-'+empId), ref=(inp&&inp.value)||vndRefEmp(emp,ontem());
+  if(inp&&!inp.value) inp.value=ref;
+  var c=vndCalcOficial(emp,vndRefEmp(emp,ref));
+  box.innerHTML='<div class="vnd-adm cons-um">'+vndAdmCard(c).replace(/<button class="vnd-ac-b"[^>]*>[^<]*<\/button>/,'')+'</div>';
+}
+/* trava de segurança: este acesso nunca grava na base de dados */
+function chkLeitorBloqueio(){ return Promise.resolve({ ok:false, recusado:true, erro:'acesso somente consulta — nada foi gravado' }); }
+
 try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pendente', location.hash); }catch(e){}
 (function init(){
   if(window.__NOSESS && !window.__DEVMODE){
@@ -8017,12 +8071,13 @@ try{ if(/#(ver|reu|g)=/.test(location.hash)) localStorage.setItem('chk_link_pend
     telaBloqueio('Sem permissão neste painel','Seu usuário está autenticado, mas não está vinculado a nenhum gestor do Checkpoint. Fale com o Rodrigo para liberar o acesso.',true);
     return;
   }
+  if(chkLeitor()) document.body.classList.add('ckp-leitor');
   shellData(); renderOrg(); renderNav(); irPara(primeiraView(),false); shellLinkPendente();
   avisoDevMode();
   qsIniciar();
   metasCarregarDaBase();
   ckpSincronizarDaBase();
-  reuCarregar().then(shellAtualizarSino);
+  if(!chkLeitor()) reuCarregar().then(shellAtualizarSino);
   /* página disponível sem internet (sw.js na mesma pasta do site) */
   if('serviceWorker' in navigator && location.protocol==='https:'){ navigator.serviceWorker.register('sw.js').catch(function(e){ console.warn('[offline] sw.js não registrado', e); }); }
 })();
