@@ -1980,7 +1980,17 @@ body.is-aprovador .so-aprov-btn{display:flex !important}
           <option value="90">at&#233; 90 dias</option>
         </select>
         <button onclick="venthCarregar(true)" style="background:var(--sf);border:1px solid var(--br);color:var(--tx);border-radius:8px;padding:7px 13px;font-size:.76rem;font-weight:600;cursor:pointer">&#8635; Atualizar</button>
+        <label style="display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--tx);cursor:pointer">
+          <input type="checkbox" id="venth-f-soficha" onchange="venthRenderizar()" style="cursor:pointer">
+          S&#243; abaixo de
+        </label>
+        <select id="venth-f-pct" onchange="venthRenderizar()" style="background:var(--s2);border:1px solid var(--br);border-radius:7px;padding:5px 9px;color:var(--tx);font-size:.74rem">
+          <option value="25">25% da ficha</option>
+          <option value="50" selected>50% da ficha</option>
+          <option value="75">75% da ficha</option>
+        </select>
         <button onclick="venthExportar()" style="background:rgba(54,207,160,.12);border:1px solid rgba(54,207,160,.4);color:#36cfa0;border-radius:8px;padding:7px 13px;font-size:.76rem;font-weight:600;cursor:pointer">&#11015; Excel</button>
+        <button onclick="venthRelatorioIndustria()" style="background:rgba(255,77,79,.14);border:1px solid rgba(255,77,79,.4);color:#ff9b9d;border-radius:8px;padding:7px 13px;font-size:.76rem;font-weight:600;cursor:pointer">&#128196; Relat&#243;rio para a ind&#250;stria</button>
         <span style="font-size:.7rem;color:var(--mu);margin-left:auto">
           <b style="color:#ff4d4f;font-size:1rem;vertical-align:-1px">&#9679;</b> &#8804;30d &nbsp;
           <b style="color:#ffaa2b;font-size:1rem;vertical-align:-1px">&#9679;</b> &#8804;60d &nbsp;
@@ -8642,11 +8652,16 @@ function venthCorte() {
 function venthFiltrados() {
   var q = String((document.getElementById('venth-f-busca') || {}).value || '').trim().toLowerCase();
   var soCurtos = !!(document.getElementById('venth-f-curtos') || {}).checked;
+  var soFicha  = !!(document.getElementById('venth-f-soficha') || {}).checked;
   var corte = venthCorte();
+  var cortePct = venthCortePct();
 
   return VENTH.itens.filter(function (e) {
     if (soCurtos) {
       if (e.dias_na_entrega == null || e.dias_na_entrega > corte) return false;
+    }
+    if (soFicha) {
+      if (e.pct_vida_util == null || e.pct_vida_util >= cortePct) return false;
     }
     if (q) {
       var alvo = (e.descricao + ' ' + e.codigo + ' ' + e.fornecedor + ' ' + e.conferido_por).toLowerCase();
@@ -8683,6 +8698,11 @@ function venthKPIs(lista) {
 
   var media = comDias ? Math.round(soma / comDias) : null;
 
+  var comPct = lista.filter(function (e) { return e.pct_vida_util != null; });
+  var mediaPct = comPct.length
+    ? Math.round(comPct.reduce(function (s, e) { return s + e.pct_vida_util; }, 0) / comPct.length)
+    : null;
+
   var kpi = function (n, rot, cor) {
     return '<div style="background:var(--s2);border:1px solid ' + (cor || 'var(--br)') +
       ';border-radius:10px;padding:10px 14px;min-width:108px">' +
@@ -8696,6 +8716,7 @@ function venthKPIs(lista) {
     kpi(Object.keys(prods).length, 'produtos') +
     kpi(venthNum(qtdeTotal), 'quantidade total') +
     kpi(media == null ? '—' : media + 'd', 'prazo médio na entrega') +
+    (mediaPct == null ? '' : kpi(mediaPct + '%', 'da vida útil de ficha', venthPctCor(mediaPct))) +
     kpi(menor == null ? '—' : menor + 'd', 'pior prazo recebido', venthCorDias(menor)) +
     (curtos ? kpi(curtos, 'chegaram com ≤' + corte + 'd', '#ffaa2b') : '');
 }
@@ -8757,12 +8778,157 @@ function venthRenderizar() {
             (e.dias_na_entrega == null ? '—' : e.dias_na_entrega + ' dias') +
           '</div>' +
           '<div style="font-size:.62rem;color:var(--mu);text-transform:uppercase;letter-spacing:.3px;font-weight:600">na entrega</div>' +
+          (e.pct_vida_util == null ? '' :
+            '<div style="margin-top:3px;font-size:.68rem;font-weight:700;color:' + venthPctCor(e.pct_vida_util) + '">' +
+            e.pct_vida_util + '% da ficha</div>' +
+            '<div style="font-size:.6rem;color:var(--mu)">ficha: ' + venthEsc(e.ficha_texto) + '</div>') +
         '</div>' +
 
       '</div></div>';
   });
 
   box.innerHTML = html;
+}
+
+
+/* ── Cruzamento com a ficha do produto ─────────────────────────
+   "dias na entrega" sozinho não fecha o argumento: 60 dias é pouco
+   num produto de 12 meses e é muito num de 90 dias. O que fecha é o
+   percentual da vida útil que chegou aqui. */
+
+function venthPctCor(p) {
+  if (p == null) return 'var(--mu)';
+  if (p <= 33) return '#ff4d4f';
+  if (p <= 50) return '#ffaa2b';
+  return '#36cfa0';
+}
+
+function venthCortePct() {
+  return Number((document.getElementById('venth-f-pct') || {}).value || 50);
+}
+
+/** Relatório formal para mandar à indústria. */
+function venthRelatorioIndustria() {
+  var lista = venthFiltrados();
+  if (!lista.length) { alert('Nada para listar com o filtro atual.'); return; }
+
+  var forn = (document.getElementById('venth-f-forn') || {}).value || '';
+  if (!forn) {
+    if (!confirm('Nenhuma indústria selecionada — o relatório vai sair com todas misturadas.\n\n' +
+                 'Continuar assim mesmo?')) return;
+  }
+
+  var w = window.open('', '_blank');
+  if (!w) { alert('O navegador bloqueou a janela. Libere o pop-up e tente de novo.'); return; }
+
+  // Resumo
+  var comPct = lista.filter(function (e) { return e.pct_vida_util != null; });
+  var comDias = lista.filter(function (e) { return e.dias_na_entrega != null; });
+  var mediaPct = comPct.length
+    ? Math.round(comPct.reduce(function (s, e) { return s + e.pct_vida_util; }, 0) / comPct.length) : null;
+  var mediaDias = comDias.length
+    ? Math.round(comDias.reduce(function (s, e) { return s + e.dias_na_entrega; }, 0) / comDias.length) : null;
+  var corte = venthCortePct();
+  var abaixo = comPct.filter(function (e) { return e.pct_vida_util < corte; });
+  var pior = comPct.length
+    ? comPct.reduce(function (a, b) { return a.pct_vida_util <= b.pct_vida_util ? a : b; }) : null;
+  var qtdeTotal = lista.reduce(function (s, e) { return s + (Number(e.qtde) || 0); }, 0);
+  var prods = {};
+  lista.forEach(function (e) { prods[e.codigo || e.descricao] = 1; });
+
+  var datas = lista.map(function (e) { return e.data_conf; }).filter(Boolean).sort();
+  var periodo = datas.length
+    ? (datas[0].substring(8, 10) + '/' + datas[0].substring(5, 7) + '/' + datas[0].substring(0, 4) +
+       ' a ' + datas[datas.length - 1].substring(8, 10) + '/' + datas[datas.length - 1].substring(5, 7) +
+       '/' + datas[datas.length - 1].substring(0, 4))
+    : '—';
+
+  var esc = venthEsc;
+  var h = '<html><head><meta charset="utf-8"><title>Recebimentos — ' + esc(forn || 'todas') + '</title>' +
+    '<style>' +
+    'body{font-family:Arial,Helvetica,sans-serif;padding:26px;max-width:1000px;margin:0 auto;color:#000;font-size:12px}' +
+    'h1{font-size:17px;margin:0 0 3px}h2{font-size:13px;margin:22px 0 7px;border-bottom:1.5px solid #333;padding-bottom:3px}' +
+    '.cab{font-size:11px;color:#444;margin-bottom:18px;line-height:1.6}' +
+    '.res{display:flex;flex-wrap:wrap;gap:0;border:1px solid #333;margin-bottom:6px}' +
+    '.res div{flex:1;min-width:120px;padding:9px 12px;border-right:1px solid #ccc}' +
+    '.res div:last-child{border-right:none}' +
+    '.res b{display:block;font-size:17px;line-height:1.2}' +
+    '.res span{font-size:9.5px;color:#555;text-transform:uppercase;letter-spacing:.3px}' +
+    'table{width:100%;border-collapse:collapse;font-size:10.5px}' +
+    'th,td{border:1px solid #444;padding:4px 6px;text-align:left}' +
+    'th{background:#eee;font-weight:bold;font-size:10px}' +
+    '.r{text-align:right}.c{text-align:center}' +
+    '.ruim{color:#b00020;font-weight:bold}.med{color:#b35c00;font-weight:bold}' +
+    '.rod{margin-top:20px;font-size:9.5px;color:#444;line-height:1.7;border-top:1px solid #999;padding-top:10px}' +
+    '@media print{body{padding:0}}' +
+    '</style></head><body>' +
+
+    '<h1>Relatório de Recebimentos — Prazo de Validade na Entrega</h1>' +
+    '<div class="cab">' +
+      '<b>Indústria:</b> ' + esc(forn || 'Todas as indústrias') + '<br>' +
+      '<b>Período analisado:</b> ' + periodo + '<br>' +
+      '<b>Registros:</b> ' + lista.length + ' entrega(s) conferida(s) · ' +
+        Object.keys(prods).length + ' produto(s) · ' + venthNum(qtdeTotal) + ' unidades<br>' +
+      '<b>Emitido em:</b> ' + new Date().toLocaleString('pt-BR') + ' — Q Food Company' +
+    '</div>';
+
+  h += '<h2>Resumo</h2><div class="res">' +
+    '<div><b>' + (mediaDias == null ? '—' : mediaDias + ' dias') + '</b><span>prazo médio na entrega</span></div>' +
+    (mediaPct == null ? '' : '<div><b>' + mediaPct + '%</b><span>da vida útil de ficha</span></div>') +
+    '<div><b>' + abaixo.length + '</b><span>entregas abaixo de ' + corte + '% da ficha</span></div>' +
+    (pior ? '<div><b>' + pior.pct_vida_util + '%</b><span>pior caso registrado</span></div>' : '') +
+    '</div>';
+
+  if (pior) {
+    h += '<div style="font-size:11px;margin-bottom:4px">Pior caso: <b>' + esc(pior.descricao) +
+         '</b> (' + esc(pior.codigo) + '), recebido em ' + esc(pior.data_conf_br) +
+         ' com <b>' + pior.dias_na_entrega + ' dias</b> de validade, contra <b>' +
+         pior.ficha_dias + ' dias</b> previstos em ficha.</div>';
+  }
+
+  h += '<h2>Detalhamento das entregas</h2>' +
+    '<table><thead><tr>' +
+      '<th style="width:9%">RECEBIDO</th>' +
+      '<th style="width:8%">CÓDIGO</th>' +
+      '<th style="width:28%">PRODUTO</th>' +
+      '<th class="r" style="width:8%">QTDE</th>' +
+      '<th class="c" style="width:9%">VALIDADE</th>' +
+      '<th class="c" style="width:9%">DIAS NA ENTREGA</th>' +
+      '<th class="c" style="width:9%">FICHA</th>' +
+      '<th class="c" style="width:8%">% DA FICHA</th>' +
+      '<th style="width:12%">CONFERENTE</th>' +
+    '</tr></thead><tbody>';
+
+  lista.forEach(function (e) {
+    var cls = e.pct_vida_util == null ? '' : (e.pct_vida_util <= 33 ? 'ruim' : (e.pct_vida_util <= 50 ? 'med' : ''));
+    h += '<tr>' +
+      '<td>' + esc(e.data_conf_br) + '</td>' +
+      '<td>' + esc(e.codigo) + '</td>' +
+      '<td>' + esc(e.descricao) + '</td>' +
+      '<td class="r">' + venthNum(e.qtde) + ' ' + esc(e.unidade || '') + '</td>' +
+      '<td class="c">' + esc(e.validade_br || '—') + '</td>' +
+      '<td class="c ' + cls + '">' + (e.dias_na_entrega == null ? '—' : e.dias_na_entrega) + '</td>' +
+      '<td class="c">' + (e.ficha_dias == null ? '—' : e.ficha_dias + 'd') + '</td>' +
+      '<td class="c ' + cls + '">' + (e.pct_vida_util == null ? '—' : e.pct_vida_util + '%') + '</td>' +
+      '<td>' + esc(e.conferido_por || '—') + '</td>' +
+    '</tr>';
+  });
+
+  h += '</tbody></table>' +
+    '<div class="rod">' +
+      '<b>Como os números foram apurados.</b><br>' +
+      '<b>Dias na entrega</b> = data de validade do produto menos a data da conferência de entrada. ' +
+      'É o prazo que a mercadoria efetivamente tinha no momento em que foi recebida e conferida nas ' +
+      'dependências da Q Food Company, registrado por conferência nominal no ato do recebimento.<br>' +
+      '<b>Ficha</b> = prazo de validade total do produto, conforme cadastro de referência. ' +
+      '<b>% da ficha</b> = dias na entrega dividido pelo prazo de ficha.<br>' +
+      'Itens sem percentual são produtos ainda sem prazo de referência cadastrado. ' +
+      'Documento gerado automaticamente a partir dos registros de conferência de entrada.' +
+    '</div></body></html>';
+
+  w.document.write(h);
+  w.document.close();
+  setTimeout(function () { w.print(); }, 500);
 }
 
 /** Baixa o que está filtrado em CSV — é o anexo para cobrar a indústria. */
@@ -8773,14 +8939,14 @@ function venthExportar() {
   var asp = function (v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; };
   var linhas = [[
     'Industria', 'Recebido em', 'Codigo', 'Produto', 'Qtde', 'Unidade',
-    'Validade', 'Dias na entrega', 'Dias ate vencer hoje',
+    'Validade', 'Dias na entrega', 'Ficha (dias)', '% da ficha', 'Dias ate vencer hoje',
     'Conferido por', 'Status', 'Acao tomada', 'Observacoes'
   ].map(asp).join(';')];
 
   lista.forEach(function (e) {
     linhas.push([
       e.fornecedor, e.data_conf_br, e.codigo, e.descricao, e.qtde, e.unidade,
-      e.validade_br, e.dias_na_entrega, e.dias_hoje,
+      e.validade_br, e.dias_na_entrega, e.ficha_dias, e.pct_vida_util, e.dias_hoje,
       e.conferido_por, e.status_alerta, e.acao_tomada, e.observacoes
     ].map(asp).join(';'));
   });
